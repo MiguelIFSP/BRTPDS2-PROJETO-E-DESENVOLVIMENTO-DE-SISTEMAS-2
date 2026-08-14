@@ -21,7 +21,8 @@
 
 **Logo Principal:**
 
-![BetterMeet Logo](./prints_mockup/logo_bettermeet.png)
+<img width="1024" height="558" alt="WhatsApp Image 2026-08-07 at 19 59 39" src="https://github.com/user-attachments/assets/32dc409c-1ebc-4b41-a85e-98390aae9fd9" />
+
 
 **Especificações:**
 - Altura mínima: 40px (mobile), 60px (desktop)
