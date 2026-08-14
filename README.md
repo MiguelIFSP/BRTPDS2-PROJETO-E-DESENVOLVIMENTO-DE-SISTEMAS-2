@@ -37,10 +37,13 @@ O sistema foi arquitetado para garantir facilidade de uso na ponta do cliente e 
 A documentação inicial de requisitos e decisões arquiteturais pode ser encontrada na pasta `/documentos/entrega1_AP/`. 
 Consulte os arquivos abaixo para o detalhamento da proposta, também disponíveis na guia Wiki:
 
-*   [Introdução, Motivação e Contexto](./documentos/entrega1_AP/introducao_e_motivacao.md)
-*   [Arquitetura e Tecnologias](./documentos/entrega1_AP/arquitetura_tecnologias.md)
-*   [Plano de Testes](./documentos/entrega1_AP/plano_de_testes.md)
-*   *Análise de Mercado e Concorrentes (Arquivo submetido via Moodle conforme edital).*
+*   [Introdução, Motivação e Contexto](./entrega1_AP/introducao_e_motivacao.md)
+*   [Arquitetura e Tecnologias](./entrega1_AP/arquitetura_tecnologias.md)
+*   [Plano de Testes](./entrega1_AP/plano_de_testes.md)
+*   [Análise de Mercado e Concorrentes](./entrega1_AP/Análise de Mercado e Concorrentes.docx)
+*   [Design do sistema](./entrega1_AP/design_system.md)
+*   [Padrões de Intergace e Nomenclaturas](./entrega1_AP/padroes_interface_e_nomenclatura.md)
+*   [Padrão de interface (detalhado)](./entrega1_AP/interface_patterns.md)
 
 # <img width="1024" height="558" alt="image" src="https://github.com/user-attachments/assets/0cfa443e-b25e-4a82-802e-493157400a19" />
 
