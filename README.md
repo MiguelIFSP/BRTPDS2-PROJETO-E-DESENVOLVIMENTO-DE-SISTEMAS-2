@@ -40,7 +40,7 @@ Consulte os arquivos abaixo para o detalhamento da proposta, também disponívei
 *   [Introdução, Motivação e Contexto](./entrega1_AP/introducao_e_motivacao.md)
 *   [Arquitetura e Tecnologias](./entrega1_AP/arquitetura_tecnologias.md)
 *   [Plano de Testes](./entrega1_AP/plano_de_testes.md)
-*   [Análise de Mercado e Concorrentes](./entrega1_AP/Análise de Mercado e Concorrentes.docx)
+*   [Análise de Mercado e Concorrentes](./entrega1_AP/analise-de-mercado.docx)
 *   [Design do sistema](./entrega1_AP/design_system.md)
 *   [Padrões de Intergace e Nomenclaturas](./entrega1_AP/padroes_interface_e_nomenclatura.md)
 *   [Padrão de interface (detalhado)](./entrega1_AP/interface_patterns.md)
