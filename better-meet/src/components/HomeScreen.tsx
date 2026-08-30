@@ -1,36 +1,38 @@
 import react from "react";
-import { View, Text, StatusBar, StyleSheet } from "react-native";
+import { View, Text, StatusBar, StyleSheet, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Header from "./Header";
+import { Colors } from "@/constants/theme";
 
 const HOME_BG = '#FFFFFF'; // Fundo branco da página inicial
 const TEXT_DARK = '#1A1A1A'; // Texto preto suave
 const TEXT_MUTED = '#666666'; // Texto cinza suave
 
 export default function HomeScreen() {
-    return (
-        <SafeAreaView style={styles.safeArea}>
-            <StatusBar barStyle="dark-content" backgroundColor={"#F0FAF9"} />
-            <Header />
+  const systemTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const themeColors = Colors[systemTheme];
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background } ]}>
+        <StatusBar barStyle="dark-content" backgroundColor={themeColors.background} />
+        <Header />
 
-            <View style={styles.contentContainer}>
-                <Text style={styles.greetingText}>
-                    Olá, usuário 👋
-                </Text>
+        <View style={styles.contentContainer}>
+            <Text style={styles.greetingText}>
+                Olá, usuário 👋
+            </Text>
 
-                <Text style={styles.mainTitleText}>
-                    Suas próximas reuniões
-                </Text>
-            </View>
-        </SafeAreaView>
-    );
+            <Text style={[styles.mainTitleText, { color: themeColors.text }]}>
+                Suas próximas reuniões
+            </Text>
+        </View>
+    </SafeAreaView>
+  );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1, // Ocupa toda a tela
-    backgroundColor: HOME_BG, // Fundo branco padrão
   },
   contentContainer: {
     flex: 1,
