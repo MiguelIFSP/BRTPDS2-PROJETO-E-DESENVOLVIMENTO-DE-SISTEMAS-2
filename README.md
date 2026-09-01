@@ -77,6 +77,70 @@ A pasta [`src/`](src/) contém o código-fonte do aplicativo mobile, desenvolvid
 
 Os incrementos devem ser cumulativos: novas versões precisam preservar as funcionalidades e os dados armazenados nas etapas anteriores. O usuário não deve precisar refazer toda a configuração a cada atualização.
 
+## Estrutura da aplicação e instruções Docker
+
+- **Aplicação (front-end mobile):** `better-meet/` — código do app React Native, assets e configurações do projeto.
+- **API e backend:** `api/` — código da API Node/TypeScript e integrações com o banco.
+- **Prisma (ORM):** `api/prisma/` — contém o arquivo de schema em `api/prisma/schema.prisma` e configurações do Prisma Client.
+
+Instruções rápidas para rodar o banco de dados com Docker Compose (serviço já disponível no compose do front-end):
+
+- A compose file relevante está em `better-meet/docker-compose.yml` e define o serviço `db_better_meet` (MySQL).
+- Para subir o container do banco (em background), inicie o Docker na sua máquina (abra o Docker Desktop), então a partir da raiz do repositório execute:
+
+```bash
+docker compose -f better-meet/docker-compose.yml up -d
+# ou, se preferir a versão legada do comando:
+docker-compose -f better-meet/docker-compose.yml up -d
+```
+
+- Para subir apenas o serviço do banco (por nome) use:
+
+```bash
+docker compose -f better-meet/docker-compose.yml up -d db_better_meet
+```
+
+- Para parar e remover os containers levantados pelo compose:
+
+```bash
+docker compose -f better-meet/docker-compose.yml down
+```
+
+Notas úteis:
+- Se estiver em Mac com chip Apple Silicon e ocorrer erro de arquitetura, descomente a linha `platform: linux/amd64` em `better-meet/docker-compose.yml`.
+- As credenciais e nome do banco estão definidas no compose (ex.: `MYSQL_DATABASE: bettermeet`). Ajuste conforme necessário.
+
+Prisma (após o banco estar rodando):
+
+```bash
+cd api
+# instalar dependências (se necessário)
+npm install
+# gerar Prisma Client
+npx prisma generate
+# rodar migrações de desenvolvimento (opcional)
+npx prisma migrate dev --name init
+```
+
+Scripts úteis na raiz:
+
+- `start-db.sh` — script POSIX para subir/baixar o serviço do banco usando `better-meet/docker-compose.yml`.
+- `start-db.ps1` — script PowerShell equivalente para Windows.
+
+Uso (POSIX):
+
+```bash
+./start-db.sh up
+./start-db.sh down
+```
+
+Uso (Windows PowerShell):
+
+```powershell
+.\start-db.ps1 up
+.\start-db.ps1 down
+```
+
 ## Desenvolvimento
 
 Antes de implementar uma nova funcionalidade:
