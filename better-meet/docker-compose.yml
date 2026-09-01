@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  db_better_meet:
+    image: mysql:8.4.0
+    container_name: mysql_better_meet_dev
+    restart: unless-stopped
+    # Se alguém no grupo usar Mac M1/M2/M3 e der erro de arquitetura, descomente a linha abaixo:
+    # platform: linux/amd64
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: bettermeet
+      MYSQL_USER: user_node
+      MYSQL_PASSWORD: node_password
+    ports:
+      - "3306:3306"
+    volumes:
+      - db_better_meet_data:/var/lib/mysql
+
+volumes:
+  db_better_meet_data:

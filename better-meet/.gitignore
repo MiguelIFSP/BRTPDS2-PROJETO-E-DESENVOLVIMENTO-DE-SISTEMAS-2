@@ -31,6 +31,10 @@ yarn-error.*
 *.pem
 
 # local env files
+# Credenciais e Variáveis de Ambiente
+.env
+.env.local
+.env.*
 .env*.local
 
 # typescript
