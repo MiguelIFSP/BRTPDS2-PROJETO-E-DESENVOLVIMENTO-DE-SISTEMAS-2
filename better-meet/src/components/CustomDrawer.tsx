@@ -4,8 +4,10 @@ import { DrawerContentScrollView } from 'expo-router/drawer';
 import { Colors } from '../constants/theme';
 import { Icon } from 'expo-router';
 import IconAndTitle from './IconAndTitle';
+import { useRouter } from 'expo-router';  
 
 export default function CustomDrawer(props: any) {
+  const router = useRouter();
   // O hook sempre terá a verdade sobre o tema atual do app
   const currentTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const themeColors = Colors[currentTheme];
@@ -30,7 +32,12 @@ export default function CustomDrawer(props: any) {
       </View>
 
       {/* ... (Todo o bloco de Links de Navegação continua igual) ... */}
-      
+      <TouchableOpacity 
+        style={styles.menuItem} 
+        onPress={() => router.push('/status')}
+      >
+        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Status do Sistema</Text>
+      </TouchableOpacity>
       {/* Substitua apenas o bloco do toggle e do footer por este: */}
       <View style={[styles.footer, { borderTopColor: themeColors.textSecondary + '40' }]}>
         <View style={[styles.themeToggleContainer, { borderColor: themeColors.textSecondary + '40' }]}>
