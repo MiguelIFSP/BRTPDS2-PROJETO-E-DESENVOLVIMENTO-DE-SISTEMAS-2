@@ -1,4 +1,4 @@
-// /prisma/schema.prisma
+// /prisma/schema.prisma        quem mexeu por último: gu
 
 generator client {
   provider = "prisma-client-js"
@@ -6,12 +6,54 @@ generator client {
 
 datasource db {
   provider = "mysql"
+
 }
 
 model User {
-  id        Int       @id @default(autoincrement())
+  id        Int      @id @default(autoincrement())
   name      String
-  email     String    @unique
+  email     String   @unique
   password  String
-  createdAt DateTime  @default(now())
+  createdAt DateTime @default(now())
+
+  // um usuário pode participar de várias comissões
+  comissoes ComissaoEquipe[]
+}
+
+
+model Organizacao {
+  id        Int        @id @default(autoincrement())
+  nome      String
+  
+  //uma organização possui várias comissões
+  comissoes Comissao[]
+}
+
+
+
+model Comissao {
+  id            Int      @id @default(autoincrement())
+  nome          String
+  descricao     String?  // deixei aq mas nao sei se voui manter
+  createdAt     DateTime @default(now())
+
+  // relacionamento com a organização (toda comissão pertence a uma organização)
+  organizacaoId Int
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  // relacionamento com a tabela intermediária de equipe
+  equipe        ComissaoEquipe[]
+}
+
+model ComissaoEquipe {
+  comissaoId Int
+  userId     Int
+  papel      String   @default("MEMBRO") 
+
+  // configuração das chaves estrangeiras
+  comissao   Comissao @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // chave primária composta: garante que o mesmo usuário não seja inserido duas vezes na mesma comissão
+  @@id([comissaoId, userId])
 }
