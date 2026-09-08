@@ -76,6 +76,37 @@ const getStatusColor = (status: StatusType) => {
   }
 };
 
+const StatusLayer = ({ title, data, themeColors }: { title: string, data: DayStatus[], themeColors: any }) => {
+  const [selectedDay, setSelectedDay] = useState<DayStatus | null>(null);
+
+  return (
+    <View style={[styles.layerContainer, { backgroundColor: themeColors.backgroundElement }]}>
+      <Text style={[styles.layerTitle, { color: themeColors.text }]}>{title}</Text>
+      
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barsContainer}>
+        {data.map((day) => (
+          <TouchableOpacity
+            key={day.id}
+            onPress={() => setSelectedDay(day)}
+            style={[
+              styles.bar,
+              { backgroundColor: getStatusColor(day.status) }, 
+              selectedDay?.id === day.id && styles.barSelected 
+            ]}
+          />
+        ))}
+      </ScrollView>
+
+      {selectedDay && (
+        <View style={[styles.tooltipContainer, { borderColor: themeColors.textSecondary }]}>
+          <Text style={[styles.tooltipDate, { color: themeColors.text }]}>{selectedDay.date}</Text>
+          <Text style={[styles.tooltipMessage, { color: themeColors.textSecondary }]}>{selectedDay.message}</Text>
+        </View>
+      )}
+    </View>
+  );
+};
+
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1, padding: 20 },
@@ -84,7 +115,7 @@ const styles = StyleSheet.create({
   layerContainer: { padding: 16, borderRadius: 12, marginBottom: 20 },
   layerTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
   barsContainer: { flexDirection: 'row', gap: 4, paddingBottom: 8 },
-  bar: { width: 8, height: 40, borderRadius: 4, opacity: 0.8 },
+  bar: { width: 20, height: 40, borderRadius: 4, opacity: 0.8 },
   barSelected: { opacity: 1, transform: [{ scaleY: 1.2 }] },
   tooltipContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1 },
   tooltipDate: { fontWeight: 'bold', fontSize: 14, marginBottom: 4 },
