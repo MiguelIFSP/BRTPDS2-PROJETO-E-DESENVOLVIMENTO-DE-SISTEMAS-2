@@ -38,6 +38,12 @@ export default function CustomDrawer(props: any) {
       >
         <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Status do Sistema</Text>
       </TouchableOpacity>
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => router.push('/organizacao' as any)}
+      >
+        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Criar organização</Text>
+      </TouchableOpacity>
       {/* Substitua apenas o bloco do toggle e do footer por este: */}
       <View style={[styles.footer, { borderTopColor: themeColors.textSecondary + '40' }]}>
         <View style={[styles.themeToggleContainer, { borderColor: themeColors.textSecondary + '40' }]}>

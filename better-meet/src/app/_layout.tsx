@@ -39,6 +39,7 @@ export default function RootLayout() {
           }}
         >
           <Drawer.Screen name="index" />
+          <Drawer.Screen name="organizacao" options={{ drawerItemStyle: { display: 'none' } }} />
         </Drawer>
       </ThemeProvider>
     </GestureHandlerRootView>

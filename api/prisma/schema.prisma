@@ -24,6 +24,7 @@ model User {
 model Organizacao {
   id        Int        @id @default(autoincrement())
   nome      String
+  status      String  // aceito ou nao aceito pelo admin
   
   //uma organização possui várias comissões
   comissoes Comissao[]
