@@ -6,7 +6,11 @@ generator client {
 
 datasource db {
   provider = "mysql"
+}
 
+enum Role {
+  USER
+  ADMIN
 }
 
 model User {
@@ -14,6 +18,7 @@ model User {
   name      String
   email     String   @unique
   password  String
+  role      Role     @default(USER)
   createdAt DateTime @default(now())
 
   // um usuário pode participar de várias comissões

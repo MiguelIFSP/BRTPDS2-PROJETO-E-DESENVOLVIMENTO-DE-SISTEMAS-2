@@ -1,14 +1,37 @@
 import React from "react";
-import { View, Image, Text, TouchableOpacity, StyleSheet, useColorScheme } from "react-native";
+import { View, Text, TouchableOpacity, StyleSheet, useColorScheme } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { Typography, Colors } from '../constants/theme';
-import { Icon, useNavigation } from 'expo-router';
+import { Colors } from '../constants/theme';
+import { useNavigation, useRouter } from 'expo-router';
+import { useAuthStore } from '../store/authStore';
 import IconAndTitle from "./IconAndTitle";
   
 export default function Header() {
     const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
     const themeColors = Colors[colorScheme];
     const navigation = useNavigation<any>();
+    const router = useRouter();
+    const { user, isAuthenticated } = useAuthStore();
+
+    const initials = user
+      ? user.name
+          .split(' ')
+          .filter(Boolean)
+          .slice(0, 2)
+          .map((part: string) => part[0]?.toUpperCase() ?? '')
+          .join('')
+          .slice(0, 2)
+      : 'A';
+
+    const handleAvatarPress = () => {
+      if (isAuthenticated) {
+        router.push('/perfil');
+        return;
+      }
+
+      router.push('/login');
+    };
+
     return (
         <View style={[
             styles.headerContainer,
@@ -21,13 +44,18 @@ export default function Header() {
             
             <IconAndTitle />
             
-            <View style={[
-              styles.avatarContainer,
-              { backgroundColor: themeColors.backgroundElement },
-              { borderColor: themeColors.backgroundSelected, borderWidth: 1 },
-              ]}>
-                <Text style={[styles.avatarText, {color: themeColors.text} ]}>AL</Text>
-            </View>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={isAuthenticated ? 'Abrir perfil do usuário' : 'Abrir login do usuário'}
+              onPress={handleAvatarPress}
+              style={[
+                styles.avatarContainer,
+                { backgroundColor: themeColors.backgroundElement },
+                { borderColor: themeColors.backgroundSelected, borderWidth: 1 },
+              ]}
+            >
+                <Text style={[styles.avatarText, {color: themeColors.text} ]}>{initials}</Text>
+            </TouchableOpacity>
         </View>
     );
 }

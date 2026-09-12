@@ -1,14 +1,37 @@
 import { Drawer } from 'expo-router/drawer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { DarkTheme, DefaultTheme, ThemeProvider } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useColorScheme } from 'react-native';
 import React, { useEffect } from 'react';
 
 import { Colors } from '../constants/theme';
-import CustomDrawer from '../components/CustomDrawer'; // Importando o menu
+import CustomDrawer from '../components/CustomDrawer';
+import { useAuthStore } from '../store/authStore';
 
 SplashScreen.preventAutoHideAsync();
+
+function AppGate() {
+  const segments = useSegments();
+  const router = useRouter();
+  const { isAuthenticated } = useAuthStore();
+
+  useEffect(() => {
+    const currentRoute = segments[0] ?? 'index';
+    const authRoutes = ['login', 'usuario'];
+
+    if (!isAuthenticated && !authRoutes.includes(currentRoute)) {
+      router.replace('/login');
+      return;
+    }
+
+    if (isAuthenticated && currentRoute === 'login') {
+      router.replace('/');
+    }
+  }, [segments, isAuthenticated, router]);
+
+  return null;
+}
 
 export default function RootLayout() {
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -30,16 +53,19 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider value={colorScheme === 'dark' ? CustomDarkTheme : CustomLightTheme}>
+        <AppGate />
         <Drawer
-          // Dizemos ao Expo para usar o componente visual que acabamos de criar
           drawerContent={(props) => <CustomDrawer {...props} />}
-          screenOptions={{ 
-            headerShown: false, // Esconde o header padrão, pois usamos o nosso
-            drawerType: 'slide', // Estilo de animação igual ao do seu mockup
+          screenOptions={{
+            headerShown: false,
+            drawerType: 'slide',
           }}
         >
           <Drawer.Screen name="index" />
           <Drawer.Screen name="organizacao" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="usuario" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="login" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />
         </Drawer>
       </ThemeProvider>
     </GestureHandlerRootView>
