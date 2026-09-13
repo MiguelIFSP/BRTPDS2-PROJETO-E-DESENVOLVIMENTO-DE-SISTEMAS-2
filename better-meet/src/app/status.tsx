@@ -1,8 +1,12 @@
-import React, { useState } from 'react';
-import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme } from 'react-native';
+ import React, { useCallback, useEffect, useState } from 'react';
+import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import Header from '../components/Header';
-import { Colors } from '../constants/theme';
+import { Colors, Spacing, Typography } from '../constants/theme';
+import { useAuthStore } from '../store/authStore';
+import { getCurrentStatus, getSubSystemHistory, reportMobileError, SubSystemHistoryDay } from '../services/monitoringService';
+import Ionicons from '@expo/vector-icons/build/Ionicons';
 
 type StatusType = 'operational' | 'maintenance' | 'error' | 'down' | 'unknown';
 type DayStatus = {
@@ -12,54 +16,161 @@ type DayStatus = {
     message: string;
 }
 
-const generateMockData = (): DayStatus[] => {
-  return Array.from({ length: 30 }).map((_, i) => {
-    const rand = Math.random();
-    let status: StatusType = 'operational';
-    let message = 'Todos os sistemas operacionais.';
+const HISTORY_DAYS = 30;
 
-    // Distribuição de probabilidade para simular um cenário real
-    if (rand > 0.95) {
-      status = 'down';
-      message = 'Indisponibilidade total. Sistema fora do ar.';
-    } else if (rand > 0.88) {
-      status = 'error';
-      message = 'Instabilidade registrada. Lentidão ou falhas parciais.';
-    } else if (rand > 0.82) {
-      status = 'maintenance';
-      message = 'Janela de manutenção programada.';
-    } else if (rand > 0.80) {
-      status = 'unknown';
-      message = 'Falha na coleta de telemetria. Status desconhecido.';
-    }
+// key = valor de "subSystem" gravado pela API de monitoramento
+const SUB_SYSTEMS = [
+  { key: 'mobile-app', title: '📱 Aplicativo' },
+  { key: 'data-api', title: '🌐 API' },
+  { key: 'database', title: '🗄️ Banco de Dados' },
+] as const;
 
-    return {
-      id: i.toString(),
-      date: `Dia ${i + 1}`, // Se quiser, depois podemos formatar com datas reais (ex: 15 Ago)
-      status,
-      message,
-    };
-  });
+function mapStatus(status: string): StatusType {
+  switch (status) {
+    case 'OPERATIONAL': return 'operational';
+    case 'MAINTENANCE': return 'maintenance';
+    case 'ERROR': return 'error';
+    case 'DOWN': return 'down';
+    default: return 'unknown';
+  }
+}
+
+const STATUS_LABELS: Record<StatusType, string> = {
+  operational: 'Operacional',
+  maintenance: 'Em manutenção',
+  error: 'Instabilidade',
+  down: 'Fora do ar',
+  unknown: 'Status desconhecido',
 };
+
+// Formata a mensagem exibida ao clicar num dia específico.
+function resolveStatusOfTheDay(day: SubSystemHistoryDay): { status: StatusType; message: string } {
+  if (day.uptimePercentage == null) {
+    return {
+      status: 'unknown',
+      message: 'Não houve checagem de status nesse dia 😴',
+    };
+  }
+
+  const funcionamentoText = `${day.uptimePercentage}% do dia em Pleno Funcionamento`;
+
+  if (day.uptimePercentage === 100) {
+    return {
+      status: 'operational',
+      message: `${STATUS_LABELS.operational} — ${funcionamentoText}`,
+    };
+  }
+
+  const worstStatus = mapStatus(day.worstStatus);
+  const lastStatus = mapStatus(day.lastStatus);
+  const finalizouOperacional = lastStatus === 'operational' ? ' (finalizou o dia operacional)' : '';
+
+  return {
+    status: worstStatus,
+    message: `${STATUS_LABELS[worstStatus]}${finalizouOperacional} — ${funcionamentoText}`,
+  };
+}
+
+function toDayStatus(day: SubSystemHistoryDay): DayStatus {
+  const { status, message } = resolveStatusOfTheDay(day);
+
+  return {
+    id: day.date,
+    date: day.date,
+    status,
+    message,
+  };
+}
+
+type Layer = { title: string; data: DayStatus[] };
 
 export default function StatusScreen() {
     const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
     const themeColors = Colors[colorScheme];
+    const router = useRouter();
+    const { token } = useAuthStore();
 
-    const appData = generateMockData();
-    const apiData = generateMockData();
-    const dbData = generateMockData();
+    const [layers, setLayers] = useState<Layer[] | null>(null);
+    const [error, setError] = useState<string | null>(null);
+
+    const loadStatus = useCallback(async () => {
+      if (!token) {
+        setError('Faça login para ver o status do sistema.');
+        return;
+      }
+
+      setError(null);
+
+      try {
+        const current = await getCurrentStatus(token);
+
+        const results = await Promise.all(
+          SUB_SYSTEMS.map(async ({ key, title }): Promise<Layer> => {
+            const subSystem = current.find((item) => item.subSystem === key);
+            if (!subSystem) return { title, data: [] };
+
+            const history = await getSubSystemHistory(subSystem.id, HISTORY_DAYS, token);
+            // API devolve do dia mais antigo pro mais recente — invertido aqui pra mais recente ficar à esquerda
+            const mostRecentFirst = [...history.history].reverse();
+            return { title, data: mostRecentFirst.map(toDayStatus) };
+          })
+        );
+
+        setLayers(results);
+      } catch (err) {
+        const message = err instanceof Error ? err.message : 'Não foi possível carregar o status.';
+        setError(message);
+
+        if (message.includes('Sessão expirada')) {
+          router.replace('/login');
+          return;
+        }
+
+        // Falha ao carregar o próprio painel de monitoramento também é reportada — impede
+        // o usuário de completar a ação essencial da tela (ver o status do sistema).
+        reportMobileError(message, err instanceof Error ? err.stack : undefined, {
+          context: 'StatusScreen.loadStatus',
+          isBlocking: true,
+        });
+      }
+    }, [token, router]);
+
+    useEffect(() => {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- loadStatus só seta estado depois de awaits (fetch), não sincronamente
+      loadStatus();
+    }, [loadStatus]);
 
     return(
         <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
             <Header />
             <ScrollView style={styles.container}>
+                <Pressable
+                    accessibilityLabel="Voltar"
+                    accessibilityRole="button"
+                    onPress={() => router.back()}
+                    style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+                >
+                    <Ionicons name="arrow-back" size={20} color={themeColors.textSecondary} />
+                    <Text style={[styles.backText, { color: themeColors.textSecondary }]}>Voltar</Text>
+                </Pressable>
+                
                 <Text style={[styles.pageTitle, { color: themeColors.text }]}>Status do sistema</Text>
-                <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>Visão geral dos últimos 30 dias</Text>
+                <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>Visão geral dos últimos {HISTORY_DAYS} dias</Text>
 
-                <StatusLayer title="📱 Aplicativo" data={appData} themeColors={themeColors} />
-                <StatusLayer title="🌐 API" data={apiData} themeColors={themeColors} />
-                <StatusLayer title="🗄️ Banco de Dados" data={dbData} themeColors={themeColors} />
+                {error ? (
+                  <View style={[styles.layerContainer, { backgroundColor: themeColors.backgroundElement }]}>
+                    <Text style={{ color: themeColors.text }}>{error}</Text>
+                    <TouchableOpacity onPress={loadStatus} style={styles.retryButton}>
+                      <Text style={{ color: themeColors.backgroundSelected, fontWeight: '600' }}>Tentar novamente</Text>
+                    </TouchableOpacity>
+                  </View>
+                ) : !layers ? (
+                  <ActivityIndicator color={themeColors.text} style={{ marginTop: 32 }} />
+                ) : (
+                  layers.map((layer) => (
+                    <StatusLayer key={layer.title} title={layer.title} data={layer.data} themeColors={themeColors} />
+                  ))
+                )}
             </ScrollView>
         </SafeAreaView>
     )
@@ -79,10 +190,19 @@ const getStatusColor = (status: StatusType) => {
 const StatusLayer = ({ title, data, themeColors }: { title: string, data: DayStatus[], themeColors: any }) => {
   const [selectedDay, setSelectedDay] = useState<DayStatus | null>(null);
 
+  if (data.length === 0) {
+    return (
+      <View style={[styles.layerContainer, { backgroundColor: themeColors.backgroundElement }]}>
+        <Text style={[styles.layerTitle, { color: themeColors.text }]}>{title}</Text>
+        <Text style={{ color: themeColors.textSecondary }}>Ainda sem checagens registradas.</Text>
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.layerContainer, { backgroundColor: themeColors.backgroundElement }]}>
       <Text style={[styles.layerTitle, { color: themeColors.text }]}>{title}</Text>
-      
+
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barsContainer}>
         {data.map((day) => (
           <TouchableOpacity
@@ -100,7 +220,7 @@ const StatusLayer = ({ title, data, themeColors }: { title: string, data: DaySta
       {selectedDay && (
         <View style={[styles.tooltipContainer, { borderColor: themeColors.textSecondary }]}>
           <Text style={[styles.tooltipDate, { color: themeColors.text }]}>{selectedDay.date}</Text>
-          <Text style={[styles.tooltipMessage, { color: themeColors.textSecondary }]}>{selectedDay.message}</Text>
+          <Text style={[styles.tooltipMessage, { color: themeColors.text }]}>{selectedDay.message}</Text>
         </View>
       )}
     </View>
@@ -112,6 +232,21 @@ const styles = StyleSheet.create({
   container: { flex: 1, padding: 20 },
   pageTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 4 },
   subtitle: { fontSize: 14, marginBottom: 24 },
+      backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: Spacing.one,
+    paddingVertical: Spacing.two,
+  },
+  pressed: {
+    opacity: 0.65,
+  },
+  backText: {
+    ...Typography.body,
+    fontWeight: '600',
+  },
+
   layerContainer: { padding: 16, borderRadius: 12, marginBottom: 20 },
   layerTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
   barsContainer: { flexDirection: 'row', gap: 4, paddingBottom: 8 },
@@ -120,4 +255,5 @@ const styles = StyleSheet.create({
   tooltipContainer: { marginTop: 12, paddingTop: 12, borderTopWidth: 1 },
   tooltipDate: { fontWeight: 'bold', fontSize: 14, marginBottom: 4 },
   tooltipMessage: { fontSize: 14 },
+  retryButton: { marginTop: 12, alignSelf: 'flex-start' },
 });

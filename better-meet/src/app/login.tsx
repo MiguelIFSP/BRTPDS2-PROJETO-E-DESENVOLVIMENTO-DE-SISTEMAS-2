@@ -18,9 +18,8 @@ import * as yup from 'yup';
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
-
-const DEFAULT_API_URL = Platform.OS === 'android' ? 'http://ipDoSeuPC:3333' : 'http://localhost:3333';
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL;
+import { reportMobileError } from '../services/monitoringService';
+import { API_URL } from '../config/api';
 
 const loginSchema = yup.object({
   identifier: yup
@@ -96,28 +95,51 @@ export default function LoginScreen() {
     setIsSubmitting(true);
 
     try {
-      const response = await fetch(`${API_URL}/login`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          identifier: form.identifier.trim(),
-          password: form.password,
-        }),
-      });
+      let response: Response;
+
+      try {
+        response = await fetch(`${API_URL}/login`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            identifier: form.identifier.trim(),
+            password: form.password,
+          }),
+        });
+      } catch (networkError) {
+        // Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
+        reportMobileError(
+          networkError instanceof Error ? networkError.message : 'Falha de rede ao tentar logar.',
+          networkError instanceof Error ? networkError.stack : undefined,
+          { context: 'LoginScreen.handleLogin', isBlocking: true }
+        );
+        throw new Error('Não foi possível conectar com a API.');
+      }
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Não foi possível entrar.');
+        const message = data.error ?? 'Não foi possível entrar.';
+
+        // 401 aqui é credencial errada — comportamento normal do usuário, não um bug.
+        // Qualquer outro status (500, etc.) é erro de verdade e vale reportar.
+        if (response.status !== 401) {
+          reportMobileError(message, undefined, { context: 'LoginScreen.handleLogin', isBlocking: true });
+        }
+
+        throw new Error(message);
       }
 
-      login({
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        role: data.role,
-        createdAt: data.createdAt,
-      });
+      login(
+        {
+          id: data.id,
+          name: data.name,
+          email: data.email,
+          role: data.role,
+          createdAt: data.createdAt,
+        },
+        data.token
+      );
 
       setFeedback({
         type: 'success',

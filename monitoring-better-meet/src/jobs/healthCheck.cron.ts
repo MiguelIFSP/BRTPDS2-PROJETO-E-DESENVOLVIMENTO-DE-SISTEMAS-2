@@ -1,10 +1,12 @@
 import cron from "node-cron";
 import mariadb, { Connection } from "mariadb";
-import { recordStatusCheck } from "../services/statusCheck.service";
+import { hasRecentErrorReport, recordStatusCheck } from "../services/statusCheck.service";
 
 // A cada 6 horas (00h, 06h, 12h, 18h)
 const CRON_SCHEDULE = "0 */6 * * *";
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
+// Mesma cadência do cron — janela em que um erro reportado é considerado "recente"
+const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
 
 async function checkAppDatabase() {
   let connection: Connection | undefined;
@@ -50,9 +52,24 @@ async function checkDataApi() {
   }
 }
 
+async function checkMobileBetterMeet() {
+  try {
+    const since = new Date(Date.now() - CHECK_INTERVAL_MS);
+    const hasRecentError = await hasRecentErrorReport("mobile-app", since);
+
+    // Só registra OPERATIONAL se não houver ERROR/DOWN recente — evita mascarar
+    // um erro que o app acabou de reportar sozinho (via POST /status).
+    if (!hasRecentError) {
+      await recordStatusCheck("mobile-app", "OPERATIONAL");
+    }
+  } catch (error) {
+    console.error("Erro ao verificar status do Mobile Better Meet:", error);
+  }
+}
+
 export function startHealthCheckCron() {
   cron.schedule(CRON_SCHEDULE, async () => {
-    await Promise.all([checkAppDatabase(), checkDataApi()]);
+    await Promise.all([checkAppDatabase(), checkDataApi(), checkMobileBetterMeet()]);
   });
 
   console.log(`Cron de health check agendado (${CRON_SCHEDULE})`);

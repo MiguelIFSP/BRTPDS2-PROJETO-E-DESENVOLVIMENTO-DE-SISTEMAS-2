@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import {
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -16,9 +15,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
-
-const DEFAULT_API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3333' : 'http://localhost:3333';
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL;
+import { reportMobileError } from '../services/monitoringService';
+import { API_URL } from '../config/api';
 
 export default function PerfilScreen() {
   const router = useRouter();
@@ -57,19 +55,38 @@ export default function PerfilScreen() {
     setFeedback(null);
 
     try {
-      const response = await fetch(`${API_URL}/usuarios/${user.id}/senha`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          currentPassword,
-          newPassword,
-        }),
-      });
+      let response: Response;
+
+      try {
+        response = await fetch(`${API_URL}/usuarios/${user.id}/senha`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            currentPassword,
+            newPassword,
+          }),
+        });
+      } catch (networkError) {
+        // Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
+        reportMobileError(
+          networkError instanceof Error ? networkError.message : 'Falha de rede ao alterar senha.',
+          networkError instanceof Error ? networkError.stack : undefined,
+          { context: 'PerfilScreen.handlePasswordChange', isBlocking: true }
+        );
+        throw new Error('Não foi possível conectar com a API.');
+      }
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Não foi possível alterar a senha.');
+        const message = data.error ?? 'Não foi possível alterar a senha.';
+
+        // 400 (nova senha inválida) e 401 (senha atual incorreta) são rejeições normais, não bugs.
+        if (response.status !== 400 && response.status !== 401) {
+          reportMobileError(message, undefined, { context: 'PerfilScreen.handlePasswordChange', isBlocking: true });
+        }
+
+        throw new Error(message);
       }
 
       setFeedback({

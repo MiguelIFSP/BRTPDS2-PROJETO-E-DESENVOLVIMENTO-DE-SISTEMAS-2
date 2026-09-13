@@ -17,9 +17,8 @@ import * as yup from 'yup';
 
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
-
-const DEFAULT_API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3333' : 'http://localhost:3333';
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL;
+import { reportMobileError } from '../services/monitoringService';
+import { API_URL } from '../config/api';
 
 const userSchema = yup.object({
   nome: yup
@@ -120,16 +119,35 @@ export default function UsuarioScreen() {
         role: 'USER',
       };
 
-      const response = await fetch(`${API_URL}/usuarios`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
+      let response: Response;
+
+      try {
+        response = await fetch(`${API_URL}/usuarios`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } catch (networkError) {
+        // Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
+        reportMobileError(
+          networkError instanceof Error ? networkError.message : 'Falha de rede ao cadastrar usuário.',
+          networkError instanceof Error ? networkError.stack : undefined,
+          { context: 'UsuarioScreen.handleCreateUser', isBlocking: true }
+        );
+        throw new Error('Não foi possível conectar com a API.');
+      }
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Não foi possível criar o usuário.');
+        const message = data.error ?? 'Não foi possível criar o usuário.';
+
+        // 400 (validação) e 409 (e-mail já cadastrado) são rejeições normais, não bugs.
+        if (response.status !== 400 && response.status !== 409) {
+          reportMobileError(message, undefined, { context: 'UsuarioScreen.handleCreateUser', isBlocking: true });
+        }
+
+        throw new Error(message);
       }
 
       setForm(initialValues);

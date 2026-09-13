@@ -19,12 +19,30 @@ export async function recordStatusCheck(
   });
 }
 
+// Usado pelo cron do mobile-app: só registra OPERATIONAL se não houver ERROR/DOWN recente
+// (o app reporta erro ativamente via POST /status, não tem endpoint fixo pra "bater")
+export async function hasRecentErrorReport(subSystemName: string, since: Date): Promise<boolean> {
+  const subSystem = await prisma.subSystem.findUnique({ where: { name: subSystemName } });
+  if (!subSystem) return false;
+
+  const recentError = await prisma.statusCheck.findFirst({
+    where: {
+      subSystemId: subSystem.id,
+      status: { in: ["ERROR", "DOWN", "MAINTENANCE"] },
+      checkedAt: { gte: since },
+    },
+  });
+
+  return recentError !== null;
+}
+
 export async function getLatestStatus() {
   const subSystems = await prisma.subSystem.findMany({
     include: { checks: { orderBy: { checkedAt: "desc" }, take: 1 } },
   });
 
   return subSystems.map((sub) => ({
+    id: sub.id,
     subSystem: sub.name,
     status: sub.checks[0]?.status ?? "UNKNOWN",
     message: sub.checks[0]?.message ?? null,

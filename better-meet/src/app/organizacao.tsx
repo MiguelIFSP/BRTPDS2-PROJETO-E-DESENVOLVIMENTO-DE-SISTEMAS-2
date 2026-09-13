@@ -18,9 +18,9 @@ import * as yup from 'yup';
 
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
+import { reportMobileError } from '../services/monitoringService';
+import { API_URL } from '../config/api';
 
-const DEFAULT_API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3333' : 'http://localhost:3333';
-const API_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL;
 const organizationSchema = yup.object({
 	nome: yup
 		.string()
@@ -46,15 +46,36 @@ export default function OrganizacaoScreen() {
 			setNameError('');
 			setIsSubmitting(true);
 
-			const response = await fetch(`${API_URL}/organizacoes`, {
-				method: 'POST',
-				headers: { 'Content-Type': 'application/json' },
-				body: JSON.stringify(values),
-			});
+			let response: Response;
+
+			try {
+				response = await fetch(`${API_URL}/organizacoes`, {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(values),
+				});
+			} catch (networkError) {
+				// Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
+				reportMobileError(
+					networkError instanceof Error ? networkError.message : 'Falha de rede ao criar organização.',
+					networkError instanceof Error ? networkError.stack : undefined,
+					{ context: 'OrganizacaoScreen.handleCreate', isBlocking: true }
+				);
+				throw new Error('Não foi possível conectar à API.');
+			}
+
 			const data = await response.json();
 
 			if (!response.ok) {
-				throw new Error(data.error ?? 'Não foi possível criar a organização.');
+				const message = data.error ?? 'Não foi possível criar a organização.';
+
+				// 400 aqui é validação de negócio (ex.: nome inválido) — comportamento normal, não é bug.
+				// Qualquer outro status (500, etc.) é erro de verdade e vale reportar.
+				if (response.status !== 400) {
+					reportMobileError(message, undefined, { context: 'OrganizacaoScreen.handleCreate', isBlocking: true });
+				}
+
+				throw new Error(message);
 			}
 
 			setName('');
