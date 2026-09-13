@@ -1,12 +1,18 @@
+import 'dotenv/config';
 import express from 'express';
 import cors from 'cors';
 import crypto from 'crypto';
+import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import * as yup from 'yup';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3333);
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) {
+  throw new Error('JWT_SECRET não definido no .env');
+}
 const DEFAULT_ADMIN_EMAIL = 'admin@bettermeet.com';
 const DEFAULT_ADMIN_PASSWORD = 'Admin123!';
 const DEFAULT_ADMIN_PASSWORD_HASH = crypto.createHash('sha256').update(DEFAULT_ADMIN_PASSWORD).digest('hex');
@@ -136,12 +142,19 @@ app.post('/login', async (request, response) => {
       return;
     }
 
+    const token = jwt.sign(
+      { sub: userRecord.id, email: userRecord.email, role: userRecord.role },
+      JWT_SECRET,
+      { expiresIn: '7d' }
+    );
+
     response.status(200).json({
       id: userRecord.id,
       name: userRecord.name,
       email: userRecord.email,
       role: userRecord.role,
       createdAt: userRecord.createdAt,
+      token,
     });
   } catch (error) {
     if (error instanceof yup.ValidationError) {

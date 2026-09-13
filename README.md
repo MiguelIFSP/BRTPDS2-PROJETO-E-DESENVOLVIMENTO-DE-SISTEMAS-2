@@ -82,6 +82,7 @@ Os incrementos devem ser cumulativos: novas versões precisam preservar as funci
 - **Aplicação (front-end mobile):** `better-meet/` — código do app React Native, assets e configurações do projeto.
 - **API e backend:** `api/` — código da API Node/TypeScript e integrações com o banco.
 - **Prisma (ORM):** `api/prisma/` — contém o arquivo de schema em `api/prisma/schema.prisma` e configurações do Prisma Client.
+- **API de monitoramento:** `monitoring-better-meet/` — registra e expõe o histórico de status de `database`, `data-api` e `mobile-app` (mais detalhes em [`monitoring-better-meet/contexto-api-monitoramento.md`](monitoring-better-meet/contexto-api-monitoramento.md)).
 
 Instruções rápidas para rodar o banco de dados com Docker Compose (serviço já disponível no compose do front-end):
 
@@ -140,6 +141,36 @@ Uso (Windows PowerShell):
 .\start-db.ps1 up
 .\start-db.ps1 down
 ```
+
+## API de Monitoramento — autenticação e como testar
+
+A API de monitoramento (`monitoring-better-meet/`, porta padrão `3334`) usa dois mecanismos de autenticação diferentes, dependendo de quem está chamando:
+
+| Endpoint | Protegido por | Quem chama |
+|---|---|---|
+| `POST /monitoring-better-meet/status` | `x-api-key` (header) | Chamadas de máquina — hoje só o app mobile reportando erro; o cron interno grava direto no banco, sem passar por HTTP |
+| `GET /monitoring-better-meet/status`, `/status/daily`, `/status/:id/history` | JWT (`Authorization: Bearer <token>`) | Usuário logado — o painel de monitoramento do app mobile |
+
+O JWT usado nas rotas `GET` **não é emitido pela própria API de monitoramento** — ele vem do `POST /login` da API de Dados (`api/`, porta padrão `3333`), que assina o token com um `JWT_SECRET` compartilhado entre as duas APIs.
+
+### Variáveis de ambiente necessárias
+
+Nenhum `.env` é versionado (estão no `.gitignore`) — cada dev/máquina precisa criar o seu. Peça os valores reais pro time (ex.: no grupo do projeto), **nunca** commite essas chaves.
+
+- `api/.env`: precisa de `JWT_SECRET`.
+- `monitoring-better-meet/.env`: precisa de `JWT_SECRET` (**idêntico** ao da `api/`) e `INTERNAL_API_KEY`.
+
+Se o `JWT_SECRET` não bater entre as duas APIs, todo token vira inválido e as rotas `GET` da API de monitoramento retornam `401`.
+
+### Passo a passo pra testar no Postman (ou Insomnia)
+
+1. Suba as duas APIs: `npm run dev` em `api/` (porta 3333) e em `monitoring-better-meet/` (porta 3334).
+2. Pegue um token: `POST http://localhost:3333/login` com body JSON `{ "identifier": "...", "password": "..." }` (use um usuário já cadastrado, ou as credenciais padrão que aparecem no console ao subir a `api/`). A resposta traz o campo `token`.
+3. Nas requisições `GET` da collection da API de monitoramento: aba **Auth** → tipo **Bearer Token** → cole o `token`. Não use `x-api-key` nessas rotas, ela não tem efeito ali.
+4. Na requisição `POST /monitoring-better-meet/status`: aba **Headers** → `x-api-key` → valor do `INTERNAL_API_KEY` do `.env`.
+5. Opcional — pra não copiar o token toda vez: no request do `/login`, aba **Scripts → Post-response**, adicione `pm.environment.set("jwt_token", pm.response.json().token);` e use `{{jwt_token}}` como Bearer Token nas outras rotas (precisa ter um Environment selecionado no Postman, não "No environment").
+
+Detalhes de implementação (por que JWT + API key em vez de BetterAuth "de verdade" agora) estão documentados em [`monitoring-better-meet/contexto-api-monitoramento.md`](monitoring-better-meet/contexto-api-monitoramento.md).
 
 ## Desenvolvimento
 
