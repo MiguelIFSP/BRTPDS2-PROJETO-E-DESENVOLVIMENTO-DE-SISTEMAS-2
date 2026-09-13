@@ -37,6 +37,9 @@ yarn-error.*
 .env.*
 .env*.local
 
+# ...mas o template sem segredos reais pode ser versionado
+!.env.example
+
 # typescript
 *.tsbuildinfo
 
