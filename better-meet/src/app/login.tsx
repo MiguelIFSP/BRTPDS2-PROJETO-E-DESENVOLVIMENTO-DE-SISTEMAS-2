@@ -19,7 +19,7 @@ import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 
-const DEFAULT_API_URL = Platform.OS === 'android' ? 'http://10.0.2.2:3333' : 'http://localhost:3333';
+const DEFAULT_API_URL = Platform.OS === 'android' ? 'http://ipDoSeuPC:3333' : 'http://localhost:3333';
 const API_URL = process.env.EXPO_PUBLIC_API_URL ?? DEFAULT_API_URL;
 
 const loginSchema = yup.object({
