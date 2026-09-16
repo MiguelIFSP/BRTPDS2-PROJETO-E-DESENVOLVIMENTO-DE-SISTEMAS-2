@@ -6,6 +6,7 @@ import jwt from 'jsonwebtoken';
 import { PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
 import * as yup from 'yup';
+import comissaoRoutes from './routes/comissaoRoutes.js';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3333);
@@ -90,8 +91,14 @@ const passwordUpdateSchema = yup.object({
     .matches(/[0-9]/, 'A nova senha deve conter pelo menos um número.'),
 });
 
+// isso aq tem que ser primeiro que as rotas
 app.use(express.json());
 app.use(cors({ origin: true }));
+
+// ----------------------------------------
+// por algum motivo as rotas tem que ser aqui
+app.use('/api', comissaoRoutes);
+// ---------------------------------------
 
 app.get('/health', (_request, response) => {
   response.json({ status: 'ok' });
