@@ -1,17 +1,17 @@
-import react from "react";
 import { View, Text, StatusBar, StyleSheet, useColorScheme } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import Header from "./Header";
 import { Colors } from "@/constants/theme";
+import { useAuthStore } from "../store/authStore";
 
-const HOME_BG = '#FFFFFF'; // Fundo branco da página inicial
 const TEXT_DARK = '#1A1A1A'; // Texto preto suave
 const TEXT_MUTED = '#666666'; // Texto cinza suave
 
 export default function HomeScreen() {
   const systemTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const themeColors = Colors[systemTheme];
+  const { user } = useAuthStore();
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background } ]}>
         <StatusBar barStyle="dark-content" backgroundColor={themeColors.background} />
@@ -19,7 +19,7 @@ export default function HomeScreen() {
 
         <View style={styles.contentContainer}>
             <Text style={styles.greetingText}>
-                Olá, usuário 👋
+                Olá, {user?.name ?? 'usuário'} 👋
             </Text>
 
             <Text style={[styles.mainTitleText, { color: themeColors.text }]}>

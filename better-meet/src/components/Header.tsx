@@ -23,39 +23,45 @@ export default function Header() {
           .slice(0, 2)
       : 'A';
 
-    const handleAvatarPress = () => {
-      if (isAuthenticated) {
-        router.push('/perfil');
-        return;
-      }
-
-      router.push('/login');
-    };
-
     return (
         <View style={[
             styles.headerContainer,
             { backgroundColor: themeColors.background },
-            {borderBlockColor: themeColors.backgroundElement, borderBottomWidth: 1}
+            { borderBlockColor: themeColors.backgroundElement, borderBottomWidth: 1 },
+            !isAuthenticated && styles.publicHeader,
           ]}>
-            <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
-                <Ionicons name="menu" size={30} color={themeColors.text} />
-            </TouchableOpacity>
-            
-            <IconAndTitle />
-            
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={isAuthenticated ? 'Abrir perfil do usuário' : 'Abrir login do usuário'}
-              onPress={handleAvatarPress}
-              style={[
-                styles.avatarContainer,
-                { backgroundColor: themeColors.backgroundElement },
-                { borderColor: themeColors.backgroundSelected, borderWidth: 1 },
-              ]}
+            {isAuthenticated ? <>
+              <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
+                  <Ionicons name="menu" size={30} color={themeColors.text} />
+              </TouchableOpacity>
+              <View style={styles.logoSlot}>
+                <TouchableOpacity
+                  accessibilityRole="link"
+                  accessibilityLabel="Ir para a página inicial"
+                  onPress={() => router.push('/')}
+                >
+                  <IconAndTitle />
+                </TouchableOpacity>
+              </View>
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Abrir perfil do usuário"
+                onPress={() => router.push('/perfil')}
+                style={[
+                  styles.avatarContainer,
+                  { backgroundColor: themeColors.backgroundElement },
+                  { borderColor: themeColors.backgroundSelected, borderWidth: 1 },
+                ]}
+              >
+                  <Text style={[styles.avatarText, {color: themeColors.text} ]}>{initials}</Text>
+              </TouchableOpacity>
+            </> : <TouchableOpacity
+              accessibilityRole="link"
+              accessibilityLabel="Ir para a página inicial"
+              onPress={() => router.push('/')}
             >
-                <Text style={[styles.avatarText, {color: themeColors.text} ]}>{initials}</Text>
-            </TouchableOpacity>
+              <IconAndTitle />
+            </TouchableOpacity>}
         </View>
     );
 }
@@ -69,6 +75,13 @@ const styles = StyleSheet.create({
     paddingVertical: 12, // Espaçamento em cima/baixo
     height: 70,
     borderBottomWidth: 1,
+  },
+  publicHeader: {
+    justifyContent: 'center',
+  },
+  logoSlot: {
+    flex: 1,
+    alignItems: 'center',
   },
   menuButton: {
     padding: 8,

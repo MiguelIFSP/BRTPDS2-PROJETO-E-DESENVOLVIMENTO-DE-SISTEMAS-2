@@ -1,7 +1,6 @@
 import React from "react";
-import { View, Image, Text, TouchableOpacity, StyleSheet, useColorScheme } from "react-native";
-import { Typography, Colors } from '../constants/theme';
-import { useNavigation } from 'expo-router';
+import { View, Image, Text, StyleSheet, useColorScheme } from "react-native";
+import { Colors } from '../constants/theme';
   
 export default function IconAndTitle() {
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';

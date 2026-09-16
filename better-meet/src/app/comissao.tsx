@@ -30,7 +30,7 @@ export default function ComissaoScreen() {
     try {
       const dados = await comissaoService.listarPorOrganizacao(organizacaoAtualId);
       setComissoes(dados);
-    } catch (error) {
+    } catch {
       Alert.alert('Erro', 'Não foi possível carregar as comissões.');
     } finally {
       setLoading(false);
@@ -60,7 +60,7 @@ export default function ComissaoScreen() {
       setNome('');
       setDescricao('');
       carregarComissoes(); // A função vai recarregar a lista e tirar o loading
-    } catch (error) {
+    } catch {
       Alert.alert('Erro', 'Ocorreu um erro ao criar a comissão.');
       setLoading(false);
     }
@@ -77,7 +77,7 @@ export default function ComissaoScreen() {
           try {
             await comissaoService.excluir(id);
             carregarComissoes();
-          } catch (error) {
+          } catch {
             Alert.alert('Erro', 'Não foi possível excluir.');
             setLoading(false);
           }

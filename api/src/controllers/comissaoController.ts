@@ -1,5 +1,5 @@
-import { Request, Response } from 'express';
-import prisma from '../prisma.config'; 
+import type { Request, Response } from 'express';
+import prisma from '../config/database.ts';
 
 export const comissaoController = {
   

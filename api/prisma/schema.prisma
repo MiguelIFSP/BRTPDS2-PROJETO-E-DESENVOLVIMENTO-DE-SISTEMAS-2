@@ -23,6 +23,8 @@ model User {
 
   // um usuário pode participar de várias comissões
   comissoes ComissaoEquipe[]
+  solicitacoesOrganizacao Organizacao[] @relation("SolicitanteOrganizacao")
+  organizacoes OrganizacaoMembro[]
 }
 
 
@@ -33,6 +35,20 @@ model Organizacao {
   
   //uma organização possui várias comissões
   comissoes Comissao[]
+  solicitanteId Int?
+  solicitante User? @relation("SolicitanteOrganizacao", fields: [solicitanteId], references: [id])
+  membros OrganizacaoMembro[]
+}
+
+model OrganizacaoMembro {
+  organizacaoId Int
+  userId Int
+  papel String @default("MEMBRO")
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([organizacaoId, userId])
 }
 
 

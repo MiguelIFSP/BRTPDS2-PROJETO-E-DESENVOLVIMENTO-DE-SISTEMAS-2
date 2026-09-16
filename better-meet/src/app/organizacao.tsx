@@ -1,6 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
-	Alert,
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
@@ -20,6 +19,14 @@ import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { reportMobileError } from '../services/monitoringService';
 import { API_URL } from '../config/api';
+import { useAuthStore } from '../store/authStore';
+
+type Organization = {
+	id: number;
+	nome: string;
+	status: string;
+	membros: { user: { id: number; name: string; email: string }; papel: string }[];
+};
 
 const organizationSchema = yup.object({
 	nome: yup
@@ -33,10 +40,35 @@ export default function OrganizacaoScreen() {
 	const router = useRouter();
 	const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
 	const themeColors = Colors[colorScheme];
+	const { token } = useAuthStore();
 	const [name, setName] = useState('');
 	const [nameError, setNameError] = useState('');
 	const [isSubmitting, setIsSubmitting] = useState(false);
 	const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+	const [organizations, setOrganizations] = useState<Organization[]>([]);
+	const [memberEmails, setMemberEmails] = useState<Record<number, string>>({});
+	const [memberFeedback, setMemberFeedback] = useState<Record<number, string>>({});
+
+	const loadOrganizations = async () => {
+		if (!token) return;
+		const response = await fetch(`${API_URL}/organizacoes/minhas`, {
+			headers: { Authorization: `Bearer ${token}` },
+		});
+		if (response.ok) setOrganizations(await response.json());
+	};
+
+	useEffect(() => {
+		let cancelled = false;
+		const load = async () => {
+			if (!token) return;
+			const response = await fetch(`${API_URL}/organizacoes/minhas`, {
+				headers: { Authorization: `Bearer ${token}` },
+			});
+			if (response.ok && !cancelled) setOrganizations(await response.json());
+		};
+		void load();
+		return () => { cancelled = true; };
+	}, [token]);
 
 	const handleCreate = async () => {
 		setFeedback(null);
@@ -51,7 +83,7 @@ export default function OrganizacaoScreen() {
 			try {
 				response = await fetch(`${API_URL}/organizacoes`, {
 					method: 'POST',
-					headers: { 'Content-Type': 'application/json' },
+					headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
 					body: JSON.stringify(values),
 				});
 			} catch (networkError) {
@@ -79,6 +111,7 @@ export default function OrganizacaoScreen() {
 			}
 
 			setName('');
+			await loadOrganizations();
 			setFeedback({ type: 'success', message: `${data.nome} foi criada e está aguardando aprovação do administrador.` });
 		} catch (error) {
 			if (error instanceof yup.ValidationError) {
@@ -89,6 +122,22 @@ export default function OrganizacaoScreen() {
 			setFeedback({ type: 'error', message: error instanceof Error ? error.message : 'Não foi possível conectar à API.' });
 		} finally {
 			setIsSubmitting(false);
+		}
+	};
+
+	const handleAddMember = async (organizationId: number) => {
+		const email = memberEmails[organizationId]?.trim();
+		if (!email || !token) return;
+		const response = await fetch(`${API_URL}/organizacoes/${organizationId}/membros`, {
+			method: 'POST',
+			headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+			body: JSON.stringify({ email }),
+		});
+		const data = await response.json().catch(() => ({}));
+		setMemberFeedback((current) => ({ ...current, [organizationId]: response.ok ? 'Membro adicionado.' : data.error ?? 'Não foi possível adicionar o membro.' }));
+		if (response.ok) {
+			setMemberEmails((current) => ({ ...current, [organizationId]: '' }));
+			await loadOrganizations();
 		}
 	};
 
@@ -138,6 +187,18 @@ export default function OrganizacaoScreen() {
 						onPress={handleCreate}
 						style={({ pressed }) => [styles.createButton, { backgroundColor: themeColors.backgroundSelected, opacity: isSubmitting ? 0.5 : pressed ? 0.8 : 1 }]}
 					><Ionicons name="add-circle-outline" size={20} color={colorScheme === 'dark' ? themeColors.background : '#ffffff'} /><Text style={[styles.createButtonText, { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' }]}>{isSubmitting ? 'Criando...' : 'Criar organização'}</Text></Pressable></View>
+					{organizations.length > 0 ? <View style={styles.organizationsSection}>
+						<Text style={[styles.sectionTitle, { color: themeColors.text }]}>Minhas organizações</Text>
+						{organizations.map((organization) => <View key={organization.id} style={[styles.organizationCard, { backgroundColor: themeColors.backgroundElement }]}>
+							<View style={styles.organizationHeader}><View><Text style={[styles.organizationName, { color: themeColors.text }]}>{organization.nome}</Text><Text style={[styles.organizationStatus, { color: organization.status === 'ACEITA' ? '#15803d' : '#b45309' }]}>{organization.status}</Text></View><Ionicons name="business-outline" size={24} color={themeColors.backgroundSelected} /></View>
+							{organization.status === 'ACEITA' ? <>
+								<Text style={[styles.memberTitle, { color: themeColors.text }]}>Membros</Text>
+								{organization.membros.map((member) => <Text key={member.user.id} style={[styles.memberText, { color: themeColors.textSecondary }]}>{member.user.name} · {member.user.email}</Text>)}
+								<View style={styles.memberForm}><TextInput value={memberEmails[organization.id] ?? ''} onChangeText={(value) => setMemberEmails((current) => ({ ...current, [organization.id]: value }))} placeholder="E-mail do novo membro" placeholderTextColor={themeColors.textSecondary + '99'} style={[styles.memberInput, { color: themeColors.text, borderColor: themeColors.textSecondary + '55' }]} /><Pressable onPress={() => handleAddMember(organization.id)} style={[styles.memberButton, { backgroundColor: themeColors.backgroundSelected }]}><Ionicons name="person-add-outline" size={18} color="#ffffff" /></Pressable></View>
+								{memberFeedback[organization.id] ? <Text style={[styles.feedbackText, { color: themeColors.textSecondary }]}>{memberFeedback[organization.id]}</Text> : null}
+							</> : <Text style={[styles.memberText, { color: themeColors.textSecondary }]}>Aguardando análise do administrador.</Text>}
+						</View>)}
+					</View> : null}
 				</ScrollView>
 			</KeyboardAvoidingView>
 		</SafeAreaView>
@@ -168,4 +229,15 @@ const styles = StyleSheet.create({
 	statusDescription: { ...Typography.bodySmall, marginTop: 2 },
 	createButton: { minHeight: 52, borderRadius: 8, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.two, marginTop: Spacing.four },
 	createButtonText: { ...Typography.bodyLarge, fontWeight: '700' },
+	organizationsSection: { marginTop: Spacing.four, gap: Spacing.three },
+	sectionTitle: { ...Typography.heading3, marginBottom: Spacing.one },
+	organizationCard: { borderRadius: 12, padding: Spacing.four },
+	organizationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
+	organizationName: { ...Typography.heading3 },
+	organizationStatus: { ...Typography.bodySmall, fontWeight: '700', marginTop: Spacing.one },
+	memberTitle: { ...Typography.body, fontWeight: '700', marginTop: Spacing.three, marginBottom: Spacing.one },
+	memberText: { ...Typography.bodySmall, marginTop: Spacing.one },
+	memberForm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.three },
+	memberInput: { flex: 1, minHeight: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: Spacing.two, ...Typography.body },
+	memberButton: { width: 44, height: 44, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
 });

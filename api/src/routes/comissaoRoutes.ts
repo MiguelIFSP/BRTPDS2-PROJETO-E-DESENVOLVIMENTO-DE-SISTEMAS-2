@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { comissaoController } from '../controllers/comissaoController.js';
+import { comissaoController } from '../controllers/comissaoController.ts';
 
 const routes = Router();
 

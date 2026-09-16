@@ -14,9 +14,11 @@ SplashScreen.preventAutoHideAsync();
 function AppGate() {
   const segments = useSegments();
   const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, hasHydrated } = useAuthStore();
 
   useEffect(() => {
+    if (!hasHydrated) return;
+
     const currentRoute = segments[0] ?? 'index';
     const authRoutes = ['login', 'usuario'];
 
@@ -28,13 +30,14 @@ function AppGate() {
     if (isAuthenticated && currentRoute === 'login') {
       router.replace('/');
     }
-  }, [segments, isAuthenticated, router]);
+  }, [segments, isAuthenticated, hasHydrated, router]);
 
   return null;
 }
 
 export default function RootLayout() {
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
     SplashScreen.hideAsync();
@@ -59,10 +62,12 @@ export default function RootLayout() {
           screenOptions={{
             headerShown: false,
             drawerType: 'slide',
+            swipeEnabled: isAuthenticated,
           }}
         >
           <Drawer.Screen name="index" />
           <Drawer.Screen name="organizacao" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="organizacoes" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="usuario" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="login" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />

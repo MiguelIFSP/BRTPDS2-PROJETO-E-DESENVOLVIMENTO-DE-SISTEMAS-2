@@ -2,15 +2,16 @@ import React from 'react'; // Não precisamos mais do useState
 import { View, Text, TouchableOpacity, StyleSheet, Switch, useColorScheme, Appearance } from 'react-native';
 import { DrawerContentScrollView } from 'expo-router/drawer';
 import { Colors } from '../constants/theme';
-import { Icon } from 'expo-router';
 import IconAndTitle from './IconAndTitle';
-import { useRouter } from 'expo-router';  
+import { useRouter } from 'expo-router';
+import { useAuthStore } from '../store/authStore';
 
 export default function CustomDrawer(props: any) {
   const router = useRouter();
   // O hook sempre terá a verdade sobre o tema atual do app
   const currentTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const themeColors = Colors[currentTheme];
+  const { user } = useAuthStore();
   
   // Variável para controlar o Switch
   const isDarkMode = currentTheme === 'dark';
@@ -42,8 +43,14 @@ export default function CustomDrawer(props: any) {
         style={styles.menuItem}
         onPress={() => router.push('/organizacao' as any)}
       >
-        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Criar organização</Text>
+        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>{user?.role === 'ADMIN' ? 'Solicitar organização' : 'Minha organização'}</Text>
       </TouchableOpacity>
+      {user?.role === 'ADMIN' ? <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => router.push('/organizacoes' as any)}
+      >
+        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Organizações</Text>
+      </TouchableOpacity> : null}
       {/* Substitua apenas o bloco do toggle e do footer por este: */}
       <View style={[styles.footer, { borderTopColor: themeColors.textSecondary + '40' }]}>
         <View style={[styles.themeToggleContainer, { borderColor: themeColors.textSecondary + '40' }]}>

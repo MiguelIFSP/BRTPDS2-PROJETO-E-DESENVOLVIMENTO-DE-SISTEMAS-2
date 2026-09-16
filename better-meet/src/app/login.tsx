@@ -166,16 +166,6 @@ export default function LoginScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView contentContainerStyle={styles.content} keyboardShouldPersistTaps="handled">
-          <Pressable
-            accessibilityLabel="Voltar"
-            accessibilityRole="button"
-            onPress={() => router.back()}
-            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
-          >
-            <Ionicons name="arrow-back" size={20} color={themeColors.textSecondary} />
-            <Text style={[styles.backText, { color: themeColors.textSecondary }]}>Voltar</Text>
-          </Pressable>
-
           <View style={styles.intro}>
             <View style={[styles.iconContainer, { backgroundColor: themeColors.backgroundElement }]}>
               <Ionicons name="log-in-outline" size={30} color={themeColors.backgroundSelected} />
