@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-	Alert,
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
@@ -21,6 +20,7 @@ import { Colors, Spacing, Typography } from '../constants/theme';
 import { reportMobileError } from '../services/monitoringService';
 import { API_URL } from '../config/api';
 import { useAuthStore } from '../store/authStore';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 type Organization = {
 	id: number;
@@ -49,6 +49,7 @@ export default function OrganizacaoScreen() {
 	const [organizations, setOrganizations] = useState<Organization[]>([]);
 	const [memberEmails, setMemberEmails] = useState<Record<number, string>>({});
 	const [memberFeedback, setMemberFeedback] = useState<Record<number, string>>({});
+	const [pendingDeletion, setPendingDeletion] = useState<{ id: number; name: string } | null>(null);
 
 	const loadOrganizations = async () => {
 		if (!token) return;
@@ -142,18 +143,10 @@ export default function OrganizacaoScreen() {
 		}
 	};
 
-	const handleDeleteOrganization = (organizationId: number, organizationName: string) => {
-		Alert.alert(
-			'Excluir organização',
-			`Tem certeza que deseja excluir "${organizationName}"? Essa ação também removerá suas comissões e membros.`,
-			[
-				{ text: 'Cancelar', style: 'cancel' },
-				{
-					text: 'Excluir',
-					style: 'destructive',
-					onPress: async () => {
+	const handleDeleteOrganization = async () => {
+			try {
 						if (!token) return;
-						const response = await fetch(`${API_URL}/organizacoes/${organizationId}`, {
+						const response = await fetch(`${API_URL}/organizacoes/${pendingDeletion?.id}`, {
 							method: 'DELETE',
 							headers: { Authorization: `Bearer ${token}` },
 						});
@@ -163,11 +156,11 @@ export default function OrganizacaoScreen() {
 							return;
 						}
 						setFeedback({ type: 'success', message: 'Organização excluída com sucesso.' });
+						setPendingDeletion(null);
 						await loadOrganizations();
-					},
-				},
-			],
-		);
+			} catch {
+				setFeedback({ type: 'error', message: 'Não foi possível conectar à API para excluir a organização.' });
+			}
 	};
 
 	return (
@@ -220,7 +213,7 @@ export default function OrganizacaoScreen() {
 						<Text style={[styles.sectionTitle, { color: themeColors.text }]}>Minhas organizações</Text>
 						{organizations.map((organization) => <View key={organization.id} style={[styles.organizationCard, { backgroundColor: themeColors.backgroundElement }]}>
 							<View style={styles.organizationHeader}><View><Text style={[styles.organizationName, { color: themeColors.text }]}>{organization.nome}</Text><Text style={[styles.organizationStatus, { color: organization.status === 'ACEITA' ? '#15803d' : '#b45309' }]}>{organization.status}</Text></View><Ionicons name="business-outline" size={24} color={themeColors.backgroundSelected} /></View>
-							<Pressable onPress={() => handleDeleteOrganization(organization.id, organization.nome)} style={styles.deleteOrganizationButton}><Ionicons name="trash-outline" size={17} color="#b91c1c" /><Text style={styles.deleteOrganizationText}>Excluir organização</Text></Pressable>
+							<Pressable onPress={() => setPendingDeletion({ id: organization.id, name: organization.nome })} style={styles.deleteOrganizationButton}><Ionicons name="trash-outline" size={17} color="#b91c1c" /><Text style={styles.deleteOrganizationText}>Excluir organização</Text></Pressable>
 							{organization.status === 'ACEITA' ? <>
 								<Text style={[styles.memberTitle, { color: themeColors.text }]}>Membros</Text>
 								{organization.membros.map((member) => <Text key={member.user.id} style={[styles.memberText, { color: themeColors.textSecondary }]}>{member.user.name} · {member.user.email}</Text>)}
@@ -230,6 +223,14 @@ export default function OrganizacaoScreen() {
 						</View>)}
 					</View> : null}
 				</ScrollView>
+				<ConfirmDialog
+					visible={pendingDeletion !== null}
+					title="Excluir organização?"
+					message={pendingDeletion ? `A organização "${pendingDeletion.name}" e suas comissões e membros serão removidos permanentemente.` : ''}
+					colorScheme={colorScheme}
+					onCancel={() => setPendingDeletion(null)}
+					onConfirm={() => { void handleDeleteOrganization(); }}
+				/>
 			</KeyboardAvoidingView>
 		</SafeAreaView>
 	);

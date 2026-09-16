@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -8,6 +8,7 @@ import Header from '../components/Header';
 import { API_URL } from '../config/api';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
+import ConfirmDialog from '../components/ConfirmDialog';
 
 type Organization = {
   id: number;
@@ -25,6 +26,7 @@ export default function OrganizacoesAdminScreen() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [feedback, setFeedback] = useState('');
   const [memberEmails, setMemberEmails] = useState<Record<number, string>>({});
+  const [pendingDeletion, setPendingDeletion] = useState<{ id: number; name: string } | null>(null);
 
   const loadOrganizations = async () => {
     if (!token) return;
@@ -85,18 +87,10 @@ export default function OrganizacoesAdminScreen() {
     }
   };
 
-  const deleteOrganization = (organizationId: number, organizationName: string) => {
-    Alert.alert(
-      'Excluir organização',
-      `Tem certeza que deseja excluir "${organizationName}"? Essa ação também removerá suas comissões e membros.`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Excluir',
-          style: 'destructive',
-          onPress: async () => {
-            if (!token) return;
-            const response = await fetch(`${API_URL}/organizacoes/${organizationId}`, {
+  const deleteOrganization = async () => {
+      try {
+        if (!token) return;
+            const response = await fetch(`${API_URL}/organizacoes/${pendingDeletion?.id}`, {
               method: 'DELETE',
               headers: { Authorization: `Bearer ${token}` },
             });
@@ -106,11 +100,11 @@ export default function OrganizacoesAdminScreen() {
               return;
             }
             setFeedback('Organização excluída com sucesso.');
+            setPendingDeletion(null);
             await loadOrganizations();
-          },
-        },
-      ],
-    );
+      } catch {
+        setFeedback('Não foi possível conectar à API para excluir a organização.');
+      }
   };
 
   return (
@@ -133,7 +127,7 @@ export default function OrganizacoesAdminScreen() {
               <View style={{ flex: 1 }}><Text style={[styles.name, { color: themeColors.text }]}>{organization.nome}</Text><Text style={[styles.requester, { color: themeColors.textSecondary }]}>{organization.solicitante ? `Solicitado por ${organization.solicitante.name} · ${organization.solicitante.email}` : 'Solicitante não identificado'}</Text></View>
               <Text style={[styles.status, { color: organization.status === 'ACEITA' ? '#15803d' : organization.status === 'RECUSADA' ? '#dc2626' : '#b45309' }]}>{organization.status}</Text>
             </View>
-            <Pressable onPress={() => deleteOrganization(organization.id, organization.nome)} style={styles.deleteButton}>
+            <Pressable onPress={() => setPendingDeletion({ id: organization.id, name: organization.nome })} style={styles.deleteButton}>
               <Ionicons name="trash-outline" size={17} color="#b91c1c" />
               <Text style={styles.deleteText}>Excluir organização</Text>
             </Pressable>
@@ -147,6 +141,14 @@ export default function OrganizacoesAdminScreen() {
           </View>
         ))}
       </ScrollView>
+      <ConfirmDialog
+        visible={pendingDeletion !== null}
+        title="Excluir organização?"
+        message={pendingDeletion ? `A organização "${pendingDeletion.name}" e suas comissões e membros serão removidos permanentemente.` : ''}
+        colorScheme={colorScheme}
+        onCancel={() => setPendingDeletion(null)}
+        onConfirm={() => { void deleteOrganization(); }}
+      />
     </SafeAreaView>
   );
 }

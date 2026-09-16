@@ -142,7 +142,20 @@ export const organizacaoController = {
         return;
       }
 
-      await prisma.organizacao.delete({ where: { id } });
+      await prisma.$transaction(async (transaction) => {
+        const comissoes = await transaction.comissao.findMany({
+          where: { organizacaoId: id },
+          select: { id: true },
+        });
+        const comissaoIds = comissoes.map((comissao) => comissao.id);
+
+        await transaction.organizacaoMembro.deleteMany({ where: { organizacaoId: id } });
+        if (comissaoIds.length > 0) {
+          await transaction.comissaoEquipe.deleteMany({ where: { comissaoId: { in: comissaoIds } } });
+          await transaction.comissao.deleteMany({ where: { id: { in: comissaoIds } } });
+        }
+        await transaction.organizacao.delete({ where: { id } });
+      });
       response.status(200).json({ message: 'Organização excluída com sucesso.' });
     } catch (error) {
       console.error('Erro ao excluir organização:', error);
