@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import {
+	Alert,
 	KeyboardAvoidingView,
 	Platform,
 	Pressable,
@@ -141,6 +142,34 @@ export default function OrganizacaoScreen() {
 		}
 	};
 
+	const handleDeleteOrganization = (organizationId: number, organizationName: string) => {
+		Alert.alert(
+			'Excluir organização',
+			`Tem certeza que deseja excluir "${organizationName}"? Essa ação também removerá suas comissões e membros.`,
+			[
+				{ text: 'Cancelar', style: 'cancel' },
+				{
+					text: 'Excluir',
+					style: 'destructive',
+					onPress: async () => {
+						if (!token) return;
+						const response = await fetch(`${API_URL}/organizacoes/${organizationId}`, {
+							method: 'DELETE',
+							headers: { Authorization: `Bearer ${token}` },
+						});
+						const data = await response.json().catch(() => ({}));
+						if (!response.ok) {
+							setFeedback({ type: 'error', message: data.error ?? 'Não foi possível excluir a organização.' });
+							return;
+						}
+						setFeedback({ type: 'success', message: 'Organização excluída com sucesso.' });
+						await loadOrganizations();
+					},
+				},
+			],
+		);
+	};
+
 	return (
 		<SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
 			<Header />
@@ -191,6 +220,7 @@ export default function OrganizacaoScreen() {
 						<Text style={[styles.sectionTitle, { color: themeColors.text }]}>Minhas organizações</Text>
 						{organizations.map((organization) => <View key={organization.id} style={[styles.organizationCard, { backgroundColor: themeColors.backgroundElement }]}>
 							<View style={styles.organizationHeader}><View><Text style={[styles.organizationName, { color: themeColors.text }]}>{organization.nome}</Text><Text style={[styles.organizationStatus, { color: organization.status === 'ACEITA' ? '#15803d' : '#b45309' }]}>{organization.status}</Text></View><Ionicons name="business-outline" size={24} color={themeColors.backgroundSelected} /></View>
+							<Pressable onPress={() => handleDeleteOrganization(organization.id, organization.nome)} style={styles.deleteOrganizationButton}><Ionicons name="trash-outline" size={17} color="#b91c1c" /><Text style={styles.deleteOrganizationText}>Excluir organização</Text></Pressable>
 							{organization.status === 'ACEITA' ? <>
 								<Text style={[styles.memberTitle, { color: themeColors.text }]}>Membros</Text>
 								{organization.membros.map((member) => <Text key={member.user.id} style={[styles.memberText, { color: themeColors.textSecondary }]}>{member.user.name} · {member.user.email}</Text>)}
@@ -235,6 +265,8 @@ const styles = StyleSheet.create({
 	organizationHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start' },
 	organizationName: { ...Typography.heading3 },
 	organizationStatus: { ...Typography.bodySmall, fontWeight: '700', marginTop: Spacing.one },
+	deleteOrganizationButton: { flexDirection: 'row', alignItems: 'center', gap: Spacing.one, marginTop: Spacing.three },
+	deleteOrganizationText: { ...Typography.bodySmall, color: '#b91c1c', fontWeight: '700' },
 	memberTitle: { ...Typography.body, fontWeight: '700', marginTop: Spacing.three, marginBottom: Spacing.one },
 	memberText: { ...Typography.bodySmall, marginTop: Spacing.one },
 	memberForm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.three },

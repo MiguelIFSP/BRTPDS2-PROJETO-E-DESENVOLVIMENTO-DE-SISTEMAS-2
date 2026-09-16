@@ -120,6 +120,36 @@ export const organizacaoController = {
     }
   },
 
+  async delete(request: Request, response: Response) {
+    const id = parseOrganizationId(request, response);
+    if (id === null) return;
+
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
+
+    try {
+      const organizacao = await prisma.organizacao.findUnique({
+        where: { id },
+        select: { solicitanteId: true },
+      });
+
+      if (!organizacao) {
+        response.status(404).json({ error: 'Organização não encontrada.' });
+        return;
+      }
+
+      if (role !== 'ADMIN' && organizacao.solicitanteId !== userId) {
+        response.status(403).json({ error: 'Somente o administrador ou o criador pode excluir a organização.' });
+        return;
+      }
+
+      await prisma.organizacao.delete({ where: { id } });
+      response.status(200).json({ message: 'Organização excluída com sucesso.' });
+    } catch (error) {
+      console.error('Erro ao excluir organização:', error);
+      response.status(500).json({ error: 'Não foi possível excluir a organização.' });
+    }
+  },
+
   async addMember(request: Request, response: Response) {
     const organizacaoId = parseOrganizationId(request, response);
     if (organizacaoId === null) return;

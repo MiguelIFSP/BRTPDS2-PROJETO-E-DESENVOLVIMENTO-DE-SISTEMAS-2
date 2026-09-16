@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -85,6 +85,34 @@ export default function OrganizacoesAdminScreen() {
     }
   };
 
+  const deleteOrganization = (organizationId: number, organizationName: string) => {
+    Alert.alert(
+      'Excluir organização',
+      `Tem certeza que deseja excluir "${organizationName}"? Essa ação também removerá suas comissões e membros.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: async () => {
+            if (!token) return;
+            const response = await fetch(`${API_URL}/organizacoes/${organizationId}`, {
+              method: 'DELETE',
+              headers: { Authorization: `Bearer ${token}` },
+            });
+            const data = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              setFeedback(data.error ?? 'Não foi possível excluir a organização.');
+              return;
+            }
+            setFeedback('Organização excluída com sucesso.');
+            await loadOrganizations();
+          },
+        },
+      ],
+    );
+  };
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
       <Header />
@@ -105,6 +133,10 @@ export default function OrganizacoesAdminScreen() {
               <View style={{ flex: 1 }}><Text style={[styles.name, { color: themeColors.text }]}>{organization.nome}</Text><Text style={[styles.requester, { color: themeColors.textSecondary }]}>{organization.solicitante ? `Solicitado por ${organization.solicitante.name} · ${organization.solicitante.email}` : 'Solicitante não identificado'}</Text></View>
               <Text style={[styles.status, { color: organization.status === 'ACEITA' ? '#15803d' : organization.status === 'RECUSADA' ? '#dc2626' : '#b45309' }]}>{organization.status}</Text>
             </View>
+            <Pressable onPress={() => deleteOrganization(organization.id, organization.nome)} style={styles.deleteButton}>
+              <Ionicons name="trash-outline" size={17} color="#b91c1c" />
+              <Text style={styles.deleteText}>Excluir organização</Text>
+            </Pressable>
             <Text style={[styles.members, { color: themeColors.textSecondary }]}>{organization.membros.length} membro(s)</Text>
             {organization.membros.map((member) => <Text key={member.user.id} style={[styles.member, { color: themeColors.textSecondary }]}>{member.user.name} · {member.user.email}</Text>)}
             {organization.status === 'ACEITA' ? <View style={styles.memberForm}><TextInput value={memberEmails[organization.id] ?? ''} onChangeText={(value) => setMemberEmails((current) => ({ ...current, [organization.id]: value }))} placeholder="E-mail do novo membro" placeholderTextColor={themeColors.textSecondary + '99'} style={[styles.memberInput, { color: themeColors.text, borderColor: themeColors.textSecondary + '55' }]} /><Pressable onPress={() => addMember(organization.id)} style={[styles.addButton, { backgroundColor: themeColors.backgroundSelected }]}><Ionicons name="person-add-outline" size={18} color="#ffffff" /></Pressable></View> : null}
@@ -136,6 +168,8 @@ const styles = StyleSheet.create({
   requester: { ...Typography.bodySmall, marginTop: Spacing.one },
   status: { ...Typography.caption, fontWeight: '700' },
   members: { ...Typography.bodySmall, marginTop: Spacing.three },
+  deleteButton: { alignSelf: 'flex-start', flexDirection: 'row', alignItems: 'center', gap: Spacing.one, marginTop: Spacing.three },
+  deleteText: { color: '#b91c1c', ...Typography.bodySmall, fontWeight: '700' },
   member: { ...Typography.bodySmall, marginTop: Spacing.one },
   memberForm: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginTop: Spacing.three },
   memberInput: { flex: 1, minHeight: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: Spacing.two, ...Typography.body },
