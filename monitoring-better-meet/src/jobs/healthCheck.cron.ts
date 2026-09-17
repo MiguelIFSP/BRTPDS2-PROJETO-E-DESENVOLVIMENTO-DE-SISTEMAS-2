@@ -19,6 +19,7 @@ async function checkAppDatabase() {
       password: process.env.APP_DATABASE_PASSWORD,
       database: process.env.APP_DATABASE_NAME,
       connectTimeout: HEALTH_CHECK_TIMEOUT_MS,
+      allowPublicKeyRetrieval: true,
     });
     await connection.query("SELECT 1");
 

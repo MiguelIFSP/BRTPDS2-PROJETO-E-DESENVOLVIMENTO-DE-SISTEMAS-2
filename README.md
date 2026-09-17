@@ -83,8 +83,32 @@ Os incrementos devem ser cumulativos: novas versões precisam preservar as funci
 - **API e backend:** `api/` — código da API Node/TypeScript e integrações com o banco.
 - **Prisma (ORM):** `api/prisma/` — contém o arquivo de schema em `api/prisma/schema.prisma` e configurações do Prisma Client.
 - **API de monitoramento:** `monitoring-better-meet/` — registra e expõe o histórico de status de `database`, `data-api` e `mobile-app` (mais detalhes em [`monitoring-better-meet/contexto-api-monitoramento.md`](monitoring-better-meet/contexto-api-monitoramento.md)).
+- **API de gestão:** `management-better-meet/server/` — permite a admins iniciar/parar/reiniciar os outros subsistemas (as duas APIs Node via PM2, os dois bancos via Docker), porta padrão `3335`.
 
-Instruções rápidas para rodar o banco de dados com Docker Compose (serviço já disponível no compose do front-end):
+### Subindo tudo rapidamente (Windows)
+
+Pré-requisitos que não são automatizados (não têm como, com segurança): Node.js, Docker Desktop, `npm install -g pm2`, e os arquivos `.env` de cada projeto (peça os valores reais pro time — nenhum `.env` é versionado).
+
+```powershell
+# 1. Instala as dependências de todos os projetos
+.\install-all.ps1
+
+# 2. Crie o .env de cada projeto a partir do .env.example correspondente
+#    (api/, better-meet/, monitoring-better-meet/, management-better-meet/server/)
+
+# 3. Sobe tudo: bancos (Docker) + api/monitoring/management (PM2)
+.\start-all.ps1
+
+# Pra acompanhar o que está rodando:
+pm2 list
+pm2 logs <nome>   # api | monitoring | management
+```
+
+Rodar `.\start-all.ps1` de novo é seguro — os passos são idempotentes (não duplica container, e o PM2 apenas reinicia o que já estava rodando).
+
+As seções abaixo detalham o que esses scripts fazem por baixo dos panos, e como rodar cada peça manualmente se precisar de mais controle.
+
+Instruções rápidas para rodar o banco de dados com Docker Compose manualmente (serviço já disponível no compose do front-end):
 
 - A compose file relevante está em `better-meet/docker-compose.yml` e define o serviço `db_better_meet` (MySQL).
 - Para subir o container do banco (em background), inicie o Docker na sua máquina (abra o Docker Desktop), então a partir da raiz do repositório execute:
@@ -125,10 +149,11 @@ npx prisma migrate dev --name init
 
 Scripts úteis na raiz:
 
-- `start-db.sh` — script POSIX para subir/baixar o serviço do banco usando `better-meet/docker-compose.yml`.
-- `start-db.ps1` — script PowerShell equivalente para Windows.
+- `start-db.sh` / `start-db.ps1` — sobe/derruba só o serviço do banco (`better-meet/docker-compose.yml`). Útil quando você só precisa do banco, sem as APIs.
+- `install-all.ps1` — roda `npm install` em todos os projetos do repositório (`api`, `better-meet`, `monitoring-better-meet`, `management-better-meet/server`) de uma vez. Rode isso primeiro numa máquina nova.
+- `start-all.ps1` — sobe o sistema completo com um único comando: cria/inicia os containers de banco (idempotente, funciona mesmo que nunca tenham sido criados antes), builda `monitoring-better-meet` e `management-better-meet/server`, e inicia `api`, `monitoring` e `management` via PM2 (`ecosystem.config.js`, na raiz).
 
-Uso (POSIX):
+Uso (POSIX, só o banco):
 
 ```bash
 ./start-db.sh up
