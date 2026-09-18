@@ -3,8 +3,8 @@ import mariadb, { Connection } from "mariadb";
 import { prisma } from "../config/database";
 import { hasRecentErrorReport, recordStatusCheck } from "../services/statusCheck.service";
 
-// A cada 6 horas (00h, 06h, 12h, 18h)
-const CRON_SCHEDULE = "0 */6 * * *";
+// A cada 3 horas (00h, 03h, 06h, 09h, 12h, 15h, 18h, 21h)
+const CRON_SCHEDULE = "0 */3 * * *";
 const HEALTH_CHECK_TIMEOUT_MS = 5000;
 // Mesma cadência do cron — janela em que um erro reportado é considerado "recente"
 const CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000;
