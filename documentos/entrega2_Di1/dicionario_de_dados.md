@@ -155,3 +155,331 @@ Não aplicável — sem banco de dados próprio (ver justificativa acima e RNF12
 | `start` | `pm2.start(nome)` | `container.start()` |
 | `stop` | `pm2.stop(nome)` | `container.stop()` |
 | `restart` | `pm2.restart(nome)` | `container.restart()` |
+
+---
+
+## Cadastro de Organização, Comissão e Usuário — Modelo de Domínio (Data API)
+
+> O diagrama de classes original desse requisito foi feito no Astah (`Diagrama de classes.asta`, na pasta de outro membro da equipe) — um formato binário proprietário (serialização de objetos Java), não um XML legível. Extraí o conteúdo por engenharia reversa do binário e **cruzei com o `api/prisma/schema.prisma` real** (fonte de verdade) pra garantir precisão. O schema real **já evoluiu além do desenho original do Astah**: existe hoje uma entidade `OrganizacaoMembro` e uma relação `solicitante` (o usuário que pediu a criação da organização) que não apareciam no diagrama antigo. O que está abaixo reflete o **código atual**, não o rascunho — é o que a entrega exige ("código de acordo com a documentação").
+
+### Diagrama de Classes
+
+```mermaid
+classDiagram
+    class Role {
+        <<enumeration>>
+        USER
+        ADMIN
+    }
+
+    class User {
+        +Int id
+        +String name
+        +String email
+        +String password
+        +Role role
+        +DateTime createdAt
+    }
+
+    class Organizacao {
+        +Int id
+        +String nome
+        +String status
+        +Int solicitanteId
+    }
+
+    class OrganizacaoMembro {
+        +Int organizacaoId
+        +Int userId
+        +String papel
+    }
+
+    class Comissao {
+        +Int id
+        +String nome
+        +String descricao
+        +DateTime createdAt
+        +Int organizacaoId
+    }
+
+    class ComissaoEquipe {
+        +Int comissaoId
+        +Int userId
+        +String papel
+    }
+
+    User "1" --> "0..*" Organizacao : solicita (solicitante, opcional)
+    Organizacao "1" --> "0..*" OrganizacaoMembro : possui
+    User "1" --> "0..*" OrganizacaoMembro : participa como
+    Organizacao "1" --> "0..*" Comissao : possui
+    Comissao "1" --> "0..*" ComissaoEquipe : possui
+    User "1" --> "0..*" ComissaoEquipe : participa como
+    User --> Role : possui um
+```
+
+### Diagrama Relacional (MySQL)
+
+```mermaid
+erDiagram
+    USER ||--o{ ORGANIZACAO : "solicita (opcional)"
+    ORGANIZACAO ||--o{ ORGANIZACAO_MEMBRO : possui
+    USER ||--o{ ORGANIZACAO_MEMBRO : participa
+    ORGANIZACAO ||--o{ COMISSAO : possui
+    COMISSAO ||--o{ COMISSAO_EQUIPE : possui
+    USER ||--o{ COMISSAO_EQUIPE : participa
+
+    USER {
+        int id PK
+        varchar name
+        varchar email UK
+        varchar password
+        enum role "USER, ADMIN — default USER"
+        datetime created_at
+    }
+
+    ORGANIZACAO {
+        int id PK
+        varchar nome
+        varchar status "aceito / não aceito pelo admin"
+        int solicitante_id FK "opcional"
+    }
+
+    ORGANIZACAO_MEMBRO {
+        int organizacao_id PK "também FK para ORGANIZACAO"
+        int user_id PK "também FK para USER"
+        varchar papel "default MEMBRO"
+    }
+
+    COMISSAO {
+        int id PK
+        varchar nome
+        varchar descricao "opcional"
+        datetime created_at
+        int organizacao_id FK
+    }
+
+    COMISSAO_EQUIPE {
+        int comissao_id PK "também FK para COMISSAO"
+        int user_id PK "também FK para USER"
+        varchar papel "default MEMBRO"
+    }
+```
+
+**Regra de integridade**: `Comissao.organizacaoId`, `OrganizacaoMembro` e `ComissaoEquipe` têm `onDelete: Cascade` nas FKs — remover uma organização remove suas comissões e memberships; remover uma comissão remove sua equipe.
+
+**Chaves compostas**: `OrganizacaoMembro` e `ComissaoEquipe` não têm `id` próprio — a chave primária é o par `(organizacaoId, userId)` / `(comissaoId, userId)`, garantindo que o mesmo usuário não seja inserido duas vezes na mesma organização/comissão.
+
+### Dicionário de Dados
+
+#### Entidade: `User`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `id` | Int | autoincrement | Sim | PK | Identificador único |
+| `name` | String | livre | Sim | — | Nome completo |
+| `email` | String | único | Sim | UK | E-mail, usado como login |
+| `password` | String | hash sha256 | Sim | — | Senha (armazenada como hash) |
+| `role` | Enum (`Role`) | `USER`, `ADMIN` | Sim (default `USER`) | — | Papel do usuário no sistema |
+| `createdAt` | DateTime | timestamp | Sim (default `now()`) | — | Data de cadastro |
+
+#### Entidade: `Organizacao`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `id` | Int | autoincrement | Sim | PK | Identificador único |
+| `nome` | String | livre | Sim | — | Nome da organização |
+| `status` | String | ex.: aceito/pendente | Sim | — | Status da solicitação de cadastro, definido pelo admin |
+| `solicitanteId` | Int | — | Não | FK → `User.id` | Usuário que solicitou a criação da organização |
+
+#### Entidade: `OrganizacaoMembro`
+
+Tabela de associação — vincula um `User` a uma `Organizacao` da qual participa.
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `organizacaoId` | Int | — | Sim | PK (composta), FK → `Organizacao.id` | Organização |
+| `userId` | Int | — | Sim | PK (composta), FK → `User.id` | Usuário membro |
+| `papel` | String | ex.: `MEMBRO` | Sim (default `MEMBRO`) | — | Papel do usuário dentro da organização |
+
+#### Entidade: `Comissao`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `id` | Int | autoincrement | Sim | PK | Identificador único |
+| `nome` | String | livre | Sim | — | Nome da comissão/grupo de trabalho |
+| `descricao` | String | livre | Não | — | Descrição opcional |
+| `createdAt` | DateTime | timestamp | Sim (default `now()`) | — | Data de criação |
+| `organizacaoId` | Int | — | Sim | FK → `Organizacao.id` | Organização à qual a comissão pertence |
+
+#### Entidade: `ComissaoEquipe`
+
+Tabela de associação — vincula um `User` a uma `Comissao` da qual participa.
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `comissaoId` | Int | — | Sim | PK (composta), FK → `Comissao.id` | Comissão |
+| `userId` | Int | — | Sim | PK (composta), FK → `User.id` | Usuário membro da equipe |
+| `papel` | String | ex.: `MEMBRO` | Sim (default `MEMBRO`) | — | Papel do usuário dentro da comissão |
+
+---
+
+## Cadastro de Organização, Comissão e Usuário (Data API)
+
+> Convertido a partir de `Diagrama de classes.asta` (Astah), unificado com o restante do documento a pedido do professor. O `.asta` é um formato binário proprietário (dados Java serializados dentro de um ZIP) — não abre como texto; o conteúdo abaixo foi extraído lendo os blocos de string do binário e **conferido contra o `schema.prisma` atual da `api/`**, que é a fonte da verdade. O rascunho no Astah estava desatualizado em relação ao código: não tinha o enum `Role`, a tabela `OrganizacaoMembro`, nem o campo `solicitanteId` — o diagrama abaixo já reflete o schema atual.
+
+### Diagrama de Classes
+
+```mermaid
+classDiagram
+    class Role {
+        <<enumeration>>
+        USER
+        ADMIN
+    }
+
+    class User {
+        +Int id
+        +String name
+        +String email
+        +String password
+        +Role role
+        +DateTime createdAt
+    }
+
+    class Organizacao {
+        +Int id
+        +String nome
+        +String status
+        +Int? solicitanteId
+    }
+
+    class OrganizacaoMembro {
+        +Int organizacaoId
+        +Int userId
+        +String papel
+    }
+
+    class Comissao {
+        +Int id
+        +String nome
+        +String? descricao
+        +DateTime createdAt
+        +Int organizacaoId
+    }
+
+    class ComissaoEquipe {
+        +Int comissaoId
+        +Int userId
+        +String papel
+    }
+
+    User "0..1" --> "0..*" Organizacao : solicita
+    User "1" --> "0..*" OrganizacaoMembro : participa como
+    Organizacao "1" --> "0..*" OrganizacaoMembro : possui
+    Organizacao "1" --> "0..*" Comissao : possui
+    Comissao "1" --> "0..*" ComissaoEquipe : possui
+    User "1" --> "0..*" ComissaoEquipe : participa como
+    User --> Role : tem
+```
+
+### Diagrama Relacional (MySQL)
+
+```mermaid
+erDiagram
+    USER ||--o{ ORGANIZACAO : "solicita (opcional)"
+    USER ||--o{ ORGANIZACAO_MEMBRO : "participa"
+    ORGANIZACAO ||--o{ ORGANIZACAO_MEMBRO : "possui"
+    ORGANIZACAO ||--o{ COMISSAO : "possui"
+    COMISSAO ||--o{ COMISSAO_EQUIPE : "possui"
+    USER ||--o{ COMISSAO_EQUIPE : "participa"
+
+    USER {
+        int id PK
+        varchar name
+        varchar email UK
+        varchar password
+        enum role "USER, ADMIN — default USER"
+        datetime created_at
+    }
+
+    ORGANIZACAO {
+        int id PK
+        varchar nome
+        varchar status "PENDENTE, ACEITA ou RECUSADA"
+        int solicitante_id FK "opcional"
+    }
+
+    ORGANIZACAO_MEMBRO {
+        int organizacao_id PK,FK
+        int user_id PK,FK
+        varchar papel "default MEMBRO"
+    }
+
+    COMISSAO {
+        int id PK
+        varchar nome
+        varchar descricao "opcional"
+        datetime created_at
+        int organizacao_id FK
+    }
+
+    COMISSAO_EQUIPE {
+        int comissao_id PK,FK
+        int user_id PK,FK
+        varchar papel "default MEMBRO"
+    }
+```
+
+**Chave primária composta**: `OrganizacaoMembro` e `ComissaoEquipe` usam `@@id([...])` composto (não têm `id` próprio) — a combinação organização+usuário (ou comissão+usuário) é a chave, garantindo que a mesma pessoa não seja inserida duas vezes na mesma organização/comissão.
+
+### Dicionário de Dados
+
+#### Entidade: `User`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `id` | Int | autoincrement | Sim | PK | Identificador único |
+| `name` | String (varchar) | livre | Sim | — | Nome completo |
+| `email` | String (varchar) | único | Sim | UK | Usado como login |
+| `password` | String (varchar) | hash sha256 | Sim | — | Senha, nunca em texto plano |
+| `role` | Enum (`Role`) | `USER`, `ADMIN` | Sim (default `USER`) | — | Define se pode aprovar/gerenciar organizações |
+| `createdAt` | DateTime | timestamp | Sim (default `now()`) | — | Data de cadastro |
+
+#### Entidade: `Organizacao`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `id` | Int | autoincrement | Sim | PK | Identificador único |
+| `nome` | String (varchar) | livre, máx. 80 | Sim | — | Nome da organização |
+| `status` | String (varchar) | `PENDENTE`, `ACEITA`, `RECUSADA` | Sim | — | `PENDENTE` na criação; alterado só por um `ADMIN` |
+| `solicitanteId` | Int | — | Não | FK → `User.id` | Usuário que pediu a criação; vira `RESPONSAVEL` (via `OrganizacaoMembro`) se aprovada |
+
+#### Entidade: `OrganizacaoMembro`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `organizacaoId` | Int | — | Sim | PK (composta), FK → `Organizacao.id` | Organização |
+| `userId` | Int | — | Sim | PK (composta), FK → `User.id` | Usuário membro |
+| `papel` | String (varchar) | livre | Sim (default `MEMBRO`) | — | Ex.: `MEMBRO`, `RESPONSAVEL` |
+
+#### Entidade: `Comissao`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `id` | Int | autoincrement | Sim | PK | Identificador único |
+| `nome` | String (varchar) | livre | Sim | — | Nome da comissão/grupo de trabalho |
+| `descricao` | String (varchar) | livre | Não | — | Descrição opcional |
+| `createdAt` | DateTime | timestamp | Sim (default `now()`) | — | Data de criação |
+| `organizacaoId` | Int | — | Sim | FK → `Organizacao.id` | Toda comissão pertence a uma organização (`onDelete: Cascade`) |
+
+#### Entidade: `ComissaoEquipe`
+
+| Atributo | Tipo | Domínio | Obrigatório | Chave | Descrição |
+|---|---|---|---|---|---|
+| `comissaoId` | Int | — | Sim | PK (composta), FK → `Comissao.id` | Comissão |
+| `userId` | Int | — | Sim | PK (composta), FK → `User.id` | Usuário membro da comissão |
+| `papel` | String (varchar) | livre | Sim (default `MEMBRO`) | — | Papel do usuário dentro da comissão |
+
+### Diagrama de Casos de Uso (referência)
+
+O diagrama de casos de uso e sua descrição no formulário padrão ficam em `requisitos_e_casos_de_uso.md`, na seção "Cadastro de Organização".

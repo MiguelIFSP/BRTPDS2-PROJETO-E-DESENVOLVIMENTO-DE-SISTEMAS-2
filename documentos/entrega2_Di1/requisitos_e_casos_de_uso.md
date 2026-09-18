@@ -539,3 +539,41 @@ sequenceDiagram
 | RNF12 | Ausência de banco de dados próprio | A API de Gestão não mantém estado persistente próprio (sem schema/tabelas); autenticação é validada via JWT compartilhado com a Data API, e status é delegado à API de Monitoramento — reduz pontos únicos de falha adicionais |
 | RNF13 | Portabilidade do acesso ao Docker | A conexão com o Docker Engine detecta automaticamente o sistema operacional (named pipe no Windows, socket Unix no Linux), sem configuração manual |
 | RNF14 | Tecnologia | API REST em Node.js + TypeScript + Express; comunicação com PM2 via API programática (pacote `pm2`) e com Docker via `dockerode`; painel administrativo em React Native Web (Expo), servido como build estático pela própria API de Gestão em `/admin` |
+
+---
+
+## Cadastro de Organização (Data API)
+
+> Diagrama de casos de uso convertido a partir de `Diagramas/DCU - Organização.asta` (Astah), unificado com o restante do documento a pedido do professor — a exportação em PNG já existente (`Diagramas/DCU - Organizações.png`) foi usada como referência exata pro conteúdo (o `.asta` em si é um binário Java serializado dentro de um ZIP, não abre como texto). O diagrama de classes correspondente está em `dicionario_de_dados.md`, seção "Cadastro de Organização, Comissão e Usuário".
+>
+> **Escopo desta seção**: só o diagrama de casos de uso foi convertido, que é o que existia no Astah. A descrição de cada caso de uso no formulário padrão, os diagramas de sequência e os requisitos não funcionais deste requisito ainda precisam ser preenchidos por quem o levantou — segue a mesma estrutura das seções acima quando isso for feito.
+
+### Atores
+
+| Ator | Tipo | Descrição |
+|---|---|---|
+| Usuário | Humano | Qualquer usuário cadastrado; pode solicitar a criação de uma organização |
+| Administrador | Humano | Generaliza `Usuário` (todo Administrador também é um Usuário); único que aprova/recusa organizações e as gerencia |
+
+### Diagrama de Casos de Uso
+
+```mermaid
+flowchart LR
+    subgraph Atores[ ]
+        direction TB
+        AUs(["Usuário"])
+        AAdm(["Administrador"])
+
+        AAdm -- generalização --> AUs
+    end
+
+    subgraph SistemaOrg["Cadastro de Organização (Data API)"]
+        UCa(["Solicita criação de<br/>nova organização"])
+        UCb(["Autorizar/Revogar<br/>organização"])
+        UCc(["Gerenciar<br/>organizações"])
+    end
+
+    AUs --> UCa
+    AAdm --> UCb
+    AAdm --> UCc
+```
