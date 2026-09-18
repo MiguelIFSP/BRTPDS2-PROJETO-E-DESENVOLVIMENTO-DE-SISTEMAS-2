@@ -1,5 +1,6 @@
 import cron from "node-cron";
 import mariadb, { Connection } from "mariadb";
+import { prisma } from "../config/database";
 import { hasRecentErrorReport, recordStatusCheck } from "../services/statusCheck.service";
 
 // A cada 6 horas (00h, 06h, 12h, 18h)
@@ -68,10 +69,78 @@ async function checkMobileBetterMeet() {
   }
 }
 
+// Banco da própria monitoring — já tem uma conexão Prisma viva, então só testa nela
+// em vez de abrir outra conexão direta como o checkAppDatabase faz com o banco da api.
+async function checkMonitoringDatabase() {
+  try {
+    await prisma.$queryRaw`SELECT 1`;
+    await recordStatusCheck("monitoring-database", "OPERATIONAL");
+  } catch (error) {
+    await recordStatusCheck("monitoring-database", "DOWN", (error as Error).message);
+  }
+}
+
+async function checkManagementApi() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), HEALTH_CHECK_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(`${process.env.MANAGEMENT_API_URL}/health`, {
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      await recordStatusCheck("management", "DOWN", `Health check retornou status ${response.status}`);
+      return;
+    }
+
+    await recordStatusCheck("management", "OPERATIONAL");
+  } catch (error) {
+    await recordStatusCheck("management", "DOWN", (error as Error).message);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+// A própria monitoring: se esse cron está rodando, o processo está de pé.
+async function checkSelf() {
+  try {
+    await recordStatusCheck("monitoring", "OPERATIONAL");
+  } catch (error) {
+    console.error("Erro ao registrar o próprio status da monitoring:", error);
+  }
+}
+
 export function startHealthCheckCron() {
   cron.schedule(CRON_SCHEDULE, async () => {
-    await Promise.all([checkAppDatabase(), checkDataApi(), checkMobileBetterMeet()]);
+    await Promise.all([
+      checkAppDatabase(),
+      checkDataApi(),
+      checkMobileBetterMeet(),
+      checkMonitoringDatabase(),
+      checkManagementApi(),
+      checkSelf(),
+    ]);
   });
 
   console.log(`Cron de health check agendado (${CRON_SCHEDULE})`);
+}
+
+const CHECKS_BY_SUBSYSTEM: Record<string, () => Promise<void>> = {
+  database: checkAppDatabase,
+  "data-api": checkDataApi,
+  "mobile-app": checkMobileBetterMeet,
+  "monitoring-database": checkMonitoringDatabase,
+  management: checkManagementApi,
+  monitoring: checkSelf,
+};
+
+// Roda a checagem de UM subsistema agora, fora do horário do cron — usado pela
+// management depois de start/stop/restart, pra não esperar até 6h pra refletir no painel.
+export async function runSingleCheck(subSystem: string): Promise<boolean> {
+  const check = CHECKS_BY_SUBSYSTEM[subSystem];
+  if (!check) return false;
+
+  await check();
+  return true;
 }

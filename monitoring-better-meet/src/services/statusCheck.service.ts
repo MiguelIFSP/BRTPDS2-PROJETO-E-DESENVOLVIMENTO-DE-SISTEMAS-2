@@ -101,23 +101,23 @@ export async function getStatusHistoryBySubSystem(subSystemId: number, days: num
   const subSystem = await prisma.subSystem.findUnique({ where: { id: subSystemId } });
   if (!subSystem) return null;
 
-  const endDate = new Date();
-  endDate.setHours(23, 59, 59, 999);
-
-  const startDate = new Date();
-  startDate.setDate(startDate.getDate() - (days - 1));
-  startDate.setHours(0, 0, 0, 0);
+  // Tudo em UTC aqui, pra bater com o check.checkedAt.toISOString() usado no bucket
+  // abaixo — misturar hora local (Brasília, UTC-3) com UTC fazia o "hoje" do esqueleto
+  // ficar um dia atrasado durante a noite (quando UTC já virou o dia e o local não),
+  // descartando silenciosamente qualquer check feito nesse intervalo.
+  const now = new Date();
+  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 23, 59, 59, 999));
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate() - (days - 1)));
 
   const checks = await prisma.statusCheck.findMany({
     where: { subSystemId, checkedAt: { gte: startDate, lte: endDate } },
     orderBy: { checkedAt: "asc" },
   });
 
-  // Monta um "esqueleto" com todos os dias do período, mesmo os sem check
+  // Monta um "esqueleto" com todos os dias do período (em UTC), mesmo os sem check
   const dayMap = new Map<string, typeof checks>();
   for (let i = 0; i < days; i++) {
-    const d = new Date(startDate);
-    d.setDate(d.getDate() + i);
+    const d = new Date(Date.UTC(startDate.getUTCFullYear(), startDate.getUTCMonth(), startDate.getUTCDate() + i));
     dayMap.set(d.toISOString().split("T")[0]!, []);
   }
 

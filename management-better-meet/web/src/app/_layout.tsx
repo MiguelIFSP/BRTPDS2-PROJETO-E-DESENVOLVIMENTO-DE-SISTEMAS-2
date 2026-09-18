@@ -1,10 +1,10 @@
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider, useRouter, useSegments } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
-import { useColorScheme } from 'react-native';
 import React, { useEffect } from 'react';
 
 import { Colors } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -34,7 +34,7 @@ function AppGate() {
 }
 
 export default function RootLayout() {
-  const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const { theme: colorScheme } = useThemeStore();
 
   useEffect(() => {
     SplashScreen.hideAsync();

@@ -84,6 +84,7 @@ Os incrementos devem ser cumulativos: novas versões precisam preservar as funci
 - **Prisma (ORM):** `api/prisma/` — contém o arquivo de schema em `api/prisma/schema.prisma` e configurações do Prisma Client.
 - **API de monitoramento:** `monitoring-better-meet/` — registra e expõe o histórico de status de `database`, `data-api` e `mobile-app` (mais detalhes em [`monitoring-better-meet/contexto-api-monitoramento.md`](monitoring-better-meet/contexto-api-monitoramento.md)).
 - **API de gestão:** `management-better-meet/server/` — permite a admins iniciar/parar/reiniciar os outros subsistemas (as duas APIs Node via PM2, os dois bancos via Docker), porta padrão `3335`.
+- **Painel admin:** `management-better-meet/web/` — front-end (Expo/React Native Web) do painel de gestão; login restrito a `role: ADMIN`. Servido pela própria `management-better-meet/server` em `/admin` (build estático, não é um servidor separado).
 
 ### Subindo tudo rapidamente (Windows)
 
@@ -94,10 +95,13 @@ Pré-requisitos que não são automatizados (não têm como, com segurança): No
 .\install-all.ps1
 
 # 2. Crie o .env de cada projeto a partir do .env.example correspondente
-#    (api/, better-meet/, monitoring-better-meet/, management-better-meet/server/)
+#    (api/, better-meet/, monitoring-better-meet/, management-better-meet/server/,
+#    management-better-meet/web/)
 
-# 3. Sobe tudo: bancos (Docker) + api/monitoring/management (PM2)
+# 3. Sobe tudo: bancos (Docker) + api/monitoring/management (PM2) + build do painel
 .\start-all.ps1
+
+# Painel admin: http://localhost:3335/admin (login com um usuário role ADMIN)
 
 # Pra acompanhar o que está rodando:
 pm2 list

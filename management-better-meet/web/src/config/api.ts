@@ -19,3 +19,10 @@ export const MANAGEMENT_API_URL = requireEnv(
   'EXPO_PUBLIC_MANAGEMENT_API_URL',
   process.env.EXPO_PUBLIC_MANAGEMENT_API_URL
 );
+
+// Guard do POST /status da monitoring (reportar erro) — precisa ser IDÊNTICA
+// ao INTERNAL_API_KEY do .env da monitoring-better-meet/
+export const MONITORING_API_KEY = requireEnv(
+  'EXPO_PUBLIC_MONITORING_API_KEY',
+  process.env.EXPO_PUBLIC_MONITORING_API_KEY
+);

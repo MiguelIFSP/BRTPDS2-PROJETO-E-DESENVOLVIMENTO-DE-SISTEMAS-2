@@ -1,6 +1,5 @@
-# Roda "npm install" em todos os projetos do repositório de uma vez — útil pra
+﻿# Roda "npm install" em todos os projetos do repositório de uma vez — útil pra
 # preparar uma máquina nova (ex.: PC da escola) antes do start-all.ps1.
-# Quando o management-better-meet/web existir, adiciona ele nessa lista.
 
 $root = $PSScriptRoot
 
@@ -8,7 +7,8 @@ $projects = @(
     "api",
     "better-meet",
     "monitoring-better-meet",
-    "management-better-meet/server"
+    "management-better-meet/server",
+    "management-better-meet/web"
 )
 
 foreach ($project in $projects) {

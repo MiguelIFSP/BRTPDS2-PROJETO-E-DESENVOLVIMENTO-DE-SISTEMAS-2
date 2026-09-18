@@ -1,6 +1,7 @@
 import { Request, Response } from "express";
 import { recordStatusCheck, getLatestStatus, getDailyStatus } from "../services/statusCheck.service";
 import { getStatusHistoryBySubSystem } from "../services/statusCheck.service";
+import { runSingleCheck } from "../jobs/healthCheck.cron";
 import { StatusType } from "@prisma/client";
 
 export async function createStatusCheck(req: Request, res: Response) {
@@ -39,6 +40,25 @@ export async function getDailyStatusReport(req: Request, res: Response) {
     }
 
     return res.json(await getDailyStatus(date));
+  } catch (error) {
+    return res.status(500).json({ error: (error as Error).message });
+  }
+}
+
+// Dispara a checagem de UM subsistema agora (fora do horário do cron) e devolve
+// o status recém-gravado — usado pela management depois de start/stop/restart.
+export async function checkSubSystemNow(req: Request, res: Response) {
+  try {
+    const { subSystem } = req.params;
+
+    const found = await runSingleCheck(subSystem as string);
+    if (!found) {
+      return res.status(404).json({ error: `Subsistema desconhecido: ${subSystem}` });
+    }
+
+    const latest = await getLatestStatus();
+    const result = latest.find((item) => item.subSystem === subSystem);
+    return res.json(result ?? { subSystem, status: "UNKNOWN" });
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }

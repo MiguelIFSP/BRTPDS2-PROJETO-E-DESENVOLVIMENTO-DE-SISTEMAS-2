@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +17,8 @@ import * as yup from 'yup';
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
+import { reportManagementError } from '../services/monitoringService';
 import { API_URL } from '../config/api';
 
 const loginSchema = yup.object({
@@ -41,7 +42,7 @@ const initialValues: LoginForm = {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const { theme: colorScheme } = useThemeStore();
   const themeColors = Colors[colorScheme];
   const { isAuthenticated, login } = useAuthStore();
 
@@ -105,14 +106,27 @@ export default function LoginScreen() {
             password: form.password,
           }),
         });
-      } catch {
+      } catch (networkError) {
+        // Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
+        reportManagementError(
+          networkError instanceof Error ? networkError.message : 'Falha de rede ao tentar logar.',
+          networkError instanceof Error ? networkError.stack : undefined,
+          { context: 'LoginScreen.handleLogin', isBlocking: true }
+        );
         throw new Error('Não foi possível conectar com a API.');
       }
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Não foi possível entrar.');
+        const message = data.error ?? 'Não foi possível entrar.';
+
+        // 401 aqui é credencial errada — comportamento normal do usuário, não bug.
+        if (response.status !== 401) {
+          reportManagementError(message, undefined, { context: 'LoginScreen.handleLogin', isBlocking: true });
+        }
+
+        throw new Error(message);
       }
 
       if (data.role !== 'ADMIN') {

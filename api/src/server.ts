@@ -9,6 +9,7 @@ import comissaoRoutes from './routes/comissaoRoutes.ts';
 import organizacaoRoutes from './routes/organizacaoRoutes.ts';
 import usuarioRoutes from './routes/usuarioRoutes.ts';
 import { ensureDefaultAdmin, DEFAULT_ADMIN_EMAIL, DEFAULT_ADMIN_PASSWORD } from './controllers/usuarioController.ts';
+import { reportStatus } from './services/monitoringReporter.ts';
 
 const app = express();
 const port = Number(process.env.PORT ?? 3333);
@@ -102,9 +103,13 @@ const server = app.listen(port, async () => {
   await ensureDefaultAdmin();
   console.log(`API Better Meet disponível em http://localhost:${port}`);
   console.log(`Administrador padrão: ${DEFAULT_ADMIN_EMAIL} / ${DEFAULT_ADMIN_PASSWORD}`);
+  await reportStatus('OPERATIONAL', 'Serviço iniciado');
 });
 
+// Reporta a própria parada (comando do PM2) antes de sair, pra não esperar o
+// cron das próximas 6h pra refletir isso no painel.
 const shutdown = async () => {
+  await reportStatus('MAINTENANCE', 'Parada solicitada');
   server.close();
   await prisma.$disconnect();
   process.exit(0);

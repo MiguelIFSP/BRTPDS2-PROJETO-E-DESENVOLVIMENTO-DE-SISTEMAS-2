@@ -3,6 +3,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import statusRoutes from "./routes/status.routes";
 import { startHealthCheckCron } from "./jobs/healthCheck.cron";
+import { recordStatusCheck } from "./services/statusCheck.service";
 
 dotenv.config();
 
@@ -17,6 +18,20 @@ app.get("/health", (_req, res) => {
 app.use("/monitoring-better-meet", statusRoutes);
 
 const PORT = process.env.PORT || 3334;
-app.listen(PORT, () => console.log(`Server rodando na porta ${PORT}`));
+const server = app.listen(PORT, async () => {
+  console.log(`Server rodando na porta ${PORT}`);
+  await recordStatusCheck("monitoring", "OPERATIONAL", "Serviço iniciado");
+});
 
 startHealthCheckCron();
+
+// Reporta a própria parada (comando do PM2) antes de sair, pra não esperar o
+// cron das próximas 6h pra refletir isso no painel.
+const shutdown = async () => {
+  await recordStatusCheck("monitoring", "MAINTENANCE", "Parada solicitada");
+  server.close();
+  process.exit(0);
+};
+
+process.on("SIGINT", shutdown);
+process.on("SIGTERM", shutdown);

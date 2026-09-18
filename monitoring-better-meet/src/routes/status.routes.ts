@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createStatusCheck, getCurrentStatus, getDailyStatusReport, getSubSystemHistory } from "../controllers/status.controller";
+import { createStatusCheck, getCurrentStatus, getDailyStatusReport, getSubSystemHistory, checkSubSystemNow } from "../controllers/status.controller";
 import { apiKeyGuard } from "../middlewares/apiKey";
 import { jwtAuthGuard } from "../middlewares/jwtAuth";
 
@@ -9,4 +9,5 @@ router.post("/status", apiKeyGuard, createStatusCheck);                        /
 router.get("/status", jwtAuthGuard, getCurrentStatus);                         // status atual por sub-sistema (painel do app, protegido por JWT)
 router.get("/status/daily", jwtAuthGuard, getDailyStatusReport);               // relatório diário (?date=YYYY-MM-DD)
 router.get("/status/:subSystemId/history", jwtAuthGuard, getSubSystemHistory); // histórico de um sub-sistema
+router.post("/status/:subSystem/check", apiKeyGuard, checkSubSystemNow);       // checa 1 subsistema agora (protegido por API key)
 export default router;
