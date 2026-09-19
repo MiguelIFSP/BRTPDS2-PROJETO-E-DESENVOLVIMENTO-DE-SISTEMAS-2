@@ -11,6 +11,12 @@ import { useAuthStore } from '../store/authStore';
 
 SplashScreen.preventAutoHideAsync();
 
+// =====================================================================
+// AppGate — guarda de rotas
+// =====================================================================
+// Redireciona quem NÃO está autenticado para /login,
+// exceto quando está em uma rota pública (login, cadastro, recuperação).
+// =====================================================================
 function AppGate() {
   const segments = useSegments();
   const router = useRouter();
@@ -20,9 +26,14 @@ function AppGate() {
     if (!hasHydrated) return;
 
     const currentRoute = segments[0] ?? 'index';
-    const authRoutes = ['login', 'usuario'];
 
-    if (!isAuthenticated && !authRoutes.includes(currentRoute)) {
+    // Rotas PÚBLICAS (acessíveis sem login):
+    //   - login           → tela de entrada
+    //   - usuario         → cadastro de novo usuário
+    //   - forgot-password → recuperação de conta (UC02)
+    const publicRoutes = ['login', 'usuario', 'forgot-password'];
+
+    if (!isAuthenticated && !publicRoutes.includes(currentRoute)) {
       router.replace('/login');
       return;
     }
@@ -71,6 +82,7 @@ export default function RootLayout() {
           <Drawer.Screen name="usuario" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="login" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="forgot-password" options={{ drawerItemStyle: { display: 'none' } }} />
         </Drawer>
       </ThemeProvider>
     </GestureHandlerRootView>

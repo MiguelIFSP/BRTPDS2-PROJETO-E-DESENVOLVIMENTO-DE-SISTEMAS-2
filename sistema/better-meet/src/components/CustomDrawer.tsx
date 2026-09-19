@@ -1,59 +1,102 @@
-import React from 'react'; // Não precisamos mais do useState
-import { View, Text, TouchableOpacity, StyleSheet, Switch, useColorScheme, Appearance } from 'react-native';
+import React from 'react';
+import {
+  View,
+  Text,
+  TouchableOpacity,
+  StyleSheet,
+  Switch,
+  useColorScheme,
+  Appearance,
+  Platform,
+} from 'react-native';
 import { DrawerContentScrollView } from 'expo-router/drawer';
 import { Colors } from '../constants/theme';
 import IconAndTitle from './IconAndTitle';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
+import { API_URL } from '../config/api';
 
 export default function CustomDrawer(props: any) {
   const router = useRouter();
-  // O hook sempre terá a verdade sobre o tema atual do app
   const currentTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const themeColors = Colors[currentTheme];
   const { user } = useAuthStore();
-  
-  // Variável para controlar o Switch
+
   const isDarkMode = currentTheme === 'dark';
 
-  // Função que realmente muda o tema do aplicativo inteiro
-  const toggleSwitch = () => {
+  // =====================================================================
+  // toggleSwitch — UC04 (Tema Preferido)
+  // 1. Aplica tema localmente (feedback imediato) — só em Android/iOS,
+  //    porque Appearance.setColorScheme() não existe no react-native-web.
+  // 2. Se autenticado, sincroniza com o backend.
+  // 3. Se offline, falha silenciosa — tema local continua aplicado.
+  // =====================================================================
+  const toggleSwitch = async () => {
     const newTheme = isDarkMode ? 'light' : 'dark';
-    Appearance.setColorScheme(newTheme);
+
+    // Appearance.setColorScheme() só existe em Android/iOS. No web, o tema
+    // segue a preferência do sistema do navegador (não dá pra forçar).
+    if (Platform.OS !== 'web') {
+      Appearance.setColorScheme(newTheme);
+    }
+
+    // Sincroniza com o backend (se logado)
+    if (user && useAuthStore.getState().token) {
+      try {
+        await fetch(`${API_URL}/usuarios/${user.id}/tema`, {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${useAuthStore.getState().token}`,
+          },
+          body: JSON.stringify({ theme: newTheme }),
+        });
+      } catch {
+        // Falha silenciosa — tema local continua aplicado
+      }
+    }
   };
 
   return (
-    <DrawerContentScrollView 
-      {...props} 
+    <DrawerContentScrollView
+      {...props}
       style={[styles.drawerContainer, { backgroundColor: themeColors.background }]}
     >
-      {/* Topo do Menu: Logo */}
       <View style={styles.header}>
         <IconAndTitle />
       </View>
 
-      {/* ... (Todo o bloco de Links de Navegação continua igual) ... */}
-      <TouchableOpacity 
-        style={styles.menuItem} 
-        onPress={() => router.push('/status')}
-      >
+      <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/status')}>
         <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Status do Sistema</Text>
       </TouchableOpacity>
+
       <TouchableOpacity
         style={styles.menuItem}
         onPress={() => router.push('/organizacao' as any)}
       >
-        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>{user?.role === 'ADMIN' ? 'Solicitar organização' : 'Minha organização'}</Text>
+        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>
+          {user?.role === 'ADMIN' ? 'Solicitar organização' : 'Minha organização'}
+        </Text>
       </TouchableOpacity>
-      {user?.role === 'ADMIN' ? <TouchableOpacity
-        style={styles.menuItem}
-        onPress={() => router.push('/organizacoes' as any)}
-      >
-        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Organizações</Text>
-      </TouchableOpacity> : null}
-      {/* Substitua apenas o bloco do toggle e do footer por este: */}
+
+      {user?.role === 'ADMIN' ? (
+        <TouchableOpacity
+          style={styles.menuItem}
+          onPress={() => router.push('/organizacoes' as any)}
+        >
+          <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>
+            Organizações
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
       <View style={[styles.footer, { borderTopColor: themeColors.textSecondary + '40' }]}>
-        <View style={[styles.themeToggleContainer, { borderColor: themeColors.textSecondary + '40' }]}>
+        <View
+          style={[
+            styles.themeToggleContainer,
+            { borderColor: themeColors.textSecondary + '40' },
+          ]}
+        >
           <Text style={[styles.themeText, { color: themeColors.text }]}>
             {isDarkMode ? '🌙' : '☀️'} Modo Escuro
           </Text>
@@ -74,30 +117,18 @@ export default function CustomDrawer(props: any) {
 }
 
 const styles = StyleSheet.create({
-  drawerContainer: {
-    flex: 1,
-  },
+  drawerContainer: { flex: 1 },
   header: {
     padding: 24,
     paddingTop: 40,
     marginBottom: 20,
     alignItems: 'center',
   },
-  logoText: {
-    fontSize: 24,
-    fontWeight: 'bold',
-  },
-  menuItems: {
-    paddingHorizontal: 16,
-  },
   menuItem: {
     paddingVertical: 14,
     paddingHorizontal: 20,
     borderRadius: 12,
     marginBottom: 8,
-  },
-  activeItem: {
-    // A cor de fundo vem dinamicamente pelo style array no JSX
   },
   menuText: {
     fontSize: 16,
@@ -127,5 +158,5 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'center',
     marginBottom: 24,
-  }
+  },
 });

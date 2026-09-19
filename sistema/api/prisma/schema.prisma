@@ -1,4 +1,9 @@
-// /prisma/schema.prisma
+// =====================================================================
+// schema.prisma — BetterMeet API
+// Incremento 1 – Configurações de Usuário:
+//   - Adicionado campo themePreference em User (UC04)
+//   - Criada tabela PasswordResetToken (UC02)
+// =====================================================================
 
 generator client {
   provider = "prisma-client-js"
@@ -21,61 +26,87 @@ model User {
   role      Role     @default(USER)
   createdAt DateTime @default(now())
 
-  // um usuário pode participar de várias comissões
-  comissoes ComissaoEquipe[]
-  solicitacoesOrganizacao Organizacao[] @relation("SolicitanteOrganizacao")
-  organizacoes OrganizacaoMembro[]
+  // -------------------------------------------------------------------
+  // Preferência de tema do app mobile (UC04)
+  // Valores: "light" | "dark" | "system"
+  // Opcional para não quebrar usuários criados antes da migração.
+  // -------------------------------------------------------------------
+  themePreference String? @default("system")
+
+  // -------------------------------------------------------------------
+  // Relações existentes
+  // -------------------------------------------------------------------
+  comissoes               ComissaoEquipe[]
+  solicitacoesOrganizacao Organizacao[]     @relation("SolicitanteOrganizacao")
+  organizacoes            OrganizacaoMembro[]
+
+  // -------------------------------------------------------------------
+  // NOVO: tokens de recuperação de conta (UC02)
+  // -------------------------------------------------------------------
+  passwordResetTokens PasswordResetToken[]
 }
 
-
 model Organizacao {
-  id        Int        @id @default(autoincrement())
-  nome      String
-  status      String  // aceito ou nao aceito pelo admin
-  
-  //uma organização possui várias comissões
-  comissoes Comissao[]
+  id     Int    @id @default(autoincrement())
+  nome   String
+  status String // "PENDENTE" | "ACEITA" | "RECUSADA"
+
+  comissoes     Comissao[]
   solicitanteId Int?
-  solicitante User? @relation("SolicitanteOrganizacao", fields: [solicitanteId], references: [id])
-  membros OrganizacaoMembro[]
+  solicitante   User?                @relation("SolicitanteOrganizacao", fields: [solicitanteId], references: [id])
+  membros       OrganizacaoMembro[]
 }
 
 model OrganizacaoMembro {
   organizacaoId Int
-  userId Int
-  papel String @default("MEMBRO")
+  userId        Int
+  papel         String @default("MEMBRO")
 
   organizacao Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([organizacaoId, userId])
 }
 
-
-
 model Comissao {
   id            Int      @id @default(autoincrement())
   nome          String
-  descricao     String?  // deixei aq mas nao sei se voui manter
+  descricao     String?
   createdAt     DateTime @default(now())
 
-  // relacionamento com a organização (toda comissão pertence a uma organização)
   organizacaoId Int
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
-  // relacionamento com a tabela intermediária de equipe
-  equipe        ComissaoEquipe[]
+  equipe ComissaoEquipe[]
 }
 
 model ComissaoEquipe {
   comissaoId Int
   userId     Int
-  papel      String   @default("MEMBRO") 
+  papel      String @default("MEMBRO")
 
-  // configuração das chaves estrangeiras
-  comissao   Comissao @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comissao Comissao @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  // chave primária composta: garante que o mesmo usuário não seja inserido duas vezes na mesma comissão
   @@id([comissaoId, userId])
+}
+
+// =====================================================================
+// PasswordResetToken (NOVO — UC02 Recuperação de Conta)
+// =====================================================================
+// Tabela separada de User por 3 motivos:
+//   1. Mantém histórico (auditoria) de tokens emitidos
+//   2. Permite múltiplos tokens válidos simultaneamente
+//   3. Não polui a tabela User com colunas de uso temporário
+// =====================================================================
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }

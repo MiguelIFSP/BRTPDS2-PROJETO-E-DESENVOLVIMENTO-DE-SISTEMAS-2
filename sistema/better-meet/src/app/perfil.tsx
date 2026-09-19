@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -23,6 +23,8 @@ export default function PerfilScreen() {
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const themeColors = Colors[colorScheme];
   const { user, logout, isAuthenticated } = useAuthStore();
+
+  // ---------- Estados para troca de senha (UC01) ----------
   const [showPasswordForm, setShowPasswordForm] = useState(false);
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -33,6 +35,79 @@ export default function PerfilScreen() {
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
+  // ---------- Estados para edição de dados pessoais (UC03) ----------
+  const [showProfileForm, setShowProfileForm] = useState(false);
+  const [profileName, setProfileName] = useState(user?.name ?? '');
+  const [profileEmail, setProfileEmail] = useState(user?.email ?? '');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
+
+  // =====================================================================
+  // Sincroniza os campos do formulário quando o `user` do store mudar.
+  // Sem isso, o useState só lê uma vez na montagem e fica com dados antigos
+  // se você trocar de usuário (logout/login ou edição em outro device).
+  // =====================================================================
+  useEffect(() => {
+    if (user) {
+      setProfileName(user.name);
+      setProfileEmail(user.email);
+    }
+  }, [user]);
+
+  // =====================================================================
+  // handleProfileUpdate — UC03 (Alterar Dados Pessoais)
+  // =====================================================================
+  const handleProfileUpdate = async () => {
+    if (!user) return;
+
+    if (!profileName.trim() || !profileEmail.trim()) {
+      setFeedback({ type: 'error', message: 'Nome e e-mail são obrigatórios.' });
+      return;
+    }
+
+    setIsSavingProfile(true);
+    setFeedback(null);
+
+    try {
+      const response = await fetch(`${API_URL}/usuarios/${user.id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
+        },
+        body: JSON.stringify({
+          nome: profileName.trim(),
+          email: profileEmail.trim().toLowerCase(),
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.error ?? 'Não foi possível salvar os dados.');
+      }
+
+      // Atualiza o usuário no Zustand para refletir na UI
+      useAuthStore.setState((state) => ({
+        user: state.user
+          ? { ...state.user, name: data.name, email: data.email }
+          : state.user,
+      }));
+
+      setFeedback({ type: 'success', message: 'Dados atualizados com sucesso.' });
+      setShowProfileForm(false);
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: error instanceof Error ? error.message : 'Erro de conexão.',
+      });
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  // =====================================================================
+  // handlePasswordChange — UC01 (Troca de Senha)
+  // =====================================================================
   const handlePasswordChange = async () => {
     if (!user) return;
 
@@ -60,14 +135,16 @@ export default function PerfilScreen() {
       try {
         response = await fetch(`${API_URL}/usuarios/${user.id}/senha`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${useAuthStore.getState().token}`,
+          },
           body: JSON.stringify({
             currentPassword,
             newPassword,
           }),
         });
       } catch (networkError) {
-        // Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
         reportMobileError(
           networkError instanceof Error ? networkError.message : 'Falha de rede ao alterar senha.',
           networkError instanceof Error ? networkError.stack : undefined,
@@ -81,7 +158,6 @@ export default function PerfilScreen() {
       if (!response.ok) {
         const message = data.error ?? 'Não foi possível alterar a senha.';
 
-        // 400 (nova senha inválida) e 401 (senha atual incorreta) são rejeições normais, não bugs.
         if (response.status !== 400 && response.status !== 401) {
           reportMobileError(message, undefined, { context: 'PerfilScreen.handlePasswordChange', isBlocking: true });
         }
@@ -113,12 +189,21 @@ export default function PerfilScreen() {
         <Header />
         <View style={styles.emptyState}>
           <Text style={[styles.title, { color: themeColors.text }]}>Você não está autenticado</Text>
-          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>Faça login para acessar seu perfil.</Text>
+          <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
+            Faça login para acessar seu perfil.
+          </Text>
           <Pressable
             onPress={() => router.replace('/login')}
             style={[styles.actionButton, { backgroundColor: themeColors.backgroundSelected }]}
           >
-            <Text style={[styles.actionText, { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' }]}>Ir para login</Text>
+            <Text
+              style={[
+                styles.actionText,
+                { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' },
+              ]}
+            >
+              Ir para login
+            </Text>
           </Pressable>
         </View>
       </SafeAreaView>
@@ -141,7 +226,12 @@ export default function PerfilScreen() {
 
         <View style={[styles.card, { backgroundColor: themeColors.backgroundElement }]}>
           <View style={[styles.avatarContainer, { backgroundColor: themeColors.backgroundSelected }]}>
-            <Text style={[styles.avatarText, { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' }]}>
+            <Text
+              style={[
+                styles.avatarText,
+                { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' },
+              ]}
+            >
               {user.name
                 .split(' ')
                 .filter(Boolean)
@@ -186,6 +276,93 @@ export default function PerfilScreen() {
             </Text>
           </View>
 
+          {/* ---------- UC03: Botão "Editar dados pessoais" ---------- */}
+          <Pressable
+            onPress={() => setShowProfileForm((prev) => !prev)}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              { backgroundColor: 'transparent', opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Ionicons name="create-outline" size={18} color={themeColors.textSecondary} />
+            <Text style={[styles.secondaryButtonText, { color: themeColors.textSecondary }]}>
+              {showProfileForm ? 'Cancelar edição' : 'Editar dados pessoais'}
+            </Text>
+          </Pressable>
+
+          {showProfileForm ? (
+            <View style={[styles.passwordCard, { backgroundColor: themeColors.background }]}>
+              <Text style={[styles.fieldLabel, { color: themeColors.text }]}>Nome completo</Text>
+              <TextInput
+                value={profileName}
+                onChangeText={setProfileName}
+                placeholder="Seu nome"
+                placeholderTextColor={themeColors.textSecondary + '99'}
+                style={[
+                  styles.passwordInput,
+                  {
+                    color: themeColors.text,
+                    borderWidth: 1,
+                    borderColor: themeColors.textSecondary + '55',
+                    borderRadius: 8,
+                    paddingHorizontal: Spacing.three,
+                    minHeight: 52,
+                  },
+                ]}
+              />
+
+              <Text style={[styles.fieldLabel, { color: themeColors.text, marginTop: Spacing.three }]}>
+                E-mail
+              </Text>
+              <TextInput
+                value={profileEmail}
+                onChangeText={setProfileEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                placeholder="seuemail@exemplo.com"
+                placeholderTextColor={themeColors.textSecondary + '99'}
+                style={[
+                  styles.passwordInput,
+                  {
+                    color: themeColors.text,
+                    borderWidth: 1,
+                    borderColor: themeColors.textSecondary + '55',
+                    borderRadius: 8,
+                    paddingHorizontal: Spacing.three,
+                    minHeight: 52,
+                  },
+                ]}
+              />
+
+              <Pressable
+                onPress={handleProfileUpdate}
+                disabled={isSavingProfile}
+                style={({ pressed }) => [
+                  styles.actionButton,
+                  {
+                    backgroundColor: themeColors.backgroundSelected,
+                    opacity: isSavingProfile ? 0.7 : pressed ? 0.85 : 1,
+                  },
+                ]}
+              >
+                <Ionicons
+                  name={isSavingProfile ? 'hourglass-outline' : 'save-outline'}
+                  size={20}
+                  color={colorScheme === 'dark' ? themeColors.background : '#ffffff'}
+                />
+                <Text
+                  style={[
+                    styles.actionText,
+                    { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' },
+                  ]}
+                >
+                  {isSavingProfile ? 'Salvando...' : 'Salvar alterações'}
+                </Text>
+              </Pressable>
+            </View>
+          ) : null}
+
+          {/* ---------- UC01: Botão "Alterar senha" ---------- */}
           <Pressable
             onPress={() => setShowPasswordForm((prev) => !prev)}
             style={({ pressed }) => [
@@ -200,7 +377,7 @@ export default function PerfilScreen() {
           </Pressable>
 
           {showPasswordForm ? (
-            <View style={[styles.passwordCard, { backgroundColor: themeColors.background }]}> 
+            <View style={[styles.passwordCard, { backgroundColor: themeColors.background }]}>
               <Text style={[styles.fieldLabel, { color: themeColors.text }]}>Senha atual</Text>
               <View style={[styles.passwordWrap, { borderColor: themeColors.textSecondary + '55' }]}>
                 <TextInput
@@ -211,12 +388,21 @@ export default function PerfilScreen() {
                   style={[styles.passwordInput, { color: themeColors.text }]}
                   placeholderTextColor={themeColors.textSecondary + '99'}
                 />
-                <Pressable onPress={() => setShowCurrentPassword((prev) => !prev)} style={styles.eyeButton}>
-                  <Ionicons name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={themeColors.textSecondary} />
+                <Pressable
+                  onPress={() => setShowCurrentPassword((prev) => !prev)}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={showCurrentPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={themeColors.textSecondary}
+                  />
                 </Pressable>
               </View>
 
-              <Text style={[styles.fieldLabel, { color: themeColors.text, marginTop: Spacing.three }]}>Nova senha</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.text, marginTop: Spacing.three }]}>
+                Nova senha
+              </Text>
               <View style={[styles.passwordWrap, { borderColor: themeColors.textSecondary + '55' }]}>
                 <TextInput
                   value={newPassword}
@@ -227,11 +413,17 @@ export default function PerfilScreen() {
                   placeholderTextColor={themeColors.textSecondary + '99'}
                 />
                 <Pressable onPress={() => setShowNewPassword((prev) => !prev)} style={styles.eyeButton}>
-                  <Ionicons name={showNewPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={themeColors.textSecondary} />
+                  <Ionicons
+                    name={showNewPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={themeColors.textSecondary}
+                  />
                 </Pressable>
               </View>
 
-              <Text style={[styles.fieldLabel, { color: themeColors.text, marginTop: Spacing.three }]}>Confirmar nova senha</Text>
+              <Text style={[styles.fieldLabel, { color: themeColors.text, marginTop: Spacing.three }]}>
+                Confirmar nova senha
+              </Text>
               <View style={[styles.passwordWrap, { borderColor: themeColors.textSecondary + '55' }]}>
                 <TextInput
                   value={confirmPassword}
@@ -241,8 +433,15 @@ export default function PerfilScreen() {
                   style={[styles.passwordInput, { color: themeColors.text }]}
                   placeholderTextColor={themeColors.textSecondary + '99'}
                 />
-                <Pressable onPress={() => setShowConfirmPassword((prev) => !prev)} style={styles.eyeButton}>
-                  <Ionicons name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'} size={20} color={themeColors.textSecondary} />
+                <Pressable
+                  onPress={() => setShowConfirmPassword((prev) => !prev)}
+                  style={styles.eyeButton}
+                >
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color={themeColors.textSecondary}
+                  />
                 </Pressable>
               </View>
 
@@ -251,11 +450,23 @@ export default function PerfilScreen() {
                 disabled={isSubmitting}
                 style={({ pressed }) => [
                   styles.actionButton,
-                  { backgroundColor: themeColors.backgroundSelected, opacity: isSubmitting ? 0.7 : pressed ? 0.85 : 1 },
+                  {
+                    backgroundColor: themeColors.backgroundSelected,
+                    opacity: isSubmitting ? 0.7 : pressed ? 0.85 : 1,
+                  },
                 ]}
               >
-                <Ionicons name={isSubmitting ? 'hourglass-outline' : 'key-outline'} size={20} color={colorScheme === 'dark' ? themeColors.background : '#ffffff'} />
-                <Text style={[styles.actionText, { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' }]}>
+                <Ionicons
+                  name={isSubmitting ? 'hourglass-outline' : 'key-outline'}
+                  size={20}
+                  color={colorScheme === 'dark' ? themeColors.background : '#ffffff'}
+                />
+                <Text
+                  style={[
+                    styles.actionText,
+                    { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' },
+                  ]}
+                >
                   {isSubmitting ? 'Salvando...' : 'Salvar senha'}
                 </Text>
               </Pressable>
@@ -283,8 +494,19 @@ export default function PerfilScreen() {
               { backgroundColor: themeColors.backgroundSelected, opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            <Ionicons name="log-out-outline" size={20} color={colorScheme === 'dark' ? themeColors.background : '#ffffff'} />
-            <Text style={[styles.actionText, { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' }]}>Sair</Text>
+            <Ionicons
+              name="log-out-outline"
+              size={20}
+              color={colorScheme === 'dark' ? themeColors.background : '#ffffff'}
+            />
+            <Text
+              style={[
+                styles.actionText,
+                { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' },
+              ]}
+            >
+              Sair
+            </Text>
           </Pressable>
         </View>
       </ScrollView>
@@ -304,10 +526,7 @@ const styles = StyleSheet.create({
     gap: Spacing.one,
     paddingVertical: Spacing.two,
   },
-  backText: {
-    ...Typography.body,
-    fontWeight: '600',
-  },
+  backText: { ...Typography.body, fontWeight: '600' },
   pressed: { opacity: 0.65 },
   card: {
     borderRadius: 16,
@@ -323,9 +542,7 @@ const styles = StyleSheet.create({
     marginBottom: Spacing.three,
     alignSelf: 'center',
   },
-  avatarText: {
-    ...Typography.heading2,
-  },
+  avatarText: { ...Typography.heading2 },
   title: {
     ...Typography.heading1,
     textAlign: 'center',

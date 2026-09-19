@@ -107,7 +107,6 @@ export default function LoginScreen() {
           }),
         });
       } catch (networkError) {
-        // Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
         reportMobileError(
           networkError instanceof Error ? networkError.message : 'Falha de rede ao tentar logar.',
           networkError instanceof Error ? networkError.stack : undefined,
@@ -121,8 +120,6 @@ export default function LoginScreen() {
       if (!response.ok) {
         const message = data.error ?? 'Não foi possível entrar.';
 
-        // 401 aqui é credencial errada — comportamento normal do usuário, não um bug.
-        // Qualquer outro status (500, etc.) é erro de verdade e vale reportar.
         if (response.status !== 401) {
           reportMobileError(message, undefined, { context: 'LoginScreen.handleLogin', isBlocking: true });
         }
@@ -256,12 +253,25 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
 
+            {/* NOVO: link "Esqueceu a senha?" (UC02) */}
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => router.push('/forgot-password')}
+              style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
+            >
+              <Text style={[styles.secondaryText, { color: themeColors.backgroundSelected, fontWeight: '700' }]}>
+                Esqueceu a senha?
+              </Text>
+            </Pressable>
+
             <Pressable
               accessibilityRole="button"
               onPress={() => router.push('/usuario')}
               style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
             >
-              <Text style={[styles.secondaryText, { color: themeColors.textSecondary }]}>Ainda não tem conta? Cadastrar-se</Text>
+              <Text style={[styles.secondaryText, { color: themeColors.textSecondary }]}>
+                Ainda não tem conta? Cadastrar-se
+              </Text>
             </Pressable>
 
             {feedback ? (
@@ -291,20 +301,7 @@ const styles = StyleSheet.create({
     padding: Spacing.four,
     paddingBottom: Spacing.six,
   },
-  backButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: Spacing.one,
-    paddingVertical: Spacing.two,
-  },
-  pressed: {
-    opacity: 0.65,
-  },
-  backText: {
-    ...Typography.body,
-    fontWeight: '600',
-  },
+  pressed: { opacity: 0.65 },
   intro: {
     alignItems: 'center',
     paddingTop: Spacing.five,
@@ -318,25 +315,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: Spacing.three,
   },
-  title: {
-    ...Typography.heading1,
-    textAlign: 'center',
-  },
+  title: { ...Typography.heading1, textAlign: 'center' },
   subtitle: {
     ...Typography.body,
     textAlign: 'center',
     maxWidth: 460,
     marginTop: Spacing.two,
   },
-  form: {
-    borderRadius: 12,
-    padding: Spacing.four,
-  },
-  label: {
-    ...Typography.body,
-    fontWeight: '700',
-    marginBottom: Spacing.two,
-  },
+  form: { borderRadius: 12, padding: Spacing.four },
+  label: { ...Typography.body, fontWeight: '700', marginBottom: Spacing.two },
   input: {
     minHeight: 52,
     borderWidth: 1,
@@ -352,21 +339,13 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingLeft: Spacing.three,
   },
-  passwordInput: {
-    flex: 1,
-    minHeight: 52,
-    ...Typography.bodyLarge,
-  },
+  passwordInput: { flex: 1, minHeight: 52, ...Typography.bodyLarge },
   eyeButton: {
     paddingHorizontal: Spacing.three,
     justifyContent: 'center',
     alignItems: 'center',
   },
-  errorText: {
-    color: '#dc2626',
-    ...Typography.bodySmall,
-    marginTop: Spacing.one,
-  },
+  errorText: { color: '#dc2626', ...Typography.bodySmall, marginTop: Spacing.one },
   loginButton: {
     minHeight: 52,
     borderRadius: 8,
@@ -376,22 +355,12 @@ const styles = StyleSheet.create({
     gap: Spacing.two,
     marginTop: Spacing.four,
   },
-  loginButtonText: {
-    ...Typography.bodyLarge,
-    fontWeight: '700',
-  },
+  loginButtonText: { ...Typography.bodyLarge, fontWeight: '700' },
   secondaryButton: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.three,
   },
-  secondaryText: {
-    ...Typography.body,
-    fontWeight: '600',
-  },
-  feedbackText: {
-    ...Typography.bodySmall,
-    marginTop: Spacing.three,
-    lineHeight: 18,
-  },
+  secondaryText: { ...Typography.body, fontWeight: '600' },
+  feedbackText: { ...Typography.bodySmall, marginTop: Spacing.three, lineHeight: 18 },
 });
