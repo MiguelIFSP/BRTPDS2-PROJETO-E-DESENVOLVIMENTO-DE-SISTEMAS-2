@@ -88,18 +88,19 @@ Os incrementos devem ser cumulativos: novas versões precisam preservar as funci
 
 ### Subindo tudo rapidamente (Windows)
 
-Pré-requisitos que não são automatizados (não têm como, com segurança): Node.js, Docker Desktop, `npm install -g pm2`, e os arquivos `.env` de cada projeto (peça os valores reais pro time — nenhum `.env` é versionado).
+Pré-requisitos que não são automatizados (não têm como, com segurança): Node.js e Docker Desktop instalados. `npm install` de cada projeto, o `pm2` global e os `.env` são cuidados pelos próprios scripts abaixo.
 
 ```powershell
 # 1. Instala as dependências de todos os projetos
 .\install-all.ps1
 
-# 2. Crie o .env de cada projeto a partir do .env.example correspondente
-#    (api/, better-meet/, monitoring-better-meet/, management-better-meet/server/,
-#    management-better-meet/web/)
-
-# 3. Sobe tudo: bancos (Docker) + api/monitoring/management (PM2) + build do painel
+# 2. Sobe tudo: gera os .env que faltarem (com segredos aleatórios reais, já
+#    combinando JWT_SECRET/INTERNAL_API_KEY entre os projetos que precisam ser
+#    idênticos), bancos (Docker) + api/monitoring/management (PM2) + build do painel.
+#    Passe "pm2" como argumento se o pm2 ainda não estiver instalado globalmente.
 .\start-all.ps1
+# ou, numa máquina sem pm2 ainda:
+.\start-all.ps1 pm2
 
 # Painel admin: http://localhost:3335/admin (login com um usuário role ADMIN)
 
@@ -108,35 +109,35 @@ pm2 list
 pm2 logs <nome>   # api | monitoring | management
 ```
 
-Rodar `.\start-all.ps1` de novo é seguro — os passos são idempotentes (não duplica container, e o PM2 apenas reinicia o que já estava rodando).
+Rodar `.\start-all.ps1` de novo é seguro — os passos são idempotentes (não duplica container, `.env` que já existe não é sobrescrito, e o PM2 apenas reinicia o que já estava rodando).
 
 As seções abaixo detalham o que esses scripts fazem por baixo dos panos, e como rodar cada peça manualmente se precisar de mais controle.
 
 Instruções rápidas para rodar o banco de dados com Docker Compose manualmente (serviço já disponível no compose do front-end):
 
-- A compose file relevante está em `better-meet/docker-compose.yml` e define o serviço `db_better_meet` (MySQL).
-- Para subir o container do banco (em background), inicie o Docker na sua máquina (abra o Docker Desktop), então a partir da raiz do repositório execute:
+- A compose file relevante está na raiz do `sistema/` (`docker-compose.yml`) e define os serviços `db_better_meet` e `db_monitoring` (MySQL) — antes ficava dentro de `better-meet/`, foi movida pra raiz porque não pertence só ao front-end mobile.
+- Para subir os containers do banco (em background), inicie o Docker na sua máquina (abra o Docker Desktop), então a partir da raiz do `sistema/` execute:
 
 ```bash
-docker compose -f better-meet/docker-compose.yml up -d
+docker compose -f docker-compose.yml up -d
 # ou, se preferir a versão legada do comando:
-docker-compose -f better-meet/docker-compose.yml up -d
+docker-compose -f docker-compose.yml up -d
 ```
 
-- Para subir apenas o serviço do banco (por nome) use:
+- Para subir apenas o serviço do banco da aplicação (por nome) use:
 
 ```bash
-docker compose -f better-meet/docker-compose.yml up -d db_better_meet
+docker compose -f docker-compose.yml up -d db_better_meet
 ```
 
 - Para parar e remover os containers levantados pelo compose:
 
 ```bash
-docker compose -f better-meet/docker-compose.yml down
+docker compose -f docker-compose.yml down
 ```
 
 Notas úteis:
-- Se estiver em Mac com chip Apple Silicon e ocorrer erro de arquitetura, descomente a linha `platform: linux/amd64` em `better-meet/docker-compose.yml`.
+- Se estiver em Mac com chip Apple Silicon e ocorrer erro de arquitetura, descomente a linha `platform: linux/amd64` em `docker-compose.yml`.
 - As credenciais e nome do banco estão definidas no compose (ex.: `MYSQL_DATABASE: bettermeet`). Ajuste conforme necessário.
 
 Prisma (após o banco estar rodando):
@@ -153,9 +154,9 @@ npx prisma migrate dev --name init
 
 Scripts úteis na raiz:
 
-- `start-db.sh` / `start-db.ps1` — sobe/derruba só o serviço do banco (`better-meet/docker-compose.yml`). Útil quando você só precisa do banco, sem as APIs.
-- `install-all.ps1` — roda `npm install` em todos os projetos do repositório (`api`, `better-meet`, `monitoring-better-meet`, `management-better-meet/server`) de uma vez. Rode isso primeiro numa máquina nova.
-- `start-all.ps1` — sobe o sistema completo com um único comando: cria/inicia os containers de banco (idempotente, funciona mesmo que nunca tenham sido criados antes), builda `monitoring-better-meet` e `management-better-meet/server`, e inicia `api`, `monitoring` e `management` via PM2 (`ecosystem.config.js`, na raiz).
+- `start-db.sh` / `start-db.ps1` — sobe/derruba só o serviço do banco (`docker-compose.yml`, na raiz do `sistema/`). Útil quando você só precisa do banco, sem as APIs.
+- `install-all.ps1` — roda `npm install` em todos os projetos do repositório (`api`, `better-meet`, `monitoring-better-meet`, `management-better-meet/server`, `management-better-meet/web`) de uma vez. Rode isso primeiro numa máquina nova.
+- `start-all.ps1` — sobe o sistema completo com um único comando: verifica/instala o `pm2` (com `pm2` como argumento), gera o `.env` de cada projeto que ainda não tiver um (com segredos aleatórios reais, reaproveitando o mesmo valor entre projetos que precisam do mesmo `JWT_SECRET`/`INTERNAL_API_KEY`), sobe os containers de banco (idempotente), builda `monitoring-better-meet`, `management-better-meet/server` e o painel web, e inicia `api`, `monitoring` e `management` via PM2 (`ecosystem.config.js`, na raiz).
 
 Uso (POSIX, só o banco):
 
@@ -184,7 +185,7 @@ O JWT usado nas rotas `GET` **não é emitido pela própria API de monitoramento
 
 ### Variáveis de ambiente necessárias
 
-Nenhum `.env` é versionado (estão no `.gitignore`) — cada dev/máquina precisa criar o seu. Peça os valores reais pro time (ex.: no grupo do projeto), **nunca** commite essas chaves.
+Nenhum `.env` é versionado (estão no `.gitignore`) — cada dev/máquina precisa do seu. O `start-all.ps1` já gera esses arquivos automaticamente (com segredos aleatórios reais, via `.env.example`) quando não existem, então normalmente não precisa fazer isso na mão — as informações abaixo servem pra quando você quer configurar manualmente ou entender o que cada `.env` guarda.
 
 - `api/.env`: precisa de `JWT_SECRET`.
 - `monitoring-better-meet/.env`: precisa de `JWT_SECRET` (**idêntico** ao da `api/`) e `INTERNAL_API_KEY`.

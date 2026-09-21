@@ -2,7 +2,7 @@ Param(
   [Parameter(Mandatory=$false)][ValidateSet('up','down','status','help')][string]$Action = 'up'
 )
 
-$composeFile = 'better-meet/docker-compose.yml'
+$composeFile = "$PSScriptRoot/docker-compose.yml"
 
 function Show-Help {
   @"
