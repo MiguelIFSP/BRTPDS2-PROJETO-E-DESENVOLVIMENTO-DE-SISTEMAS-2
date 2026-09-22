@@ -18,6 +18,13 @@ enum Role {
   ADMIN
 }
 
+enum PapelOrganizacao {
+  CRIADOR // quem pediu a org. so 1, nao promove para este papel
+  GERENTE // max 1. adiciona e remove
+  MODERADOR // max 2. so adiciona
+  MEMBRO
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -36,9 +43,8 @@ model User {
   // -------------------------------------------------------------------
   // Relações existentes
   // -------------------------------------------------------------------
-  comissoes               ComissaoEquipe[]
-  solicitacoesOrganizacao Organizacao[]     @relation("SolicitanteOrganizacao")
-  organizacoes            OrganizacaoMembro[]
+  comissoes    ComissaoEquipe[]
+  organizacoes OrganizacaoMembro[]
 
   // -------------------------------------------------------------------
   // NOVO: tokens de recuperação de conta (UC02)
@@ -49,23 +55,21 @@ model User {
 model Organizacao {
   id     Int    @id @default(autoincrement())
   nome   String
-  status String // "PENDENTE" | "ACEITA" | "RECUSADA"
+  status String // pendente ate o admin aceitar. aceita | recusada
 
-  comissoes     Comissao[]
-  solicitanteId Int?
-  solicitante   User?                @relation("SolicitanteOrganizacao", fields: [solicitanteId], references: [id])
-  membros       OrganizacaoMembro[]
+  comissoes Comissao[]
+  membros   OrganizacaoMembro[]
 }
 
 model OrganizacaoMembro {
   organizacaoId Int
   userId        Int
-  papel         String @default("MEMBRO")
+  papel         PapelOrganizacao @default(MEMBRO)
 
   organizacao Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@id([organizacaoId, userId])
+  @@id([organizacaoId, userId]) // o mesmo usuario nao entra duas vezes na mesma org
 }
 
 model Comissao {

@@ -4,6 +4,9 @@ import { Modal, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Colors, Spacing, Typography } from '../constants/theme';
 
+// popup de confirmacao. danger = apagar/remover, warning = rebaixar, success = promover.
+type ConfirmVariant = 'danger' | 'warning' | 'success';
+
 type ConfirmDialogProps = {
   visible: boolean;
   title: string;
@@ -11,6 +14,32 @@ type ConfirmDialogProps = {
   onCancel: () => void;
   onConfirm: () => void;
   colorScheme: 'light' | 'dark';
+  variant?: ConfirmVariant;
+  confirmLabel?: string;
+};
+
+const VARIANT = {
+  danger: {
+    icon: 'trash-outline' as const,
+    iconBackground: '#fee2e2',
+    iconColor: '#b91c1c',
+    buttonBackground: '#b91c1c',
+    defaultLabel: 'Excluir',
+  },
+  warning: {
+    icon: 'arrow-down-outline' as const,
+    iconBackground: '#fef3c7',
+    iconColor: '#b45309',
+    buttonBackground: '#b45309',
+    defaultLabel: 'Rebaixar',
+  },
+  success: {
+    icon: 'arrow-up-outline' as const,
+    iconBackground: '#ccfbf1',
+    iconColor: '#0f766e',
+    buttonBackground: '#0f766e',
+    defaultLabel: 'Promover',
+  },
 };
 
 export default function ConfirmDialog({
@@ -20,22 +49,26 @@ export default function ConfirmDialog({
   onCancel,
   onConfirm,
   colorScheme,
+  variant = 'danger',
+  confirmLabel,
 }: ConfirmDialogProps) {
   const themeColors = Colors[colorScheme];
+  const tone = VARIANT[variant];
+  const label = confirmLabel ?? tone.defaultLabel;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
       <View style={styles.backdrop}>
         <View style={[styles.dialog, { backgroundColor: themeColors.background }]}>
-          <View style={[styles.iconWrap, { backgroundColor: '#fee2e2' }]}>
-            <Ionicons name="trash-outline" size={25} color="#b91c1c" />
+          <View style={[styles.iconWrap, { backgroundColor: tone.iconBackground }]}>
+            <Ionicons name={tone.icon} size={25} color={tone.iconColor} />
           </View>
           <Text style={[styles.title, { color: themeColors.text }]}>{title}</Text>
           <Text style={[styles.message, { color: themeColors.textSecondary }]}>{message}</Text>
           <View style={styles.actions}>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Cancelar exclusão"
+              accessibilityLabel="Cancelar"
               onPress={onCancel}
               style={({ pressed }) => [styles.cancelButton, { borderColor: themeColors.textSecondary + '55' }, pressed && styles.pressed]}
             >
@@ -43,12 +76,12 @@ export default function ConfirmDialog({
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              accessibilityLabel="Confirmar exclusão"
+              accessibilityLabel={label}
               onPress={onConfirm}
-              style={({ pressed }) => [styles.deleteButton, pressed && styles.pressed]}
+              style={({ pressed }) => [styles.confirmButton, { backgroundColor: tone.buttonBackground }, pressed && styles.pressed]}
             >
-              <Ionicons name="trash-outline" size={17} color="#ffffff" />
-              <Text style={styles.deleteText}>Excluir</Text>
+              <Ionicons name={tone.icon} size={17} color="#ffffff" />
+              <Text style={styles.confirmText}>{label}</Text>
             </Pressable>
           </View>
         </View>
@@ -88,8 +121,8 @@ const styles = StyleSheet.create({
   message: { ...Typography.body, lineHeight: 22 },
   actions: { flexDirection: 'row', justifyContent: 'flex-end', gap: Spacing.two, marginTop: Spacing.four },
   cancelButton: { minHeight: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: Spacing.three, alignItems: 'center', justifyContent: 'center' },
-  deleteButton: { minHeight: 44, borderRadius: 8, paddingHorizontal: Spacing.three, backgroundColor: '#b91c1c', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
+  confirmButton: { minHeight: 44, borderRadius: 8, paddingHorizontal: Spacing.three, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: Spacing.one },
   cancelText: { ...Typography.body, fontWeight: '700' },
-  deleteText: { ...Typography.body, color: '#ffffff', fontWeight: '700' },
+  confirmText: { ...Typography.body, color: '#ffffff', fontWeight: '700' },
   pressed: { opacity: 0.72 },
 });
