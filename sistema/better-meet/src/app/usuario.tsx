@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as yup from 'yup';
 
 import Header from '../components/Header';
@@ -72,6 +72,15 @@ export default function UsuarioScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // tela fica montada em segundo plano (navegação por Drawer) — sem isso, o
+  // "Cadastro realizado com sucesso" ficaria preso no state e reapareceria ao
+  // voltar pra essa tela depois. Mesmo ajuste feito em login.tsx.
+  useFocusEffect(
+    useCallback(() => {
+      setFeedback(null);
+    }, [])
+  );
 
   const updateField = (field: keyof FormValues, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));

@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, useColorScheme, View } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 
 import Header from '../components/Header';
 import OrganizationMemberRow from '../components/OrganizationMemberRow';
@@ -44,27 +44,33 @@ export default function OrganizacoesAdminScreen() {
     setOrganizations(await organizacaoService.listAll(token));
   };
 
-  useEffect(() => {
-    // se nao for admin, redireciona para a tela normal de org
-    if (user?.role !== 'ADMIN') {
-      router.replace('/organizacao');
-      return;
-    }
-    let cancelled = false;
-    const load = async () => {
-      if (!token) return;
-      try {
-        const data = await organizacaoService.listAll(token);
-        if (!cancelled) setOrganizations(data);
-      } catch (error) {
-        if (!cancelled) setFeedback(error instanceof Error ? error.message : 'Erro ao carregar organizações.');
+  // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+  // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
+  // deixaria a lista desatualizada ao voltar pra cá depois de aceitar/recusar ou
+  // mudar papéis em outra tela.
+  useFocusEffect(
+    useCallback(() => {
+      // se nao for admin, redireciona para a tela normal de org
+      if (user?.role !== 'ADMIN') {
+        router.replace('/organizacao');
+        return;
       }
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [token, user?.role, router]);
+      let cancelled = false;
+      const load = async () => {
+        if (!token) return;
+        try {
+          const data = await organizacaoService.listAll(token);
+          if (!cancelled) setOrganizations(data);
+        } catch (error) {
+          if (!cancelled) setFeedback(error instanceof Error ? error.message : 'Erro ao carregar organizações.');
+        }
+      };
+      void load();
+      return () => {
+        cancelled = true;
+      };
+    }, [token, user?.role, router])
+  );
 
   // botao aceitar/recusar da solicitacao
   const updateStatus = async (id: number, status: 'ACEITA' | 'RECUSADA') => {
@@ -149,7 +155,7 @@ export default function OrganizacoesAdminScreen() {
                 <View style={styles.cardHeader}>
                   <View style={{ flex: 1 }}>
                     <Text style={[styles.name, { color: themeColors.text }]}>{organization.nome}</Text>
-                    <Text style={[styles.requester, { color: themeColors.textSecondary }]}>
+                    <Text style={[styles.requester, { color: themeColors.backgroundSelected }]}>
                       {criador ? `Criador: ${criador.user.name} · ${criador.user.email}` : 'Criador não identificado'}
                     </Text>
                   </View>

@@ -236,7 +236,10 @@ export const organizacaoService = {
     }
   },
 
-  // promover/rebaixar. so criador. nao da para atribuir criador por aqui.
+  // promover/rebaixar. so criador (ou admin da plataforma, se tambem for membro).
+  // atribuir CRIADOR so e permitido quando quem esta atribuindo ja e o criador atual —
+  // isso e uma transferencia de organizacao (ex.: criador excluindo a propria conta).
+  // o criador anterior vira MEMBRO na mesma operação, pra nunca sobrar mais de um criador.
   async updateMemberRole(
     organizacaoId: number,
     actorId: number,
@@ -244,10 +247,6 @@ export const organizacaoService = {
     memberId: number,
     papel: PapelOrganizacao,
   ) {
-    if (papel === 'CRIADOR') {
-      throw new OrganizacaoError(400, 'Não é possível atribuir o papel de criador.');
-    }
-
     const organizacao = await prisma.organizacao.findUnique({
       where: { id: organizacaoId },
       include: { membros: true },
@@ -258,6 +257,10 @@ export const organizacaoService = {
 
     const actor = organizacao.membros.find((member) => member.userId === actorId);
     assertCanManage(actorRole, actor?.papel, ['CRIADOR'], 'Somente o criador pode promover ou rebaixar membros.');
+
+    if (papel === 'CRIADOR' && actor?.papel !== 'CRIADOR') {
+      throw new OrganizacaoError(400, 'Não é possível atribuir o papel de criador.');
+    }
 
     const target = organizacao.membros.find((member) => member.userId === memberId);
     if (!target) {
@@ -272,11 +275,20 @@ export const organizacaoService = {
 
     const updated = await prisma.$transaction(async (transaction) => {
       await assertRoleCapacity(transaction, organizacaoId, papel, memberId);
-      return transaction.organizacaoMembro.update({
+      const updatedMember = await transaction.organizacaoMembro.update({
         where: { organizacaoId_userId: { organizacaoId, userId: memberId } },
         data: { papel },
         include: { user: { select: { id: true, name: true, email: true } } },
       });
+
+      if (papel === 'CRIADOR') {
+        await transaction.organizacaoMembro.update({
+          where: { organizacaoId_userId: { organizacaoId, userId: actorId } },
+          data: { papel: 'MEMBRO' },
+        });
+      }
+
+      return updatedMember;
     });
 
     return updated;

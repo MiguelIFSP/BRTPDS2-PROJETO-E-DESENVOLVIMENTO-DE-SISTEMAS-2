@@ -12,6 +12,7 @@ import type { Request, Response } from 'express';
 import * as yup from 'yup';
 import prisma from '../config/database.ts';
 import type { AuthenticatedRequest } from '../middlewares/auth.ts';
+import { OrganizacaoError, organizacaoService } from '../services/organizacaoService.ts';
 
 // ---------------------------------------------------------------------
 // Constantes do administrador padrão
@@ -306,6 +307,162 @@ export const usuarioController = {
       }
       console.error('Erro ao atualizar tema:', error);
       response.status(500).json({ error: 'Não foi possível atualizar o tema.' });
+    }
+  },
+
+  // -------------------------------------------------------------------
+  // deletePersonalData — Exclusão de dados pessoais (tela de exclusão de dados)
+  //
+  // Para cada organização em que o usuário é CRIADOR:
+  //   - se já existe um GERENTE, a organização passa pra ele automaticamente;
+  //   - senão, precisa vir um sucessor escolhido em `sucessores[organizacaoId]`
+  //     (é o que preenche o modal "escolha quem fica no seu lugar" no app).
+  // Se sobrar alguma organização sem gerente e sem sucessor informado, devolve
+  // 409 com a lista pra a tela mostrar o modal antes de tentar de novo.
+  // -------------------------------------------------------------------
+  async deletePersonalData(request: Request, response: Response) {
+    try {
+      const { id: authenticatedUserId } = (request as AuthenticatedRequest).user;
+      const userId = Number(request.params.id);
+
+      if (userId !== authenticatedUserId) {
+        response.status(403).json({ error: 'Você só pode excluir os dados da sua própria conta.' });
+        return;
+      }
+
+      // `sucessores` é um mapa dinâmico organizacaoId -> novoCriadorId. Não dá pra
+      // validar com yup.object({ stripUnknown: true }) porque, sem um shape
+      // declarado, o yup trata toda chave como "desconhecida" e apaga o mapa
+      // inteiro. Cada valor é conferido individualmente logo abaixo (precisa ser
+      // um membro de fato da organização), então ler direto do body é seguro.
+      const sucessores = (request.body?.sucessores ?? {}) as Record<string, unknown>;
+
+      const criadorEm = await prisma.organizacaoMembro.findMany({
+        where: { userId, papel: 'CRIADOR' },
+        include: {
+          organizacao: {
+            include: { membros: { include: { user: { select: { id: true, name: true, email: true } } } } },
+          },
+        },
+      });
+
+      const organizacoesPendentes: Array<{
+        id: number;
+        nome: string;
+        membros: { id: number; name: string; email: string }[];
+      }> = [];
+      const transferencias: Array<{ organizacaoId: number; novoCriadorId: number }> = [];
+
+      for (const membro of criadorEm) {
+        const outrosMembros = membro.organizacao.membros.filter((m) => m.userId !== userId);
+        const gerente = outrosMembros.find((m) => m.papel === 'GERENTE');
+
+        if (gerente) {
+          transferencias.push({ organizacaoId: membro.organizacaoId, novoCriadorId: gerente.userId });
+          continue;
+        }
+
+        const sucessorId = Number(sucessores[membro.organizacaoId]);
+        const sucessorValido = outrosMembros.some((m) => m.userId === sucessorId);
+
+        if (Number.isInteger(sucessorId) && sucessorId > 0 && sucessorValido) {
+          transferencias.push({ organizacaoId: membro.organizacaoId, novoCriadorId: sucessorId });
+          continue;
+        }
+
+        organizacoesPendentes.push({
+          id: membro.organizacao.id,
+          nome: membro.organizacao.nome,
+          membros: outrosMembros.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
+        });
+      }
+
+      if (organizacoesPendentes.length > 0) {
+        response.status(409).json({
+          error: 'Escolha quem vai assumir como criador de cada organização listada antes de continuar.',
+          organizacoesPendentes,
+        });
+        return;
+      }
+
+      for (const transferencia of transferencias) {
+        await organizacaoService.updateMemberRole(
+          transferencia.organizacaoId,
+          userId,
+          'USER',
+          transferencia.novoCriadorId,
+          'CRIADOR',
+        );
+      }
+
+      await prisma.user.delete({ where: { id: userId } });
+
+      response.status(200).json({ message: 'Seus dados pessoais foram excluídos com sucesso.' });
+    } catch (error) {
+      if (error instanceof yup.ValidationError) {
+        response.status(400).json({ error: error.errors[0] ?? 'Dados inválidos.' });
+        return;
+      }
+      if (error instanceof OrganizacaoError) {
+        response.status(error.statusCode).json({ error: error.message });
+        return;
+      }
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+        response.status(404).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+      console.error('Erro ao excluir dados pessoais:', error);
+      response.status(500).json({ error: 'Não foi possível excluir seus dados pessoais.' });
+    }
+  },
+
+  // -------------------------------------------------------------------
+  // deleteFullAccount — Exclusão de dados pessoais + organizações das
+  // quais o usuário é criador e seus dados filhos
+  // -------------------------------------------------------------------
+  async deleteFullAccount(request: Request, response: Response) {
+    try {
+      const { id: authenticatedUserId } = (request as AuthenticatedRequest).user;
+      const userId = Number(request.params.id);
+
+      if (userId !== authenticatedUserId) {
+        response.status(403).json({ error: 'Você só pode excluir os dados da sua própria conta.' });
+        return;
+      }
+
+      await prisma.$transaction(async (transaction) => {
+        const organizacoesCriador = await transaction.organizacaoMembro.findMany({
+          where: { userId, papel: 'CRIADOR' },
+          select: { organizacaoId: true },
+        });
+        const organizacaoIds = organizacoesCriador.map((membro) => membro.organizacaoId);
+
+        if (organizacaoIds.length > 0) {
+          const comissoes = await transaction.comissao.findMany({
+            where: { organizacaoId: { in: organizacaoIds } },
+            select: { id: true },
+          });
+          const comissaoIds = comissoes.map((comissao) => comissao.id);
+
+          await transaction.organizacaoMembro.deleteMany({ where: { organizacaoId: { in: organizacaoIds } } });
+          if (comissaoIds.length > 0) {
+            await transaction.comissaoEquipe.deleteMany({ where: { comissaoId: { in: comissaoIds } } });
+            await transaction.comissao.deleteMany({ where: { id: { in: comissaoIds } } });
+          }
+          await transaction.organizacao.deleteMany({ where: { id: { in: organizacaoIds } } });
+        }
+
+        await transaction.user.delete({ where: { id: userId } });
+      });
+
+      response.status(200).json({ message: 'Sua conta e suas organizações foram excluídas com sucesso.' });
+    } catch (error) {
+      if (error && typeof error === 'object' && 'code' in error && error.code === 'P2025') {
+        response.status(404).json({ error: 'Usuário não encontrado.' });
+        return;
+      }
+      console.error('Erro ao excluir conta completa:', error);
+      response.status(500).json({ error: 'Não foi possível excluir sua conta.' });
     }
   },
 };

@@ -82,12 +82,12 @@ function HistoryBars({ history, themeColors }: { history: SubSystemHistoryDay[];
 
   return (
     <View style={styles.historyContainer}>
-      <Text style={[styles.historyLabel, { color: themeColors.textSecondary }]}>
+      <Text style={[styles.historyLabel, { color: themeColors.backgroundSelected }]}>
         Histórico ({HISTORY_DAYS} dias)
       </Text>
 
       {history.length === 0 ? (
-        <Text style={{ color: themeColors.textSecondary }}>Sem histórico ainda.</Text>
+        <Text style={{ color: themeColors.backgroundSelected }}>Sem histórico ainda.</Text>
       ) : (
         <>
           <ScrollView
@@ -313,7 +313,7 @@ export default function DashboardScreen() {
                 </View>
 
                 {name === null ? (
-                  <Text style={{ color: themeColors.textSecondary, fontStyle: 'italic' }}>
+                  <Text style={{ color: themeColors.backgroundSelected, fontStyle: 'italic' }}>
                     Sem ações — roda no dispositivo do cliente
                   </Text>
                 ) : (

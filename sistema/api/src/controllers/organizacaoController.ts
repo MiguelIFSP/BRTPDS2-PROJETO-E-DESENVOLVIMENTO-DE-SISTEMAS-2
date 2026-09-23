@@ -14,11 +14,12 @@ const memberSchema = yup.object({
   email: yup.string().trim().email('Informe um e-mail válido.').required('O e-mail do membro é obrigatório.'),
 });
 
-// criador nao entra no oneOf de proposito. so e definido na criacao da org.
+// CRIADOR entra aqui pra permitir transferencia de organizacao (so o proprio
+// criador consegue atribuir esse papel — o service bloqueia o resto).
 const memberRoleSchema = yup.object({
   papel: yup
     .string()
-    .oneOf(['GERENTE', 'MODERADOR', 'MEMBRO'], 'Papel inválido.')
+    .oneOf(['CRIADOR', 'GERENTE', 'MODERADOR', 'MEMBRO'], 'Papel inválido.')
     .required('Informe o papel do membro.'),
 });
 

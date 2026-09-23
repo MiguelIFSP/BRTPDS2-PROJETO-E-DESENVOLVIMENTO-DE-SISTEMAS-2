@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as yup from 'yup';
 
 import Header from '../components/Header';
@@ -70,22 +70,28 @@ export default function OrganizacaoScreen() {
     setOrganizations(await organizacaoService.listMine(token));
   }, [token]);
 
-  useEffect(() => {
-    let cancelled = false;
-    const load = async () => {
-      try {
-        if (!token || cancelled) return;
-        const data = await organizacaoService.listMine(token);
-        if (!cancelled) setOrganizations(data);
-      } catch {
-        if (!cancelled) setFeedback({ type: 'error', message: 'Não foi possível carregar suas organizações.' });
-      }
-    };
-    void load();
-    return () => {
-      cancelled = true;
-    };
-  }, [token]);
+  // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+  // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
+  // deixaria a lista desatualizada ao voltar pra essa tela depois de mudar algo
+  // (criar organização, entrar como membro, etc.) em outra.
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      const load = async () => {
+        try {
+          if (!token || cancelled) return;
+          const data = await organizacaoService.listMine(token);
+          if (!cancelled) setOrganizations(data);
+        } catch {
+          if (!cancelled) setFeedback({ type: 'error', message: 'Não foi possível carregar suas organizações.' });
+        }
+      };
+      void load();
+      return () => {
+        cancelled = true;
+      };
+    }, [token])
+  );
 
   // manda a solicitacao. fica pendente ate o admin aceitar.
   const handleCreate = async () => {
@@ -294,7 +300,7 @@ export default function OrganizacaoScreen() {
                       <>
                         <View style={styles.memberHeader}>
                           <Text style={[styles.memberTitle, { color: themeColors.text }]}>Equipe</Text>
-                          <Text style={[styles.memberCount, { color: themeColors.textSecondary }]}>
+                          <Text style={[styles.memberCount, { color: themeColors.backgroundSelected }]}>
                             {organization.membros.length} {organization.membros.length === 1 ? 'pessoa' : 'pessoas'}
                           </Text>
                         </View>
@@ -366,13 +372,13 @@ export default function OrganizacaoScreen() {
                           </View>
                         ) : null}
                         {memberFeedback[organization.id] ? (
-                          <Text style={[styles.feedbackText, { color: themeColors.textSecondary }]}>
+                          <Text style={[styles.feedbackText, { color: themeColors.backgroundSelected }]}>
                             {memberFeedback[organization.id]}
                           </Text>
                         ) : null}
                       </>
                     ) : (
-                      <Text style={[styles.pendingHint, { color: themeColors.textSecondary }]}>
+                      <Text style={[styles.pendingHint, { color: themeColors.backgroundSelected }]}>
                         Aguardando análise do administrador. Como criador, você já faz parte desta organização.
                       </Text>
                     )}

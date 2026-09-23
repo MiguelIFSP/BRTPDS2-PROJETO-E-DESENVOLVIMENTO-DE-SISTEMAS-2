@@ -1,17 +1,18 @@
 // better-meet/src/app/comissao.tsx
 
-import React, { useEffect, useState } from 'react';
-import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  Modal, 
+import React, { useCallback, useState } from 'react';
+import {
+  View,
+  Text,
+  StyleSheet,
+  FlatList,
+  TouchableOpacity,
+  Modal,
   TextInput,
   ActivityIndicator,
   Alert
 } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { comissaoService, Comissao } from '../services/comissaoService';
 
 export default function ComissaoScreen() {
@@ -26,7 +27,7 @@ export default function ComissaoScreen() {
   const organizacaoAtualId = 1; 
 
   // Função de carregar só finaliza o loading no final para evitar o erro do ESLint
-  const carregarComissoes = async () => {
+  const carregarComissoes = useCallback(async () => {
     try {
       const dados = await comissaoService.listarPorOrganizacao(organizacaoAtualId);
       setComissoes(dados);
@@ -35,15 +36,16 @@ export default function ComissaoScreen() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [organizacaoAtualId]);
 
- useEffect(() => {
-    const carregarInicial = async () => {
-      await carregarComissoes();
-    };
-    
-    carregarInicial();
-  }, []);
+ // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+ // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
+ // deixaria a lista desatualizada ao voltar pra cá depois de criar/excluir comissão.
+ useFocusEffect(
+   useCallback(() => {
+     carregarComissoes();
+   }, [carregarComissoes])
+ );
 
   
   const handleCriarComissao = async () => {

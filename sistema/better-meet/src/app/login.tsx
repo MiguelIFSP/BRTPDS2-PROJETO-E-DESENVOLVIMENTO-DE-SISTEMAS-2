@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import * as yup from 'yup';
 
 import Header from '../components/Header';
@@ -57,6 +57,16 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+
+  // a tela de login fica montada em segundo plano (navegação por Drawer), então o
+  // `feedback` de uma sessão anterior (ex.: "login realizado com sucesso") ficaria
+  // preso no state e reapareceria ao voltar pra cá depois de um logout/exclusão de
+  // conta. Limpa sempre que a tela ganha foco de novo.
+  useFocusEffect(
+    useCallback(() => {
+      setFeedback(null);
+    }, [])
+  );
 
   const updateField = (field: keyof LoginForm, value: string) => {
     setForm((prev) => ({ ...prev, [field]: value }));
@@ -269,7 +279,7 @@ export default function LoginScreen() {
               onPress={() => router.push('/usuario')}
               style={({ pressed }) => [styles.secondaryButton, pressed && styles.pressed]}
             >
-              <Text style={[styles.secondaryText, { color: themeColors.textSecondary }]}>
+              <Text style={[styles.secondaryText, { color: themeColors.backgroundSelected }]}>
                 Ainda não tem conta? Cadastrar-se
               </Text>
             </Pressable>

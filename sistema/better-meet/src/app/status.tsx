@@ -1,7 +1,7 @@
- import React, { useCallback, useEffect, useState } from 'react';
+ import React, { useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, TouchableOpacity, useColorScheme, ActivityIndicator, Pressable } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
@@ -135,10 +135,14 @@ export default function StatusScreen() {
       }
     }, [token, router]);
 
-    useEffect(() => {
-      // eslint-disable-next-line react-hooks/set-state-in-effect -- loadStatus só seta estado depois de awaits (fetch), não sincronamente
-      loadStatus();
-    }, [loadStatus]);
+    // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+    // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
+    // deixaria o status desatualizado ao voltar pra essa tela depois.
+    useFocusEffect(
+      useCallback(() => {
+        loadStatus();
+      }, [loadStatus])
+    );
 
     return(
         <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
@@ -194,7 +198,7 @@ const StatusLayer = ({ title, data, themeColors }: { title: string, data: DaySta
     return (
       <View style={[styles.layerContainer, { backgroundColor: themeColors.backgroundElement }]}>
         <Text style={[styles.layerTitle, { color: themeColors.text }]}>{title}</Text>
-        <Text style={{ color: themeColors.textSecondary }}>Ainda sem checagens registradas.</Text>
+        <Text style={{ color: themeColors.backgroundSelected }}>Ainda sem checagens registradas.</Text>
       </View>
     );
   }
@@ -207,7 +211,7 @@ const StatusLayer = ({ title, data, themeColors }: { title: string, data: DaySta
         {data.map((day) => (
           <TouchableOpacity
             key={day.id}
-            onPress={() => setSelectedDay(day)}
+            onPress={() => setSelectedDay((current) => (current?.id === day.id ? null : day))}
             style={[
               styles.bar,
               { backgroundColor: getStatusColor(day.status) }, 
@@ -219,8 +223,8 @@ const StatusLayer = ({ title, data, themeColors }: { title: string, data: DaySta
 
       {selectedDay && (
         <View style={[styles.tooltipContainer, { borderColor: themeColors.textSecondary }]}>
-          <Text style={[styles.tooltipDate, { color: themeColors.text }]}>{selectedDay.date}</Text>
-          <Text style={[styles.tooltipMessage, { color: themeColors.text }]}>{selectedDay.message}</Text>
+          <Text style={[styles.tooltipDate, { color: themeColors.backgroundSelected }]}>{selectedDay.date}</Text>
+          <Text style={[styles.tooltipMessage, { color: themeColors.backgroundSelected }]}>{selectedDay.message}</Text>
         </View>
       )}
     </View>

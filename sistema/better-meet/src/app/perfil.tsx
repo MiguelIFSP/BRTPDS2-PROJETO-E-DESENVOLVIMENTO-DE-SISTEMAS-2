@@ -243,34 +243,34 @@ export default function PerfilScreen() {
           </View>
 
           <Text style={[styles.title, { color: themeColors.text }]}>{user.name}</Text>
-          <Text style={[styles.role, { color: themeColors.textSecondary }]}>
+          <Text style={[styles.role, { color: themeColors.backgroundSelected }]}>
             {user.role === 'ADMIN' ? 'Administrador' : 'Usuário'}
           </Text>
 
           <View style={styles.infoBlock}>
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>ID do usuário</Text>
+            <Text style={[styles.label, { color: themeColors.backgroundSelected }]}>ID do usuário</Text>
             <Text style={[styles.value, { color: themeColors.text }]}>{user.id}</Text>
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>E-mail</Text>
+            <Text style={[styles.label, { color: themeColors.backgroundSelected }]}>E-mail</Text>
             <Text style={[styles.value, { color: themeColors.text }]}>{user.email}</Text>
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Função</Text>
+            <Text style={[styles.label, { color: themeColors.backgroundSelected }]}>Função</Text>
             <Text style={[styles.value, { color: themeColors.text }]}>
               {user.role === 'ADMIN' ? 'Administrador do sistema' : 'Usuário comum'}
             </Text>
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Status da conta</Text>
+            <Text style={[styles.label, { color: themeColors.backgroundSelected }]}>Status da conta</Text>
             <Text style={[styles.value, { color: themeColors.text }]}>Ativa</Text>
           </View>
 
           <View style={styles.infoBlock}>
-            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Data de cadastro</Text>
+            <Text style={[styles.label, { color: themeColors.backgroundSelected }]}>Data de cadastro</Text>
             <Text style={[styles.value, { color: themeColors.text }]}>
               {new Date(user.createdAt).toLocaleDateString('pt-BR')}
             </Text>
@@ -284,8 +284,8 @@ export default function PerfilScreen() {
               { backgroundColor: 'transparent', opacity: pressed ? 0.8 : 1 },
             ]}
           >
-            <Ionicons name="create-outline" size={18} color={themeColors.textSecondary} />
-            <Text style={[styles.secondaryButtonText, { color: themeColors.textSecondary }]}>
+            <Ionicons name="create-outline" size={18} color={themeColors.backgroundSelected} />
+            <Text style={[styles.secondaryButtonText, { color: themeColors.backgroundSelected }]}>
               {showProfileForm ? 'Cancelar edição' : 'Editar dados pessoais'}
             </Text>
           </Pressable>
@@ -370,8 +370,8 @@ export default function PerfilScreen() {
               { backgroundColor: 'transparent', opacity: pressed ? 0.8 : 1 },
             ]}
           >
-            <Ionicons name="key-outline" size={18} color={themeColors.textSecondary} />
-            <Text style={[styles.secondaryButtonText, { color: themeColors.textSecondary }]}>
+            <Ionicons name="key-outline" size={18} color={themeColors.backgroundSelected} />
+            <Text style={[styles.secondaryButtonText, { color: themeColors.backgroundSelected }]}>
               {showPasswordForm ? 'Cancelar alteração' : 'Alterar senha'}
             </Text>
           </Pressable>
@@ -483,6 +483,17 @@ export default function PerfilScreen() {
               {feedback.message}
             </Text>
           ) : null}
+
+          <Pressable
+            onPress={() => router.push('/excluir-conta')}
+            style={({ pressed }) => [
+              styles.secondaryButton,
+              { backgroundColor: 'transparent', opacity: pressed ? 0.8 : 1 },
+            ]}
+          >
+            <Ionicons name="trash-outline" size={18} color="#b91c1c" />
+            <Text style={[styles.secondaryButtonText, { color: '#b91c1c' }]}>Excluir meus dados</Text>
+          </Pressable>
 
           <Pressable
             onPress={() => {

@@ -26,4 +26,10 @@ routes.patch('/usuarios/:id', requireAuth, usuarioController.updateProfile);
 // Alterar tema preferido (autenticado)
 routes.patch('/usuarios/:id/tema', requireAuth, usuarioController.updateTheme);
 
+// Excluir dados pessoais (bloqueado se ainda for responsável por alguma organização)
+routes.delete('/usuarios/:id/dados-pessoais', requireAuth, usuarioController.deletePersonalData);
+
+// Excluir dados pessoais + organizações das quais é responsável (e dados filhos)
+routes.delete('/usuarios/:id/dados-completos', requireAuth, usuarioController.deleteFullAccount);
+
 export default routes;

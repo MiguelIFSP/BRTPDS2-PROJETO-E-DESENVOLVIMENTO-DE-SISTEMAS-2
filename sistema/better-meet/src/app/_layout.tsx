@@ -84,6 +84,7 @@ export default function RootLayout() {
           <Drawer.Screen name="usuario" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="login" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="excluir-conta" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="forgot-password" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="verify-code" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="reset-password" options={{ drawerItemStyle: { display: 'none' } }} />
