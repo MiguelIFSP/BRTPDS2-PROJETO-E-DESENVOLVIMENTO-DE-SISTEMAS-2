@@ -1,7 +1,8 @@
 // =====================================================================
-// forgot-password.tsx — UC02 (Recuperação de Conta) — etapa 1
-// Usuário informa o email. Backend gera código de 6 dígitos e envia.
-// Depois navega pra /verify-code?email=...
+// verify-code.tsx — UC02 (Recuperação de Conta) — etapa 2
+// Usuário digita o código de 6 dígitos recebido por email.
+// Se correto, avança pra /reset-password?email=...&code=...
+// Se errado, mostra erro em vermelho.
 // =====================================================================
 
 import React, { useState } from 'react';
@@ -18,60 +19,72 @@ import {
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { API_URL } from '../config/api';
 
-export default function ForgotPasswordScreen() {
+export default function VerifyCodeScreen() {
   const router = useRouter();
+  const { email } = useLocalSearchParams<{ email: string }>();
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const themeColors = Colors[colorScheme];
 
-  const [email, setEmail] = useState('');
+  const [code, setCode] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
-  const handleSubmit = async () => {
-    if (!email.trim()) {
-      setFeedback({ type: 'error', message: 'Informe seu e-mail.' });
+  const handleVerify = async () => {
+    setError(null);
+
+    const digits = code.replace(/\D/g, '');
+    if (digits.length !== 6) {
+      setError('Digite os 6 dígitos do código.');
       return;
     }
 
     setIsSubmitting(true);
-    setFeedback(null);
-
-    const emailNormalizado = email.trim().toLowerCase();
 
     try {
-      const response = await fetch(`${API_URL}/auth/forgot-password`, {
+      const response = await fetch(`${API_URL}/auth/verify-code`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailNormalizado }),
+        body: JSON.stringify({ email, code: digits }),
       });
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Não foi possível processar a solicitação.');
+        throw new Error(data.error ?? 'Código inválido.');
       }
 
-      setFeedback({
-        type: 'success',
-        message: data.message ?? 'Se este e-mail estiver cadastrado, você receberá um código de verificação.',
-      });
-      setEmail('');
-
-      // Avança direto pra tela de código (leva o email na query)
-      router.push(`/verify-code?email=${encodeURIComponent(emailNormalizado)}`);
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: error instanceof Error ? error.message : 'Erro de conexão.',
-      });
+      setSuccess(true);
+      setTimeout(() => {
+        router.push(
+          `/reset-password?email=${encodeURIComponent(email)}&code=${digits}`
+        );
+      }, 500);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Erro de conexão.');
+      setCode('');
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleResend = async () => {
+    setError(null);
+    try {
+      await fetch(`${API_URL}/auth/forgot-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
+      });
+      setError(null);
+    } catch {
+      setError('Não foi possível reenviar o código.');
     }
   };
 
@@ -90,58 +103,61 @@ export default function ForgotPasswordScreen() {
 
           <View style={styles.intro}>
             <View style={[styles.iconContainer, { backgroundColor: themeColors.backgroundElement }]}>
-              <Ionicons name="key-outline" size={30} color={themeColors.backgroundSelected} />
+              <Ionicons name="mail-outline" size={30} color={themeColors.backgroundSelected} />
             </View>
-            <Text style={[styles.title, { color: themeColors.text }]}>Recuperar conta</Text>
+            <Text style={[styles.title, { color: themeColors.text }]}>Verificação</Text>
             <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-              Informe o e-mail cadastrado e enviaremos um código de 6 dígitos para redefinir sua senha.
+              Enviamos um código de 6 dígitos para{'\n'}
+              <Text style={{ fontWeight: '700' }}>{email}</Text>
             </Text>
           </View>
 
           <View style={[styles.form, { backgroundColor: themeColors.backgroundElement }]}>
-            <Text style={[styles.label, { color: themeColors.text }]}>E-mail</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>Código</Text>
             <TextInput
-              autoCapitalize="none"
-              autoCorrect={false}
-              keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
-              placeholder="seuemail@exemplo.com"
-              placeholderTextColor={themeColors.textSecondary + '99'}
+              value={code}
+              onChangeText={(v) => {
+                setCode(v.replace(/\D/g, '').slice(0, 6));
+                if (error) setError(null);
+                if (success) setSuccess(false);
+              }}
+              keyboardType="number-pad"
+              maxLength={6}
+              placeholder="000000"
+              placeholderTextColor={themeColors.textSecondary + '55'}
+              editable={!isSubmitting && !success}
               style={[
-                styles.input,
+                styles.codeInput,
                 {
-                  backgroundColor: themeColors.background,
-                  borderColor: themeColors.textSecondary + '55',
                   color: themeColors.text,
+                  backgroundColor: themeColors.background,
+                  borderColor: error
+                    ? '#dc2626'
+                    : success
+                      ? '#15803d'
+                      : themeColors.textSecondary + '55',
                 },
               ]}
             />
 
-            {feedback && (
-              <Text
-                style={[
-                  styles.feedback,
-                  { color: feedback.type === 'success' ? '#15803d' : '#dc2626' },
-                ]}
-              >
-                {feedback.message}
-              </Text>
-            )}
+            {error ? <Text style={styles.errorText}>{error}</Text> : null}
+            {success ? (
+              <Text style={styles.successText}>Código correto! Avançando...</Text>
+            ) : null}
 
             <Pressable
-              onPress={handleSubmit}
-              disabled={isSubmitting}
+              onPress={handleVerify}
+              disabled={isSubmitting || code.length !== 6 || success}
               style={({ pressed }) => [
                 styles.submitButton,
                 {
                   backgroundColor: themeColors.backgroundSelected,
-                  opacity: isSubmitting ? 0.5 : pressed ? 0.85 : 1,
+                  opacity: isSubmitting || code.length !== 6 || success ? 0.5 : pressed ? 0.85 : 1,
                 },
               ]}
             >
               <Ionicons
-                name={isSubmitting ? 'hourglass-outline' : 'paper-plane-outline'}
+                name={isSubmitting ? 'hourglass-outline' : 'checkmark-circle-outline'}
                 size={20}
                 color={colorScheme === 'dark' ? themeColors.background : '#ffffff'}
               />
@@ -151,7 +167,17 @@ export default function ForgotPasswordScreen() {
                   { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' },
                 ]}
               >
-                {isSubmitting ? 'Enviando...' : 'Enviar código'}
+                {isSubmitting ? 'Verificando...' : 'Verificar código'}
+              </Text>
+            </Pressable>
+
+            <Pressable
+              onPress={handleResend}
+              disabled={isSubmitting}
+              style={styles.resendButton}
+            >
+              <Text style={[styles.resendText, { color: themeColors.backgroundSelected }]}>
+                Reenviar código
               </Text>
             </Pressable>
           </View>
@@ -191,14 +217,29 @@ const styles = StyleSheet.create({
   subtitle: { ...Typography.body, textAlign: 'center', marginTop: Spacing.two },
   form: { borderRadius: 12, padding: Spacing.four },
   label: { ...Typography.body, fontWeight: '700', marginBottom: Spacing.two },
-  input: {
-    minHeight: 52,
+  codeInput: {
+    minHeight: 64,
     borderWidth: 1,
     borderRadius: 8,
+    textAlign: 'center',
+    fontSize: 32,
+    fontWeight: '700',
+    letterSpacing: 12,
     paddingHorizontal: Spacing.three,
-    ...Typography.bodyLarge,
   },
-  feedback: { ...Typography.bodySmall, marginTop: Spacing.two, lineHeight: 18 },
+  errorText: {
+    color: '#dc2626',
+    ...Typography.bodySmall,
+    marginTop: Spacing.two,
+    textAlign: 'center',
+  },
+  successText: {
+    color: '#15803d',
+    ...Typography.bodySmall,
+    marginTop: Spacing.two,
+    textAlign: 'center',
+    fontWeight: '700',
+  },
   submitButton: {
     minHeight: 52,
     borderRadius: 8,
@@ -209,4 +250,6 @@ const styles = StyleSheet.create({
     marginTop: Spacing.four,
   },
   submitText: { ...Typography.bodyLarge, fontWeight: '700' },
+  resendButton: { alignItems: 'center', paddingVertical: Spacing.three, marginTop: Spacing.two },
+  resendText: { ...Typography.body, fontWeight: '700' },
 });

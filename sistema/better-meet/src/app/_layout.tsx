@@ -30,8 +30,10 @@ function AppGate() {
     // Rotas PÚBLICAS (acessíveis sem login):
     //   - login           → tela de entrada
     //   - usuario         → cadastro de novo usuário
-    //   - forgot-password → recuperação de conta (UC02)
-    const publicRoutes = ['login', 'usuario', 'forgot-password'];
+    //   - forgot-password → recuperação de conta (etapa 1: email)
+    //   - verify-code     → recuperação de conta (etapa 2: código)
+    //   - reset-password  → recuperação de conta (etapa 3: nova senha)
+    const publicRoutes = ['login', 'usuario', 'forgot-password', 'verify-code', 'reset-password'];
 
     if (!isAuthenticated && !publicRoutes.includes(currentRoute)) {
       router.replace('/login');
@@ -83,6 +85,8 @@ export default function RootLayout() {
           <Drawer.Screen name="login" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="forgot-password" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="verify-code" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="reset-password" options={{ drawerItemStyle: { display: 'none' } }} />
         </Drawer>
       </ThemeProvider>
     </GestureHandlerRootView>
