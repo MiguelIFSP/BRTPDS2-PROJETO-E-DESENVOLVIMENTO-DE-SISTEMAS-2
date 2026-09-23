@@ -53,9 +53,10 @@ model User {
 }
 
 model Organizacao {
-  id     Int    @id @default(autoincrement())
-  nome   String
-  status String // pendente ate o admin aceitar. aceita | recusada
+  id        Int      @id @default(autoincrement())
+  nome      String
+  status    String // pendente ate o admin aceitar. aceita | recusada
+  createdAt DateTime @default(now())
 
   comissoes Comissao[]
   membros   OrganizacaoMembro[]

@@ -11,7 +11,16 @@ export type Organization = {
   id: number;
   nome: string;
   status: 'PENDENTE' | 'ACEITA' | 'RECUSADA' | string;
+  createdAt: string;
   membros: OrganizationMember[];
+};
+
+export type OrganizationReport = {
+  total: number;
+  porStatus: Record<'PENDENTE' | 'ACEITA' | 'RECUSADA', number>;
+  crescimentoPorMes: { mes: string; quantidade: number }[];
+  distribuicaoPapeis: Record<PapelOrganizacao, number>;
+  mediaMembrosPorOrganizacao: number;
 };
 
 type ApiErrorBody = { error?: string };
@@ -74,6 +83,20 @@ export const organizacaoService = {
       headers: authHeaders(token),
     });
     return parseJson<Organization[]>(response, 'Não foi possível carregar as solicitações.');
+  },
+
+  async getReport(token: string) {
+    const response = await fetch(`${API_URL}/organizacoes/relatorio`, {
+      headers: authHeaders(token),
+    });
+    return parseJson<OrganizationReport>(response, 'Não foi possível carregar o relatório de organizações.');
+  },
+
+  async getReportMine(token: string) {
+    const response = await fetch(`${API_URL}/organizacoes/relatorio/minhas`, {
+      headers: authHeaders(token),
+    });
+    return parseJson<OrganizationReport>(response, 'Não foi possível carregar o relatório das suas organizações.');
   },
 
   async create(token: string, nome: string) {

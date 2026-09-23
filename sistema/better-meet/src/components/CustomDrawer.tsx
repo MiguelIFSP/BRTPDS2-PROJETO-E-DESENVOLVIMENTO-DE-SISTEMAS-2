@@ -90,6 +90,15 @@ export default function CustomDrawer(props: any) {
         </TouchableOpacity>
       ) : null}
 
+      <TouchableOpacity
+        style={styles.menuItem}
+        onPress={() => router.push('/relatorios' as any)}
+      >
+        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>
+          Relatórios
+        </Text>
+      </TouchableOpacity>
+
       <View style={[styles.footer, { borderTopColor: themeColors.textSecondary + '40' }]}>
         <View
           style={[

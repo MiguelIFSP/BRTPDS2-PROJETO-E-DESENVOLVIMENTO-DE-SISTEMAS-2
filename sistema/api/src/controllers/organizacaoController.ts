@@ -58,6 +58,25 @@ export const organizacaoController = {
     }
   },
 
+  async getReport(_request: Request, response: Response) {
+    try {
+      const report = await organizacaoService.getReport();
+      response.status(200).json(report);
+    } catch (error) {
+      handleError(response, error, 'Não foi possível gerar o relatório de organizações.');
+    }
+  },
+
+  async getReportMine(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    try {
+      const report = await organizacaoService.getReportMine(userId);
+      response.status(200).json(report);
+    } catch (error) {
+      handleError(response, error, 'Não foi possível gerar o relatório das suas organizações.');
+    }
+  },
+
   async getMine(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     try {

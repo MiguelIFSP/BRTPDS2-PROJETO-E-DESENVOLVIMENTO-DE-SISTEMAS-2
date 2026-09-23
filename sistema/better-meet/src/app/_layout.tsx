@@ -81,6 +81,7 @@ export default function RootLayout() {
           <Drawer.Screen name="index" />
           <Drawer.Screen name="organizacao" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="organizacoes" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="relatorios" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="usuario" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="login" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />

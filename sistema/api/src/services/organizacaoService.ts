@@ -37,6 +37,62 @@ const organizationDetails = {
   comissoes: true,
 } satisfies Prisma.OrganizacaoInclude;
 
+const STATUSES = ['PENDENTE', 'ACEITA', 'RECUSADA'] as const;
+const MESES_CRESCIMENTO = 12;
+
+// chave YYYY-MM em UTC, usada so pra bucket — a exibicao (nome do mes) fica por conta do front.
+const yearMonthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+
+// monta os ultimos N meses (mais antigo primeiro), cada um comecando com contagem 0.
+const lastMonthKeys = (months: number) => {
+  const keys: string[] = [];
+  const now = new Date();
+  for (let i = months - 1; i >= 0; i -= 1) {
+    const date = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    keys.push(yearMonthKey(date));
+  }
+  return keys;
+};
+
+// relatorio calculado em cima de uma lista de organizacoes (com membros incluidos) —
+// usado tanto pra "todas" (admin) quanto pra "so as minhas" (membro), mesma forma.
+const buildOrganizationReport = (
+  organizacoes: Array<{ status: string; createdAt: Date; membros: Array<{ papel: PapelOrganizacao }> }>,
+) => {
+  const porStatus = Object.fromEntries(STATUSES.map((status) => [status, 0])) as Record<(typeof STATUSES)[number], number>;
+  for (const organizacao of organizacoes) {
+    if (organizacao.status in porStatus) {
+      porStatus[organizacao.status as (typeof STATUSES)[number]] += 1;
+    }
+  }
+
+  const crescimentoPorMes: Record<string, number> = Object.fromEntries(lastMonthKeys(MESES_CRESCIMENTO).map((key) => [key, 0]));
+  for (const organizacao of organizacoes) {
+    const key = yearMonthKey(organizacao.createdAt);
+    if (key in crescimentoPorMes) {
+      crescimentoPorMes[key] = (crescimentoPorMes[key] ?? 0) + 1;
+    }
+  }
+
+  const aceitas = organizacoes.filter((organizacao) => organizacao.status === 'ACEITA');
+  const distribuicaoPapeis = Object.fromEntries(PAPEIS_ORGANIZACAO.map((papel) => [papel, 0])) as Record<PapelMembro, number>;
+  let totalMembrosAceitas = 0;
+  for (const organizacao of aceitas) {
+    totalMembrosAceitas += organizacao.membros.length;
+    for (const membro of organizacao.membros) {
+      distribuicaoPapeis[membro.papel] += 1;
+    }
+  }
+
+  return {
+    total: organizacoes.length,
+    porStatus,
+    crescimentoPorMes: Object.entries(crescimentoPorMes).map(([mes, quantidade]) => ({ mes, quantidade })),
+    distribuicaoPapeis,
+    mediaMembrosPorOrganizacao: aceitas.length > 0 ? totalMembrosAceitas / aceitas.length : 0,
+  };
+};
+
 // id da url tem que ser numero positivo. se for invalido, 400.
 const parseId = (rawId: string | string[] | undefined, message: string) => {
   const value = Array.isArray(rawId) ? rawId[0] : rawId;
@@ -138,6 +194,23 @@ export const organizacaoService = {
       include: organizationDetails,
     });
     return organizacoes.map(withSortedMembers);
+  },
+
+  // relatorio do admin: agregados sobre todas as organizacoes.
+  async getReport() {
+    const organizacoes = await prisma.organizacao.findMany({
+      select: { status: true, createdAt: true, membros: { select: { papel: true } } },
+    });
+    return buildOrganizationReport(organizacoes);
+  },
+
+  // relatorio do membro: mesmos agregados, so sobre as organizacoes das quais participa.
+  async getReportMine(userId: number) {
+    const organizacoes = await prisma.organizacao.findMany({
+      where: { membros: { some: { userId } } },
+      select: { status: true, createdAt: true, membros: { select: { papel: true } } },
+    });
+    return buildOrganizationReport(organizacoes);
   },
 
   async getById(id: number) {
