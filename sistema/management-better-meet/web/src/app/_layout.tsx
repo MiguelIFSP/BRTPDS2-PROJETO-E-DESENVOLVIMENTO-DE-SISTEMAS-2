@@ -13,11 +13,9 @@ SplashScreen.preventAutoHideAsync();
 function AppGate() {
   const segments = useSegments();
   const router = useRouter();
-  const { isAuthenticated, hasHydrated } = useAuthStore();
+  const { isAuthenticated } = useAuthStore();
 
   useEffect(() => {
-    if (!hasHydrated) return;
-
     const currentRoute = segments[0] ?? 'index';
 
     if (!isAuthenticated && currentRoute !== 'login') {
@@ -28,7 +26,7 @@ function AppGate() {
     if (isAuthenticated && currentRoute === 'login') {
       router.replace('/');
     }
-  }, [segments, isAuthenticated, hasHydrated, router]);
+  }, [segments, isAuthenticated, router]);
 
   return null;
 }

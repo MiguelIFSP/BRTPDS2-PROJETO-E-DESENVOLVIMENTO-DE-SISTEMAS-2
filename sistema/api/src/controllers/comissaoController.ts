@@ -1,5 +1,5 @@
 import type { Request, Response } from 'express';
-import prisma from '/Users/Alpha/Documents/GitHub/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/sistema/api/prisma.config.ts'; 
+import prisma from '../../prisma.config.ts'; 
 
 export const comissaoController = {
   /**
