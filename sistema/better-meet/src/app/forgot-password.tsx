@@ -1,7 +1,7 @@
 // =====================================================================
-// forgot-password.tsx — UC02 (Recuperação de Conta) — etapa 1
-// Usuário informa o email. Backend gera código de 6 dígitos e envia.
-// Depois navega pra /verify-code?email=...
+// forgot-password.tsx — Recuperação de conta
+// Tela única: e-mail + nova senha + confirmar senha.
+// Em caso de sucesso, volta pro login.
 // =====================================================================
 
 import React, { useState } from 'react';
@@ -13,62 +13,102 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
+import * as yup from 'yup';
 
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { API_URL } from '../config/api';
+import { useAppColorScheme as useColorScheme } from '../hooks/use-app-color-scheme';
+
+const schema = yup.object({
+  email: yup
+    .string()
+    .trim()
+    .required('Informe seu e-mail.')
+    .email('Informe um e-mail válido.'),
+  newPassword: yup
+    .string()
+    .required('A nova senha é obrigatória.')
+    .min(8, 'A nova senha deve ter pelo menos 8 caracteres.')
+    .max(72, 'A nova senha deve ter no máximo 72 caracteres.')
+    .matches(/[A-Z]/, 'A nova senha deve conter pelo menos uma letra maiúscula.')
+    .matches(/[a-z]/, 'A nova senha deve conter pelo menos uma letra minúscula.')
+    .matches(/[0-9]/, 'A nova senha deve conter pelo menos um número.'),
+  confirmPassword: yup
+    .string()
+    .required('Confirme a nova senha.')
+    .oneOf([yup.ref('newPassword')], 'As senhas não coincidem.'),
+});
+
+type Form = { email: string; newPassword: string; confirmPassword: string };
+
+const initialValues: Form = { email: '', newPassword: '', confirmPassword: '' };
 
 export default function ForgotPasswordScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
   const themeColors = Colors[colorScheme];
 
-  const [email, setEmail] = useState('');
+  const [form, setForm] = useState<Form>(initialValues);
+  const [errors, setErrors] = useState<Partial<Record<keyof Form, string>>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+
+  const updateField = (field: keyof Form, value: string) => {
+    setForm((prev) => ({ ...prev, [field]: value }));
+    setErrors((prev) => ({ ...prev, [field]: undefined }));
+    if (feedback) setFeedback(null);
+  };
 
   const handleSubmit = async () => {
-    if (!email.trim()) {
-      setFeedback({ type: 'error', message: 'Informe seu e-mail.' });
+    setFeedback(null);
+
+    try {
+      await schema.validate(form, { abortEarly: false });
+      setErrors({});
+    } catch (err) {
+      if (err instanceof yup.ValidationError) {
+        const next: Partial<Record<keyof Form, string>> = {};
+        err.inner.forEach((e) => {
+          if (e.path && !next[e.path as keyof Form]) next[e.path as keyof Form] = e.message;
+        });
+        setErrors(next);
+      }
       return;
     }
 
     setIsSubmitting(true);
-    setFeedback(null);
-
-    const emailNormalizado = email.trim().toLowerCase();
 
     try {
       const response = await fetch(`${API_URL}/auth/forgot-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: emailNormalizado }),
+        body: JSON.stringify({
+          email: form.email.trim().toLowerCase(),
+          newPassword: form.newPassword,
+        }),
       });
 
       const data = await response.json().catch(() => ({}));
 
       if (!response.ok) {
-        throw new Error(data.error ?? 'Não foi possível processar a solicitação.');
+        throw new Error(data.error ?? 'Não foi possível redefinir a senha.');
       }
 
-      setFeedback({
-        type: 'success',
-        message: data.message ?? 'Se este e-mail estiver cadastrado, você receberá um código de verificação.',
-      });
-      setEmail('');
-
-      // Avança direto pra tela de código (leva o email na query)
-      router.push(`/verify-code?email=${encodeURIComponent(emailNormalizado)}`);
-    } catch (error) {
+      setFeedback({ type: 'success', message: 'Senha redefinida! Você já pode entrar.' });
+      setForm(initialValues);
+      setTimeout(() => router.replace('/login'), 900);
+    } catch (err) {
       setFeedback({
         type: 'error',
-        message: error instanceof Error ? error.message : 'Erro de conexão.',
+        message: err instanceof Error ? err.message : 'Erro de conexão.',
       });
     } finally {
       setIsSubmitting(false);
@@ -90,11 +130,11 @@ export default function ForgotPasswordScreen() {
 
           <View style={styles.intro}>
             <View style={[styles.iconContainer, { backgroundColor: themeColors.backgroundElement }]}>
-              <Ionicons name="key-outline" size={30} color={themeColors.backgroundSelected} />
+              <Ionicons name="lock-closed-outline" size={30} color={themeColors.backgroundSelected} />
             </View>
             <Text style={[styles.title, { color: themeColors.text }]}>Recuperar conta</Text>
             <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>
-              Informe o e-mail cadastrado e enviaremos um código de 6 dígitos para redefinir sua senha.
+              Informe seu e-mail e defina uma nova senha. Mínimo 8 caracteres, com 1 letra maiúscula, 1 minúscula e 1 número.
             </Text>
           </View>
 
@@ -104,21 +144,88 @@ export default function ForgotPasswordScreen() {
               autoCapitalize="none"
               autoCorrect={false}
               keyboardType="email-address"
-              value={email}
-              onChangeText={setEmail}
+              value={form.email}
+              onChangeText={(v) => updateField('email', v)}
               placeholder="seuemail@exemplo.com"
               placeholderTextColor={themeColors.textSecondary + '99'}
               style={[
                 styles.input,
                 {
                   backgroundColor: themeColors.background,
-                  borderColor: themeColors.textSecondary + '55',
+                  borderColor: errors.email ? '#dc2626' : themeColors.textSecondary + '55',
                   color: themeColors.text,
                 },
               ]}
             />
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
-            {feedback && (
+            <Text style={[styles.label, { color: themeColors.text, marginTop: Spacing.three }]}>
+              Nova senha
+            </Text>
+            <View
+              style={[
+                styles.passwordWrap,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: errors.newPassword ? '#dc2626' : themeColors.textSecondary + '55',
+                },
+              ]}
+            >
+              <TextInput
+                value={form.newPassword}
+                onChangeText={(v) => updateField('newPassword', v)}
+                secureTextEntry={!showPassword}
+                placeholder="Digite a nova senha"
+                placeholderTextColor={themeColors.textSecondary + '99'}
+                style={[styles.passwordInput, { color: themeColors.text }]}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Pressable onPress={() => setShowPassword((p) => !p)} style={styles.eyeButton}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={themeColors.textSecondary}
+                />
+              </Pressable>
+            </View>
+            {errors.newPassword ? <Text style={styles.errorText}>{errors.newPassword}</Text> : null}
+
+            <Text style={[styles.label, { color: themeColors.text, marginTop: Spacing.three }]}>
+              Confirmar senha
+            </Text>
+            <View
+              style={[
+                styles.passwordWrap,
+                {
+                  backgroundColor: themeColors.background,
+                  borderColor: errors.confirmPassword ? '#dc2626' : themeColors.textSecondary + '55',
+                },
+              ]}
+            >
+              <TextInput
+                value={form.confirmPassword}
+                onChangeText={(v) => updateField('confirmPassword', v)}
+                secureTextEntry={!showConfirm}
+                placeholder="Digite novamente"
+                placeholderTextColor={themeColors.textSecondary + '99'}
+                style={[styles.passwordInput, { color: themeColors.text }]}
+                autoCapitalize="none"
+                autoCorrect={false}
+              />
+              <Pressable onPress={() => setShowConfirm((p) => !p)} style={styles.eyeButton}>
+                <Ionicons
+                  name={showConfirm ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color={themeColors.textSecondary}
+                />
+              </Pressable>
+            </View>
+            {errors.confirmPassword ? (
+              <Text style={styles.errorText}>{errors.confirmPassword}</Text>
+            ) : null}
+
+            {feedback ? (
               <Text
                 style={[
                   styles.feedback,
@@ -127,7 +234,7 @@ export default function ForgotPasswordScreen() {
               >
                 {feedback.message}
               </Text>
-            )}
+            ) : null}
 
             <Pressable
               onPress={handleSubmit}
@@ -136,12 +243,12 @@ export default function ForgotPasswordScreen() {
                 styles.submitButton,
                 {
                   backgroundColor: themeColors.backgroundSelected,
-                  opacity: isSubmitting ? 0.5 : pressed ? 0.85 : 1,
+                  opacity: isSubmitting ? 0.6 : pressed ? 0.85 : 1,
                 },
               ]}
             >
               <Ionicons
-                name={isSubmitting ? 'hourglass-outline' : 'paper-plane-outline'}
+                name={isSubmitting ? 'hourglass-outline' : 'save-outline'}
                 size={20}
                 color={colorScheme === 'dark' ? themeColors.background : '#ffffff'}
               />
@@ -151,7 +258,7 @@ export default function ForgotPasswordScreen() {
                   { color: colorScheme === 'dark' ? themeColors.background : '#ffffff' },
                 ]}
               >
-                {isSubmitting ? 'Enviando...' : 'Enviar código'}
+                {isSubmitting ? 'Salvando...' : 'Redefinir senha'}
               </Text>
             </Pressable>
           </View>
@@ -198,7 +305,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.three,
     ...Typography.bodyLarge,
   },
-  feedback: { ...Typography.bodySmall, marginTop: Spacing.two, lineHeight: 18 },
+  passwordWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: 52,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingLeft: Spacing.three,
+  },
+  passwordInput: { flex: 1, minHeight: 52, ...Typography.bodyLarge },
+  eyeButton: {
+    paddingHorizontal: Spacing.three,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  errorText: { color: '#dc2626', ...Typography.bodySmall, marginTop: Spacing.one },
+  feedback: { ...Typography.bodySmall, marginTop: Spacing.three, lineHeight: 18, textAlign: 'center' },
   submitButton: {
     minHeight: 52,
     borderRadius: 8,

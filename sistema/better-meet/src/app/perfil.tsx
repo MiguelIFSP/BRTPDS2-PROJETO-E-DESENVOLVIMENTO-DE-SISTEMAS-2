@@ -6,7 +6,6 @@ import {
   Text,
   TextInput,
   View,
-  useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,6 +16,7 @@ import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 import { reportMobileError } from '../services/monitoringService';
 import { API_URL } from '../config/api';
+import { useAppColorScheme as useColorScheme } from '../hooks/use-app-color-scheme';
 
 export default function PerfilScreen() {
   const router = useRouter();

@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
+import { useThemeStore } from '../store/themeStore';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -7,9 +8,9 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native';
+import { useAppColorScheme as useColorScheme } from '../hooks/use-app-color-scheme';
 import { Ionicons } from '@expo/vector-icons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect, useRouter } from 'expo-router';
@@ -137,7 +138,7 @@ export default function LoginScreen() {
         throw new Error(message);
       }
 
-      login(
+        login(
         {
           id: data.id,
           name: data.name,
@@ -147,6 +148,9 @@ export default function LoginScreen() {
         },
         data.token
       );
+
+      // Aplica o tema salvo do usuário ao logar
+      useThemeStore.getState().applyUserPreference(data.themePreference);
 
       setFeedback({
         type: 'success',

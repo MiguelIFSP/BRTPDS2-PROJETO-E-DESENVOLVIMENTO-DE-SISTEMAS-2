@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useColorScheme,
   View,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
@@ -19,6 +18,8 @@ import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { reportMobileError } from '../services/monitoringService';
 import { API_URL } from '../config/api';
+import { useAppColorScheme as useColorScheme } from '../hooks/use-app-color-scheme';
+
 
 const userSchema = yup.object({
   nome: yup
