@@ -88,19 +88,15 @@ Os incrementos devem ser cumulativos: novas versões precisam preservar as funci
 
 ### Subindo tudo rapidamente (Windows)
 
-Pré-requisitos que não são automatizados (não têm como, com segurança): Node.js e Docker Desktop instalados. `npm install` de cada projeto, o `pm2` global e os `.env` são cuidados pelos próprios scripts abaixo.
+Pré-requisitos que não são automatizados (não têm como, com segurança): Node.js e Docker Desktop instalados. `npm install` de cada projeto, o `pm2` global e os `.env` são cuidados pelo próprio script abaixo.
 
 ```powershell
-# 1. Instala as dependências de todos os projetos
-.\install-all.ps1
-
-# 2. Sobe tudo: gera os .env que faltarem (com segredos aleatórios reais, já
-#    combinando JWT_SECRET/INTERNAL_API_KEY entre os projetos que precisam ser
-#    idênticos), bancos (Docker) + api/monitoring/management (PM2) + build do painel.
-#    Passe "pm2" como argumento se o pm2 ainda não estiver instalado globalmente.
+# Sobe tudo: instala o pm2 se faltar, npm install em todos os projetos (Prisma
+# fixado em 7.10.0), cria/corrige os .env (segredos aleatórios reais, já
+# combinando JWT_SECRET/INTERNAL_API_KEY entre os projetos que precisam ser
+# idênticos, e o IP atual da máquina), bancos (Docker) + api/monitoring/management
+# (PM2) + build do painel.
 .\start-all.ps1
-# ou, numa máquina sem pm2 ainda:
-.\start-all.ps1 pm2
 
 # Painel admin: http://localhost:3335/admin (login com um usuário role ADMIN)
 
@@ -109,7 +105,7 @@ pm2 list
 pm2 logs <nome>   # api | monitoring | management
 ```
 
-Rodar `.\start-all.ps1` de novo é seguro — os passos são idempotentes (não duplica container, `.env` que já existe não é sobrescrito, e o PM2 apenas reinicia o que já estava rodando).
+Rodar `.\start-all.ps1` de novo é seguro — os passos são idempotentes (não duplica container, `.env` que já existe só tem corrigido o que estiver errado — chave faltando, segredo placeholder ou divergente entre projetos, IP desatualizado — mantendo o resto, e o PM2 apenas reinicia o que já estava rodando).
 
 As seções abaixo detalham o que esses scripts fazem por baixo dos panos, e como rodar cada peça manualmente se precisar de mais controle.
 
@@ -155,8 +151,7 @@ npx prisma migrate dev --name init
 Scripts úteis na raiz:
 
 - `start-db.sh` / `start-db.ps1` — sobe/derruba só o serviço do banco (`docker-compose.yml`, na raiz do `sistema/`). Útil quando você só precisa do banco, sem as APIs.
-- `install-all.ps1` — roda `npm install` em todos os projetos do repositório (`api`, `better-meet`, `monitoring-better-meet`, `management-better-meet/server`, `management-better-meet/web`) de uma vez. Rode isso primeiro numa máquina nova.
-- `start-all.ps1` — sobe o sistema completo com um único comando: verifica/instala o `pm2` (com `pm2` como argumento), gera o `.env` de cada projeto que ainda não tiver um (com segredos aleatórios reais, reaproveitando o mesmo valor entre projetos que precisam do mesmo `JWT_SECRET`/`INTERNAL_API_KEY`), sobe os containers de banco (idempotente), builda `monitoring-better-meet`, `management-better-meet/server` e o painel web, e inicia `api`, `monitoring` e `management` via PM2 (`ecosystem.config.js`, na raiz).
+- `start-all.ps1` — sobe o sistema completo com um único comando: roda `npm install` em todos os projetos (`api`, `better-meet`, `monitoring-better-meet`, `management-better-meet/server`, `management-better-meet/web`) e confere que o Prisma instalado em `api` e `monitoring-better-meet` é exatamente a `7.10.0`, instala o `pm2` global se estiver faltando, cria o `.env` de cada projeto que ainda não tiver um e corrige os que já existem (chaves faltando, IP da máquina, segredos aleatórios reais, reaproveitando o mesmo valor entre projetos que precisam do mesmo `JWT_SECRET`/`INTERNAL_API_KEY`), sobe os containers de banco (idempotente), builda `monitoring-better-meet`, `management-better-meet/server` e o painel web, e inicia `api`, `monitoring` e `management` via PM2 (`ecosystem.config.js`, na raiz).
 
 Uso (POSIX, só o banco):
 
@@ -185,7 +180,7 @@ O JWT usado nas rotas `GET` **não é emitido pela própria API de monitoramento
 
 ### Variáveis de ambiente necessárias
 
-Nenhum `.env` é versionado (estão no `.gitignore`) — cada dev/máquina precisa do seu. O `start-all.ps1` já gera esses arquivos automaticamente (com segredos aleatórios reais, via `.env.example`) quando não existem, então normalmente não precisa fazer isso na mão — as informações abaixo servem pra quando você quer configurar manualmente ou entender o que cada `.env` guarda.
+Nenhum `.env` é versionado (estão no `.gitignore`) — cada dev/máquina precisa do seu. O `start-all.ps1` já gera esses arquivos automaticamente (com segredos aleatórios reais, via `.env.example`) quando não existem, e corrige os que já existem, então normalmente não precisa fazer isso na mão — as informações abaixo servem pra quando você quer configurar manualmente ou entender o que cada `.env` guarda.
 
 - `api/.env`: precisa de `JWT_SECRET`.
 - `monitoring-better-meet/.env`: precisa de `JWT_SECRET` (**idêntico** ao da `api/`) e `INTERNAL_API_KEY`.

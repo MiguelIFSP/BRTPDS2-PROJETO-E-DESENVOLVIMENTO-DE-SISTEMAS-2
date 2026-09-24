@@ -1,35 +1,14 @@
-﻿# Sobe tudo com um comando só: gera os .env que faltarem (com segredos
-# aleatórios reais), sobe os bancos (Docker, cria na primeira vez / só inicia
-# depois) + as 3 APIs (PM2) + build do painel admin (servido pela própria
-# management em /admin). Idempotente — pode rodar de novo sem problema.
+﻿# Sobe tudo com um comando só: instala o pm2 se faltar, roda "npm install" em
+# todos os projetos (com o Prisma fixado em 7.10.0), cria/corrige os .env
+# (segredos reais, IP da máquina), sobe os bancos (Docker, cria na primeira
+# vez / só inicia depois) + as 3 APIs (PM2) + build do painel admin (servido
+# pela própria management em /admin). Idempotente — pode rodar de novo sem problema.
 #
 # Uso:
-#   .\start-all.ps1                          Sobe tudo (pm2 ausente e .env já existentes ficam como estão)
-#   .\start-all.ps1 --pm2 y                  Idem, instalando o pm2 globalmente se estiver faltando
-#   .\start-all.ps1 --adjust-env y           Idem, reaplicando os ajustes mesmo em .env que já existem
-#   .\start-all.ps1 --pm2 y --adjust-env y   Os dois juntos (ordem não importa)
-# y = yes, n = not — parâmetro omitido equivale a "n".
+#   .\start-all.ps1
 #
 # Pré-requisito que não é automatizado (por segurança): Node.js e Docker
-# Desktop instalados, e "npm install" já rodado em cada projeto — veja install-all.ps1.
-
-# Sem param() de propósito — PowerShell não faz bind nativo de flags "--assim"
-# (só "-Assim", com um traço), então o parse de --pm2/--adjust-env é manual aqui.
-$scriptArgs = $args
-
-function Get-FlagValue {
-    param([string[]]$AllArgs, [string]$Name)
-
-    for ($i = 0; $i -lt $AllArgs.Count; $i++) {
-        if ($AllArgs[$i] -eq $Name -and ($i + 1) -lt $AllArgs.Count) {
-            return $AllArgs[$i + 1]
-        }
-    }
-    return $null
-}
-
-$installPm2 = (Get-FlagValue -AllArgs $scriptArgs -Name '--pm2') -eq 'y'
-$forceAdjustEnv = (Get-FlagValue -AllArgs $scriptArgs -Name '--adjust-env') -eq 'y'
+# Desktop instalados.
 
 $root = $PSScriptRoot
 
@@ -37,14 +16,56 @@ $root = $PSScriptRoot
 
 Write-Host "Verificando o pm2..."
 if (-not (Get-Command pm2 -ErrorAction SilentlyContinue)) {
-    if ($installPm2) {
-        Write-Host "pm2 não encontrado — instalando globalmente (npm install -g pm2)..."
-        npm install -g pm2
-    } else {
-        Write-Host "pm2 não está instalado globalmente."
-        Write-Host "Rode '.\start-all.ps1 --pm2 y' pra instalar automaticamente, ou 'npm install -g pm2' na mão."
+    Write-Host "pm2 não encontrado — instalando globalmente (npm install -g pm2)..."
+    npm install -g pm2
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  Não foi possível instalar o pm2 — rode 'npm install -g pm2' na mão e tente de novo."
         exit 1
     }
+} else {
+    Write-Host "  pm2 já instalado."
+}
+
+# --- npm install ------------------------------------------------------------
+# api e monitoring-better-meet usam Prisma — prisma, @prisma/client e
+# @prisma/adapter-mariadb ficam fixados (sem ^) no package.json de cada um, e
+# aqui a gente confere se o que foi instalado bate mesmo com essa versão.
+
+$prismaVersion = "7.10.0"
+$prismaPackages = @("prisma", "@prisma/client", "@prisma/adapter-mariadb")
+
+$npmProjects = @(
+    "api",
+    "better-meet",
+    "monitoring-better-meet",
+    "management-better-meet/server",
+    "management-better-meet/web"
+)
+$prismaProjects = @("api", "monitoring-better-meet")
+
+foreach ($project in $npmProjects) {
+    Write-Host "npm install em $project..."
+    Push-Location "$root/$project"
+    npm install
+    if ($LASTEXITCODE -ne 0) {
+        Write-Host "  npm install falhou em $project — abortando."
+        Pop-Location
+        exit 1
+    }
+
+    if ($prismaProjects -contains $project) {
+        foreach ($package in $prismaPackages) {
+            $installed = (node -p "require('./node_modules/$package/package.json').version" 2>$null)
+            if ($installed -ne $prismaVersion) {
+                Write-Host "  $package em $project está na versão '$installed', esperado $prismaVersion — abortando."
+                Write-Host "  Confira se o package.json de $project tem `"$package`": `"$prismaVersion`" (sem ^)."
+                Pop-Location
+                exit 1
+            }
+        }
+        Write-Host "  Prisma $prismaVersion confirmado em $project."
+    }
+    Pop-Location
 }
 
 # --- .env de cada projeto ---------------------------------------------------
@@ -133,93 +154,167 @@ function Sync-PrismaSchema {
     Pop-Location
 }
 
-function Get-ExistingValue {
-    param([string]$EnvPath, [string]$VarName)
+# Lê só as linhas CHAVE=valor (sem aspas); comentário e linha em branco ficam de fora.
+function Read-EnvValues {
+    param([string]$Path)
 
-    if (-not (Test-Path $EnvPath)) { return $null }
-
-    $line = Get-Content -Path $EnvPath -Encoding UTF8 | Where-Object { $_ -match "^$VarName=" } | Select-Object -First 1
-    if ($null -eq $line) { return $null }
-    if ($line -match '^[A-Z_]+="(.*)"$') { return $Matches[1] }
-    return $null
+    $values = [ordered]@{}
+    foreach ($line in [System.IO.File]::ReadAllLines($Path)) {
+        if ($line -match '^([A-Z_][A-Z0-9_]*)=(.*)$') {
+            $values[$Matches[1]] = $Matches[2].Trim().Trim('"')
+        }
+    }
+    return $values
 }
 
-function Initialize-EnvFile {
+# Valor que ainda não é um segredo de verdade: vazio, texto de exemplo tipo
+# "troque-por-..."/"peça-esse-valor...", ou idêntico ao do .env.example (o da
+# api/ traz um JWT_SECRET versionado — não serve como segredo real).
+function Test-IsPlaceholder {
+    param([string]$Value, [string]$ExampleValue)
+
+    return (-not $Value) -or ($Value -eq $ExampleValue) -or ($Value -match 'troque-por|pe.a-esse|SEU_IP_AQUI')
+}
+
+# Primeiro valor real (não placeholder) de alguma das chaves, em qualquer .env
+# já existente — assim um setup parcial é reaproveitado. Só gera um novo se
+# nenhum projeto tiver um valor real ainda (máquina nova de verdade).
+function Find-SharedSecret {
+    param([string[]]$Projects, [string[]]$Keys)
+
+    foreach ($project in $Projects) {
+        $envPath = Join-Path (Join-Path $root $project) ".env"
+        $examplePath = Join-Path (Join-Path $root $project) ".env.example"
+        if (-not (Test-Path $envPath)) { continue }
+
+        $values = Read-EnvValues -Path $envPath
+        $example = if (Test-Path $examplePath) { Read-EnvValues -Path $examplePath } else { @{} }
+        foreach ($key in $Keys) {
+            if ($values.Contains($key) -and -not (Test-IsPlaceholder -Value $values[$key] -ExampleValue $example[$key])) {
+                return $values[$key]
+            }
+        }
+    }
+    return New-Secret
+}
+
+function Get-DesiredEnvValue {
+    param(
+        [string]$Key,
+        [string]$Current,
+        [string]$ExampleValue,
+        [hashtable]$SharedValues,
+        [string]$LocalIp,
+        [bool]$IpDetected
+    )
+
+    if ($SharedValues.ContainsKey($Key)) { return $SharedValues[$Key] }
+
+    if ($Key -eq 'BETTER_AUTH_SECRET') {
+        # Só troca se ainda for placeholder — gerar um novo a cada execução derrubaria as sessões.
+        if (Test-IsPlaceholder -Value $Current -ExampleValue $ExampleValue) { return New-Secret }
+        return $Current
+    }
+
+    # Chaves que no .env.example apontam pra localhost/SEU_IP_AQUI: troca só o
+    # host (depois de "//" ou "@", ou o valor inteiro), mantendo porta e caminho.
+    # Sem IP detectado, só preenche o SEU_IP_AQUI — não derruba um IP que já funcionava.
+    if ($ExampleValue -match 'SEU_IP_AQUI|localhost') {
+        $hostPattern = if ($IpDetected) { 'localhost|SEU_IP_AQUI|\d{1,3}(?:\.\d{1,3}){3}' } else { 'SEU_IP_AQUI' }
+        return $Current -replace "(?<=^|//|@)(?:$hostPattern)(?=:|/|$)", $LocalIp
+    }
+
+    return $Current
+}
+
+# Cria o .env a partir do .env.example se não existir; se já existir, corrige
+# só o que estiver errado (chave faltando, segredo placeholder/divergente, IP
+# desatualizado) e mantém o resto — inclusive ajustes feitos na mão.
+function Sync-EnvFile {
     param(
         [string]$ProjectPath,
-        [string]$JwtSecret,
-        [string]$ApiKey,
+        [hashtable]$SharedValues,
         [string]$LocalIp,
-        [bool]$ForceAdjust
+        [bool]$IpDetected
     )
 
     $envPath = Join-Path $ProjectPath ".env"
     $examplePath = Join-Path $ProjectPath ".env.example"
 
-    if ((Test-Path $envPath) -and -not $ForceAdjust) {
-        Write-Host "  .env já existe em $ProjectPath — mantendo como está (use --adjust-env y pra sobrescrever)."
-        return
-    }
     if (-not (Test-Path $examplePath)) {
         Write-Host "  Sem .env.example em $ProjectPath — pulando."
         return
     }
 
-    # 1) Copia o .env.example como .env (arquivo real, sem transformação nenhuma ainda)
-    Copy-Item -Path $examplePath -Destination $envPath -Force
+    $example = Read-EnvValues -Path $examplePath
+    $isNew = -not (Test-Path $envPath)
+    $sourcePath = if ($isNew) { $examplePath } else { $envPath }
+    $lines = [System.Collections.Generic.List[string]]([System.IO.File]::ReadAllLines($sourcePath))
 
-    # 2) Só depois aplica os ajustes (segredos reais, IP da máquina) em cima do .env recém-criado
-    $content = Get-Content -Path $envPath -Raw -Encoding UTF8
-    # [^"]* em vez de .*$ de propósito — os .env.example usam quebra de linha CRLF,
-    # e um "$" ancorado no fim da linha não bate por causa do \r sobrando antes do \n.
-    # ${1}/${2} (com chaves) em vez de $1/$2 de propósito — se o segredo gerado
-    # começar com dígito, "$1" + "12ab..." vira "$112ab..." e o .NET tenta ler
-    # isso como grupo "$12" (não existe), descartando a substituição inteira.
-    $content = $content -replace '(?m)^(JWT_SECRET=")[^"]*(")', ('${1}' + $JwtSecret + '${2}')
-    $content = $content -replace '(?m)^(INTERNAL_API_KEY=")[^"]*(")', ('${1}' + $ApiKey + '${2}')
-    $content = $content -replace '(?m)^(EXPO_PUBLIC_MONITORING_API_KEY=")[^"]*(")', ('${1}' + $ApiKey + '${2}')
-    $content = $content -replace '(?m)^(BETTER_AUTH_SECRET=")[^"]*(")', ('${1}' + (New-Secret) + '${2}')
-    $content = $content -replace 'SEU_IP_AQUI', $LocalIp
-    $content = $content -replace 'localhost', $LocalIp
+    $changed = @()
+    $seen = @{}
+    for ($i = 0; $i -lt $lines.Count; $i++) {
+        if ($lines[$i] -notmatch '^([A-Z_][A-Z0-9_]*)=(.*)$') { continue }
+        $key = $Matches[1]
+        $current = $Matches[2].Trim().Trim('"')
+        $seen[$key] = $true
 
-    [System.IO.File]::WriteAllText($envPath, $content, [System.Text.Encoding]::UTF8)
-    Write-Host "  .env criado em $ProjectPath (copiado do .env.example e ajustado)"
+        $desired = Get-DesiredEnvValue -Key $key -Current $current -ExampleValue $example[$key] -SharedValues $SharedValues -LocalIp $LocalIp -IpDetected $IpDetected
+        if ($desired -ne $current) {
+            $lines[$i] = "$key=`"$desired`""
+            $changed += $key
+        }
+    }
+
+    foreach ($key in $example.Keys) {
+        if ($seen[$key]) { continue }
+        $desired = Get-DesiredEnvValue -Key $key -Current $example[$key] -ExampleValue $example[$key] -SharedValues $SharedValues -LocalIp $LocalIp -IpDetected $IpDetected
+        $lines.Add("$key=`"$desired`"")
+        $changed += "$key (adicionada)"
+    }
+
+    if (-not $isNew -and $changed.Count -eq 0) {
+        Write-Host "  .env em $ProjectPath já está correto."
+        return
+    }
+
+    # UTF-8 sem BOM — com BOM, o dotenv leria a primeira chave como "﻿PORT".
+    $content = ($lines -join "`r`n") + "`r`n"
+    [System.IO.File]::WriteAllText($envPath, $content, (New-Object System.Text.UTF8Encoding($false)))
+
+    if ($isNew) {
+        Write-Host "  .env criado em $ProjectPath (copiado do .env.example e ajustado)"
+    } else {
+        Write-Host "  .env corrigido em ${ProjectPath}: $($changed -join ', ')"
+    }
 }
 
-Write-Host "Preparando os .env que faltarem..."
+Write-Host "Verificando os .env..."
 
 $localIp = Get-LocalIPv4
-if ($localIp) {
+$ipDetected = [bool]$localIp
+if ($ipDetected) {
     Write-Host "  IP da máquina na rede: $localIp (usado nos .env em vez de localhost/SEU_IP_AQUI)"
 } else {
     $localIp = "localhost"
-    Write-Host "  Não consegui detectar o IP da rede — usando 'localhost' como fallback."
+    Write-Host "  Não consegui detectar o IP da rede — usando 'localhost' só onde ainda não há IP configurado."
     Write-Host "  Atenção: com 'localhost', o app mobile num celular físico não vai conseguir conectar."
 }
 
-$envProjects = @(
-    "api",
-    "better-meet",
-    "monitoring-better-meet",
-    "management-better-meet/server",
-    "management-better-meet/web"
-)
+$envProjects = $npmProjects
 
-# Reaproveita um segredo já configurado em qualquer projeto (setup parcial) —
-# só gera um novo se nenhum dos 5 projetos tiver .env ainda (máquina nova de verdade).
-$jwtSecret = $null
-$apiKey = $null
-foreach ($project in $envProjects) {
-    $envPath = Join-Path (Join-Path $root $project) ".env"
-    if (-not $jwtSecret) { $jwtSecret = Get-ExistingValue -EnvPath $envPath -VarName 'JWT_SECRET' }
-    if (-not $apiKey) { $apiKey = Get-ExistingValue -EnvPath $envPath -VarName 'INTERNAL_API_KEY' }
-    if (-not $apiKey) { $apiKey = Get-ExistingValue -EnvPath $envPath -VarName 'EXPO_PUBLIC_MONITORING_API_KEY' }
+# JWT_SECRET e a chave de API interna precisam ser IDÊNTICOS entre os projetos —
+# um valor canônico só, aplicado em todos (e corrigido onde estiver divergente).
+$jwtSecret = Find-SharedSecret -Projects $envProjects -Keys @('JWT_SECRET')
+$apiKey = Find-SharedSecret -Projects $envProjects -Keys @('INTERNAL_API_KEY', 'EXPO_PUBLIC_MONITORING_API_KEY')
+$sharedValues = @{
+    JWT_SECRET = $jwtSecret
+    INTERNAL_API_KEY = $apiKey
+    EXPO_PUBLIC_MONITORING_API_KEY = $apiKey
 }
-if (-not $jwtSecret) { $jwtSecret = New-Secret }
-if (-not $apiKey) { $apiKey = New-Secret }
 
 foreach ($project in $envProjects) {
-    Initialize-EnvFile -ProjectPath (Join-Path $root $project) -JwtSecret $jwtSecret -ApiKey $apiKey -LocalIp $localIp -ForceAdjust $forceAdjustEnv
+    Sync-EnvFile -ProjectPath (Join-Path $root $project) -SharedValues $sharedValues -LocalIp $localIp -IpDetected $ipDetected
 }
 
 # --- bancos (Docker) ---------------------------------------------------------
