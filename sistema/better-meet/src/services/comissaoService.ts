@@ -1,5 +1,3 @@
-// better-meet/src/services/comissaoService.ts
-
 import { API_URL } from '../config/api'; 
 
 export interface Comissao {
@@ -24,14 +22,15 @@ export const comissaoService = {
   },
 
   // UC01: Cadastrar nova comissão
-  async criar(nome: string, descricao: string, organizacaoId: number): Promise<Comissao> {
+  async criar(nome: string, descricao: string, organizacaoId: number, usuarioAtualId: number): Promise<Comissao> {
     try {
       const response = await fetch(`${API_URL}/comissoes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'user-id': usuarioAtualId.toString() // ID do usuário enviado no cabeçalho
         },
-        body: JSON.stringify({ nome, descricao, organizacaoId }),
+        body: JSON.stringify({ nome, descricao, organizacaoId, userId: usuarioAtualId }),
       });
       
       if (!response.ok) throw new Error('Falha ao criar comissão');
@@ -44,10 +43,13 @@ export const comissaoService = {
   },
 
   // UC02: Excluir comissão
-  async excluir(id: number): Promise<void> {
+  async excluir(id: number, usuarioAtualId: number): Promise<void> {
     try {
       const response = await fetch(`${API_URL}/comissoes/${id}`, {
         method: 'DELETE',
+        headers: {
+          'user-id': usuarioAtualId.toString() // Validação de permissão
+        }
       });
       
       if (!response.ok) throw new Error('Falha ao excluir comissão');

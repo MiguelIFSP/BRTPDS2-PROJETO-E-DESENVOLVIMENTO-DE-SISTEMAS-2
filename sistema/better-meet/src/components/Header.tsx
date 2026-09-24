@@ -34,6 +34,7 @@ export default function Header() {
               <TouchableOpacity style={styles.menuButton} onPress={() => navigation.openDrawer()}>
                   <Ionicons name="menu" size={30} color={themeColors.text} />
               </TouchableOpacity>
+              
               <View style={styles.logoSlot}>
                 <TouchableOpacity
                   accessibilityRole="link"
@@ -43,18 +44,32 @@ export default function Header() {
                   <IconAndTitle />
                 </TouchableOpacity>
               </View>
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel="Abrir perfil do usuário"
-                onPress={() => router.push('/perfil')}
-                style={[
-                  styles.avatarContainer,
-                  { backgroundColor: themeColors.backgroundElement },
-                  { borderColor: themeColors.backgroundSelected, borderWidth: 1 },
-                ]}
-              >
-                  <Text style={[styles.avatarText, {color: themeColors.text} ]}>{initials}</Text>
-              </TouchableOpacity>
+
+              {/* Agrupamento dos botões da direita */}
+              <View style={styles.rightActions}>
+                {/* NOVO BOTÃO: Atalho para Comissões */}
+                <TouchableOpacity
+                  style={styles.comissaoButton}
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir ecrã de Comissões"
+                  onPress={() => router.push('/comissao')}
+                >
+                  <Ionicons name="people-outline" size={26} color={themeColors.text} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel="Abrir perfil do utilizador"
+                  onPress={() => router.push('/perfil')}
+                  style={[
+                    styles.avatarContainer,
+                    { backgroundColor: themeColors.backgroundElement },
+                    { borderColor: themeColors.backgroundSelected, borderWidth: 1 },
+                  ]}
+                >
+                    <Text style={[styles.avatarText, {color: themeColors.text} ]}>{initials}</Text>
+                </TouchableOpacity>
+              </View>
             </> : <TouchableOpacity
               accessibilityRole="link"
               accessibilityLabel="Ir para a página inicial"
@@ -68,11 +83,11 @@ export default function Header() {
 
 const styles = StyleSheet.create({
   headerContainer: {
-    flexDirection: 'row', // Alinha os itens em linha
-    justifyContent: 'space-between', // Espaça uniformemente (esq, centro, dir)
-    alignItems: 'center', // Alinha verticalmente no centro
-    paddingHorizontal: 16, // Espaçamento nas laterais
-    paddingVertical: 12, // Espaçamento em cima/baixo
+    flexDirection: 'row', 
+    justifyContent: 'space-between', 
+    alignItems: 'center', 
+    paddingHorizontal: 16, 
+    paddingVertical: 12, 
     height: 70,
     borderBottomWidth: 1,
   },
@@ -86,10 +101,18 @@ const styles = StyleSheet.create({
   menuButton: {
     padding: 8,
   },
+  rightActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  comissaoButton: {
+    padding: 8,
+    marginRight: 8, // Dá um pequeno espaço entre o ícone e o avatar
+  },
   avatarContainer: {
     width: 40,
     height: 40,
-    borderRadius: 20, // Torna circular (metade da largura/altura)
+    borderRadius: 20, 
     justifyContent: 'center',
     alignItems: 'center',
   },

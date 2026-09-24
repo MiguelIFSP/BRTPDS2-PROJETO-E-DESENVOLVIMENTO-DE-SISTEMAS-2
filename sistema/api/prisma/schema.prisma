@@ -25,6 +25,13 @@ enum PapelOrganizacao {
   MEMBRO
 }
 
+enum PapelComissao {
+  ADMINISTRADOR // controle total da comissão (pode excluir a comissão)
+  FACILITADOR   // pode gerenciar os membros e as pautas
+  SECRETARIO    // focado em só registrar as atas e decisões
+  MEMBRO        // participante normal
+}
+
 model User {
   id        Int      @id @default(autoincrement())
   name      String
@@ -88,7 +95,7 @@ model Comissao {
 model ComissaoEquipe {
   comissaoId Int
   userId     Int
-  papel      String @default("MEMBRO")
+  papel      PapelComissao @default(MEMBRO)
 
   comissao Comissao @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)

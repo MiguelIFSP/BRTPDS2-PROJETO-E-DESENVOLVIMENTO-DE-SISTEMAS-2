@@ -1,53 +1,48 @@
-// better-meet/src/app/comissao.tsx
-
-import React, { useCallback, useState } from 'react';
-import {
-  View,
-  Text,
-  StyleSheet,
-  FlatList,
-  TouchableOpacity,
-  Modal,
+import React, { useEffect, useState } from 'react';
+import { 
+  View, 
+  Text, 
+  StyleSheet, 
+  FlatList, 
+  TouchableOpacity, 
+  Modal, 
   TextInput,
   ActivityIndicator,
   Alert
 } from 'react-native';
-import { useFocusEffect } from 'expo-router';
 import { comissaoService, Comissao } from '../services/comissaoService';
 
 export default function ComissaoScreen() {
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
-  const [loading, setLoading] = useState(true); // A tela JÁ COMEÇA carregando
+  const [loading, setLoading] = useState(true);
   const [modalVisible, setModalVisible] = useState(false);
   
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
 
-  // Simulação de um ID de organização que viria do Contexto/Login (Zustand)
+  // Simulação dos IDs que viriam do Contexto de Autenticação
   const organizacaoAtualId = 1; 
+  const usuarioAtualId = 1; 
 
-  // Função de carregar só finaliza o loading no final para evitar o erro do ESLint
-  const carregarComissoes = useCallback(async () => {
+  const carregarComissoes = async () => {
     try {
       const dados = await comissaoService.listarPorOrganizacao(organizacaoAtualId);
       setComissoes(dados);
-    } catch {
+    } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar as comissões.');
     } finally {
       setLoading(false);
     }
-  }, [organizacaoAtualId]);
+  };
 
- // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
- // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
- // deixaria a lista desatualizada ao voltar pra cá depois de criar/excluir comissão.
- useFocusEffect(
-   useCallback(() => {
-     carregarComissoes();
-   }, [carregarComissoes])
- );
+  // Contorno para o falso positivo do ESLint (cascading renders)
+  useEffect(() => {
+    const carregarInicial = async () => {
+      await carregarComissoes();
+    };
+    carregarInicial();
+  }, []);
 
-  
   const handleCriarComissao = async () => {
     if (!nome.trim()) {
       Alert.alert('Atenção', 'O nome da comissão é obrigatório.');
@@ -55,32 +50,32 @@ export default function ComissaoScreen() {
     }
 
     setModalVisible(false);
-    setLoading(true); // Ativa o loading manualmente
+    setLoading(true);
 
     try {
-      await comissaoService.criar(nome, descricao, organizacaoAtualId);
+      await comissaoService.criar(nome, descricao, organizacaoAtualId, usuarioAtualId);
       setNome('');
       setDescricao('');
-      carregarComissoes(); // A função vai recarregar a lista e tirar o loading
-    } catch {
+      await carregarComissoes(); 
+    } catch (error) {
       Alert.alert('Erro', 'Ocorreu um erro ao criar a comissão.');
       setLoading(false);
     }
   };
 
   const handleExcluir = (id: number) => {
-    Alert.alert('Tem certeza?', 'Esta ação não pode ser desfeita.', [
+    Alert.alert('Tem certeza?', 'Apenas o Administrador pode excluir. Esta ação não pode ser desfeita.', [
       { text: 'Cancelar', style: 'cancel' },
       { 
         text: 'Excluir', 
         style: 'destructive',
         onPress: async () => {
-          setLoading(true); // Ativa o loading para o usuário ver que está processando
+          setLoading(true);
           try {
-            await comissaoService.excluir(id);
-            carregarComissoes();
-          } catch {
-            Alert.alert('Erro', 'Não foi possível excluir.');
+            await comissaoService.excluir(id, usuarioAtualId);
+            await carregarComissoes();
+          } catch (error) {
+            Alert.alert('Acesso Negado', 'Você não tem permissão para excluir esta comissão ou ocorreu um erro.');
             setLoading(false);
           }
         }
