@@ -1,3 +1,9 @@
+// =====================================================================
+// CustomDrawer.tsx
+// Menu lateral. O Switch de tema chama o backend para salvar a
+// preferência do usuário (UC04 — Tema Preferido).
+// =====================================================================
+
 import React from 'react';
 import {
   View,
@@ -5,54 +11,48 @@ import {
   TouchableOpacity,
   StyleSheet,
   Switch,
-  useColorScheme,
-  Appearance,
-  Platform,
 } from 'react-native';
 import { DrawerContentScrollView } from 'expo-router/drawer';
 import { Colors } from '../constants/theme';
 import IconAndTitle from './IconAndTitle';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
+import { useThemeStore } from '../store/themeStore';
+import { useAppColorScheme } from '../hooks/use-app-color-scheme';
 import { API_URL } from '../config/api';
 
 export default function CustomDrawer(props: any) {
   const router = useRouter();
-  const currentTheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const currentTheme = useAppColorScheme();
   const themeColors = Colors[currentTheme];
   const { user } = useAuthStore();
+  const setTheme = useThemeStore((s) => s.setTheme);
 
   const isDarkMode = currentTheme === 'dark';
 
   // =====================================================================
   // toggleSwitch — UC04 (Tema Preferido)
-  // 1. Aplica tema localmente (feedback imediato) — só em Android/iOS,
-  //    porque Appearance.setColorScheme() não existe no react-native-web.
-  // 2. Se autenticado, sincroniza com o backend.
-  // 3. Se offline, falha silenciosa — tema local continua aplicado.
+  // 1. Aplica localmente via store (funciona em Android, iOS e web)
+  // 2. Sincroniza com o backend (se o usuário estiver logado)
+  // 3. Se offline, falha silenciosa — preferência local permanece
   // =====================================================================
   const toggleSwitch = async () => {
     const newTheme = isDarkMode ? 'light' : 'dark';
+    setTheme(newTheme);
 
-    // Appearance.setColorScheme() só existe em Android/iOS. No web, o tema
-    // segue a preferência do sistema do navegador (não dá pra forçar).
-    if (Platform.OS !== 'web') {
-      Appearance.setColorScheme(newTheme);
-    }
-
-    // Sincroniza com o backend (se logado)
-    if (user && useAuthStore.getState().token) {
+    const token = useAuthStore.getState().token;
+    if (user && token) {
       try {
         await fetch(`${API_URL}/usuarios/${user.id}/tema`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
-            Authorization: `Bearer ${useAuthStore.getState().token}`,
+            Authorization: `Bearer ${token}`,
           },
           body: JSON.stringify({ theme: newTheme }),
         });
       } catch {
-        // Falha silenciosa — tema local continua aplicado
+        // silencioso — o usuário ainda tem a preferência aplicada localmente
       }
     }
   };
@@ -90,15 +90,6 @@ export default function CustomDrawer(props: any) {
         </TouchableOpacity>
       ) : null}
 
-      <TouchableOpacity
-        style={styles.menuItem}
-        onPress={() => router.push('/relatorios' as any)}
-      >
-        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>
-          Relatórios
-        </Text>
-      </TouchableOpacity>
-
       <View style={[styles.footer, { borderTopColor: themeColors.textSecondary + '40' }]}>
         <View
           style={[
@@ -107,7 +98,7 @@ export default function CustomDrawer(props: any) {
           ]}
         >
           <Text style={[styles.themeText, { color: themeColors.text }]}>
-            {isDarkMode ? '🌙' : '☀️'} Modo Escuro
+            {isDarkMode ? '🌙 Modo Escuro' : '☀️ Modo Claro'}
           </Text>
           <Switch
             trackColor={{ false: '#767577', true: Colors.light.backgroundSelected }}
@@ -127,28 +118,10 @@ export default function CustomDrawer(props: any) {
 
 const styles = StyleSheet.create({
   drawerContainer: { flex: 1 },
-  header: {
-    padding: 24,
-    paddingTop: 40,
-    marginBottom: 20,
-    alignItems: 'center',
-  },
-  menuItem: {
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  menuText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  footer: {
-    marginTop: 40,
-    paddingHorizontal: 24,
-    paddingTop: 24,
-    borderTopWidth: 1,
-  },
+  header: { padding: 24, paddingTop: 40, marginBottom: 20, alignItems: 'center' },
+  menuItem: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, marginBottom: 8 },
+  menuText: { fontSize: 16, fontWeight: '600' },
+  footer: { marginTop: 40, paddingHorizontal: 24, paddingTop: 24, borderTopWidth: 1 },
   themeToggleContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -159,13 +132,6 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     marginBottom: 40,
   },
-  themeText: {
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  slogan: {
-    fontSize: 12,
-    textAlign: 'center',
-    marginBottom: 24,
-  },
+  themeText: { fontSize: 16, fontWeight: '600' },
+  slogan: { fontSize: 12, textAlign: 'center', marginBottom: 24 },
 });
