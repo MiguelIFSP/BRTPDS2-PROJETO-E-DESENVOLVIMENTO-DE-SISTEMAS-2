@@ -1,0 +1,124 @@
+// =====================================================================
+// schema.prisma — BetterMeet API
+// Incremento 1 – Configurações de Usuário:
+//   - Adicionado campo themePreference em User (UC04)
+//   - Criada tabela PasswordResetToken (UC02)
+// =====================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+enum PapelOrganizacao {
+  CRIADOR // quem pediu a org. so 1, nao promove para este papel
+  GERENTE // max 1. adiciona e remove
+  MODERADOR // max 2. so adiciona
+  MEMBRO
+}
+
+enum PapelComissao {
+  ADMINISTRADOR // controle total da comissão (pode excluir a comissão)
+  FACILITADOR   // pode gerenciar os membros e as pautas
+  SECRETARIO    // focado em só registrar as atas e decisões
+  MEMBRO        // participante normal
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  name      String
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+
+  // -------------------------------------------------------------------
+  // Preferência de tema do app mobile (UC04)
+  // Valores: "light" | "dark" | "system"
+  // Opcional para não quebrar usuários criados antes da migração.
+  // -------------------------------------------------------------------
+  themePreference String? @default("system")
+
+  // -------------------------------------------------------------------
+  // Relações existentes
+  // -------------------------------------------------------------------
+  comissoes    ComissaoEquipe[]
+  organizacoes OrganizacaoMembro[]
+
+  // -------------------------------------------------------------------
+  // NOVO: tokens de recuperação de conta (UC02)
+  // -------------------------------------------------------------------
+  passwordResetTokens PasswordResetToken[]
+}
+
+model Organizacao {
+  id        Int      @id @default(autoincrement())
+  nome      String
+  status    String // pendente ate o admin aceitar. aceita | recusada
+  createdAt DateTime @default(now())
+
+  comissoes Comissao[]
+  membros   OrganizacaoMembro[]
+}
+
+model OrganizacaoMembro {
+  organizacaoId Int
+  userId        Int
+  papel         PapelOrganizacao @default(MEMBRO)
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([organizacaoId, userId]) // o mesmo usuario nao entra duas vezes na mesma org
+}
+
+model Comissao {
+  id            Int      @id @default(autoincrement())
+  nome          String
+  descricao     String?
+  createdAt     DateTime @default(now())
+
+  organizacaoId Int
+  organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+
+  equipe ComissaoEquipe[]
+}
+
+model ComissaoEquipe {
+  comissaoId Int
+  userId     Int
+  papel      PapelComissao @default(MEMBRO)
+
+  comissao Comissao @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([comissaoId, userId])
+}
+
+// =====================================================================
+// PasswordResetToken (NOVO — UC02 Recuperação de Conta)
+// =====================================================================
+// Tabela separada de User por 3 motivos:
+//   1. Mantém histórico (auditoria) de tokens emitidos
+//   2. Permite múltiplos tokens válidos simultaneamente
+//   3. Não polui a tabela User com colunas de uso temporário
+// =====================================================================
+model PasswordResetToken {
+  id        Int       @id @default(autoincrement())
+  userId    Int
+  token     String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}

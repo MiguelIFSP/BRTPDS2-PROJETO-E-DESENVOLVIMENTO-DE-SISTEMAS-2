@@ -1,0 +1,38 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+}
+
+model SubSystem {
+  id        Int           @id @default(autoincrement())
+  name      String        @unique // "mobile-app", "data-api", "database"
+  checks    StatusCheck[]
+}
+
+enum StatusType {
+  OPERATIONAL
+  MAINTENANCE
+  ERROR
+  DOWN
+  UNKNOWN
+}
+
+model StatusCheck {
+  id          Int        @id @default(autoincrement())
+  subSystemId Int
+  subSystem   SubSystem  @relation(fields: [subSystemId], references: [id], onDelete: Cascade)
+  status      StatusType
+  message     String?
+  isBlocking  Boolean    @default(false)
+  checkedAt   DateTime   @default(now())
+
+  @@index([subSystemId, checkedAt])
+}
