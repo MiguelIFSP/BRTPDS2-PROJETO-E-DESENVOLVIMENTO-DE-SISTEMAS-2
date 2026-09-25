@@ -22,6 +22,34 @@ const criadorDe = (organizations: Organization[], userId: number) =>
 
 const temGerente = (organization: Organization) => organization.membros.some((m) => m.papel === 'GERENTE');
 
+// comissão em que o usuário é ADMINISTRADOR (GET /usuarios/:id/comissoes-administradas).
+type ComissaoAdministrada = {
+  id: number;
+  nome: string;
+  organizacaoId: number;
+  organizacao: { id: number; nome: string };
+  equipe: { papel: string; user: { id: number; name: string; email: string } }[];
+};
+
+type Acao = 'personal' | 'full';
+type Etapa = 'sucessores' | 'avisoComissoes' | 'confirmar';
+
+// mesma regra do backend (resolverComissoesAdministradas): comissão com outro ADMINISTRADOR fica
+// como está; sem mais ninguém na equipe é apagada; senão o usuário escolhe quem assume.
+// orgIdsExcluidas = organizações apagadas inteiras na exclusão completa (as comissões vão junto).
+const situacaoComissoes = (comissoes: ComissaoAdministrada[], userId: number, orgIdsExcluidas: number[]) => {
+  const precisamSucessor: ComissaoAdministrada[] = [];
+  const vazias: ComissaoAdministrada[] = [];
+  for (const comissao of comissoes) {
+    if (orgIdsExcluidas.includes(comissao.organizacaoId)) continue;
+    const outros = comissao.equipe.filter((m) => m.user.id !== userId);
+    if (outros.some((m) => m.papel === 'ADMINISTRADOR')) continue;
+    if (outros.length === 0) vazias.push(comissao);
+    else precisamSucessor.push(comissao);
+  }
+  return { precisamSucessor, vazias };
+};
+
 export default function ExcluirContaScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -31,9 +59,11 @@ export default function ExcluirContaScreen() {
   const [organizations, setOrganizations] = useState<Organization[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const [comissoes, setComissoes] = useState<ComissaoAdministrada[]>([]);
   const [sucessores, setSucessores] = useState<Record<number, number>>({});
-  const [showSuccessorModal, setShowSuccessorModal] = useState(false);
-  const [pendingAction, setPendingAction] = useState<'personal' | 'full' | null>(null);
+  const [sucessoresComissao, setSucessoresComissao] = useState<Record<number, number>>({});
+  // passo atual da exclusão: escolher sucessores -> aviso das comissões apagadas -> confirmação final.
+  const [fluxo, setFluxo] = useState<{ acao: Acao; etapa: Etapa } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -43,13 +73,25 @@ export default function ExcluirContaScreen() {
   // de mudar algo (ex.: cadastrar um gerente) em outra.
   useFocusEffect(
     useCallback(() => {
-      if (!token) return;
+      if (!token || !user) return;
       let cancelled = false;
       setIsLoading(true);
       (async () => {
         try {
-          const data = await organizacaoService.listMine(token);
-          if (!cancelled) setOrganizations(data as Organization[]);
+          const [data, comissoesResponse] = await Promise.all([
+            organizacaoService.listMine(token),
+            fetch(`${API_URL}/usuarios/${user.id}/comissoes-administradas`, {
+              headers: { Authorization: `Bearer ${token}` },
+            }),
+          ]);
+          const comissoesData = await comissoesResponse.json().catch(() => ({}));
+          if (!comissoesResponse.ok) {
+            throw new Error(comissoesData.error ?? 'Erro ao carregar suas comissões.');
+          }
+          if (!cancelled) {
+            setOrganizations(data as Organization[]);
+            setComissoes(comissoesData as ComissaoAdministrada[]);
+          }
         } catch (error) {
           if (!cancelled) {
             setFeedback({
@@ -64,7 +106,7 @@ export default function ExcluirContaScreen() {
       return () => {
         cancelled = true;
       };
-    }, [token])
+    }, [token, user])
   );
 
   if (!user) return null;
@@ -76,7 +118,26 @@ export default function ExcluirContaScreen() {
     (organization) => organization.membros.filter((m) => m.user.id !== user.id).length === 0
   );
   const podeExcluirSoDadosPessoais = orgsSemSucessorPossivel.length === 0;
-  const todosSucessoresEscolhidos = orgsSemGerente.every((organization) => sucessores[organization.id] != null);
+
+  const comissoesPorAcao: Record<Acao, ReturnType<typeof situacaoComissoes>> = {
+    personal: situacaoComissoes(comissoes, user.id, []),
+    full: situacaoComissoes(comissoes, user.id, minhasOrgsCriador.map((o) => o.id)),
+  };
+  // na exclusão completa as organizações que ele criou somem, então só a opção 1 pede sucessor de organização.
+  const orgsParaSucessor = (acao: Acao) => (acao === 'personal' ? orgsSemGerente : []);
+
+  const etapasDe = (acao: Acao): Etapa[] => [
+    ...(orgsParaSucessor(acao).length > 0 || comissoesPorAcao[acao].precisamSucessor.length > 0
+      ? (['sucessores'] as const)
+      : []),
+    ...(comissoesPorAcao[acao].vazias.length > 0 ? (['avisoComissoes'] as const) : []),
+    'confirmar',
+  ];
+
+  const acaoAtual = fluxo?.acao ?? 'personal';
+  const todosSucessoresEscolhidos =
+    orgsParaSucessor(acaoAtual).every((organization) => sucessores[organization.id] != null) &&
+    comissoesPorAcao[acaoAtual].precisamSucessor.every((comissao) => sucessoresComissao[comissao.id] != null);
 
   const totalComissoes = minhasOrgsCriador.reduce((total, organization) => total + organization.comissoes.length, 0);
   const totalOutrosMembros = minhasOrgsCriador.reduce(
@@ -88,7 +149,7 @@ export default function ExcluirContaScreen() {
     setSuccessMessage(message);
   };
 
-  const handleDeletePersonalOnly = async (sucessoresEscolhidos: Record<number, number>) => {
+  const handleDeletePersonalOnly = async () => {
     if (!token || !user) return;
     setIsSubmitting(true);
     setFeedback(null);
@@ -98,7 +159,7 @@ export default function ExcluirContaScreen() {
         response = await fetch(`${API_URL}/usuarios/${user.id}/dados-pessoais`, {
           method: 'DELETE',
           headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-          body: JSON.stringify({ sucessores: sucessoresEscolhidos }),
+          body: JSON.stringify({ sucessores, sucessoresComissao }),
         });
       } catch (networkError) {
         reportMobileError(
@@ -113,8 +174,7 @@ export default function ExcluirContaScreen() {
         throw new Error(data.error ?? 'Não foi possível excluir seus dados pessoais.');
       }
 
-      setPendingAction(null);
-      setShowSuccessorModal(false);
+      setFluxo(null);
       finalizeDeletion(data.message ?? 'Seus dados pessoais foram excluídos com sucesso.');
     } catch (error) {
       setFeedback({ type: 'error', message: error instanceof Error ? error.message : 'Erro de conexão.' });
@@ -132,7 +192,8 @@ export default function ExcluirContaScreen() {
       try {
         response = await fetch(`${API_URL}/usuarios/${user.id}/dados-completos`, {
           method: 'DELETE',
-          headers: { Authorization: `Bearer ${token}` },
+          headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+          body: JSON.stringify({ sucessoresComissao }),
         });
       } catch (networkError) {
         reportMobileError(
@@ -147,7 +208,7 @@ export default function ExcluirContaScreen() {
         throw new Error(data.error ?? 'Não foi possível excluir sua conta.');
       }
 
-      setPendingAction(null);
+      setFluxo(null);
       finalizeDeletion(data.message ?? 'Sua conta e suas organizações foram excluídas com sucesso.');
     } catch (error) {
       setFeedback({ type: 'error', message: error instanceof Error ? error.message : 'Erro de conexão.' });
@@ -156,14 +217,43 @@ export default function ExcluirContaScreen() {
     }
   };
 
-  const handlePressOption1 = () => {
-    if (!podeExcluirSoDadosPessoais) return;
-    if (orgsSemGerente.length > 0) {
-      setShowSuccessorModal(true);
+  // vai para a próxima etapa necessária da ação; depois da confirmação final, exclui.
+  const avancar = (acao: Acao, etapaAtual?: Etapa) => {
+    const etapas = etapasDe(acao);
+    const proxima = etapaAtual ? etapas[etapas.indexOf(etapaAtual) + 1] : etapas[0];
+    if (proxima) {
+      setFluxo({ acao, etapa: proxima });
       return;
     }
-    // todas as organizações em que é criador já têm gerente — passa automático, só confirma.
-    setPendingAction('personal');
+    if (isSubmitting) return;
+    void (acao === 'personal' ? handleDeletePersonalOnly() : handleDeleteFull());
+  };
+
+  const handlePressOption1 = () => {
+    if (!podeExcluirSoDadosPessoais) return;
+    avancar('personal');
+  };
+
+  const comissoesVaziasAtuais = comissoesPorAcao[acaoAtual].vazias;
+
+  const renderComissoesHint = (acao: Acao) => {
+    const { precisamSucessor, vazias } = comissoesPorAcao[acao];
+    return (
+      <>
+        {precisamSucessor.length > 0 ? (
+          <Text style={[styles.orgHint, { color: themeColors.backgroundSelected, marginTop: Spacing.two }]}>
+            Comissões em que você é o único administrador: {precisamSucessor.map((c) => c.nome).join(', ')} — você
+            escolhe quem assume.
+          </Text>
+        ) : null}
+        {vazias.length > 0 ? (
+          <Text style={styles.warningText}>
+            {vazias.map((c) => c.nome).join(', ')} — você é o único membro, então{' '}
+            {vazias.length === 1 ? 'a comissão será apagada' : 'as comissões serão apagadas'}.
+          </Text>
+        ) : null}
+      </>
+    );
   };
 
   return (
@@ -204,8 +294,9 @@ export default function ExcluirContaScreen() {
             <Text style={[styles.cardDescription, { color: themeColors.backgroundSelected }]}>
               Sua conta, senha, tokens de recuperação e vínculos com organizações e comissões serão apagados.
             </Text>
+            {renderComissoesHint('personal')}
             <Pressable
-              onPress={() => setPendingAction('personal')}
+              onPress={() => avancar('personal')}
               style={({ pressed }) => [styles.dangerButton, { opacity: pressed ? 0.85 : 1 }]}
             >
               <Ionicons name="trash-outline" size={18} color="#ffffff" />
@@ -242,6 +333,8 @@ export default function ExcluirContaScreen() {
                 </Text>
               ) : null}
 
+              {renderComissoesHint('personal')}
+
               <Pressable
                 onPress={handlePressOption1}
                 disabled={!podeExcluirSoDadosPessoais}
@@ -263,8 +356,9 @@ export default function ExcluirContaScreen() {
                 Além dos seus dados pessoais, remove permanentemente {minhasOrgsCriador.length} organização(ões),{' '}
                 {totalComissoes} comissão(ões) e o vínculo de {totalOutrosMembros} outro(s) membro(s) com elas.
               </Text>
+              {renderComissoesHint('full')}
               <Pressable
-                onPress={() => setPendingAction('full')}
+                onPress={() => avancar('full')}
                 style={({ pressed }) => [styles.dangerButton, { opacity: pressed ? 0.85 : 1 }]}
               >
                 <Ionicons name="trash-outline" size={18} color="#ffffff" />
@@ -276,47 +370,55 @@ export default function ExcluirContaScreen() {
       </ScrollView>
 
       <SuccessorModal
-        visible={showSuccessorModal}
-        organizations={orgsSemGerente}
+        visible={fluxo?.etapa === 'sucessores'}
+        organizations={orgsParaSucessor(acaoAtual)}
+        comissoes={comissoesPorAcao[acaoAtual].precisamSucessor}
         currentUserId={user.id}
         colorScheme={colorScheme}
         sucessores={sucessores}
+        sucessoresComissao={sucessoresComissao}
         onChangeSucessor={(organizationId, userId) =>
           setSucessores((current) => ({ ...current, [organizationId]: userId }))
         }
-        onCancel={() => setShowSuccessorModal(false)}
+        onChangeSucessorComissao={(comissaoId, userId) =>
+          setSucessoresComissao((current) => ({ ...current, [comissaoId]: userId }))
+        }
+        onCancel={() => setFluxo(null)}
         canConfirm={todosSucessoresEscolhidos && !isSubmitting}
-        onConfirm={() => {
-          if (isSubmitting) return;
-          void handleDeletePersonalOnly(sucessores);
-        }}
+        onConfirm={() => avancar(acaoAtual, 'sucessores')}
       />
 
       <ConfirmDialog
-        visible={pendingAction === 'personal'}
+        visible={fluxo?.etapa === 'avisoComissoes'}
+        title="Comissões que serão apagadas"
+        message={`Você é o único membro ${comissoesVaziasAtuais.length === 1 ? 'desta comissão' : 'destas comissões'}, então não há quem assuma como administrador: ${comissoesVaziasAtuais
+          .map((c) => `${c.nome} (${c.organizacao.nome})`)
+          .join(', ')}. ${comissoesVaziasAtuais.length === 1 ? 'Ela será apagada' : 'Elas serão apagadas'} junto com seus dados.`}
+        colorScheme={colorScheme}
+        confirmLabel="Continuar"
+        onCancel={() => setFluxo(null)}
+        onConfirm={() => avancar(acaoAtual, 'avisoComissoes')}
+      />
+
+      <ConfirmDialog
+        visible={fluxo?.etapa === 'confirmar' && fluxo.acao === 'personal'}
         title="Excluir seus dados pessoais?"
         message={
           minhasOrgsCriador.length === 0
             ? 'Sua conta e o cache salvo neste dispositivo serão removidos permanentemente. Você precisará criar uma conta nova para voltar a usar o sistema.'
-            : 'Cada organização que você criou passará automaticamente para o gerente atual e, em seguida, sua conta e o cache salvo neste dispositivo serão removidos permanentemente.'
+            : 'Cada organização que você criou passará para o gerente atual ou para quem você escolheu e, em seguida, sua conta e o cache salvo neste dispositivo serão removidos permanentemente.'
         }
         colorScheme={colorScheme}
-        onCancel={() => setPendingAction(null)}
-        onConfirm={() => {
-          if (isSubmitting) return;
-          void handleDeletePersonalOnly(sucessores);
-        }}
+        onCancel={() => setFluxo(null)}
+        onConfirm={() => avancar('personal', 'confirmar')}
       />
       <ConfirmDialog
-        visible={pendingAction === 'full'}
+        visible={fluxo?.etapa === 'confirmar' && fluxo.acao === 'full'}
         title="Excluir dados pessoais e organizações?"
         message={`Sua conta, ${minhasOrgsCriador.length} organização(ões), ${totalComissoes} comissão(ões) e o vínculo de ${totalOutrosMembros} outro(s) membro(s) com elas serão removidos permanentemente, além do cache salvo neste dispositivo.`}
         colorScheme={colorScheme}
-        onCancel={() => setPendingAction(null)}
-        onConfirm={() => {
-          if (isSubmitting) return;
-          void handleDeleteFull();
-        }}
+        onCancel={() => setFluxo(null)}
+        onConfirm={() => avancar('full', 'confirmar')}
       />
 
       <SuccessDialog
@@ -379,16 +481,20 @@ const successStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------
-// SuccessorModal — aparece só quando alguma organização em que o usuário
-// é criador não tem gerente. Ele escolhe, ali mesmo, quem assume cada uma.
+// SuccessorModal — aparece quando alguma organização em que o usuário é
+// criador não tem gerente, ou alguma comissão em que ele é o único
+// administrador tem outros membros. Ele escolhe, ali mesmo, quem assume cada uma.
 // ---------------------------------------------------------------------
 type SuccessorModalProps = {
   visible: boolean;
   organizations: Organization[];
+  comissoes: ComissaoAdministrada[];
   currentUserId: number;
   colorScheme: 'light' | 'dark';
   sucessores: Record<number, number>;
+  sucessoresComissao: Record<number, number>;
   onChangeSucessor: (organizationId: number, userId: number) => void;
+  onChangeSucessorComissao: (comissaoId: number, userId: number) => void;
   onCancel: () => void;
   onConfirm: () => void;
   canConfirm: boolean;
@@ -397,15 +503,36 @@ type SuccessorModalProps = {
 function SuccessorModal({
   visible,
   organizations,
+  comissoes,
   currentUserId,
   colorScheme,
   sucessores,
+  sucessoresComissao,
   onChangeSucessor,
+  onChangeSucessorComissao,
   onCancel,
   onConfirm,
   canConfirm,
 }: SuccessorModalProps) {
   const themeColors = Colors[colorScheme];
+
+  // organizações e comissões usam o mesmo bloco de escolha.
+  const blocos = [
+    ...organizations.map((organization) => ({
+      key: `org-${organization.id}`,
+      titulo: `Organização · ${organization.nome}`,
+      membros: organization.membros.map((m) => m.user),
+      selecionado: sucessores[organization.id],
+      onSelect: (userId: number) => onChangeSucessor(organization.id, userId),
+    })),
+    ...comissoes.map((comissao) => ({
+      key: `comissao-${comissao.id}`,
+      titulo: `Comissão · ${comissao.nome} (${comissao.organizacao.nome})`,
+      membros: comissao.equipe.map((m) => m.user),
+      selecionado: sucessoresComissao[comissao.id],
+      onSelect: (userId: number) => onChangeSucessorComissao(comissao.id, userId),
+    })),
+  ];
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onCancel}>
@@ -414,21 +541,26 @@ function SuccessorModal({
           <ScrollView contentContainerStyle={modalStyles.scrollContent}>
             <Text style={[modalStyles.title, { color: themeColors.text }]}>Escolha quem assume no seu lugar</Text>
             <Text style={[modalStyles.message, { color: themeColors.textSecondary }]}>
-              Essas organizações não têm um gerente para assumir automaticamente. Escolha um novo criador para
-              cada uma antes de continuar.
+              {organizations.length > 0
+                ? 'Organizações sem gerente precisam de um novo criador. '
+                : ''}
+              {comissoes.length > 0
+                ? 'Comissões em que você é o único administrador precisam de um novo administrador. '
+                : ''}
+              Escolha quem assume cada uma antes de continuar.
             </Text>
 
-            {organizations.map((organization) => {
-              const outrosMembros = organization.membros.filter((m) => m.user.id !== currentUserId);
+            {blocos.map((bloco) => {
+              const outrosMembros = bloco.membros.filter((m) => m.id !== currentUserId);
               return (
-                <View key={organization.id} style={[modalStyles.orgBlock, { borderColor: themeColors.textSecondary + '33' }]}>
-                  <Text style={[modalStyles.orgName, { color: themeColors.text }]}>{organization.nome}</Text>
+                <View key={bloco.key} style={[modalStyles.orgBlock, { borderColor: themeColors.textSecondary + '33' }]}>
+                  <Text style={[modalStyles.orgName, { color: themeColors.text }]}>{bloco.titulo}</Text>
                   {outrosMembros.map((member) => {
-                    const selected = sucessores[organization.id] === member.user.id;
+                    const selected = bloco.selecionado === member.id;
                     return (
                       <Pressable
-                        key={member.user.id}
-                        onPress={() => onChangeSucessor(organization.id, member.user.id)}
+                        key={member.id}
+                        onPress={() => bloco.onSelect(member.id)}
                         style={[
                           modalStyles.memberOption,
                           {
@@ -443,7 +575,7 @@ function SuccessorModal({
                           color={selected ? themeColors.backgroundSelected : themeColors.textSecondary}
                         />
                         <Text style={[modalStyles.memberOptionText, { color: themeColors.text }]}>
-                          {member.user.name} · {member.user.email}
+                          {member.name} · {member.email}
                         </Text>
                       </Pressable>
                     );
@@ -474,8 +606,7 @@ function SuccessorModal({
                 { opacity: !canConfirm ? 0.4 : pressed ? 0.85 : 1 },
               ]}
             >
-              <Ionicons name="trash-outline" size={17} color="#ffffff" />
-              <Text style={modalStyles.confirmText}>Excluir meus dados</Text>
+              <Text style={modalStyles.confirmText}>Continuar</Text>
             </Pressable>
           </View>
         </View>

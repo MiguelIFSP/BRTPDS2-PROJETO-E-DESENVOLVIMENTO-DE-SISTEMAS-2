@@ -1,5 +1,7 @@
 import type { Request, Response } from 'express';
-import prisma from '../../prisma.config.ts'; 
+import prisma from '../../prisma.config.ts';
+import type { AuthenticatedRequest } from '../middlewares/auth.ts';
+import { comissaoService } from '../services/comissaoService.ts';
 
 export const comissaoController = {
   /**
@@ -170,6 +172,33 @@ export const comissaoController = {
     } catch (error) {
       console.error(error);
       return res.status(500).json({ error: 'Erro ao remover o membro.' });
+    }
+  },
+
+  /**
+   * Relatório de comissões (admin): agregados sobre todas as comissões.
+   */
+  async getReport(_req: Request, res: Response) {
+    try {
+      const report = await comissaoService.getReport();
+      return res.status(200).json(report);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: 'Não foi possível gerar o relatório de comissões.' });
+    }
+  },
+
+  /**
+   * Relatório das comissões do usuário logado (só as que ele participa).
+   */
+  async getReportMine(req: Request, res: Response) {
+    const { id: userId } = (req as AuthenticatedRequest).user;
+    try {
+      const report = await comissaoService.getReportMine(userId);
+      return res.status(200).json(report);
+    } catch (error) {
+      console.error(error);
+      return res.status(500).json({ error: 'Não foi possível gerar o relatório das suas comissões.' });
     }
   }
 };

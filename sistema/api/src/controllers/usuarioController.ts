@@ -8,11 +8,13 @@
 // =====================================================================
 
 import crypto from 'crypto';
+import type { Prisma } from '@prisma/client';
 import type { Request, Response } from 'express';
 import * as yup from 'yup';
 import prisma from '../config/database.ts';
 import type { AuthenticatedRequest } from '../middlewares/auth.ts';
 import { OrganizacaoError, organizacaoService } from '../services/organizacaoService.ts';
+import { usuarioService } from '../services/usuarioService.ts';
 
 // ---------------------------------------------------------------------
 // Constantes do administrador padrão
@@ -111,6 +113,92 @@ export const ensureDefaultAdmin = async () => {
       role: 'ADMIN',
     },
   });
+};
+
+// =====================================================================
+// Comissões na exclusão de conta
+//
+// As permissões de comissão vêm só de ComissaoEquipe (nem o criador da
+// organização mexe numa comissão sem estar na equipe). Então, se o usuário
+// é o único ADMINISTRADOR de uma comissão, ela ficaria sem ninguém que possa
+// excluí-la. Para cada comissão em que ele é ADMINISTRADOR:
+//   - se já existe outro ADMINISTRADOR, nada muda;
+//   - se não sobra ninguém na equipe, a comissão é apagada junto (a tela
+//     mostra um aviso antes);
+//   - senão, precisa vir um sucessor escolhido em `sucessoresComissao[comissaoId]`
+//     (não há promoção automática, nem de FACILITADOR).
+// `organizacaoIdsExcluidas` = organizações que vão ser apagadas inteiras
+// (exclusão completa); as comissões delas somem junto e não entram aqui.
+// =====================================================================
+const resolverComissoesAdministradas = async (
+  userId: number,
+  sucessoresComissao: Record<string, unknown>,
+  organizacaoIdsExcluidas: number[] = [],
+) => {
+  const administradorEm = await prisma.comissaoEquipe.findMany({
+    where: {
+      userId,
+      papel: 'ADMINISTRADOR',
+      comissao: { organizacaoId: { notIn: organizacaoIdsExcluidas } },
+    },
+    include: {
+      comissao: {
+        include: { equipe: { include: { user: { select: { id: true, name: true, email: true } } } } },
+      },
+    },
+  });
+
+  const comissoesPendentes: Array<{
+    id: number;
+    nome: string;
+    organizacaoId: number;
+    membros: { id: number; name: string; email: string }[];
+  }> = [];
+  const promocoes: Array<{ comissaoId: number; novoAdministradorId: number }> = [];
+  const comissoesVazias: number[] = [];
+
+  for (const { comissao } of administradorEm) {
+    const outrosMembros = comissao.equipe.filter((m) => m.userId !== userId);
+
+    if (outrosMembros.some((m) => m.papel === 'ADMINISTRADOR')) continue;
+
+    if (outrosMembros.length === 0) {
+      comissoesVazias.push(comissao.id);
+      continue;
+    }
+
+    const sucessorId = Number(sucessoresComissao[comissao.id]);
+    if (Number.isInteger(sucessorId) && sucessorId > 0 && outrosMembros.some((m) => m.userId === sucessorId)) {
+      promocoes.push({ comissaoId: comissao.id, novoAdministradorId: sucessorId });
+      continue;
+    }
+
+    comissoesPendentes.push({
+      id: comissao.id,
+      nome: comissao.nome,
+      organizacaoId: comissao.organizacaoId,
+      membros: outrosMembros.map((m) => ({ id: m.user.id, name: m.user.name, email: m.user.email })),
+    });
+  }
+
+  return { comissoesPendentes, promocoes, comissoesVazias };
+};
+
+// aplica o que resolverComissoesAdministradas decidiu, dentro da transação da exclusão.
+const aplicarComissoesAdministradas = async (
+  transaction: Prisma.TransactionClient,
+  { promocoes, comissoesVazias }: Awaited<ReturnType<typeof resolverComissoesAdministradas>>,
+) => {
+  for (const promocao of promocoes) {
+    await transaction.comissaoEquipe.update({
+      where: { comissaoId_userId: { comissaoId: promocao.comissaoId, userId: promocao.novoAdministradorId } },
+      data: { papel: 'ADMINISTRADOR' },
+    });
+  }
+  if (comissoesVazias.length > 0) {
+    await transaction.comissaoEquipe.deleteMany({ where: { comissaoId: { in: comissoesVazias } } });
+    await transaction.comissao.deleteMany({ where: { id: { in: comissoesVazias } } });
+  }
 };
 
 // =====================================================================
@@ -311,6 +399,36 @@ export const usuarioController = {
   },
 
   // -------------------------------------------------------------------
+  // getComissoesAdministradas — comissões em que o usuário é ADMINISTRADOR,
+  // com a equipe, pra tela de exclusão decidir quem assume cada uma.
+  // -------------------------------------------------------------------
+  async getComissoesAdministradas(request: Request, response: Response) {
+    try {
+      const { id: authenticatedUserId } = (request as AuthenticatedRequest).user;
+      const userId = Number(request.params.id);
+
+      if (userId !== authenticatedUserId) {
+        response.status(403).json({ error: 'Você só pode consultar a sua própria conta.' });
+        return;
+      }
+
+      const comissoes = await prisma.comissao.findMany({
+        where: { equipe: { some: { userId, papel: 'ADMINISTRADOR' } } },
+        orderBy: { nome: 'asc' },
+        include: {
+          organizacao: { select: { id: true, nome: true } },
+          equipe: { include: { user: { select: { id: true, name: true, email: true } } } },
+        },
+      });
+
+      response.status(200).json(comissoes);
+    } catch (error) {
+      console.error('Erro ao buscar comissões administradas:', error);
+      response.status(500).json({ error: 'Não foi possível carregar suas comissões.' });
+    }
+  },
+
+  // -------------------------------------------------------------------
   // deletePersonalData — Exclusão de dados pessoais (tela de exclusão de dados)
   //
   // Para cada organização em que o usuário é CRIADOR:
@@ -319,6 +437,7 @@ export const usuarioController = {
   //     (é o que preenche o modal "escolha quem fica no seu lugar" no app).
   // Se sobrar alguma organização sem gerente e sem sucessor informado, devolve
   // 409 com a lista pra a tela mostrar o modal antes de tentar de novo.
+  // Comissões em que ele é ADMINISTRADOR: ver resolverComissoesAdministradas.
   // -------------------------------------------------------------------
   async deletePersonalData(request: Request, response: Response) {
     try {
@@ -336,6 +455,8 @@ export const usuarioController = {
       // inteiro. Cada valor é conferido individualmente logo abaixo (precisa ser
       // um membro de fato da organização), então ler direto do body é seguro.
       const sucessores = (request.body?.sucessores ?? {}) as Record<string, unknown>;
+      // mesmo formato, comissaoId -> novoAdministradorId (ver resolverComissoesAdministradas).
+      const sucessoresComissao = (request.body?.sucessoresComissao ?? {}) as Record<string, unknown>;
 
       const criadorEm = await prisma.organizacaoMembro.findMany({
         where: { userId, papel: 'CRIADOR' },
@@ -377,10 +498,13 @@ export const usuarioController = {
         });
       }
 
-      if (organizacoesPendentes.length > 0) {
+      const comissoes = await resolverComissoesAdministradas(userId, sucessoresComissao);
+
+      if (organizacoesPendentes.length > 0 || comissoes.comissoesPendentes.length > 0) {
         response.status(409).json({
-          error: 'Escolha quem vai assumir como criador de cada organização listada antes de continuar.',
+          error: 'Escolha quem vai assumir cada organização e comissão listada antes de continuar.',
           organizacoesPendentes,
+          comissoesPendentes: comissoes.comissoesPendentes,
         });
         return;
       }
@@ -395,7 +519,10 @@ export const usuarioController = {
         );
       }
 
-      await prisma.user.delete({ where: { id: userId } });
+      await prisma.$transaction(async (transaction) => {
+        await aplicarComissoesAdministradas(transaction, comissoes);
+        await transaction.user.delete({ where: { id: userId } });
+      });
 
       response.status(200).json({ message: 'Seus dados pessoais foram excluídos com sucesso.' });
     } catch (error) {
@@ -418,7 +545,8 @@ export const usuarioController = {
 
   // -------------------------------------------------------------------
   // deleteFullAccount — Exclusão de dados pessoais + organizações das
-  // quais o usuário é criador e seus dados filhos
+  // quais o usuário é criador e seus dados filhos. Comissões de outras
+  // organizações em que ele é administrador seguem resolverComissoesAdministradas.
   // -------------------------------------------------------------------
   async deleteFullAccount(request: Request, response: Response) {
     try {
@@ -430,12 +558,26 @@ export const usuarioController = {
         return;
       }
 
-      await prisma.$transaction(async (transaction) => {
-        const organizacoesCriador = await transaction.organizacaoMembro.findMany({
-          where: { userId, papel: 'CRIADOR' },
-          select: { organizacaoId: true },
+      const sucessoresComissao = (request.body?.sucessoresComissao ?? {}) as Record<string, unknown>;
+
+      const organizacoesCriador = await prisma.organizacaoMembro.findMany({
+        where: { userId, papel: 'CRIADOR' },
+        select: { organizacaoId: true },
+      });
+      const organizacaoIds = organizacoesCriador.map((membro) => membro.organizacaoId);
+
+      // comissões de outras organizações (que não vão ser apagadas) em que ele é administrador.
+      const comissoes = await resolverComissoesAdministradas(userId, sucessoresComissao, organizacaoIds);
+      if (comissoes.comissoesPendentes.length > 0) {
+        response.status(409).json({
+          error: 'Escolha quem vai assumir como administrador de cada comissão listada antes de continuar.',
+          comissoesPendentes: comissoes.comissoesPendentes,
         });
-        const organizacaoIds = organizacoesCriador.map((membro) => membro.organizacaoId);
+        return;
+      }
+
+      await prisma.$transaction(async (transaction) => {
+        await aplicarComissoesAdministradas(transaction, comissoes);
 
         if (organizacaoIds.length > 0) {
           const comissoes = await transaction.comissao.findMany({
@@ -463,6 +605,19 @@ export const usuarioController = {
       }
       console.error('Erro ao excluir conta completa:', error);
       response.status(500).json({ error: 'Não foi possível excluir sua conta.' });
+    }
+  },
+
+  // -------------------------------------------------------------------
+  // getReport — relatório de usuários (somente admin)
+  // -------------------------------------------------------------------
+  async getReport(_request: Request, response: Response) {
+    try {
+      const report = await usuarioService.getReport();
+      response.status(200).json(report);
+    } catch (error) {
+      console.error('Erro ao gerar relatório de usuários:', error);
+      response.status(500).json({ error: 'Não foi possível gerar o relatório de usuários.' });
     }
   },
 };

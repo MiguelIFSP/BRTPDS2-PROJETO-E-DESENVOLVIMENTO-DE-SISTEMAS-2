@@ -38,13 +38,13 @@ const organizationDetails = {
 } satisfies Prisma.OrganizacaoInclude;
 
 const STATUSES = ['PENDENTE', 'ACEITA', 'RECUSADA'] as const;
-const MESES_CRESCIMENTO = 12;
+export const MESES_CRESCIMENTO = 12;
 
 // chave YYYY-MM em UTC, usada so pra bucket — a exibicao (nome do mes) fica por conta do front.
-const yearMonthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
+export const yearMonthKey = (date: Date) => `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, '0')}`;
 
 // monta os ultimos N meses (mais antigo primeiro), cada um comecando com contagem 0.
-const lastMonthKeys = (months: number) => {
+export const lastMonthKeys = (months: number) => {
   const keys: string[] = [];
   const now = new Date();
   for (let i = months - 1; i >= 0; i -= 1) {
