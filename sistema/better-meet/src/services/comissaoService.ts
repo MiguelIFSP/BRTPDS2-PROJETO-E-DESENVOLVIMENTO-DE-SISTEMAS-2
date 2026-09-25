@@ -15,10 +15,15 @@ export interface Comissao {
 }
 
 export const comissaoService = {
-  async listarPorOrganizacao(organizacaoId: number): Promise<Comissao[]> {
+  async listarPorOrganizacao(organizacaoId: number, token: string): Promise<Comissao[]> {
     try {
-      const response = await fetch(`${API_URL}/organizacoes/${organizacaoId}/comissoes`);
-      if (!response.ok) throw new Error('Falha ao buscar comissões');
+      const response = await fetch(`${API_URL}/organizacoes/${organizacaoId}/comissoes`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao buscar comissões');
+      }
       return await response.json();
     } catch (error) {
       console.error('Erro ao buscar comissões', error);
@@ -26,17 +31,20 @@ export const comissaoService = {
     }
   },
 
-  async criar(nome: string, descricao: string, organizacaoId: number, usuarioAtualId: number): Promise<Comissao> {
+  async criar(nome: string, descricao: string, organizacaoId: number, token: string): Promise<Comissao> {
     try {
       const response = await fetch(`${API_URL}/comissoes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'user-id': usuarioAtualId.toString()
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ nome, descricao, organizacaoId, userId: usuarioAtualId }),
+        body: JSON.stringify({ nome, descricao, organizacaoId }),
       });
-      if (!response.ok) throw new Error('Falha ao criar comissão');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao criar comissão');
+      }
       return await response.json();
     } catch (error) {
       console.error('Erro ao criar comissão', error);
@@ -44,48 +52,52 @@ export const comissaoService = {
     }
   },
 
-  async excluir(id: number, usuarioAtualId: number): Promise<void> {
+  async excluir(id: number, token: string): Promise<void> {
     try {
       const response = await fetch(`${API_URL}/comissoes/${id}`, {
         method: 'DELETE',
-        headers: {
-          'user-id': usuarioAtualId.toString()
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Falha ao excluir comissão');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao excluir comissão');
+      }
     } catch (error) {
       console.error('Erro ao excluir comissão', error);
       throw error;
     }
   },
 
-  // NOVAS FUNÇÕES DE GESTÃO DE EQUIPA
-  async adicionarMembro(comissaoId: number, userId: number, papel: string, usuarioAtualId: number): Promise<void> {
+  async adicionarMembro(comissaoId: number, userId: number, papel: string, token: string): Promise<void> {
     try {
       const response = await fetch(`${API_URL}/comissoes/${comissaoId}/membros`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'user-id': usuarioAtualId.toString()
+          'Authorization': `Bearer ${token}`
         },
         body: JSON.stringify({ userId, papel }),
       });
-      if (!response.ok) throw new Error('Falha ao adicionar membro');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao adicionar membro');
+      }
     } catch (error) {
       console.error('Erro ao adicionar membro', error);
       throw error;
     }
   },
 
-  async removerMembro(comissaoId: number, userId: number, usuarioAtualId: number): Promise<void> {
+  async removerMembro(comissaoId: number, userId: number, token: string): Promise<void> {
     try {
       const response = await fetch(`${API_URL}/comissoes/${comissaoId}/membros/${userId}`, {
         method: 'DELETE',
-        headers: {
-          'user-id': usuarioAtualId.toString()
-        }
+        headers: { 'Authorization': `Bearer ${token}` }
       });
-      if (!response.ok) throw new Error('Falha ao remover membro');
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || 'Falha ao remover membro');
+      }
     } catch (error) {
       console.error('Erro ao remover membro', error);
       throw error;
