@@ -19,6 +19,8 @@ import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { comissaoService, Comissao, ComissaoEquipe } from '../services/comissaoService';
+import { useAuthStore } from '../store/authStore';
+import { organizacaoService, type Organization } from '../services/organizacaoService';
 
 export default function ComissaoScreen() {
   const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
@@ -38,12 +40,17 @@ export default function ComissaoScreen() {
   const [novoMembroId, setNovoMembroId] = useState('');
   const [novoMembroPapel, setNovoMembroPapel] = useState('MEMBRO');
 
-  const organizacaoAtualId = 1; 
-  const usuarioAtualId = 1; 
+  // quem faz cada acao vem do token (a API ignora qualquer id enviado pelo app).
+  const token = useAuthStore((s) => s.token) ?? '';
+
+  // comissao so existe em organizacao aprovada da qual o usuario e membro (regra da API).
+  const [organizacoes, setOrganizacoes] = useState<Organization[]>([]);
+  const [organizacaoAtualId, setOrganizacaoAtualId] = useState<number | null>(null);
 
   const carregarComissoes = async () => {
+    if (!organizacaoAtualId) return;
     try {
-      const dados = await comissaoService.listarPorOrganizacao(organizacaoAtualId);
+      const dados = await comissaoService.listarPorOrganizacao(token, organizacaoAtualId);
       setComissoes(dados);
       
       if (comissaoSelecionada) {
@@ -58,23 +65,39 @@ export default function ComissaoScreen() {
   };
 
   useEffect(() => {
-    const carregarInicial = async () => {
-      await carregarComissoes();
+    const carregarOrganizacoes = async () => {
+      try {
+        const aprovadas = (await organizacaoService.listMine(token)).filter((org) => org.status === 'ACEITA');
+        setOrganizacoes(aprovadas);
+        setOrganizacaoAtualId(aprovadas[0]?.id ?? null);
+        if (aprovadas.length === 0) setLoading(false);
+      } catch (error) {
+        Alert.alert('Erro', 'Não foi possível carregar suas organizações.');
+        setLoading(false);
+      }
     };
-    carregarInicial();
-  }, []);
+    carregarOrganizacoes();
+  }, [token]);
+
+  useEffect(() => {
+    if (!organizacaoAtualId) return;
+    setLoading(true);
+    setComissaoSelecionada(null);
+    carregarComissoes();
+  }, [organizacaoAtualId]);
 
   const handleCriarComissao = async () => {
     if (!nome.trim()) {
       Alert.alert('Atenção', 'O nome da comissão é obrigatório.');
       return;
     }
+    if (!organizacaoAtualId) return;
 
     setModalCriarVisible(false);
     setLoading(true);
 
     try {
-      await comissaoService.criar(nome, descricao, organizacaoAtualId, usuarioAtualId);
+      await comissaoService.criar(token, nome, descricao, organizacaoAtualId);
       setNome('');
       setDescricao('');
       await carregarComissoes(); 
@@ -93,7 +116,7 @@ export default function ComissaoScreen() {
         onPress: async () => {
           setLoading(true);
           try {
-            await comissaoService.excluir(id, usuarioAtualId);
+            await comissaoService.excluir(token, id);
             setComissaoSelecionada(null);
             await carregarComissoes();
           } catch (error) {
@@ -111,10 +134,10 @@ export default function ComissaoScreen() {
     setLoading(true);
     try {
       await comissaoService.adicionarMembro(
+        token,
         comissaoSelecionada.id, 
         Number(novoMembroId), 
-        novoMembroPapel, 
-        usuarioAtualId
+        novoMembroPapel
       );
       setNovoMembroId('');
       setNovoMembroPapel('MEMBRO');
@@ -136,7 +159,7 @@ export default function ComissaoScreen() {
         onPress: async () => {
           setLoading(true);
           try {
-            await comissaoService.removerMembro(comissaoSelecionada.id, userId, usuarioAtualId);
+            await comissaoService.removerMembro(token, comissaoSelecionada.id, userId);
             await carregarComissoes();
           } catch (error) {
             Alert.alert('Erro', 'Não foi possível remover o membro.');
@@ -184,9 +207,37 @@ export default function ComissaoScreen() {
 
         <Text style={[styles.pageTitle, { color: themeColors.text }]}>Comissões</Text>
         <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>Gerencie os grupos de trabalho</Text>
+
+        {organizacoes.length > 1 ? (
+          <View style={styles.roleContainer}>
+            {organizacoes.map((org) => (
+              <TouchableOpacity
+                key={org.id}
+                style={[
+                  styles.roleChip,
+                  { borderColor: themeColors.textSecondary },
+                  organizacaoAtualId === org.id && styles.roleChipActive
+                ]}
+                onPress={() => setOrganizacaoAtualId(org.id)}
+              >
+                <Text style={[
+                  styles.roleText,
+                  { color: themeColors.textSecondary },
+                  organizacaoAtualId === org.id && styles.roleTextActive
+                ]}>
+                  {org.nome}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        ) : null}
         
         {loading ? (
           <ActivityIndicator size="large" color={themeColors.text} style={{ marginTop: 32 }} />
+        ) : !organizacaoAtualId ? (
+          <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>
+            Você ainda não participa de nenhuma organização aprovada.
+          </Text>
         ) : comissoes.length === 0 ? (
           <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>Nenhuma comissão cadastrada.</Text>
         ) : (
@@ -201,9 +252,11 @@ export default function ComissaoScreen() {
       </View>
 
       {/* Botão Flutuante (Manteve a cor de destaque original do sistema para ações primárias) */}
-      <TouchableOpacity style={styles.fab} onPress={() => setModalCriarVisible(true)}>
-        <Ionicons name="add" size={30} color="#0D1B1D" />
-      </TouchableOpacity>
+      {organizacaoAtualId ? (
+        <TouchableOpacity style={styles.fab} onPress={() => setModalCriarVisible(true)}>
+          <Ionicons name="add" size={30} color="#0D1B1D" />
+        </TouchableOpacity>
+      ) : null}
 
       {/* Modal de Criação */}
       <Modal visible={modalCriarVisible} animationType="slide" transparent={true}>
