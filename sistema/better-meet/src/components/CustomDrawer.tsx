@@ -8,6 +8,7 @@ import {
   useColorScheme,
   Appearance,
   Platform,
+  Alert,
 } from 'react-native';
 import { DrawerContentScrollView } from 'expo-router/drawer';
 import { Colors } from '../constants/theme';
@@ -15,6 +16,7 @@ import IconAndTitle from './IconAndTitle';
 import { useRouter } from 'expo-router';
 import { useAuthStore } from '../store/authStore';
 import { API_URL } from '../config/api';
+import { reportMobileError } from '../services/monitoringService';
 
 export default function CustomDrawer(props: any) {
   const router = useRouter();
@@ -29,7 +31,10 @@ export default function CustomDrawer(props: any) {
   // 1. Aplica tema localmente (feedback imediato) — só em Android/iOS,
   //    porque Appearance.setColorScheme() não existe no react-native-web.
   // 2. Se autenticado, sincroniza com o backend.
-  // 3. Se offline, falha silenciosa — tema local continua aplicado.
+  // 3. Se offline, só reporta — tema local continua aplicado.
+  // 4. Se a API recusar (401, 500...), avisa o usuário: antes o erro era
+  //    engolido e o tema parecia salvo sem ter mudado no banco.
+  // Nada aqui é bloqueante: o tema local funciona mesmo sem sincronizar.
   // =====================================================================
   const toggleSwitch = async () => {
     const newTheme = isDarkMode ? 'light' : 'dark';
@@ -41,18 +46,42 @@ export default function CustomDrawer(props: any) {
     }
 
     // Sincroniza com o backend (se logado)
-    if (user && useAuthStore.getState().token) {
-      try {
-        await fetch(`${API_URL}/usuarios/${user.id}/tema`, {
-          method: 'PATCH',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${useAuthStore.getState().token}`,
-          },
-          body: JSON.stringify({ theme: newTheme }),
-        });
-      } catch {
-        // Falha silenciosa — tema local continua aplicado
+    if (!user || !useAuthStore.getState().token) return;
+
+    let response: Response;
+    try {
+      response = await fetch(`${API_URL}/usuarios/${user.id}/tema`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${useAuthStore.getState().token}`,
+        },
+        body: JSON.stringify({ theme: newTheme }),
+      });
+    } catch (networkError) {
+      reportMobileError(
+        networkError instanceof Error ? networkError.message : 'Falha de rede ao salvar o tema.',
+        networkError instanceof Error ? networkError.stack : undefined,
+        { context: 'CustomDrawer.toggleSwitch', isBlocking: false }
+      );
+      return;
+    }
+
+    if (!response.ok) {
+      const data = (await response.json().catch(() => ({}))) as { error?: string };
+      const message = data.error ?? 'Não foi possível salvar sua preferência de tema.';
+
+      // 400/401 são dado inválido ou sessão expirada, não falha do sistema.
+      if (response.status !== 400 && response.status !== 401) {
+        reportMobileError(message, undefined, { context: 'CustomDrawer.toggleSwitch', isBlocking: false });
+      }
+
+      // Alert.alert não faz nada no react-native-web.
+      const aviso = `O tema foi aplicado neste aparelho, mas não foi salvo na sua conta: ${message}`;
+      if (Platform.OS === 'web') {
+        window.alert(aviso);
+      } else {
+        Alert.alert('Tema não sincronizado', aviso);
       }
     }
   };

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -9,7 +9,7 @@ import {
   useColorScheme,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 
 import Header from '../components/Header';
@@ -17,6 +17,9 @@ import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 import { reportMobileError } from '../services/monitoringService';
 import { API_URL } from '../config/api';
+
+// quanto tempo a mensagem de sucesso fica na tela
+const SUCCESS_FEEDBACK_MS = 4000;
 
 export default function PerfilScreen() {
   const router = useRouter();
@@ -52,6 +55,24 @@ export default function PerfilScreen() {
       setProfileEmail(user.email);
     }
   }, [user]);
+
+  // =====================================================================
+  // Mensagem de sucesso some sozinha depois de alguns segundos. Erro fica
+  // até a próxima ação, pra dar tempo de ler o motivo.
+  // =====================================================================
+  useEffect(() => {
+    if (feedback?.type !== 'success') return;
+    const timer = setTimeout(() => setFeedback(null), SUCCESS_FEEDBACK_MS);
+    return () => clearTimeout(timer);
+  }, [feedback]);
+
+  // A tela fica montada em segundo plano no Drawer: sem isso, a mensagem
+  // continuaria aparecendo ao voltar pra cá depois.
+  useFocusEffect(
+    useCallback(() => {
+      return () => setFeedback(null);
+    }, [])
+  );
 
   // =====================================================================
   // handleProfileUpdate — UC03 (Alterar Dados Pessoais)

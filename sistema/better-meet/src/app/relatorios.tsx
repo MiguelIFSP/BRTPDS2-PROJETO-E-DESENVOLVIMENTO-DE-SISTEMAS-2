@@ -196,9 +196,9 @@ export default function RelatoriosScreen() {
               <Pressable
                 key={key}
                 onPress={() => setTab(key)}
-                style={[styles.tab, active && { backgroundColor: themeColors.backgroundSelected }]}
+                style={[styles.tab, active && { backgroundColor: themeColors.background }]}
               >
-                <Text style={[styles.tabText, { color: active ? '#ffffff' : themeColors.textSecondary }]}>
+                <Text style={[styles.tabText, { color: active ? themeColors.text : themeColors.backgroundSelected }]}>
                   {TAB_COPY[key].label}
                 </Text>
               </Pressable>
@@ -292,12 +292,12 @@ function OrganizacoesReportView({
       {/* Lista de organizações com drill-down */}
       <Section title="Organizações" themeColors={themeColors}>
         {organizations.length === 0 ? (
-          <Text style={[styles.empty, { color: themeColors.textSecondary }]}>Nenhuma organização encontrada.</Text>
+          <Text style={[styles.empty, { color: themeColors.backgroundSelected }]}>Nenhuma organização encontrada.</Text>
         ) : (
           organizations.map((organization) => {
             const status = statusCopy[organization.status] ?? {
               label: organization.status,
-              color: themeColors.textSecondary,
+              color: themeColors.backgroundSelected,
             };
 
             return (
@@ -358,7 +358,7 @@ function ComissoesReportView({ report, themeColors }: { report: ComissaoReport |
         themeColors={themeColors}
       >
         {topOrganizacoes.length === 0 ? (
-          <Text style={[styles.empty, { color: themeColors.textSecondary }]}>Nenhuma comissão encontrada.</Text>
+          <Text style={[styles.empty, { color: themeColors.backgroundSelected }]}>Nenhuma comissão encontrada.</Text>
         ) : (
           <DistributionBars
             items={topOrganizacoes.map((item) => ({
@@ -367,6 +367,7 @@ function ComissoesReportView({ report, themeColors }: { report: ComissaoReport |
               value: item.quantidade,
             }))}
             themeColors={themeColors}
+            unit={{ singular: 'comissão', plural: 'comissões' }}
           />
         )}
       </Section>
@@ -385,7 +386,7 @@ function ComissoesReportView({ report, themeColors }: { report: ComissaoReport |
       {/* Lista de comissões com drill-down */}
       <Section title="Comissões" themeColors={themeColors}>
         {report.comissoes.length === 0 ? (
-          <Text style={[styles.empty, { color: themeColors.textSecondary }]}>Nenhuma comissão encontrada.</Text>
+          <Text style={[styles.empty, { color: themeColors.backgroundSelected }]}>Nenhuma comissão encontrada.</Text>
         ) : (
           report.comissoes.map((comissao) => (
             <ExpandableRow
@@ -454,7 +455,7 @@ function UsuariosReportView({ report, themeColors }: { report: UsuarioReport | n
       </View>
 
       <Section title="Usuários com papel de responsabilidade" themeColors={themeColors}>
-        <Text style={[styles.sectionHint, { color: themeColors.textSecondary }]}>Em organizações</Text>
+        <Text style={[styles.sectionHint, { color: themeColors.backgroundSelected }]}>Em organizações</Text>
         <DistributionBars
           items={PAPEL_ORG_DESTAQUE.map((papel) => ({
             key: papel,
@@ -463,7 +464,7 @@ function UsuariosReportView({ report, themeColors }: { report: UsuarioReport | n
           }))}
           themeColors={themeColors}
         />
-        <Text style={[styles.sectionHint, { color: themeColors.textSecondary }]}>Em comissões</Text>
+        <Text style={[styles.sectionHint, { color: themeColors.backgroundSelected }]}>Em comissões</Text>
         <DistributionBars
           items={PAPEL_COMISSAO_DESTAQUE.map((papel) => ({
             key: papel,
@@ -476,17 +477,17 @@ function UsuariosReportView({ report, themeColors }: { report: UsuarioReport | n
 
       <Section title="Usuários mais ativos" themeColors={themeColors}>
         {report.maisAtivos.length === 0 ? (
-          <Text style={[styles.empty, { color: themeColors.textSecondary }]}>
+          <Text style={[styles.empty, { color: themeColors.backgroundSelected }]}>
             Nenhum usuário participa de organizações ou comissões.
           </Text>
         ) : (
           report.maisAtivos.map((usuario, index) => (
             <View key={usuario.id} style={styles.rankingRow}>
-              <Text style={[styles.rankingPosition, { color: themeColors.textSecondary }]}>{index + 1}º</Text>
+              <Text style={[styles.rankingPosition, { color: themeColors.backgroundSelected }]}>{index + 1}º</Text>
               <Text style={[styles.rankingName, { color: themeColors.text }]} numberOfLines={1}>
                 {usuario.name}
               </Text>
-              <Text style={[styles.rankingCount, { color: themeColors.textSecondary }]}>
+              <Text style={[styles.rankingCount, { color: themeColors.backgroundSelected }]}>
                 {usuario.organizacoes} org. · {usuario.comissoes} com.
               </Text>
             </View>
@@ -504,7 +505,7 @@ function UsuariosReportView({ report, themeColors }: { report: UsuarioReport | n
       {/* Lista de usuários com drill-down */}
       <Section title="Usuários" themeColors={themeColors}>
         {report.usuarios.length === 0 ? (
-          <Text style={[styles.empty, { color: themeColors.textSecondary }]}>Nenhum usuário encontrado.</Text>
+          <Text style={[styles.empty, { color: themeColors.backgroundSelected }]}>Nenhum usuário encontrado.</Text>
         ) : (
           report.usuarios.map((usuario) => (
             <ExpandableRow
@@ -551,13 +552,14 @@ function MonthlyBars({
   const maxMonthly = Math.max(1, ...data.map((item) => item.quantidade));
 
   if (data.every((item) => item.quantidade === 0)) {
-    return <Text style={[styles.empty, { color: themeColors.textSecondary }]}>{emptyText}</Text>;
+    return <Text style={[styles.empty, { color: themeColors.backgroundSelected }]}>{emptyText}</Text>;
   }
 
   return (
     <>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.barsRow}>
-        {data.map((item) => (
+        {/* mais recente à esquerda — "YYYY-MM" ordena corretamente como string */}
+        {[...data].sort((a, b) => b.mes.localeCompare(a.mes)).map((item) => (
           <Pressable
             key={item.mes}
             onPress={() => setSelectedMonth((current) => (current === item.mes ? null : item.mes))}
@@ -573,7 +575,7 @@ function MonthlyBars({
                 },
               ]}
             />
-            <Text style={[styles.barLabel, { color: themeColors.textSecondary }]}>{formatMonthLabel(item.mes)}</Text>
+            <Text style={[styles.barLabel, { color: themeColors.backgroundSelected }]}>{formatMonthLabel(item.mes)}</Text>
           </Pressable>
         ))}
       </ScrollView>
@@ -590,9 +592,12 @@ function MonthlyBars({
 function DistributionBars({
   items,
   themeColors,
+  unit,
 }: {
   items: { key: string; label: string; value: number }[];
   themeColors: ThemeColors;
+  // sem unit o numero sai sozinho; com unit sai "3 comissões" (coluna mais larga)
+  unit?: { singular: string; plural: string };
 }) {
   const max = Math.max(1, ...items.map((item) => item.value));
 
@@ -611,7 +616,9 @@ function DistributionBars({
               ]}
             />
           </View>
-          <Text style={[styles.papelCount, { color: themeColors.textSecondary }]}>{item.value}</Text>
+          <Text style={[unit ? styles.papelCountWithUnit : styles.papelCount, { color: themeColors.backgroundSelected }]}>
+            {unit ? `${item.value} ${item.value === 1 ? unit.singular : unit.plural}` : item.value}
+          </Text>
         </View>
       ))}
     </>
@@ -641,7 +648,7 @@ function ExpandableRow({
         <View style={{ flex: 1 }}>
           <Text style={[styles.orgName, { color: themeColors.text }]}>{title}</Text>
           {subtitle ? (
-            <Text style={[styles.orgSubtitle, { color: themeColors.textSecondary }]}>{subtitle}</Text>
+            <Text style={[styles.orgSubtitle, { color: themeColors.backgroundSelected }]}>{subtitle}</Text>
           ) : null}
           {badge ? (
             <View style={[styles.statusBadge, { backgroundColor: badge.color + '22' }]}>
@@ -649,7 +656,7 @@ function ExpandableRow({
             </View>
           ) : null}
         </View>
-        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={themeColors.textSecondary} />
+        <Ionicons name={expanded ? 'chevron-up' : 'chevron-down'} size={20} color={themeColors.backgroundSelected} />
       </Pressable>
 
       {expanded ? (
@@ -687,7 +694,7 @@ function StatTile({
       ]}
     >
       <Text style={[styles.statValue, { color: accentColor ?? themeColors.text }]}>{value}</Text>
-      <Text style={[styles.statLabel, { color: themeColors.textSecondary }]}>{label}</Text>
+      <Text style={[styles.statLabel, { color: themeColors.backgroundSelected }]}>{label}</Text>
     </View>
   );
 }
@@ -751,7 +758,7 @@ const styles = StyleSheet.create({
   barsRow: { flexDirection: 'row', alignItems: 'flex-end', gap: Spacing.three, paddingBottom: Spacing.one },
   barColumn: { alignItems: 'center', gap: Spacing.one, width: 36 },
   bar: { width: 16, borderRadius: 4 },
-  barLabel: { ...Typography.caption },
+  barLabel: { width: 40, ...Typography.caption },
   tooltip: { ...Typography.bodySmall, marginTop: Spacing.two, fontWeight: '600' },
 
   papelRow: { flexDirection: 'row', alignItems: 'center', gap: Spacing.two, marginBottom: Spacing.two },
@@ -759,6 +766,7 @@ const styles = StyleSheet.create({
   papelTrack: { flex: 1, height: 10, borderRadius: 999, overflow: 'hidden' },
   papelFill: { height: '100%', borderRadius: 999 },
   papelCount: { ...Typography.bodySmall, width: 28, textAlign: 'right' },
+  papelCountWithUnit: { ...Typography.bodySmall, minWidth: 88, textAlign: 'right' },
 
   orgRow: {
     flexDirection: 'row',

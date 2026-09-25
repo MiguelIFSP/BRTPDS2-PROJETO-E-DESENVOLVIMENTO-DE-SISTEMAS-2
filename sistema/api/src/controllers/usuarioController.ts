@@ -431,12 +431,12 @@ export const usuarioController = {
   // -------------------------------------------------------------------
   // deletePersonalData — Exclusão de dados pessoais (tela de exclusão de dados)
   //
-  // Para cada organização em que o usuário é CRIADOR:
-  //   - se já existe um GERENTE, a organização passa pra ele automaticamente;
-  //   - senão, precisa vir um sucessor escolhido em `sucessores[organizacaoId]`
-  //     (é o que preenche o modal "escolha quem fica no seu lugar" no app).
-  // Se sobrar alguma organização sem gerente e sem sucessor informado, devolve
-  // 409 com a lista pra a tela mostrar o modal antes de tentar de novo.
+  // Para cada organização em que o usuário é CRIADOR, precisa vir um sucessor
+  // escolhido em `sucessores[organizacaoId]` (é o que preenche o modal "escolha
+  // quem fica no seu lugar" no app). Pode ser qualquer outro membro, inclusive o
+  // gerente — mas nunca é automático: quem sai escolhe.
+  // Se sobrar alguma organização sem sucessor informado, devolve 409 com a lista
+  // pra a tela mostrar o modal antes de tentar de novo.
   // Comissões em que ele é ADMINISTRADOR: ver resolverComissoesAdministradas.
   // -------------------------------------------------------------------
   async deletePersonalData(request: Request, response: Response) {
@@ -476,13 +476,6 @@ export const usuarioController = {
 
       for (const membro of criadorEm) {
         const outrosMembros = membro.organizacao.membros.filter((m) => m.userId !== userId);
-        const gerente = outrosMembros.find((m) => m.papel === 'GERENTE');
-
-        if (gerente) {
-          transferencias.push({ organizacaoId: membro.organizacaoId, novoCriadorId: gerente.userId });
-          continue;
-        }
-
         const sucessorId = Number(sucessores[membro.organizacaoId]);
         const sucessorValido = outrosMembros.some((m) => m.userId === sucessorId);
 

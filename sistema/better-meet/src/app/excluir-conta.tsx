@@ -20,8 +20,6 @@ type Organization = OrganizationBase & { comissoes: { id: number }[] };
 const criadorDe = (organizations: Organization[], userId: number) =>
   organizations.filter((organization) => organization.membros.find((m) => m.user.id === userId)?.papel === 'CRIADOR');
 
-const temGerente = (organization: Organization) => organization.membros.some((m) => m.papel === 'GERENTE');
-
 // comissão em que o usuário é ADMINISTRADOR (GET /usuarios/:id/comissoes-administradas).
 type ComissaoAdministrada = {
   id: number;
@@ -112,10 +110,14 @@ export default function ExcluirContaScreen() {
   if (!user) return null;
 
   const minhasOrgsCriador = criadorDe(organizations, user.id);
-  const orgsComGerente = minhasOrgsCriador.filter(temGerente);
-  const orgsSemGerente = minhasOrgsCriador.filter((organization) => !temGerente(organization));
-  const orgsSemSucessorPossivel = orgsSemGerente.filter(
+  // toda organização criada pelo usuário precisa de um novo criador escolhido por ele —
+  // inclusive as que têm gerente (nada passa automaticamente). as sem nenhum outro
+  // membro não têm pra quem passar e bloqueiam a opção 1.
+  const orgsSemSucessorPossivel = minhasOrgsCriador.filter(
     (organization) => organization.membros.filter((m) => m.user.id !== user.id).length === 0
+  );
+  const orgsComSucessorPossivel = minhasOrgsCriador.filter(
+    (organization) => !orgsSemSucessorPossivel.includes(organization)
   );
   const podeExcluirSoDadosPessoais = orgsSemSucessorPossivel.length === 0;
 
@@ -124,7 +126,7 @@ export default function ExcluirContaScreen() {
     full: situacaoComissoes(comissoes, user.id, minhasOrgsCriador.map((o) => o.id)),
   };
   // na exclusão completa as organizações que ele criou somem, então só a opção 1 pede sucessor de organização.
-  const orgsParaSucessor = (acao: Acao) => (acao === 'personal' ? orgsSemGerente : []);
+  const orgsParaSucessor = (acao: Acao) => (acao === 'personal' ? orgsComSucessorPossivel : []);
 
   const etapasDe = (acao: Acao): Etapa[] => [
     ...(orgsParaSucessor(acao).length > 0 || comissoesPorAcao[acao].precisamSucessor.length > 0
@@ -314,15 +316,9 @@ export default function ExcluirContaScreen() {
                 organização, então, ao excluir seus dados, cada uma delas passa para outra pessoa.
               </Text>
 
-              {orgsComGerente.length > 0 ? (
+              {orgsComSucessorPossivel.length > 0 ? (
                 <Text style={[styles.orgHint, { color: themeColors.backgroundSelected, marginTop: Spacing.two }]}>
-                  {orgsComGerente.map((o) => o.nome).join(', ')} — passa automaticamente para o gerente atual.
-                </Text>
-              ) : null}
-
-              {orgsSemGerente.length > 0 ? (
-                <Text style={[styles.orgHint, { color: themeColors.backgroundSelected, marginTop: Spacing.one }]}>
-                  {orgsSemGerente.map((o) => o.nome).join(', ')} — sem gerente definido, você escolhe quem assume.
+                  {orgsComSucessorPossivel.map((o) => o.nome).join(', ')} — você escolhe quem assume cada uma.
                 </Text>
               ) : null}
 
@@ -406,7 +402,7 @@ export default function ExcluirContaScreen() {
         message={
           minhasOrgsCriador.length === 0
             ? 'Sua conta e o cache salvo neste dispositivo serão removidos permanentemente. Você precisará criar uma conta nova para voltar a usar o sistema.'
-            : 'Cada organização que você criou passará para o gerente atual ou para quem você escolheu e, em seguida, sua conta e o cache salvo neste dispositivo serão removidos permanentemente.'
+            : 'Cada organização que você criou passará para quem você escolheu e, em seguida, sua conta e o cache salvo neste dispositivo serão removidos permanentemente.'
         }
         colorScheme={colorScheme}
         onCancel={() => setFluxo(null)}
@@ -481,9 +477,9 @@ const successStyles = StyleSheet.create({
 });
 
 // ---------------------------------------------------------------------
-// SuccessorModal — aparece quando alguma organização em que o usuário é
-// criador não tem gerente, ou alguma comissão em que ele é o único
-// administrador tem outros membros. Ele escolhe, ali mesmo, quem assume cada uma.
+// SuccessorModal — aparece quando o usuário é criador de alguma organização
+// (todas, mesmo com gerente — nada passa automaticamente), ou alguma comissão
+// em que ele é o único administrador tem outros membros. Ele escolhe, ali mesmo, quem assume cada uma.
 // ---------------------------------------------------------------------
 type SuccessorModalProps = {
   visible: boolean;
@@ -521,14 +517,15 @@ function SuccessorModal({
     ...organizations.map((organization) => ({
       key: `org-${organization.id}`,
       titulo: `Organização · ${organization.nome}`,
-      membros: organization.membros.map((m) => m.user),
+      // marca o gerente pra facilitar a escolha, mas não pré-seleciona ninguém.
+      membros: organization.membros.map((m) => ({ ...m.user, destaque: m.papel === 'GERENTE' ? 'Gerente' : undefined })),
       selecionado: sucessores[organization.id],
       onSelect: (userId: number) => onChangeSucessor(organization.id, userId),
     })),
     ...comissoes.map((comissao) => ({
       key: `comissao-${comissao.id}`,
       titulo: `Comissão · ${comissao.nome} (${comissao.organizacao.nome})`,
-      membros: comissao.equipe.map((m) => m.user),
+      membros: comissao.equipe.map((m) => ({ ...m.user, destaque: undefined as string | undefined })),
       selecionado: sucessoresComissao[comissao.id],
       onSelect: (userId: number) => onChangeSucessorComissao(comissao.id, userId),
     })),
@@ -542,7 +539,7 @@ function SuccessorModal({
             <Text style={[modalStyles.title, { color: themeColors.text }]}>Escolha quem assume no seu lugar</Text>
             <Text style={[modalStyles.message, { color: themeColors.textSecondary }]}>
               {organizations.length > 0
-                ? 'Organizações sem gerente precisam de um novo criador. '
+                ? 'Cada organização que você criou precisa de um novo criador. '
                 : ''}
               {comissoes.length > 0
                 ? 'Comissões em que você é o único administrador precisam de um novo administrador. '
@@ -576,6 +573,7 @@ function SuccessorModal({
                         />
                         <Text style={[modalStyles.memberOptionText, { color: themeColors.text }]}>
                           {member.name} · {member.email}
+                          {member.destaque ? ` · ${member.destaque}` : ''}
                         </Text>
                       </Pressable>
                     );
