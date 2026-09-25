@@ -1,25 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { 
-  View, 
-  Text, 
-  StyleSheet, 
-  FlatList, 
-  TouchableOpacity, 
-  Modal, 
-  TextInput,
-  ActivityIndicator,
-  Alert,
-  ScrollView,
-  useColorScheme,
-  Pressable
+  View, Text, StyleSheet, FlatList, TouchableOpacity, 
+  Modal, TextInput, ActivityIndicator, Alert, ScrollView, 
+  useColorScheme, Pressable, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
-import { comissaoService, Comissao, ComissaoEquipe } from '../services/comissaoService';
-import { useAuthStore } from '../store/authStore';
+import { comissaoService, Comissao } from '../services/comissaoService';
+import { useAuthStore } from '../store/authStore'; 
 import { organizacaoService, type Organization } from '../services/organizacaoService';
 
 export default function ComissaoScreen() {
@@ -27,52 +18,59 @@ export default function ComissaoScreen() {
   const themeColors = Colors[colorScheme];
   const router = useRouter();
   
+  const { token } = useAuthStore(); 
+  
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
   const [loading, setLoading] = useState(true);
   
-  // Estados de Criação
   const [modalCriarVisible, setModalCriarVisible] = useState(false);
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
 
-  // Estados de Gestão da Equipa (Detalhes)
   const [comissaoSelecionada, setComissaoSelecionada] = useState<Comissao | null>(null);
   const [novoMembroId, setNovoMembroId] = useState('');
   const [novoMembroPapel, setNovoMembroPapel] = useState('MEMBRO');
-
-  // quem faz cada acao vem do token (a API ignora qualquer id enviado pelo app).
-  const token = useAuthStore((s) => s.token) ?? '';
 
   // comissao so existe em organizacao aprovada da qual o usuario e membro (regra da API).
   const [organizacoes, setOrganizacoes] = useState<Organization[]>([]);
   const [organizacaoAtualId, setOrganizacaoAtualId] = useState<number | null>(null);
 
+  // Função auxiliar para os alertas funcionarem perfeitamente no PC e no Telemóvel
+  const showAlert = (titulo: string, mensagem: string) => {
+    if (Platform.OS === 'web') {
+      window.alert(mensagem);
+    } else {
+      Alert.alert(titulo, mensagem);
+    }
+  };
+
   const carregarComissoes = async () => {
-    if (!organizacaoAtualId) return;
+    if (!token || !organizacaoAtualId) return;
     try {
-      const dados = await comissaoService.listarPorOrganizacao(token, organizacaoAtualId);
+      const dados = await comissaoService.listarPorOrganizacao(organizacaoAtualId, token);
       setComissoes(dados);
       
       if (comissaoSelecionada) {
         const atualizada = dados.find(c => c.id === comissaoSelecionada.id);
         if (atualizada) setComissaoSelecionada(atualizada);
       }
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível carregar as comissões.');
+    } catch (error: any) {
+      showAlert('Erro', error.message || 'Não foi possível carregar as comissões.');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
+    if (!token) return;
     const carregarOrganizacoes = async () => {
       try {
         const aprovadas = (await organizacaoService.listMine(token)).filter((org) => org.status === 'ACEITA');
         setOrganizacoes(aprovadas);
         setOrganizacaoAtualId(aprovadas[0]?.id ?? null);
         if (aprovadas.length === 0) setLoading(false);
-      } catch (error) {
-        Alert.alert('Erro', 'Não foi possível carregar suas organizações.');
+      } catch (error: any) {
+        showAlert('Erro', error.message || 'Não foi possível carregar suas organizações.');
         setLoading(false);
       }
     };
@@ -88,86 +86,92 @@ export default function ComissaoScreen() {
 
   const handleCriarComissao = async () => {
     if (!nome.trim()) {
-      Alert.alert('Atenção', 'O nome da comissão é obrigatório.');
+      showAlert('Atenção', 'O nome da comissão é obrigatório.');
       return;
     }
-    if (!organizacaoAtualId) return;
+    if (!token || !organizacaoAtualId) return;
 
     setModalCriarVisible(false);
     setLoading(true);
 
     try {
-      await comissaoService.criar(token, nome, descricao, organizacaoAtualId);
+      await comissaoService.criar(nome, descricao, organizacaoAtualId, token);
       setNome('');
       setDescricao('');
       await carregarComissoes(); 
-    } catch (error) {
-      Alert.alert('Erro', 'Ocorreu um erro ao criar a comissão.');
+    } catch (error: any) {
+      showAlert('Erro', error.message || 'Ocorreu um erro ao criar a comissão.');
+      setLoading(false);
+    }
+  };
+
+  // Lógica de exclusão separada para garantir execução em qualquer plataforma
+  const executarExclusaoComissao = async (id: number) => {
+    setLoading(true);
+    try {
+      await comissaoService.excluir(id, token!);
+      setComissaoSelecionada(null);
+      await carregarComissoes();
+    } catch (error: any) {
+      showAlert('Acesso Negado', error.message || 'Não tem permissão para excluir.');
       setLoading(false);
     }
   };
 
   const handleExcluirComissao = (id: number) => {
-    Alert.alert('Excluir Comissão', 'Apenas o Administrador pode excluir. Deseja continuar?', [
-      { text: 'Cancelar', style: 'cancel' },
-      { 
-        text: 'Excluir', 
-        style: 'destructive',
-        onPress: async () => {
-          setLoading(true);
-          try {
-            await comissaoService.excluir(token, id);
-            setComissaoSelecionada(null);
-            await carregarComissoes();
-          } catch (error) {
-            Alert.alert('Acesso Negado', 'Não tem permissão para excluir ou ocorreu um erro.');
-            setLoading(false);
-          }
-        }
-      }
-    ]);
+    const mensagem = 'Apenas o Administrador pode excluir. Deseja continuar?';
+    
+    if (Platform.OS === 'web') {
+      const confirmou = window.confirm(mensagem);
+      if (confirmou) executarExclusaoComissao(id);
+    } else {
+      Alert.alert('Excluir Comissão', mensagem, [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Excluir', style: 'destructive', onPress: () => executarExclusaoComissao(id) }
+      ]);
+    }
   };
 
   const handleAdicionarMembro = async () => {
-    if (!comissaoSelecionada || !novoMembroId.trim()) return;
+    if (!comissaoSelecionada || !novoMembroId.trim() || !token) return;
     
     setLoading(true);
     try {
-      await comissaoService.adicionarMembro(
-        token,
-        comissaoSelecionada.id, 
-        Number(novoMembroId), 
-        novoMembroPapel
-      );
+      await comissaoService.adicionarMembro(comissaoSelecionada.id, Number(novoMembroId), novoMembroPapel, token);
       setNovoMembroId('');
       setNovoMembroPapel('MEMBRO');
       await carregarComissoes();
-    } catch (error) {
-      Alert.alert('Erro', 'Não foi possível adicionar o membro. Verifique se tem permissão ou se o ID está correto.');
+    } catch (error: any) {
+      showAlert('Erro', error.message || 'Não foi possível adicionar o membro.');
+      setLoading(false);
+    }
+  };
+
+  // Lógica de remoção de membro compatível com a web
+  const executarRemocaoMembro = async (userId: number) => {
+    setLoading(true);
+    try {
+      await comissaoService.removerMembro(comissaoSelecionada!.id, userId, token!);
+      await carregarComissoes();
+    } catch (error: any) {
+      showAlert('Erro', error.message || 'Não foi possível remover o membro.');
       setLoading(false);
     }
   };
 
   const handleRemoverMembro = (userId: number) => {
-    if (!comissaoSelecionada) return;
+    if (!comissaoSelecionada || !token) return;
+    const mensagem = 'Deseja remover este utilizador da comissão?';
 
-    Alert.alert('Remover Membro', 'Deseja remover este utilizador da comissão?', [
-      { text: 'Cancelar', style: 'cancel' },
-      {
-        text: 'Remover',
-        style: 'destructive',
-        onPress: async () => {
-          setLoading(true);
-          try {
-            await comissaoService.removerMembro(token, comissaoSelecionada.id, userId);
-            await carregarComissoes();
-          } catch (error) {
-            Alert.alert('Erro', 'Não foi possível remover o membro.');
-            setLoading(false);
-          }
-        }
-      }
-    ]);
+    if (Platform.OS === 'web') {
+      const confirmou = window.confirm(mensagem);
+      if (confirmou) executarRemocaoMembro(userId);
+    } else {
+      Alert.alert('Remover Membro', mensagem, [
+        { text: 'Cancelar', style: 'cancel' },
+        { text: 'Remover', style: 'destructive', onPress: () => executarRemocaoMembro(userId) }
+      ]);
+    }
   };
 
   const renderCard = ({ item }: { item: Comissao }) => (
@@ -194,7 +198,6 @@ export default function ComissaoScreen() {
       <Header />
       
       <View style={styles.container}>
-        {/* Componente de Voltar padronizado */}
         <Pressable
             accessibilityLabel="Voltar"
             accessibilityRole="button"
@@ -251,14 +254,12 @@ export default function ComissaoScreen() {
         )}
       </View>
 
-      {/* Botão Flutuante (Manteve a cor de destaque original do sistema para ações primárias) */}
       {organizacaoAtualId ? (
         <TouchableOpacity style={styles.fab} onPress={() => setModalCriarVisible(true)}>
           <Ionicons name="add" size={30} color="#0D1B1D" />
         </TouchableOpacity>
       ) : null}
 
-      {/* Modal de Criação */}
       <Modal visible={modalCriarVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: themeColors.backgroundElement }]}>
@@ -295,7 +296,6 @@ export default function ComissaoScreen() {
         </View>
       </Modal>
 
-      {/* Modal de Gestão da Comissão (Detalhes e Equipa) */}
       <Modal visible={!!comissaoSelecionada} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { maxHeight: '85%', backgroundColor: themeColors.backgroundElement }]}>
@@ -381,8 +381,6 @@ export default function ComissaoScreen() {
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1, paddingHorizontal: 20 },
-  
-  // Estilos padronizados baseados na tela de status
   backButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -391,19 +389,12 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing?.two || 8,
     marginTop: 10,
   },
-  pressed: {
-    opacity: 0.65,
-  },
-  backText: {
-    ...(Typography?.body || { fontSize: 16 }),
-    fontWeight: '600',
-  },
+  pressed: { opacity: 0.65 },
+  backText: { ...(Typography?.body || { fontSize: 16 }), fontWeight: '600' },
   pageTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 4, marginTop: 10 },
   subtitle: { fontSize: 14, marginBottom: 20 },
-
   list: { paddingBottom: 80 },
   emptyText: { textAlign: 'center', marginTop: 40, fontSize: 16 },
-  
   card: {
     borderRadius: 12,
     padding: 16,
@@ -424,12 +415,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   badgeText: { fontSize: 12, fontWeight: 'bold' },
-  
   fab: {
     position: 'absolute',
     bottom: 24,
     right: 24,
-    backgroundColor: '#1FD5B5', // Cor de destaque principal preservada
+    backgroundColor: '#1FD5B5', 
     width: 56,
     height: 56,
     borderRadius: 28,
@@ -437,17 +427,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     elevation: 4,
   },
-  
   modalOverlay: {
     flex: 1,
     backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     padding: 24,
   },
-  modalContent: {
-    borderRadius: 16,
-    padding: 24,
-  },
+  modalContent: { borderRadius: 16, padding: 24 },
   modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -457,7 +443,6 @@ const styles = StyleSheet.create({
   modalTitle: { fontSize: 20, fontWeight: 'bold', flex: 1 },
   descricaoText: { fontSize: 14, marginBottom: 24, fontStyle: 'italic' },
   sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
-  
   memberRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -468,28 +453,14 @@ const styles = StyleSheet.create({
   },
   memberId: { fontWeight: 'bold' },
   memberRole: { fontSize: 12, marginTop: 2 },
-  
   separator: { height: 1, marginVertical: 24, opacity: 0.3 },
   label: { fontSize: 12, fontWeight: '500', marginBottom: 4 },
-  input: {
-    borderWidth: 1,
-    borderRadius: 8,
-    padding: 12,
-    fontSize: 14,
-    marginBottom: 16,
-  },
-  
+  input: { borderWidth: 1, borderRadius: 8, padding: 12, fontSize: 14, marginBottom: 16 },
   roleContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 20, gap: 8 },
-  roleChip: {
-    borderWidth: 1,
-    borderRadius: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
+  roleChip: { borderWidth: 1, borderRadius: 16, paddingVertical: 6, paddingHorizontal: 12 },
   roleChipActive: { backgroundColor: '#1FD5B5', borderColor: '#1FD5B5' },
   roleText: { fontSize: 12, fontWeight: 'bold' },
   roleTextActive: { color: '#0D1B1D' },
-  
   modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 },
   btnSecondary: { paddingVertical: 12, paddingHorizontal: 16, marginRight: 8 },
   btnSecondaryText: { fontWeight: '600' },
