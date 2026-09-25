@@ -41,21 +41,21 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 ┌─────────────────────────────┐
 │ [< Voltar] Título  [Opções] │ ← Header
 ├─────────────────────────────┤
-│ [Filtro 1] [Filtro 2] [...]  │ ← Controles de filtro/abas
+│ [Filtro 1] [Filtro 2] [...] │ ← Controles de filtro/abas
 ├─────────────────────────────┤
-│                              │
-│  ┌──────────────────────┐    │
-│  │  Item 1              │    │
-│  └──────────────────────┘    │
-│                              │
-│  ┌──────────────────────┐    │
-│  │  Item 2              │    │
-│  └──────────────────────┘    │
-│                              │
-│  ┌──────────────────────┐    │
-│  │  Item 3              │    │
-│  └──────────────────────┘    │
-│                              │
+│                             │
+│  ┌──────────────────────┐   │
+│  │  Item 1              │   │
+│  └──────────────────────┘   │
+│                             │
+│  ┌──────────────────────┐   │
+│  │  Item 2              │   │
+│  └──────────────────────┘   │
+│                             │
+│  ┌──────────────────────┐   │
+│  │  Item 3              │   │
+│  └──────────────────────┘   │
+│                             │
 └─────────────────────────────┘
      [+] Botão flutuante
 ```
@@ -82,8 +82,8 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 
 ```
 ┌────────────────────────────────────┐
-│ [Hora]  Título da Reunião  [>]    │
-│ Dia, Local  • Participantes       │
+│ [Hora]  Título da Reunião  [>]     │
+│ Dia, Local  • Participantes        │
 └────────────────────────────────────┘
 ```
 
@@ -117,13 +117,13 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 ┌─────────────────────────────────────┐
 │ [< Voltar]  [Salvar]                │ ← Header
 ├─────────────────────────────────────┤
-│                                      │
+│                                     │
 │  REALIZADA / AGENDADA / CANCELADA   │ ← Status (tag)
 │  Título Reunião                     │
 │  📅 Seg, 11 Ago • 09:00-10:30       │
 │  📍 Sala Inovação                   │
 │  👥 4 participantes                 │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
 │  │ TÓPICOS DA PAUTA             │   │
 │  │ Total: 80 min                │   │
@@ -134,15 +134,15 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 │  │                              │   │
 │  │ [+ Adicionar tópico]         │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
-│  │ [📋 Pauta]  [✏️ Ata]         │   │
+│  │ [📋 Pauta]  [✏️ Ata]        │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
 │  │ [Editar Reunião]             │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 └─────────────────────────────────────┘
 ```
 
@@ -179,43 +179,43 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 
 ```
 ┌─────────────────────────────────────┐
-│ [< Voltar]  "Nova Reunião"  [Salvar] │
+│ [< Voltar]  "Nova Reunião"  [Salvar]│
 ├─────────────────────────────────────┤
-│                                      │
+│                                     │
 │ TÍTULO DA REUNIÃO                   │
 │ ┌──────────────────────────────┐    │
 │ │ Título da reunião...         │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ DATA E HORÁRIO                      │
 │ ┌──────────────────────────────┐    │
 │ │ 2026-08-11    │ 09:00  10:30 │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ LOCAL / LINK                        │
 │ ┌──────────────────────────────┐    │
 │ │ Sala Inovação ou Teams Link  │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ PARTICIPANTES                       │
 │ ┌──────────────────────────────┐    │
 │ │ [Ana Lima ✕]  [Carlos S ✕]  │    │
 │ │ [Nome do participante] [+]   │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ TÓPICOS DA PAUTA                    │
 │ ┌──────────────────────────────┐    │
-│ │ 1. [Tópico 1]    │ [20]  [✕] │    │
-│ │ 2. [Tópico 2]    │ [40]  [✕] │    │
-│ │ 3. [Tópico 3]    │ [20]  [✕] │    │
+│ │ 1. [Tópico 1]    │ [20]  [✕] │   │
+│ │ 2. [Tópico 2]    │ [40]  [✕] │   │
+│ │ 3. [Tópico 3]    │ [20]  [✕] │   │
 │ │                              │    │
 │ │ [+ Adicionar tópico]         │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ ┌──────────────────────────────┐    │
-│ │ [Cancelar]  [Salvar Alterações] │  │
+│ │[Cancelar]  [Salvar Alterações]│   │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 └─────────────────────────────────────┘
 ```
 
@@ -260,29 +260,29 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 ┌─────────────────────────────────────┐
 │         bettermeet [logo]           │ ← Logo destacado
 ├─────────────────────────────────────┤
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
-│  │ 🏠 Início                     │   │
+│  │ 🏠 Início                   │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
-│  │ 📋 Minhas Reuniões            │   │
+│  │ 📋 Minhas Reuniões          │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
-│  │ ✅ Tarefas                    │   │
+│  │ ✅ Tarefas                  │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
-│  │ 👥 Participantes              │   │
+│  │ 👥 Participantes            │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
-│  │ ⚙️ Configurações              │   │
+│  │ ⚙️ Configurações            │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  Modo Escuro/Claro [Toggle]         │
-│                                      │
+│                                     │
 └─────────────────────────────────────┘
 ```
 
@@ -305,10 +305,10 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 ┌─────────────────────────────────────┐
 │ [Diário] [Semanal] [Mensal]         │ ← Abas
 ├─────────────────────────────────────┤
-│                                      │
+│                                     │
 │      Agosto 2026                    │
 │  [<]            [>]                 │
-│                                      │
+│                                     │
 │  Seg Ter Qua Qui Sex Sáb Dom        │
 │  ┌───┬───┬───┬───┬───┬───┬───┐      │
 │  │   │   │   │   │   │   │ 1 │      │
@@ -323,7 +323,7 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 │  ├───┼───┼───┼───┼───┼───┼───┤      │
 │  │30 │31 │   │   │   │   │   │      │
 │  └───┴───┴───┴───┴───┴───┴───┘      │
-│                                      │
+│                                     │
 └─────────────────────────────────────┘
 ```
 
@@ -356,45 +356,45 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 
 ```
 ┌─────────────────────────────────────┐
-│ [< Voltar]  Reunião    [✓ Salvar]   │
+│ [< Voltar]  Reunião    [✓ Salvar]  │
 ├─────────────────────────────────────┤
-│                                      │
+│                                     │
 │  Alinhamento de Design              │
 │  Qua, 13 Ago • 10:00-11:00          │
 │  Sala Criativa                      │
-│  👥 2 participantes                 │
-│                                      │
+│  👥 2 participantes                │
+│                                     │
 │ [Agendada] [Realizada] [Cancelada]  │ ← Tabs de status
-│                                      │
+│                                     │
 │ RESUMO / NOTAS                      │
 │ ┌──────────────────────────────┐    │
 │ │ Descreva o que foi discutido │    │
 │ │ na reunião...                │    │
 │ │                              │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ DECISÕES TOMADAS                    │
 │ ┌──────────────────────────────┐    │
 │ │ Nenhuma decisão registrada.  │    │
 │ │ [+ Adicionar]                │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ TAREFAS GERADAS                     │
 │ ┌──────────────────────────────┐    │
-│ │ ☐ Atualizar componentes do   │    │
+│ │ ☐ Atualizar componentes do  │    │
 │ │   design system              │    │
 │ │   Lucas Brito • 20 Ago       │    │
 │ │                              │    │
-│ │ ☐ Entregar protótipo final   │    │
+│ │ ☐ Entregar protótipo final  │    │
 │ │   Fernanda Nunes • 25 Ago    │    │
 │ │                              │    │
 │ │ [+ Adicionar]                │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 │ ┌──────────────────────────────┐    │
 │ │ [Salvar Ata]                 │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 └─────────────────────────────────────┘
 ```
 
@@ -432,39 +432,39 @@ A aplicação utiliza uma navegação por **abas (tab bar)** na parte inferior d
 ┌─────────────────────────────────────┐
 │ [< Voltar]           [Salvar]       │
 ├─────────────────────────────────────┤
-│                                      │
+│                                     │
 │  Planejamento Q3 2026               │
-│  📅 Seg, 11 Ago • 09:00-10:30       │
-│  📍 Sala Inovação                   │
-│  👥 4 participantes                 │
-│                                      │
+│  📅 Seg, 11 Ago • 09:00-10:30      │
+│  📍 Sala Inovação                  │
+│  👥 4 participantes                │
+│                                     │
 │  TÓPICOS DA PAUTA                   │
 │  Total: 80 min                      │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
 │  │ 1. [Revisão de metas Q2]     │   │
-│  │    Ana Lima • 20 min        │   │
+│  │    Ana Lima • 20 min         │   │
 │  │    [>]                       │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
 │  │ 2. [Definição de OKRs Q3]    │   │
 │  │    Carlos Souza • 40 min     │   │
 │  │    [>]                       │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  ┌──────────────────────────────┐   │
 │  │ 3. [Distribuição de...]      │   │
 │  │    Rafael Costa • 20 min     │   │
 │  │    [>]                       │   │
 │  └──────────────────────────────┘   │
-│                                      │
+│                                     │
 │  [+ Adicionar tópico]               │
-│                                      │
+│                                     │
 │ ┌──────────────────────────────┐    │
 │ │ [Cancelar]  [Salvar Pauta]   │    │
 │ └──────────────────────────────┘    │
-│                                      │
+│                                     │
 └─────────────────────────────────────┘
 ```
 
