@@ -88,7 +88,7 @@ export default function StatusScreen() {
     const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
     const themeColors = Colors[colorScheme];
     const router = useRouter();
-    const { token } = useAuthStore();
+    const { token, logout } = useAuthStore();
 
     const [layers, setLayers] = useState<Layer[] | null>(null);
     const [error, setError] = useState<string | null>(null);
@@ -122,6 +122,9 @@ export default function StatusScreen() {
         setError(message);
 
         if (message.includes('Sessão expirada')) {
+          // logout antes do redirect: sem isso o AppGate ainda vê isAuthenticated=true
+          // e devolve o usuário do /login pra / (parecia que a tela "abria na home").
+          logout();
           router.replace('/login');
           return;
         }
@@ -133,7 +136,7 @@ export default function StatusScreen() {
           isBlocking: true,
         });
       }
-    }, [token, router]);
+    }, [token, router, logout]);
 
     // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
     // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e

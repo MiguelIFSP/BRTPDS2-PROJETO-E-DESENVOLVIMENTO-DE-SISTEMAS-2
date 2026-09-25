@@ -1,6 +1,4 @@
 import { create } from 'zustand';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { createJSONStorage, persist } from 'zustand/middleware';
 
 export type AuthUser = {
   id: number;
@@ -14,32 +12,20 @@ type AuthState = {
   user: AuthUser | null;
   token: string | null;
   isAuthenticated: boolean;
-  hasHydrated: boolean;
   login: (user: AuthUser, token: string) => void;
   logout: () => void;
 };
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      token: null,
-      isAuthenticated: false,
-      hasHydrated: false,
-      login: (user: AuthUser, token: string) => set({ user, token, isAuthenticated: true }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
-    }),
-    {
-      name: 'management-better-meet-auth',
-      storage: createJSONStorage(() => AsyncStorage),
-      partialize: (state) => ({
-        user: state.user,
-        token: state.token,
-        isAuthenticated: state.isAuthenticated,
-      }),
-      onRehydrateStorage: () => (state) => {
-        if (state) useAuthStore.setState({ hasHydrated: true });
-      },
-    }
-  )
-);
+// De propósito, sem persist/AsyncStorage — um painel admin não deve manter
+// login salvo no navegador entre sessões. Guardar o token no localStorage fazia
+// a página reabrir já "autenticada" com um token velho (expirado, ou assinado com
+// um JWT_SECRET que já foi regenerado), pulando a tela de login e caindo direto
+// em 401 ao buscar status na monitoring. Assim, cada carregamento da página exige
+// login de novo.
+export const useAuthStore = create<AuthState>((set) => ({
+  user: null,
+  token: null,
+  isAuthenticated: false,
+  login: (user: AuthUser, token: string) => set({ user, token, isAuthenticated: true }),
+  logout: () => set({ user: null, token: null, isAuthenticated: false }),
+}));

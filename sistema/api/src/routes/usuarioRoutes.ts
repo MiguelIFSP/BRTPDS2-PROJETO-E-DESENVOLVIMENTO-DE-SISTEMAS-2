@@ -10,12 +10,15 @@
 
 import { Router } from 'express';
 import { usuarioController } from '../controllers/usuarioController.ts';
-import { requireAuth } from '../middlewares/auth.ts';
+import { requireAdmin, requireAuth } from '../middlewares/auth.ts';
 
 const routes = Router();
 
 // Cadastro (público)
 routes.post('/usuarios', usuarioController.create);
+
+// Relatório de usuários (somente admin)
+routes.get('/usuarios/relatorio', requireAuth, requireAdmin, usuarioController.getReport);
 
 // Troca de senha (autenticado)
 routes.patch('/usuarios/:id/senha', requireAuth, usuarioController.updatePassword);
@@ -25,6 +28,9 @@ routes.patch('/usuarios/:id', requireAuth, usuarioController.updateProfile);
 
 // Alterar tema preferido (autenticado)
 routes.patch('/usuarios/:id/tema', requireAuth, usuarioController.updateTheme);
+
+// Comissões em que o usuário é administrador (usado pela tela de exclusão)
+routes.get('/usuarios/:id/comissoes-administradas', requireAuth, usuarioController.getComissoesAdministradas);
 
 // Excluir dados pessoais (bloqueado se ainda for responsável por alguma organização)
 routes.delete('/usuarios/:id/dados-pessoais', requireAuth, usuarioController.deletePersonalData);

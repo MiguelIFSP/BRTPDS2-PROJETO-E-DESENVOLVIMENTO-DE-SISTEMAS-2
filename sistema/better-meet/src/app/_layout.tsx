@@ -19,7 +19,7 @@ function AppGate() {
   useEffect(() => {
     if (!hasHydrated) return;
     const currentRoute = segments[0] ?? 'index';
-    const publicRoutes = ['login', 'usuario', 'forgot-password', 'reset-password'];
+    const publicRoutes = ['login', 'usuario', 'forgot-password'];
 
     if (!isAuthenticated && !publicRoutes.includes(currentRoute)) {
       router.replace('/login');
@@ -66,11 +66,12 @@ export default function RootLayout() {
           <Drawer.Screen name="index" />
           <Drawer.Screen name="organizacao" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="organizacoes" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="relatorios" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="usuario" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="login" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="perfil" options={{ drawerItemStyle: { display: 'none' } }} />
+          <Drawer.Screen name="excluir-conta" options={{ drawerItemStyle: { display: 'none' } }} />
           <Drawer.Screen name="forgot-password" options={{ drawerItemStyle: { display: 'none' } }} />
-          <Drawer.Screen name="reset-password" options={{ drawerItemStyle: { display: 'none' } }} />
         </Drawer>
       </ThemeProvider>
     </GestureHandlerRootView>

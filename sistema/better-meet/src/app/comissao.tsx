@@ -8,19 +8,36 @@ import {
   Modal, 
   TextInput,
   ActivityIndicator,
-  Alert
+  Alert,
+  ScrollView,
+  useColorScheme,
+  Pressable
 } from 'react-native';
-import { comissaoService, Comissao } from '../services/comissaoService';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
+import Header from '../components/Header';
+import { Colors, Spacing, Typography } from '../constants/theme';
+import { comissaoService, Comissao, ComissaoEquipe } from '../services/comissaoService';
 
 export default function ComissaoScreen() {
+  const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const themeColors = Colors[colorScheme];
+  const router = useRouter();
+  
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
   const [loading, setLoading] = useState(true);
-  const [modalVisible, setModalVisible] = useState(false);
   
+  // Estados de Criação
+  const [modalCriarVisible, setModalCriarVisible] = useState(false);
   const [nome, setNome] = useState('');
   const [descricao, setDescricao] = useState('');
 
-  // Simulação dos IDs que viriam do Contexto de Autenticação
+  // Estados de Gestão da Equipa (Detalhes)
+  const [comissaoSelecionada, setComissaoSelecionada] = useState<Comissao | null>(null);
+  const [novoMembroId, setNovoMembroId] = useState('');
+  const [novoMembroPapel, setNovoMembroPapel] = useState('MEMBRO');
+
   const organizacaoAtualId = 1; 
   const usuarioAtualId = 1; 
 
@@ -28,6 +45,11 @@ export default function ComissaoScreen() {
     try {
       const dados = await comissaoService.listarPorOrganizacao(organizacaoAtualId);
       setComissoes(dados);
+      
+      if (comissaoSelecionada) {
+        const atualizada = dados.find(c => c.id === comissaoSelecionada.id);
+        if (atualizada) setComissaoSelecionada(atualizada);
+      }
     } catch (error) {
       Alert.alert('Erro', 'Não foi possível carregar as comissões.');
     } finally {
@@ -35,7 +57,6 @@ export default function ComissaoScreen() {
     }
   };
 
-  // Contorno para o falso positivo do ESLint (cascading renders)
   useEffect(() => {
     const carregarInicial = async () => {
       await carregarComissoes();
@@ -49,7 +70,7 @@ export default function ComissaoScreen() {
       return;
     }
 
-    setModalVisible(false);
+    setModalCriarVisible(false);
     setLoading(true);
 
     try {
@@ -63,8 +84,8 @@ export default function ComissaoScreen() {
     }
   };
 
-  const handleExcluir = (id: number) => {
-    Alert.alert('Tem certeza?', 'Apenas o Administrador pode excluir. Esta ação não pode ser desfeita.', [
+  const handleExcluirComissao = (id: number) => {
+    Alert.alert('Excluir Comissão', 'Apenas o Administrador pode excluir. Deseja continuar?', [
       { text: 'Cancelar', style: 'cancel' },
       { 
         text: 'Excluir', 
@@ -73,9 +94,52 @@ export default function ComissaoScreen() {
           setLoading(true);
           try {
             await comissaoService.excluir(id, usuarioAtualId);
+            setComissaoSelecionada(null);
             await carregarComissoes();
           } catch (error) {
-            Alert.alert('Acesso Negado', 'Você não tem permissão para excluir esta comissão ou ocorreu um erro.');
+            Alert.alert('Acesso Negado', 'Não tem permissão para excluir ou ocorreu um erro.');
+            setLoading(false);
+          }
+        }
+      }
+    ]);
+  };
+
+  const handleAdicionarMembro = async () => {
+    if (!comissaoSelecionada || !novoMembroId.trim()) return;
+    
+    setLoading(true);
+    try {
+      await comissaoService.adicionarMembro(
+        comissaoSelecionada.id, 
+        Number(novoMembroId), 
+        novoMembroPapel, 
+        usuarioAtualId
+      );
+      setNovoMembroId('');
+      setNovoMembroPapel('MEMBRO');
+      await carregarComissoes();
+    } catch (error) {
+      Alert.alert('Erro', 'Não foi possível adicionar o membro. Verifique se tem permissão ou se o ID está correto.');
+      setLoading(false);
+    }
+  };
+
+  const handleRemoverMembro = (userId: number) => {
+    if (!comissaoSelecionada) return;
+
+    Alert.alert('Remover Membro', 'Deseja remover este utilizador da comissão?', [
+      { text: 'Cancelar', style: 'cancel' },
+      {
+        text: 'Remover',
+        style: 'destructive',
+        onPress: async () => {
+          setLoading(true);
+          try {
+            await comissaoService.removerMembro(comissaoSelecionada.id, userId, usuarioAtualId);
+            await carregarComissoes();
+          } catch (error) {
+            Alert.alert('Erro', 'Não foi possível remover o membro.');
             setLoading(false);
           }
         }
@@ -84,70 +148,91 @@ export default function ComissaoScreen() {
   };
 
   const renderCard = ({ item }: { item: Comissao }) => (
-    <View style={styles.card}>
+    <TouchableOpacity 
+      style={[
+        styles.card, 
+        { backgroundColor: themeColors.backgroundElement, borderColor: themeColors.backgroundElement }
+      ]} 
+      onPress={() => setComissaoSelecionada(item)}
+    >
       <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{item.nome}</Text>
-        {item.descricao ? <Text style={styles.cardDesc}>{item.descricao}</Text> : null}
+        <Text style={[styles.cardTitle, { color: themeColors.text }]}>{item.nome}</Text>
+        {item.descricao ? <Text style={[styles.cardDesc, { color: themeColors.textSecondary }]}>{item.descricao}</Text> : null}
+        <View style={[styles.badgeContainer, { backgroundColor: themeColors.background }]}>
+           <Text style={[styles.badgeText, { color: themeColors.textSecondary }]}>Membros: {item.equipe?.length || 0}</Text>
+        </View>
       </View>
-      <TouchableOpacity onPress={() => handleExcluir(item.id)} style={styles.deleteButton}>
-        <Text style={styles.deleteText}>✕</Text>
-      </TouchableOpacity>
-    </View>
+      <Ionicons name="chevron-forward" size={24} color={themeColors.textSecondary} />
+    </TouchableOpacity>
   );
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.headerTitle}>Comissões</Text>
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: themeColors.background }]}>
+      <Header />
       
-      {loading ? (
-        <ActivityIndicator size="large" color="#1FD5B5" style={{ marginTop: 20 }} />
-      ) : comissoes.length === 0 ? (
-        <Text style={styles.emptyText}>Nenhuma comissão cadastrada.</Text>
-      ) : (
-        <FlatList
-          data={comissoes}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderCard}
-          contentContainerStyle={styles.list}
-        />
-      )}
+      <View style={styles.container}>
+        {/* Componente de Voltar padronizado */}
+        <Pressable
+            accessibilityLabel="Voltar"
+            accessibilityRole="button"
+            onPress={() => router.back()}
+            style={({ pressed }) => [styles.backButton, pressed && styles.pressed]}
+        >
+            <Ionicons name="arrow-back" size={20} color={themeColors.textSecondary} />
+            <Text style={[styles.backText, { color: themeColors.textSecondary }]}>Voltar</Text>
+        </Pressable>
 
-      {/* Botão Flutuante (FAB) */}
-      <TouchableOpacity 
-        style={styles.fab} 
-        onPress={() => setModalVisible(true)}
-      >
-        <Text style={styles.fabText}>+</Text>
+        <Text style={[styles.pageTitle, { color: themeColors.text }]}>Comissões</Text>
+        <Text style={[styles.subtitle, { color: themeColors.textSecondary }]}>Gerencie os grupos de trabalho</Text>
+        
+        {loading ? (
+          <ActivityIndicator size="large" color={themeColors.text} style={{ marginTop: 32 }} />
+        ) : comissoes.length === 0 ? (
+          <Text style={[styles.emptyText, { color: themeColors.textSecondary }]}>Nenhuma comissão cadastrada.</Text>
+        ) : (
+          <FlatList
+            data={comissoes}
+            keyExtractor={(item) => item.id.toString()}
+            renderItem={renderCard}
+            contentContainerStyle={styles.list}
+            showsVerticalScrollIndicator={false}
+          />
+        )}
+      </View>
+
+      {/* Botão Flutuante (Manteve a cor de destaque original do sistema para ações primárias) */}
+      <TouchableOpacity style={styles.fab} onPress={() => setModalCriarVisible(true)}>
+        <Ionicons name="add" size={30} color="#0D1B1D" />
       </TouchableOpacity>
 
       {/* Modal de Criação */}
-      <Modal visible={modalVisible} animationType="slide" transparent={true}>
+      <Modal visible={modalCriarVisible} animationType="slide" transparent={true}>
         <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nova Comissão</Text>
+          <View style={[styles.modalContent, { backgroundColor: themeColors.backgroundElement }]}>
+            <Text style={[styles.modalTitle, { color: themeColors.text }]}>Nova Comissão</Text>
             
-            <Text style={styles.label}>Nome *</Text>
+            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Nome *</Text>
             <TextInput 
-              style={styles.input}
+              style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.textSecondary, color: themeColors.text }]}
               placeholder="Ex: Comitê de Eventos"
-              placeholderTextColor="#557B88"
+              placeholderTextColor={themeColors.textSecondary}
               value={nome}
               onChangeText={setNome}
             />
-
-            <Text style={styles.label}>Descrição</Text>
+            
+            <Text style={[styles.label, { color: themeColors.textSecondary }]}>Descrição</Text>
             <TextInput 
-              style={[styles.input, { height: 80 }]}
+              style={[styles.input, { height: 80, backgroundColor: themeColors.background, borderColor: themeColors.textSecondary, color: themeColors.text }]}
               placeholder="Objetivo da comissão..."
-              placeholderTextColor="#557B88"
+              placeholderTextColor={themeColors.textSecondary}
               multiline
               value={descricao}
               onChangeText={setDescricao}
             />
-
+            
             <View style={styles.modalActions}>
-              <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalVisible(false)}>
-                <Text style={styles.btnSecondaryText}>Cancelar</Text>
+              <TouchableOpacity style={styles.btnSecondary} onPress={() => setModalCriarVisible(false)}>
+                <Text style={[styles.btnSecondaryText, { color: themeColors.text }]}>Cancelar</Text>
               </TouchableOpacity>
               <TouchableOpacity style={styles.btnPrimary} onPress={handleCriarComissao}>
                 <Text style={styles.btnPrimaryText}>Salvar</Text>
@@ -156,35 +241,117 @@ export default function ComissaoScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+
+      {/* Modal de Gestão da Comissão (Detalhes e Equipa) */}
+      <Modal visible={!!comissaoSelecionada} animationType="slide" transparent={true}>
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { maxHeight: '85%', backgroundColor: themeColors.backgroundElement }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: themeColors.text }]}>{comissaoSelecionada?.nome}</Text>
+              <TouchableOpacity onPress={() => setComissaoSelecionada(null)}>
+                <Ionicons name="close" size={28} color={themeColors.text} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {comissaoSelecionada?.descricao && (
+                <Text style={[styles.descricaoText, { color: themeColors.textSecondary }]}>{comissaoSelecionada.descricao}</Text>
+              )}
+
+              <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Equipa Atual</Text>
+              {comissaoSelecionada?.equipe?.map((membro) => (
+                <View key={membro.userId} style={[styles.memberRow, { backgroundColor: themeColors.background }]}>
+                  <View>
+                    <Text style={[styles.memberId, { color: themeColors.text }]}>ID Utilizador: {membro.userId}</Text>
+                    <Text style={[styles.memberRole, { color: themeColors.textSecondary }]}>{membro.papel}</Text>
+                  </View>
+                  <TouchableOpacity onPress={() => handleRemoverMembro(membro.userId)}>
+                    <Ionicons name="trash-outline" size={20} color="#F44336" />
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <View style={[styles.separator, { backgroundColor: themeColors.textSecondary }]} />
+
+              <Text style={[styles.sectionTitle, { color: themeColors.text }]}>Adicionar Membro</Text>
+              <Text style={[styles.label, { color: themeColors.textSecondary }]}>ID do Utilizador</Text>
+              <TextInput 
+                style={[styles.input, { backgroundColor: themeColors.background, borderColor: themeColors.textSecondary, color: themeColors.text }]}
+                placeholder="Ex: 2"
+                placeholderTextColor={themeColors.textSecondary}
+                keyboardType="numeric"
+                value={novoMembroId}
+                onChangeText={setNovoMembroId}
+              />
+
+              <Text style={[styles.label, { color: themeColors.textSecondary }]}>Papel na Comissão</Text>
+              <View style={styles.roleContainer}>
+                {['ADMINISTRADOR', 'FACILITADOR', 'SECRETARIO', 'MEMBRO'].map((papel) => (
+                  <TouchableOpacity 
+                    key={papel}
+                    style={[
+                      styles.roleChip, 
+                      { borderColor: themeColors.textSecondary },
+                      novoMembroPapel === papel && styles.roleChipActive
+                    ]}
+                    onPress={() => setNovoMembroPapel(papel)}
+                  >
+                    <Text style={[
+                      styles.roleText, 
+                      { color: themeColors.textSecondary },
+                      novoMembroPapel === papel && styles.roleTextActive
+                    ]}>
+                      {papel}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity style={styles.btnPrimary} onPress={handleAdicionarMembro}>
+                <Text style={[styles.btnPrimaryText, { textAlign: 'center' }]}>Adicionar à Equipa</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity 
+                style={[styles.btnSecondary, { marginTop: 24, alignSelf: 'center' }]} 
+                onPress={() => comissaoSelecionada && handleExcluirComissao(comissaoSelecionada.id)}
+              >
+                <Text style={[styles.btnSecondaryText, { color: '#F44336' }]}>Excluir Comissão Inteira</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#0D1B1D', // Fundo Escuro Primário
+  safeArea: { flex: 1 },
+  container: { flex: 1, paddingHorizontal: 20 },
+  
+  // Estilos padronizados baseados na tela de status
+  backButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: Spacing?.one || 4,
+    paddingVertical: Spacing?.two || 8,
+    marginTop: 10,
   },
-  headerTitle: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    padding: 16,
-    paddingTop: 40,
-    borderBottomWidth: 1,
-    borderColor: '#557B88',
+  pressed: {
+    opacity: 0.65,
   },
-  list: {
-    padding: 16,
+  backText: {
+    ...(Typography?.body || { fontSize: 16 }),
+    fontWeight: '600',
   },
-  emptyText: {
-    color: '#557B88',
-    textAlign: 'center',
-    marginTop: 40,
-    fontSize: 16,
-  },
+  pageTitle: { fontSize: 24, fontWeight: 'bold', marginBottom: 4, marginTop: 10 },
+  subtitle: { fontSize: 14, marginBottom: 20 },
+
+  list: { paddingBottom: 80 },
+  emptyText: { textAlign: 'center', marginTop: 40, fontSize: 16 },
+  
   card: {
-    backgroundColor: '#162126', // Fundo Escuro Secundário
     borderRadius: 12,
     padding: 16,
     marginBottom: 12,
@@ -192,104 +359,92 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#557B88', // Cinza Médio
   },
-  cardContent: {
-    flex: 1,
+  cardContent: { flex: 1 },
+  cardTitle: { fontSize: 18, fontWeight: '600' },
+  cardDesc: { fontSize: 14, marginTop: 4 },
+  badgeContainer: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+    marginTop: 8,
   },
-  cardTitle: {
-    color: '#FFFFFF',
-    fontSize: 18,
-    fontWeight: '600',
-  },
-  cardDesc: {
-    color: '#B8C9D1',
-    fontSize: 14,
-    marginTop: 4,
-  },
-  deleteButton: {
-    padding: 8,
-  },
-  deleteText: {
-    color: '#F44336', // Cor de Erro
-    fontSize: 18,
-    fontWeight: 'bold',
-  },
+  badgeText: { fontSize: 12, fontWeight: 'bold' },
+  
   fab: {
     position: 'absolute',
     bottom: 24,
     right: 24,
-    backgroundColor: '#1FD5B5', // Verde-Água
+    backgroundColor: '#1FD5B5', // Cor de destaque principal preservada
     width: 56,
     height: 56,
     borderRadius: 28,
     justifyContent: 'center',
     alignItems: 'center',
     elevation: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.3,
-    shadowOffset: { width: 0, height: 4 },
   },
-  fabText: {
-    fontSize: 24,
-    color: '#0D1B1D',
-    fontWeight: 'bold',
-  },
+  
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(13, 27, 29, 0.7)',
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
     justifyContent: 'center',
     padding: 24,
   },
   modalContent: {
-    backgroundColor: '#162126',
     borderRadius: 16,
     padding: 24,
   },
-  modalTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 24,
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
   },
-  label: {
-    color: '#557B88',
-    fontSize: 12,
-    fontWeight: '500',
-    marginBottom: 4,
-  },
-  input: {
-    backgroundColor: '#0D1B1D',
-    borderWidth: 1,
-    borderColor: '#557B88',
+  modalTitle: { fontSize: 20, fontWeight: 'bold', flex: 1 },
+  descricaoText: { fontSize: 14, marginBottom: 24, fontStyle: 'italic' },
+  sectionTitle: { fontSize: 16, fontWeight: 'bold', marginBottom: 12 },
+  
+  memberRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    padding: 12,
     borderRadius: 8,
-    color: '#FFFFFF',
+    marginBottom: 8,
+  },
+  memberId: { fontWeight: 'bold' },
+  memberRole: { fontSize: 12, marginTop: 2 },
+  
+  separator: { height: 1, marginVertical: 24, opacity: 0.3 },
+  label: { fontSize: 12, fontWeight: '500', marginBottom: 4 },
+  input: {
+    borderWidth: 1,
+    borderRadius: 8,
     padding: 12,
     fontSize: 14,
     marginBottom: 16,
   },
-  modalActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    marginTop: 8,
+  
+  roleContainer: { flexDirection: 'row', flexWrap: 'wrap', marginBottom: 20, gap: 8 },
+  roleChip: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
   },
-  btnSecondary: {
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginRight: 8,
-  },
-  btnSecondaryText: {
-    color: '#1FD5B5',
-    fontWeight: '600',
-  },
+  roleChipActive: { backgroundColor: '#1FD5B5', borderColor: '#1FD5B5' },
+  roleText: { fontSize: 12, fontWeight: 'bold' },
+  roleTextActive: { color: '#0D1B1D' },
+  
+  modalActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 8 },
+  btnSecondary: { paddingVertical: 12, paddingHorizontal: 16, marginRight: 8 },
+  btnSecondaryText: { fontWeight: '600' },
   btnPrimary: {
     backgroundColor: '#1FD5B5',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 8,
   },
-  btnPrimaryText: {
-    color: '#0D1B1D',
-    fontWeight: 'bold',
-  }
+  btnPrimaryText: { color: '#0D1B1D', fontWeight: 'bold' }
 });
