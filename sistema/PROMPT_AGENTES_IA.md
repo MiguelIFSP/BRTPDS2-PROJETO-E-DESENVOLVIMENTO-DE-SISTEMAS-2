@@ -120,11 +120,12 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
 20. **Erros de negócio são lançados com `AppError`** (`src/errors/AppError.ts`): `throw new AppError(404, 'Organização não encontrada.');`.
     - Não crie classes de erro por domínio e não monte `response.status(4xx).json(...)` no meio da lógica.
     - Declare a propriedade `statusCode` no corpo da classe; não use `constructor(public statusCode …)`, que o Node não executa ao rodar `.ts` direto.
+    - Se o cliente precisar de dados para resolver o erro, passe-os no terceiro parâmetro, `details` (ex.: `throw new AppError(409, '…', { organizacoesPendentes })`); eles saem no mesmo corpo do `error`. Nunca coloque detalhes internos ali.
 
 21. **Validação em `schemas/` e tratamento de erro central.**
     - Schemas Yup ficam em `src/schemas/<dominio>Schema.ts` (no backend e no app), nunca dentro de controllers, telas ou componentes.
     - Use sempre `schema.validate(request.body, { stripUnknown: true })`.
-    - Controllers **não têm `try/catch`**: o Express 5 envia os erros ao middleware `handleError` (`src/middlewares/errorMiddleware.ts`), registrado por último no `server.ts`. Ele converte Yup → 400, `AppError` → status próprio, JSON malformado → 400, Prisma `P2025` → 404, `P2002` → 409 e o resto → 500 genérico.
+    - Controllers **não têm `try/catch`**: o Express 5 envia os erros ao middleware `handleError` (`src/middlewares/errorMiddleware.ts`), registrado por último no `server.ts`, logo depois de um 404 em JSON para rotas inexistentes. Ele converte Yup → 400, `AppError` → status próprio (com `details`), JSON malformado → 400, Prisma `P2025` → 404, `P2002` → 409 e o resto → 500 genérico.
 
 22. **Formato das respostas.**
     - Erro: `{ "error": "mensagem em pt-BR" }`.

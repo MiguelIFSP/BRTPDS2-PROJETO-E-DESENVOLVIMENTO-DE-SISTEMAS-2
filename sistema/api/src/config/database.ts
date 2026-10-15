@@ -1,7 +1,8 @@
 import { PrismaClient } from '@prisma/client';
 import { PrismaMariaDb } from '@prisma/adapter-mariadb';
+import { env } from './env.ts';
 
-const databaseUrl = new URL(process.env.DATABASE_URL ?? 'mysql://user_node:node_password@localhost:3306/bettermeet');
+const databaseUrl = new URL(env.DATABASE_URL);
 const adapter = new PrismaMariaDb({
   host: databaseUrl.hostname,
   port: Number(databaseUrl.port || 3306),

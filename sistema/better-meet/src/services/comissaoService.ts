@@ -41,7 +41,7 @@ const readError = async (response: Response, fallback: string) => {
 
 // rotas de comissao sao montadas sob /api na API (ver server.ts).
 const fetchReport = async (path: string, token: string, fallback: string) => {
-  const response = await fetch(`${API_URL}/api${path}`, { headers: authHeaders(token) });
+  const response = await fetch(`${API_URL}${path}`, { headers: authHeaders(token) });
   if (!response.ok) throw new Error(await readError(response, fallback));
   return response.json() as Promise<ComissaoReport>;
 };
@@ -71,7 +71,7 @@ export const comissaoService = {
 
   async listarPorOrganizacao(organizacaoId: number, token: string): Promise<Comissao[]> {
     try {
-      const response = await fetch(`${API_URL}/api/organizacoes/${organizacaoId}/comissoes`, {
+      const response = await fetch(`${API_URL}/organizacoes/${organizacaoId}/comissoes`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       if (!response.ok) {
@@ -87,7 +87,7 @@ export const comissaoService = {
 
   async criar(nome: string, descricao: string, organizacaoId: number, token: string): Promise<Comissao> {
     try {
-      const response = await fetch(`${API_URL}/api/comissoes`, {
+      const response = await fetch(`${API_URL}/comissoes`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -108,7 +108,7 @@ export const comissaoService = {
 
   async excluir(id: number, token: string): Promise<void> {
     try {
-      const response = await fetch(`${API_URL}/api/comissoes/${id}`, {
+      const response = await fetch(`${API_URL}/comissoes/${id}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });
@@ -124,7 +124,7 @@ export const comissaoService = {
 
   async adicionarMembro(comissaoId: number, userId: number, papel: string, token: string): Promise<void> {
     try {
-      const response = await fetch(`${API_URL}/api/comissoes/${comissaoId}/membros`, {
+      const response = await fetch(`${API_URL}/comissoes/${comissaoId}/membros`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -144,7 +144,7 @@ export const comissaoService = {
 
   async removerMembro(comissaoId: number, userId: number, token: string): Promise<void> {
     try {
-      const response = await fetch(`${API_URL}/api/comissoes/${comissaoId}/membros/${userId}`, {
+      const response = await fetch(`${API_URL}/comissoes/${comissaoId}/membros/${userId}`, {
         method: 'DELETE',
         headers: { 'Authorization': `Bearer ${token}` }
       });

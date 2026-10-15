@@ -128,7 +128,9 @@ function Wait-ForHttp {
 }
 
 # api e monitoring-better-meet usam Prisma (management-better-meet/server NÃO usa
-# — é stateless por design). "migrate diff --exit-code" só verifica se o banco já
+# — é stateless por design). A api já usa migrations (Deploy-PrismaMigrations);
+# a monitoring ainda sincroniza assim até ganhar a migration inicial.
+# "migrate diff --exit-code" só verifica se o banco já
 # bate com o schema (retorna != 0 se houver diferença) — só rodamos "db push" (que
 # pode alterar o banco) quando realmente há divergência, não sempre à toa.
 function Sync-PrismaSchema {
@@ -146,6 +148,40 @@ function Sync-PrismaSchema {
         npm run prisma:push
     } else {
         Write-Host "  Schema já em sincronia com o banco."
+    }
+
+    Write-Host "  Gerando o Prisma Client..."
+    npm run prisma:generate
+
+    Pop-Location
+}
+
+# A api muda o banco só por migration versionada (PR-07 do guia), nunca por
+# "db push". Bancos criados antes pelo "db push" não têm histórico de
+# migrations (o deploy falha com P3005) e já estão no estado das migrations de
+# $BaselineMigrations: elas são marcadas como aplicadas uma única vez, e o
+# deploy segue com as mais novas.
+function Deploy-PrismaMigrations {
+    param([string]$ProjectPath, [string]$ProjectName, [string[]]$BaselineMigrations)
+
+    Write-Host "Aplicando as migrations do Prisma em $ProjectName..."
+    Push-Location $ProjectPath
+
+    $output = npx prisma migrate deploy 2>&1 | Out-String
+    $exitCode = $LASTEXITCODE
+    Write-Host $output
+
+    if ($exitCode -ne 0 -and $output -match 'P3005') {
+        Write-Host "  Banco criado por 'db push', sem histórico de migrations — registrando a baseline..."
+        foreach ($migration in $BaselineMigrations) {
+            npx prisma migrate resolve --applied $migration
+        }
+        npx prisma migrate deploy
+        $exitCode = $LASTEXITCODE
+    }
+
+    if ($exitCode -ne 0) {
+        Write-Host "  Não foi possível aplicar as migrations de $ProjectName — confira a saída acima."
     }
 
     Write-Host "  Gerando o Prisma Client..."
@@ -327,7 +363,13 @@ Wait-ForMySQL -ContainerName "mysql_monitoring_better_meet_dev"
 
 # --- Prisma (api e monitoring-better-meet) ----------------------------------
 
-Sync-PrismaSchema -ProjectPath "$root/api" -ProjectName "api"
+# Estado em que o "db push" deixou os bancos da api antes de ela usar migrations.
+$apiBaselineMigrations = @(
+    "20260918235817_config_usuario",
+    "20260922140000_papeis_organizacao",
+    "20261014120000_alinha_schema_atual"
+)
+Deploy-PrismaMigrations -ProjectPath "$root/api" -ProjectName "api" -BaselineMigrations $apiBaselineMigrations
 Sync-PrismaSchema -ProjectPath "$root/monitoring-better-meet" -ProjectName "monitoring-better-meet"
 
 # --- build ---------------------------------------------------------------
@@ -358,8 +400,10 @@ $monReady = Wait-ForHttp -Url "http://localhost:3334/health"
 if ($apiReady -and $monReady) {
     Write-Host "Verificando se o painel já tem dados de status..."
     try {
-        $loginBody = @{ identifier = 'admin@bettermeet.com'; password = 'Admin123!' } | ConvertTo-Json
-        $login = Invoke-RestMethod -Uri "http://localhost:3333/login" -Method Post -Body $loginBody -ContentType 'application/json'
+        # Mesmo administrador que a api cria ao subir (ADMIN_EMAIL/ADMIN_PASSWORD do api/.env).
+        $apiEnv = Read-EnvValues -Path "$root/api/.env"
+        $loginBody = @{ identifier = $apiEnv['ADMIN_EMAIL']; password = $apiEnv['ADMIN_PASSWORD'] } | ConvertTo-Json
+        $login = Invoke-RestMethod -Uri "http://localhost:3333/api/login" -Method Post -Body $loginBody -ContentType 'application/json'
 
         $current = Invoke-RestMethod -Uri "http://localhost:3334/monitoring-better-meet/status" -Method Get -Headers @{ Authorization = "Bearer $($login.token)" }
         $existing = @($current | ForEach-Object { $_.subSystem })

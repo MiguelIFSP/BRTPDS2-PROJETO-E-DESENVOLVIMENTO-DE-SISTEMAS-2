@@ -14,8 +14,8 @@ datasource db {
 }
 
 enum Role {
-  USER
-  ADMIN
+  USER  // usuário comum da plataforma
+  ADMIN // administrador da plataforma: aprova organizações e vê os relatórios gerais
 }
 
 enum PapelOrganizacao {
@@ -25,11 +25,24 @@ enum PapelOrganizacao {
   MEMBRO
 }
 
+enum StatusOrganizacao {
+  PENDENTE // aguardando o admin da plataforma aceitar
+  ACEITA   // só organizações aceitas recebem membros e comissões
+  RECUSADA
+}
+
 enum PapelComissao {
   ADMINISTRADOR // controle total da comissão (pode excluir a comissão)
   FACILITADOR   // pode gerenciar os membros e as pautas
   SECRETARIO    // focado em só registrar as atas e decisões
   MEMBRO        // participante normal
+}
+
+// Valores em minúsculas porque já trafegam assim pela API e pelo app (PR-08).
+enum Tema {
+  light
+  dark
+  system // segue o tema do aparelho
 }
 
 model User {
@@ -45,7 +58,7 @@ model User {
   // Valores: "light" | "dark" | "system"
   // Opcional para não quebrar usuários criados antes da migração.
   // -------------------------------------------------------------------
-  themePreference String? @default("system")
+  themePreference Tema? @default(system)
 
   // -------------------------------------------------------------------
   // Relações existentes
@@ -60,10 +73,10 @@ model User {
 }
 
 model Organizacao {
-  id        Int      @id @default(autoincrement())
+  id        Int               @id @default(autoincrement())
   nome      String
-  status    String // pendente ate o admin aceitar. aceita | recusada
-  createdAt DateTime @default(now())
+  status    StatusOrganizacao @default(PENDENTE)
+  createdAt DateTime          @default(now())
 
   comissoes Comissao[]
   membros   OrganizacaoMembro[]
@@ -80,6 +93,8 @@ model OrganizacaoMembro {
   @@id([organizacaoId, userId]) // o mesmo usuario nao entra duas vezes na mesma org
 }
 
+// Só existe dentro de organização ACEITA, e só membros da organização entram
+// na equipe (regra do comissaoService, o banco não garante).
 model Comissao {
   id            Int      @id @default(autoincrement())
   nome          String
@@ -100,6 +115,8 @@ model ComissaoEquipe {
   comissao Comissao @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
   user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  // o mesmo usuário não entra duas vezes na mesma comissão. A comissão precisa
+  // ter sempre pelo menos um ADMINISTRADOR (regra do comissaoService).
   @@id([comissaoId, userId])
 }
 

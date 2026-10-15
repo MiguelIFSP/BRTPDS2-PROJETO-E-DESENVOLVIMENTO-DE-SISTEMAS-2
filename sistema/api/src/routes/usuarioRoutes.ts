@@ -10,32 +10,72 @@
 
 import { Router } from 'express';
 import { usuarioController } from '../controllers/usuarioController.ts';
-import { requireAdmin, requireAuth } from '../middlewares/auth.ts';
+import {
+  requireAdmin,
+  requireAuth,
+  requireSelf,
+} from '../middlewares/authMiddleware.ts';
 
 const routes = Router();
 
 // Cadastro (público)
+// pública porque quem se cadastra ainda não tem conta nem token.
 routes.post('/usuarios', usuarioController.create);
 
 // Relatório de usuários (somente admin)
-routes.get('/usuarios/relatorio', requireAuth, requireAdmin, usuarioController.getReport);
+routes.get(
+  '/usuarios/relatorio',
+  requireAuth,
+  requireAdmin,
+  usuarioController.getReport,
+);
 
 // Troca de senha (autenticado)
-routes.patch('/usuarios/:id/senha', requireAuth, usuarioController.updatePassword);
+routes.patch(
+  '/usuarios/:id/senha',
+  requireAuth,
+  requireSelf,
+  usuarioController.updatePassword,
+);
 
 // Alterar dados pessoais (autenticado)
-routes.patch('/usuarios/:id', requireAuth, usuarioController.updateProfile);
+routes.patch(
+  '/usuarios/:id',
+  requireAuth,
+  requireSelf,
+  usuarioController.updateProfile,
+);
 
 // Alterar tema preferido (autenticado)
-routes.patch('/usuarios/:id/tema', requireAuth, usuarioController.updateTheme);
+routes.patch(
+  '/usuarios/:id/tema',
+  requireAuth,
+  requireSelf,
+  usuarioController.updateTheme,
+);
 
 // Comissões em que o usuário é administrador (usado pela tela de exclusão)
-routes.get('/usuarios/:id/comissoes-administradas', requireAuth, usuarioController.getComissoesAdministradas);
+routes.get(
+  '/usuarios/:id/comissoes-administradas',
+  requireAuth,
+  requireSelf,
+  usuarioController.getComissoesAdministradas,
+);
 
 // Excluir dados pessoais (bloqueado se ainda for responsável por alguma organização)
-routes.delete('/usuarios/:id/dados-pessoais', requireAuth, usuarioController.deletePersonalData);
+routes.delete(
+  '/usuarios/:id/dados-pessoais',
+  requireAuth,
+  requireSelf,
+  usuarioController.deletePersonalData,
+);
 
 // Excluir dados pessoais + organizações das quais é responsável (e dados filhos)
-routes.delete('/usuarios/:id/dados-completos', requireAuth, usuarioController.deleteFullAccount);
+routes.delete(
+  '/usuarios/:id/dados-completos',
+  requireAuth,
+  requireSelf,
+  usuarioController.deleteFullAccount,
+);
 
 export default routes;

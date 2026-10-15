@@ -680,11 +680,15 @@ Existe **uma única classe de erro** de negócio por serviço, com o status HTTP
 // src/errors/AppError.ts
 export class AppError extends Error {
   statusCode: number;
+  // Campos extras devolvidos junto com o `error` (ex.: as pendências do 409 na
+  // exclusão de conta, que a tela usa para montar o modal de sucessores).
+  details: Record<string, unknown> | undefined;
 
-  constructor(statusCode: number, message: string) {
+  constructor(statusCode: number, message: string, details?: Record<string, unknown>) {
     super(message);
     this.name = 'AppError';
     this.statusCode = statusCode;
+    this.details = details;
   }
 }
 ```
@@ -704,6 +708,7 @@ return;
 ```
 
 - O arquivo tem o nome da classe (`AppError.ts`).
+- Quando a tela precisa de dados junto com o erro, passe-os no terceiro parâmetro (`details`). Eles saem no mesmo corpo do `error`: `throw new AppError(409, 'Escolha quem vai assumir…', { organizacoesPendentes })` responde `{ "organizacoesPendentes": [...], "error": "Escolha quem vai assumir…" }`. Use só para dados que o cliente precisa para resolver o erro, nunca para detalhes internos (EX-06).
 - A propriedade é declarada no corpo da classe, e não com `constructor(public statusCode …)`: o Node, ao executar `.ts` direto (TS-09), não aceita essa sintaxe.
 - **Divergências atuais:** `OrganizacaoError` (em `organizacaoService.ts`), `ComissaoError` (em `comissaoController.ts`) e as respostas montadas à mão no `usuarioController.ts`, `authController.ts` e `server.ts`.
 
@@ -747,7 +752,7 @@ export const handleError = (error: unknown, request: Request, response: Response
     return;
   }
   if (error instanceof AppError) {
-    response.status(error.statusCode).json({ error: error.message });
+    response.status(error.statusCode).json({ ...error.details, error: error.message });
     return;
   }
   // corpo da requisição com JSON malformado (lançado pelo express.json())
@@ -768,7 +773,11 @@ export const handleError = (error: unknown, request: Request, response: Response
   response.status(500).json({ error: 'Erro interno. Tente novamente mais tarde.' });
 };
 
-// src/server.ts — registrado por último, depois de todas as rotas
+// src/server.ts — registrado por último, depois de todas as rotas.
+// O 404 em JSON vem antes: sem ele, rota inexistente responde com HTML.
+app.use((_request, response) => {
+  response.status(404).json({ error: 'Rota não encontrada.' });
+});
 app.use(handleError);
 ```
 
