@@ -4,6 +4,8 @@ import type { AuthUser, Role } from '@/store/authStore';
 import type { Tema } from '@/store/themeStore';
 import { apiRequest } from '@/utils/apiClient';
 
+export type UsuarioResumo = { id: number; name: string; email: string };
+
 export type UsuarioReport = {
   total: number;
   porRole: Record<Role, number>;
@@ -68,6 +70,16 @@ export const usuarioService = {
       method: 'POST',
       body: usuario,
       fallbackError: 'Não foi possível criar o usuário.',
+    });
+  },
+
+  // busca por nome ou e-mail; com organizacaoId, deixa de fora quem já é membro.
+  search(token: string, termo: string, organizacaoId?: number) {
+    const params = new URLSearchParams({ q: termo });
+    if (organizacaoId) params.set('organizacaoId', String(organizacaoId));
+    return apiRequest<UsuarioResumo[]>(`/usuarios/busca?${params.toString()}`, {
+      token,
+      fallbackError: 'Não foi possível buscar usuários.',
     });
   },
 

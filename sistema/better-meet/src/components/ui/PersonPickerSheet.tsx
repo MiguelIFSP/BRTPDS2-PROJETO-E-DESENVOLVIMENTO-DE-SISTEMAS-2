@@ -1,6 +1,12 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import Avatar from '@/components/ui/Avatar';
 import BottomSheet from '@/components/ui/BottomSheet';
@@ -18,24 +24,20 @@ import {
   withAlpha,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
-import { emailRule } from '@/schemas/commonSchema';
-import { normalizeSearch } from '@/utils/format';
+import { getErrorMessage } from '@/utils/apiClient';
 
 export type Person = { id: number; name: string; email: string };
 
 export type PersonChoice<R extends string> = {
-  // null quando a escolha foi um e-mail digitado, fora da lista.
-  person: Person | null;
-  email: string;
+  person: Person;
   role: R | null;
 };
 
 type PersonPickerSheetProps<R extends string> = {
   visible: boolean;
   title: string;
-  people: Person[];
-  // aceita um e-mail digitado que não está na lista (convite por e-mail).
-  allowEmail?: boolean;
+  // devolve quem pode ser adicionado e corresponde ao termo (nome ou e-mail).
+  searchPeople: (term: string) => Promise<Person[]>;
   roles?: readonly { value: R; label: string }[];
   defaultRole?: R;
   // aviso embaixo da busca (ex.: "entra como Membro").
@@ -46,15 +48,23 @@ type PersonPickerSheetProps<R extends string> = {
   onSubmit: (choice: PersonChoice<R>) => Promise<string | null>;
 };
 
-const MAX_RESULTS = 8;
+const MIN_SEARCH_LENGTH = 2;
+// espera o usuário parar de digitar antes de buscar, para não disparar uma
+// requisição por letra.
+const SEARCH_DELAY_MS = 300;
 
-// Busca de pessoa por nome ou e-mail, escolha do papel e confirmação, num
-// painel que sobe do rodapé. Usado para adicionar membros.
+type SearchState =
+  | { status: 'idle' }
+  | { status: 'loading' }
+  | { status: 'done'; people: Person[] }
+  | { status: 'error'; message: string };
+
+// Busca de pessoa por nome ou e-mail, escolha na lista de resultados, papel e
+// confirmação, num painel que sobe do rodapé. Usado para adicionar membros.
 export default function PersonPickerSheet<R extends string>({
   visible,
   title,
-  people,
-  allowEmail = false,
+  searchPeople,
   roles,
   defaultRole,
   hint,
@@ -64,31 +74,65 @@ export default function PersonPickerSheet<R extends string>({
 }: PersonPickerSheetProps<R>) {
   const { colors } = useTheme();
   const [query, setQuery] = useState('');
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [useTypedEmail, setUseTypedEmail] = useState(false);
+  const [search, setSearch] = useState<SearchState>({ status: 'idle' });
+  const [selected, setSelected] = useState<Person | null>(null);
   const [role, setRole] = useState<R | null>(defaultRole ?? null);
   const [error, setError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const term = normalizeSearch(query);
-  const results = people
-    .filter(
-      (person) =>
-        normalizeSearch(person.name).includes(term) ||
-        normalizeSearch(person.email).includes(term),
-    )
-    .slice(0, MAX_RESULTS);
-  const typedEmail = query.trim().toLowerCase();
-  const canUseTypedEmail =
-    allowEmail &&
-    emailRule().isValidSync(typedEmail) &&
-    !people.some((person) => person.email.toLowerCase() === typedEmail);
-  const selected = people.find((person) => person.id === selectedId) ?? null;
+  const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // só a resposta da busca mais recente é exibida; as anteriores são ignoradas.
+  const searchIdRef = useRef(0);
+
+  const cancelSearch = () => {
+    if (timerRef.current) clearTimeout(timerRef.current);
+    searchIdRef.current += 1;
+  };
+
+  useEffect(() => cancelSearch, []);
+
+  const runSearch = async (term: string, searchId: number) => {
+    try {
+      const people = await searchPeople(term);
+      if (searchId === searchIdRef.current) {
+        setSearch({ status: 'done', people });
+      }
+    } catch (searchError) {
+      if (searchId === searchIdRef.current) {
+        setSearch({
+          status: 'error',
+          message: getErrorMessage(
+            searchError,
+            'Não foi possível buscar usuários.',
+          ),
+        });
+      }
+    }
+  };
+
+  const changeQuery = (value: string) => {
+    setQuery(value);
+    setError(null);
+    cancelSearch();
+
+    const term = value.trim();
+    if (term.length < MIN_SEARCH_LENGTH) {
+      setSearch({ status: 'idle' });
+      return;
+    }
+    setSearch({ status: 'loading' });
+    const searchId = searchIdRef.current;
+    timerRef.current = setTimeout(
+      () => void runSearch(term, searchId),
+      SEARCH_DELAY_MS,
+    );
+  };
 
   const reset = () => {
+    cancelSearch();
     setQuery('');
-    setSelectedId(null);
-    setUseTypedEmail(false);
+    setSearch({ status: 'idle' });
+    setSelected(null);
     setRole(defaultRole ?? null);
     setError(null);
   };
@@ -99,13 +143,8 @@ export default function PersonPickerSheet<R extends string>({
   };
 
   const submit = async () => {
-    const email = selected?.email ?? (useTypedEmail ? typedEmail : '');
-    if (!email) {
-      setError(
-        allowEmail
-          ? 'Escolha uma pessoa da lista ou digite o e-mail completo.'
-          : 'Escolha uma pessoa da lista.',
-      );
+    if (!selected) {
+      setError('Busque e escolha uma pessoa da lista.');
       return;
     }
     if (roles && !role) {
@@ -115,7 +154,7 @@ export default function PersonPickerSheet<R extends string>({
 
     setError(null);
     setIsSubmitting(true);
-    const message = await onSubmit({ person: selected, email, role });
+    const message = await onSubmit({ person: selected, role });
     setIsSubmitting(false);
     if (message) {
       setError(message);
@@ -124,20 +163,16 @@ export default function PersonPickerSheet<R extends string>({
     close();
   };
 
-  const renderOption = (
-    key: string,
-    label: string,
-    detail: string,
-    isSelected: boolean,
-    onPress: () => void,
-    avatarName?: string,
-  ) => (
+  const renderPerson = (person: Person, isSelected: boolean) => (
     <Pressable
-      key={key}
+      key={person.id}
       accessibilityRole="radio"
-      accessibilityLabel={`${label}, ${detail}`}
+      accessibilityLabel={`${person.name}, ${person.email}`}
       accessibilityState={{ selected: isSelected }}
-      onPress={onPress}
+      onPress={() => {
+        setSelected(isSelected ? null : person);
+        setError(null);
+      }}
       style={({ pressed }) => [
         styles.option,
         {
@@ -151,30 +186,19 @@ export default function PersonPickerSheet<R extends string>({
         pressed && styles.pressed,
       ]}
     >
-      {avatarName ? (
-        <Avatar name={avatarName} size="sm" />
-      ) : (
-        <View
-          style={[
-            styles.mailIcon,
-            { backgroundColor: withAlpha(colors.primary, 0.18) },
-          ]}
-        >
-          <Ionicons name="mail-outline" size={16} color={colors.primary} />
-        </View>
-      )}
+      <Avatar name={person.name} size="sm" />
       <View style={styles.optionInfo}>
         <Text
           style={[styles.optionName, { color: colors.text }]}
           numberOfLines={1}
         >
-          {label}
+          {person.name}
         </Text>
         <Text
           style={[styles.optionDetail, { color: colors.textSecondary }]}
           numberOfLines={1}
         >
-          {detail}
+          {person.email}
         </Text>
       </View>
       <Ionicons
@@ -184,6 +208,40 @@ export default function PersonPickerSheet<R extends string>({
       />
     </Pressable>
   );
+
+  const renderStatus = (message: string) => (
+    <Text style={[styles.status, { color: colors.textSecondary }]}>
+      {message}
+    </Text>
+  );
+
+  const renderResults = () => {
+    if (search.status === 'idle') {
+      return renderStatus(
+        'Digite pelo menos 2 letras do nome ou do e-mail para buscar.',
+      );
+    }
+    if (search.status === 'loading') {
+      return (
+        <ActivityIndicator
+          color={colors.primary}
+          accessibilityLabel="Buscando pessoas"
+        />
+      );
+    }
+    if (search.status === 'error') return renderStatus(search.message);
+
+    // a pessoa escolhida já aparece em destaque acima da lista.
+    const people = search.people.filter((person) => person.id !== selected?.id);
+    if (people.length === 0) {
+      return renderStatus(
+        selected
+          ? 'Ninguém mais encontrado com esse nome ou e-mail.'
+          : 'Ninguém encontrado com esse nome ou e-mail.',
+      );
+    }
+    return people.map((person) => renderPerson(person, false));
+  };
 
   return (
     <BottomSheet visible={visible} title={title} onClose={close}>
@@ -195,11 +253,7 @@ export default function PersonPickerSheet<R extends string>({
           autoCapitalize="none"
           autoCorrect={false}
           value={query}
-          onChangeText={(value) => {
-            setQuery(value);
-            setUseTypedEmail(false);
-            setError(null);
-          }}
+          onChangeText={changeQuery}
         />
         {hint ? (
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
@@ -209,42 +263,14 @@ export default function PersonPickerSheet<R extends string>({
       </View>
 
       <View accessibilityRole="radiogroup" style={styles.results}>
-        {results.map((person) =>
-          renderOption(
-            String(person.id),
-            person.name,
-            person.email,
-            selectedId === person.id,
-            () => {
-              setSelectedId(person.id);
-              setUseTypedEmail(false);
-              setError(null);
-            },
-            person.name,
-          ),
-        )}
-        {canUseTypedEmail
-          ? renderOption(
-              'typed-email',
-              'Adicionar por e-mail',
-              typedEmail,
-              useTypedEmail,
-              () => {
-                setSelectedId(null);
-                setUseTypedEmail(true);
-                setError(null);
-              },
-            )
-          : null}
-        {results.length === 0 && !canUseTypedEmail ? (
-          <Text style={[styles.empty, { color: colors.textSecondary }]}>
-            {people.length === 0 && !allowEmail
-              ? 'Não há ninguém disponível para adicionar.'
-              : allowEmail
-                ? 'Ninguém encontrado. Digite o e-mail completo para adicionar quem já tem conta.'
-                : 'Ninguém encontrado com esse nome ou e-mail.'}
-          </Text>
+        {selected ? (
+          <>
+            <SectionLabel label="Selecionada" />
+            {renderPerson(selected, true)}
+            <SectionLabel label="Resultados" />
+          </>
         ) : null}
+        {renderResults()}
       </View>
 
       {roles ? (
@@ -295,16 +321,9 @@ const styles = StyleSheet.create({
     padding: Spacing.md,
   },
   pressed: { opacity: 0.8 },
-  mailIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: Radius.full,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   optionInfo: { flex: 1, minWidth: 0 },
   optionName: { ...Typography.body, fontFamily: FontFamily.semiBold },
   optionDetail: { ...Typography.bodySmall },
-  empty: { ...Typography.body, textAlign: 'center' },
+  status: { ...Typography.body, textAlign: 'center' },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
 });

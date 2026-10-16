@@ -359,6 +359,37 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /usuarios/busca:
+    get:
+      tags: [Usuários]
+      summary: Busca usuários por nome ou e-mail
+      description: >-
+        Exige `requireAuth`. Usada para escolher quem adicionar a uma
+        organização. Devolve no máximo 10 usuários, em ordem de nome.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Trecho do nome ou do e-mail.
+          schema: { type: string, minLength: 2, maxLength: 160 }
+        - name: organizacaoId
+          in: query
+          required: false
+          description: Quando informado, deixa de fora quem já é membro dessa organização.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Usuários encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UsuarioResumo' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /usuarios/relatorio:
     get:
       tags: [Usuários]

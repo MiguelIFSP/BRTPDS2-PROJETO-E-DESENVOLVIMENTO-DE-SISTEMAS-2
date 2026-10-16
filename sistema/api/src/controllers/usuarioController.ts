@@ -9,6 +9,7 @@
 
 import type { Request, Response } from 'express';
 import {
+  buscaUsuarioSchema,
   cadastroUsuarioSchema,
   exclusaoContaSchema,
   perfilSchema,
@@ -105,6 +106,15 @@ export const usuarioController = {
     response.status(200).json({
       message: 'Sua conta e suas organizações foram excluídas com sucesso.',
     });
+  },
+
+  async search(request: Request, response: Response) {
+    const { q, organizacaoId } = await buscaUsuarioSchema.validate(
+      request.query,
+      { stripUnknown: true },
+    );
+    const usuarios = await usuarioService.search(q, organizacaoId);
+    response.status(200).json(usuarios);
   },
 
   async getReport(_request: Request, response: Response) {

@@ -4,20 +4,18 @@ import * as yup from 'yup';
 
 import OrganizacaoMembroRow from '@/components/OrganizacaoMembroRow';
 import Button from '@/components/ui/Button';
-import PersonPickerSheet, {
-  type Person,
-} from '@/components/ui/PersonPickerSheet';
+import PersonPickerSheet from '@/components/ui/PersonPickerSheet';
 import SectionLabel from '@/components/ui/SectionLabel';
 import { Spacing } from '@/constants/theme';
 import type { OrganizacaoAction } from '@/hooks/useOrganizacaoActions';
 import { membroOrganizacaoSchema } from '@/schemas/organizacaoSchema';
 import { countByPapel, type Organizacao } from '@/services/organizacaoService';
+import { usuarioService } from '@/services/usuarioService';
+import { useAuthStore } from '@/store/authStore';
 import { countLabel } from '@/utils/format';
 
 type OrganizacaoEquipeProps = {
   organizacao: Organizacao;
-  // pessoas que o usuário já vê em outras organizações, sugeridas na busca.
-  knownPeople: Person[];
   canAdd: boolean;
   canPromote: boolean;
   canRemove: boolean;
@@ -27,28 +25,26 @@ type OrganizacaoEquipeProps = {
 };
 
 // Equipe de uma organização aceita: lista de membros com as ações permitidas
-// e o convite, que busca entre pessoas conhecidas ou aceita o e-mail de quem
-// já tem conta.
+// e a adição, que busca entre todos os usuários que ainda não são membros.
 export default function OrganizacaoEquipe({
   organizacao,
-  knownPeople,
   canAdd,
   canPromote,
   canRemove,
   onRequestAction,
   onAddMember,
 }: OrganizacaoEquipeProps) {
+  const token = useAuthStore((state) => state.token);
   const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const gerenteCount = countByPapel(organizacao, 'GERENTE');
   const moderadorCount = countByPapel(organizacao, 'MODERADOR');
   const total = organizacao.membros.length;
-  const idsNaOrganizacao = new Set(
-    organizacao.membros.map((membro) => membro.user.id),
-  );
-  const candidatos = knownPeople.filter(
-    (person) => !idsNaOrganizacao.has(person.id),
-  );
+
+  const searchPeople = async (term: string) => {
+    if (!token) throw new Error('Sessão expirada. Entre novamente.');
+    return usuarioService.search(token, term, organizacao.id);
+  };
 
   const handleAdd = async (email: string) => {
     try {
@@ -112,12 +108,11 @@ export default function OrganizacaoEquipe({
           <PersonPickerSheet
             visible={isPickerOpen}
             title={`Adicionar a ${organizacao.nome}`}
-            people={candidatos}
-            allowEmail
+            searchPeople={searchPeople}
             hint="A pessoa entra como Membro. Depois, quem pode promover ajusta o papel."
             submitLabel="Adicionar à organização"
             onClose={() => setIsPickerOpen(false)}
-            onSubmit={({ email }) => handleAdd(email)}
+            onSubmit={({ person }) => handleAdd(person.email)}
           />
         </>
       ) : null}

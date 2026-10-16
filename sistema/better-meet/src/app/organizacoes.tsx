@@ -17,7 +17,6 @@ import { useFeedback } from '@/hooks/useFeedback';
 import { useOrganizacaoActions } from '@/hooks/useOrganizacaoActions';
 import { useTheme } from '@/hooks/useTheme';
 import {
-  listKnownPeople,
   organizacaoService,
   type Organizacao,
 } from '@/services/organizacaoService';
@@ -120,8 +119,6 @@ export default function OrganizacoesScreen() {
     }
   };
 
-  const knownPeople = listKnownPeople(organizacoes);
-
   return (
     <Screen hasForm>
       <ScreenHeader
@@ -164,7 +161,6 @@ export default function OrganizacoesScreen() {
 
               <OrganizacaoEquipe
                 organizacao={organizacao}
-                knownPeople={knownPeople}
                 canAdd={isAceita}
                 canPromote={isAceita}
                 canRemove={isAceita}

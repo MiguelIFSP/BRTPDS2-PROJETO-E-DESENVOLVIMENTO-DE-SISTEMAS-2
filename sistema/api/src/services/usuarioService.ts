@@ -19,6 +19,9 @@ type Sucessores = Record<string, number>;
 // quantos usuarios entram no ranking de mais ativos.
 const TOP_ATIVOS = 5;
 
+// limite da busca de usuários; quem não aparece refina o termo.
+const MAX_RESULTADOS_BUSCA = 10;
+
 // papeis "de responsabilidade" que o relatorio destaca.
 const PAPEIS_ORG_DESTAQUE = [
   'CRIADOR',
@@ -352,6 +355,20 @@ export const usuarioService = {
       }
       throw error;
     }
+  },
+
+  // busca por trecho do nome ou do e-mail. A collation padrão do MySQL já
+  // ignora caixa e acento no contains.
+  async search(termo: string, organizacaoId?: number) {
+    return prisma.user.findMany({
+      where: {
+        OR: [{ name: { contains: termo } }, { email: { contains: termo } }],
+        ...(organizacaoId ? { organizacoes: { none: { organizacaoId } } } : {}),
+      },
+      orderBy: { name: 'asc' },
+      take: MAX_RESULTADOS_BUSCA,
+      select: userResumoSelect,
+    });
   },
 
   // comissões em que o usuário é ADMINISTRADOR, com a equipe, pra tela de

@@ -31,7 +31,6 @@ import { organizacaoSchema } from '@/schemas/organizacaoSchema';
 import { monitoringService } from '@/services/monitoringService';
 import {
   getMyPapel,
-  listKnownPeople,
   organizacaoService,
   type Organizacao,
 } from '@/services/organizacaoService';
@@ -171,7 +170,6 @@ export default function OrganizacaoScreen() {
   };
 
   const total = organizacoes.length;
-  const knownPeople = listKnownPeople(organizacoes);
 
   return (
     <Screen hasForm>
@@ -214,7 +212,6 @@ export default function OrganizacaoScreen() {
             {isAceita ? (
               <OrganizacaoEquipe
                 organizacao={organizacao}
-                knownPeople={knownPeople}
                 canAdd={canAdd}
                 canPromote={canPromote}
                 canRemove={canRemove}

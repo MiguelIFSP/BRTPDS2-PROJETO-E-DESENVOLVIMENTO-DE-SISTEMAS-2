@@ -30,6 +30,9 @@ routes.get(
   usuarioController.getReport,
 );
 
+// Busca por nome ou e-mail, para adicionar membros (autenticado)
+routes.get('/usuarios/busca', requireAuth, usuarioController.search);
+
 // Troca de senha (autenticado)
 routes.patch(
   '/usuarios/:id/senha',

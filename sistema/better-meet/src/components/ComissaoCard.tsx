@@ -27,7 +27,7 @@ import {
   type PapelComissao,
 } from '@/services/comissaoService';
 import type { OrganizacaoMembro } from '@/services/organizacaoService';
-import { countLabel } from '@/utils/format';
+import { countLabel, normalizeSearch } from '@/utils/format';
 
 // cor do badge por papel, na mesma ordem de hierarquia da organização.
 const PAPEL_TONE = {
@@ -67,9 +67,21 @@ export default function ComissaoCard({
     membrosOrganizacao.map((membro) => [membro.user.id, membro.user.name]),
   );
   const idsNaEquipe = new Set(comissao.equipe.map((membro) => membro.userId));
-  const candidatos = membrosOrganizacao.filter(
-    (membro) => !idsNaEquipe.has(membro.user.id),
-  );
+  const candidatos = membrosOrganizacao
+    .filter((membro) => !idsNaEquipe.has(membro.user.id))
+    .map((membro) => membro.user);
+
+  // a lista de quem pode entrar já está carregada; a busca só filtra.
+  const searchCandidatos = (term: string) => {
+    const normalized = normalizeSearch(term);
+    return Promise.resolve(
+      candidatos.filter(
+        (person) =>
+          normalizeSearch(person.name).includes(normalized) ||
+          normalizeSearch(person.email).includes(normalized),
+      ),
+    );
+  };
   const equipe = comissao.equipe.map((membro) => ({
     ...membro,
     name: nomePorUserId.get(membro.userId) ?? 'Ex-membro da organização',
@@ -163,7 +175,7 @@ export default function ComissaoCard({
       <PersonPickerSheet
         visible={isPickerOpen}
         title={`Adicionar a ${comissao.nome}`}
-        people={candidatos.map((membro) => membro.user)}
+        searchPeople={searchCandidatos}
         roles={PAPEIS_COMISSAO.map((item) => ({
           value: item,
           label: papelComissaoLabel(item),
@@ -176,7 +188,7 @@ export default function ComissaoCard({
         }
         submitLabel="Adicionar à comissão"
         onClose={() => setIsPickerOpen(false)}
-        onSubmit={({ person, role }) => handleAdd(person?.id, role)}
+        onSubmit={({ person, role }) => handleAdd(person.id, role)}
       />
 
       <FeedbackBanner feedback={feedback} />

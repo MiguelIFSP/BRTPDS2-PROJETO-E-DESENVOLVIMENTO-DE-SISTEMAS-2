@@ -26,6 +26,18 @@ export const perfilSchema = yup.object({
   email: emailRule(),
 });
 
+// Busca de usuários para adicionar a uma organização (search)
+export const buscaUsuarioSchema = yup.object({
+  q: yup
+    .string()
+    .trim()
+    .required('Informe o nome ou e-mail para buscar.')
+    .min(2, 'Digite pelo menos 2 caracteres para buscar.')
+    .max(160, 'A busca deve ter no máximo 160 caracteres.'),
+  // quem já é membro dessa organização fica fora do resultado.
+  organizacaoId: idRule('Organização inválida.'),
+});
+
 // Alteração de tema (updateTheme — UC04)
 export const temaSchema = yup.object({
   theme: yup

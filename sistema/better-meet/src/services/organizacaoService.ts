@@ -71,16 +71,6 @@ export const previousPapel = (
 export const getMyPapel = (organizacao: Organizacao, userId?: number) =>
   organizacao.membros.find((membro) => membro.user.id === userId)?.papel;
 
-// pessoas distintas de todas as organizações da lista, para sugerir na busca
-// de novos membros sem expor usuários que o usuário não vê.
-export const listKnownPeople = (organizacoes: Organizacao[]) => [
-  ...new Map(
-    organizacoes
-      .flatMap((organizacao) => organizacao.membros)
-      .map((membro) => [membro.user.id, membro.user] as const),
-  ).values(),
-];
-
 export const countByPapel = (
   organizacao: Organizacao,
   papel: PapelOrganizacao,
