@@ -1,46 +1,55 @@
-import { API_URL } from '../config/api';
+import { apiRequest } from '@/utils/apiClient';
 
-export type PapelOrganizacao = 'CRIADOR' | 'GERENTE' | 'MODERADOR' | 'MEMBRO';
+// Mesmos valores dos enums PapelOrganizacao e StatusOrganizacao do schema.prisma.
+export const PAPEIS_ORGANIZACAO = [
+  'CRIADOR',
+  'GERENTE',
+  'MODERADOR',
+  'MEMBRO',
+] as const;
+export type PapelOrganizacao = (typeof PAPEIS_ORGANIZACAO)[number];
 
-export type OrganizationMember = {
+export const STATUS_ORGANIZACAO = ['PENDENTE', 'ACEITA', 'RECUSADA'] as const;
+export type StatusOrganizacao = (typeof STATUS_ORGANIZACAO)[number];
+
+// teto por cargo, o mesmo do organizacaoService da API.
+export const LIMITE_POR_PAPEL = {
+  GERENTE: 1,
+  MODERADOR: 2,
+} satisfies Partial<Record<PapelOrganizacao, number>>;
+
+export type OrganizacaoMembro = {
   papel: PapelOrganizacao;
   user: { id: number; name: string; email: string };
 };
 
-export type Organization = {
+export type Organizacao = {
   id: number;
   nome: string;
-  status: 'PENDENTE' | 'ACEITA' | 'RECUSADA' | string;
+  status: StatusOrganizacao;
   createdAt: string;
-  membros: OrganizationMember[];
+  membros: OrganizacaoMembro[];
+  comissoes: { id: number; nome: string }[];
 };
 
-export type OrganizationReport = {
+export type OrganizacaoReport = {
   total: number;
-  porStatus: Record<'PENDENTE' | 'ACEITA' | 'RECUSADA', number>;
+  porStatus: Record<StatusOrganizacao, number>;
   crescimentoPorMes: { mes: string; quantidade: number }[];
   distribuicaoPapeis: Record<PapelOrganizacao, number>;
   mediaMembrosPorOrganizacao: number;
 };
 
-type ApiErrorBody = { error?: string };
+type MessageResponse = { message: string };
 
-const authHeaders = (token: string) => ({
-  Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json',
-});
+const PAPEL_LABELS = {
+  CRIADOR: 'Criador',
+  GERENTE: 'Gerente',
+  MODERADOR: 'Moderador',
+  MEMBRO: 'Membro',
+} satisfies Record<PapelOrganizacao, string>;
 
-const readError = async (response: Response, fallback: string) => {
-  const data = (await response.json().catch(() => ({}))) as ApiErrorBody;
-  return data.error ?? fallback;
-};
-
-const parseJson = async <T>(response: Response, fallback: string): Promise<T> => {
-  if (!response.ok) {
-    throw new Error(await readError(response, fallback));
-  }
-  return response.json() as Promise<T>;
-};
+export const papelLabel = (papel: PapelOrganizacao) => PAPEL_LABELS[papel];
 
 // um nivel acima. gerente e criador nao sobem.
 export const nextPapel = (papel: PapelOrganizacao): PapelOrganizacao | null => {
@@ -50,108 +59,116 @@ export const nextPapel = (papel: PapelOrganizacao): PapelOrganizacao | null => {
 };
 
 // um nivel abaixo. membro e criador nao descem.
-export const previousPapel = (papel: PapelOrganizacao): PapelOrganizacao | null => {
+export const previousPapel = (
+  papel: PapelOrganizacao,
+): PapelOrganizacao | null => {
   if (papel === 'GERENTE') return 'MODERADOR';
   if (papel === 'MODERADOR') return 'MEMBRO';
   return null;
 };
 
-export const papelLabel = (papel: PapelOrganizacao) => {
-  const labels: Record<PapelOrganizacao, string> = {
-    CRIADOR: 'Criador',
-    GERENTE: 'Gerente',
-    MODERADOR: 'Moderador',
-    MEMBRO: 'Membro',
-  };
-  return labels[papel];
-};
-
 // cargo do usuario logado nessa org. se nao achar, undefined.
-export const getMyPapel = (organization: Organization, userId?: number) =>
-  organization.membros.find((member) => member.user.id === userId)?.papel;
+export const getMyPapel = (organizacao: Organizacao, userId?: number) =>
+  organizacao.membros.find((membro) => membro.user.id === userId)?.papel;
+
+export const countByPapel = (
+  organizacao: Organizacao,
+  papel: PapelOrganizacao,
+) => organizacao.membros.filter((membro) => membro.papel === papel).length;
 
 export const organizacaoService = {
-  async listMine(token: string) {
-    const response = await fetch(`${API_URL}/organizacoes/minhas`, {
-      headers: authHeaders(token),
+  listMine(token: string) {
+    return apiRequest<Organizacao[]>('/organizacoes/minhas', {
+      token,
+      fallbackError: 'Não foi possível listar suas organizações.',
     });
-    return parseJson<Organization[]>(response, 'Não foi possível listar suas organizações.');
   },
 
-  async listAll(token: string) {
-    const response = await fetch(`${API_URL}/organizacoes`, {
-      headers: authHeaders(token),
+  listAll(token: string) {
+    return apiRequest<Organizacao[]>('/organizacoes', {
+      token,
+      fallbackError: 'Não foi possível carregar as solicitações.',
     });
-    return parseJson<Organization[]>(response, 'Não foi possível carregar as solicitações.');
   },
 
-  async getReport(token: string) {
-    const response = await fetch(`${API_URL}/organizacoes/relatorio`, {
-      headers: authHeaders(token),
+  getReport(token: string) {
+    return apiRequest<OrganizacaoReport>('/organizacoes/relatorio', {
+      token,
+      fallbackError: 'Não foi possível carregar o relatório de organizações.',
     });
-    return parseJson<OrganizationReport>(response, 'Não foi possível carregar o relatório de organizações.');
   },
 
-  async getReportMine(token: string) {
-    const response = await fetch(`${API_URL}/organizacoes/relatorio/minhas`, {
-      headers: authHeaders(token),
+  getReportMine(token: string) {
+    return apiRequest<OrganizacaoReport>('/organizacoes/relatorio/minhas', {
+      token,
+      fallbackError:
+        'Não foi possível carregar o relatório das suas organizações.',
     });
-    return parseJson<OrganizationReport>(response, 'Não foi possível carregar o relatório das suas organizações.');
   },
 
-  async create(token: string, nome: string) {
-    const response = await fetch(`${API_URL}/organizacoes`, {
+  create(token: string, nome: string) {
+    return apiRequest<Organizacao>('/organizacoes', {
       method: 'POST',
-      headers: authHeaders(token),
-      body: JSON.stringify({ nome }),
+      token,
+      body: { nome },
+      fallbackError: 'Não foi possível criar a organização.',
     });
-    return parseJson<Organization>(response, 'Não foi possível criar a organização.');
   },
 
-  async updateStatus(token: string, id: number, status: 'ACEITA' | 'RECUSADA') {
-    const response = await fetch(`${API_URL}/organizacoes/${id}/status`, {
+  updateStatus(token: string, id: number, status: 'ACEITA' | 'RECUSADA') {
+    return apiRequest<Organizacao>(`/organizacoes/${id}/status`, {
       method: 'PATCH',
-      headers: authHeaders(token),
-      body: JSON.stringify({ status }),
+      token,
+      body: { status },
+      fallbackError: 'Não foi possível atualizar a solicitação.',
     });
-    return parseJson<Organization>(response, 'Não foi possível atualizar a solicitação.');
   },
 
-  async addMember(token: string, organizationId: number, email: string) {
-    const response = await fetch(`${API_URL}/organizacoes/${organizationId}/membros`, {
-      method: 'POST',
-      headers: authHeaders(token),
-      body: JSON.stringify({ email }),
-    });
-    return parseJson<OrganizationMember>(response, 'Não foi possível adicionar o membro.');
+  addMember(token: string, organizacaoId: number, email: string) {
+    return apiRequest<OrganizacaoMembro>(
+      `/organizacoes/${organizacaoId}/membros`,
+      {
+        method: 'POST',
+        token,
+        body: { email },
+        fallbackError: 'Não foi possível adicionar o membro.',
+      },
+    );
   },
 
-  async updateMemberRole(token: string, organizationId: number, userId: number, papel: PapelOrganizacao) {
-    const response = await fetch(`${API_URL}/organizacoes/${organizationId}/membros/${userId}`, {
-      method: 'PATCH',
-      headers: authHeaders(token),
-      body: JSON.stringify({ papel }),
-    });
-    return parseJson<OrganizationMember>(response, 'Não foi possível atualizar o papel do membro.');
+  updateMemberRole(
+    token: string,
+    organizacaoId: number,
+    userId: number,
+    papel: PapelOrganizacao,
+  ) {
+    return apiRequest<OrganizacaoMembro>(
+      `/organizacoes/${organizacaoId}/membros/${userId}`,
+      {
+        method: 'PATCH',
+        token,
+        body: { papel },
+        fallbackError: 'Não foi possível atualizar o papel do membro.',
+      },
+    );
   },
 
-  async removeMember(token: string, organizationId: number, userId: number) {
-    const response = await fetch(`${API_URL}/organizacoes/${organizationId}/membros/${userId}`, {
+  removeMember(token: string, organizacaoId: number, userId: number) {
+    return apiRequest<MessageResponse>(
+      `/organizacoes/${organizacaoId}/membros/${userId}`,
+      {
+        method: 'DELETE',
+        token,
+        fallbackError: 'Não foi possível remover o membro.',
+      },
+    );
+  },
+
+  delete(token: string, organizacaoId: number) {
+    return apiRequest<MessageResponse>(`/organizacoes/${organizacaoId}`, {
       method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
+      token,
+      fallbackError: 'Não foi possível excluir a organização.',
     });
-    if (!response.ok) {
-      throw new Error(await readError(response, 'Não foi possível remover o membro.'));
-    }
-  },
-
-  async delete(token: string, organizationId: number) {
-    const response = await fetch(`${API_URL}/organizacoes/${organizationId}`, {
-      method: 'DELETE',
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) {
-      throw new Error(await readError(response, 'Não foi possível excluir a organização.'));
-    }
   },
 };

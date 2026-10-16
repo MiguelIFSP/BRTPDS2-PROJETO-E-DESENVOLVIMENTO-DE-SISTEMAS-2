@@ -1,56 +1,35 @@
-# Welcome to your Expo app 👋
+# Better Meet — App
 
-This is an [Expo](https://expo.dev) project created with [`create-expo-app`](https://www.npmjs.com/package/create-expo-app).
+Aplicativo mobile/web do Better Meet (Expo SDK 57 + React Native + Expo Router + Zustand). Consome a API de Dados (`sistema/api`) e a API de Monitoramento (`sistema/monitoring-better-meet`).
 
-## Get started
+O código segue o [Guia de Codificação](../GUIA_DE_CODIFICACAO.md). Para APIs do Expo, use a documentação da versão instalada: https://docs.expo.dev/versions/v57.0.0/.
 
-1. Install dependencies
+## Como rodar
 
-   ```bash
-   npm install
-   ```
+1. Instale as dependências: `npm install`
+2. Copie `.env.example` para `.env` e preencha as URLs das APIs (veja os comentários no arquivo).
+3. Suba o app: `npm start` (ou `npm run android`, `npm run ios`, `npm run web`).
 
-2. Start the app
+## Scripts
 
-   ```bash
-   npx expo start
-   ```
+| Script                                    | O que faz                                                    |
+| ----------------------------------------- | ------------------------------------------------------------ |
+| `npm start`                               | Inicia o Metro/Expo                                          |
+| `npm run lint`                            | ESLint (`expo lint`) com as regras do guia                   |
+| `npm run format` / `npm run format:check` | Formata / confere a formatação com o Prettier                |
+| `npm run typecheck`                       | `tsc --noEmit`                                               |
+| `npm test`                                | Testes com Jest (`jest-expo`) e React Native Testing Library |
 
-In the output, you'll find options to open the app in a
+## Estrutura de `src/`
 
-- [development build](https://docs.expo.dev/develop/development-builds/introduction/)
-- [Android emulator](https://docs.expo.dev/workflow/android-studio-emulator/)
-- [iOS simulator](https://docs.expo.dev/workflow/ios-simulator/)
-- [Expo Go](https://expo.dev/go), a limited sandbox for trying out app development with Expo
-
-You can start developing by editing the files inside the **app** directory. This project uses [file-based routing](https://docs.expo.dev/router/introduction).
-
-## Get a fresh project
-
-When you're ready, run:
-
-```bash
-npm run reset-project
-```
-
-This command will move the starter code to the **app-example** directory and create a blank **app** directory where you can start developing.
-
-### Other setup steps
-
-- To set up ESLint for linting, run `npx expo lint`, or follow our guide on ["Using ESLint and Prettier"](https://docs.expo.dev/guides/using-eslint/)
-- If you'd like to set up unit testing, follow our guide on ["Unit Testing with Jest"](https://docs.expo.dev/develop/unit-testing/)
-- Learn more about the TypeScript setup in this template in our guide on ["Using TypeScript"](https://docs.expo.dev/guides/typescript/)
-
-## Learn more
-
-To learn more about developing your project with Expo, look at the following resources:
-
-- [Expo documentation](https://docs.expo.dev/): Learn fundamentals, or go into advanced topics with our [guides](https://docs.expo.dev/guides).
-- [Learn Expo tutorial](https://docs.expo.dev/tutorial/introduction/): Follow a step-by-step tutorial where you'll create a project that runs on Android, iOS, and the web.
-
-## Join the community
-
-Join our community of developers creating universal apps.
-
-- [Expo on GitHub](https://github.com/expo/expo): View our open source platform and contribute.
-- [Discord community](https://chat.expo.dev): Chat with Expo users and ask questions.
+| Pasta            | Conteúdo                                                                                                                                                 |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `app/`           | Telas (rotas do Expo Router, em kebab-case pt-BR). O `_layout.tsx` carrega as fontes, registra as telas no Drawer e faz a checagem de login (`AppGate`)  |
+| `components/ui/` | Componentes base do design system: `Button`, `TextField`, `Card`, `Screen`, `ScreenHeader`, `FeedbackBanner`, `ConfirmDialog`, `Badge`, `Avatar`, `Chip` |
+| `components/`    | Componentes do domínio (`OrganizacaoEquipe`, `ComissaoCard`, `relatorio/…`)                                                                              |
+| `constants/`     | Tema (`theme.ts`: cores, tipografia, espaçamento, raios) e rótulos de status                                                                             |
+| `hooks/`         | `useTheme`, `useFeedback`, `useOrganizacaoActions`                                                                                                       |
+| `schemas/`       | Schemas Yup dos formulários (`commonSchema.ts` igual ao da API)                                                                                          |
+| `services/`      | Chamadas HTTP por domínio, todas via `utils/apiClient.ts`                                                                                                |
+| `store/`         | Stores Zustand persistidos (`authStore`, `themeStore`)                                                                                                   |
+| `utils/`         | Cliente HTTP, erros de formulário e formatação                                                                                                           |

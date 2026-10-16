@@ -1,12 +1,14 @@
-import { create } from 'zustand';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+
+export type Role = 'USER' | 'ADMIN';
 
 export type AuthUser = {
   id: number;
   name: string;
   email: string;
-  role: 'USER' | 'ADMIN';
+  role: Role;
   createdAt: string;
 };
 
@@ -17,6 +19,8 @@ type AuthState = {
   hasHydrated: boolean;
   login: (user: AuthUser, token: string) => void;
   logout: () => void;
+  updateUser: (changes: Pick<AuthUser, 'name' | 'email'>) => void;
+  markHydrated: () => void;
 };
 
 export const useAuthStore = create<AuthState>()(
@@ -26,8 +30,13 @@ export const useAuthStore = create<AuthState>()(
       token: null,
       isAuthenticated: false,
       hasHydrated: false,
-      login: (user: AuthUser, token: string) => set({ user, token, isAuthenticated: true }),
+      login: (user, token) => set({ user, token, isAuthenticated: true }),
       logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      updateUser: (changes) =>
+        set((state) => ({
+          user: state.user ? { ...state.user, ...changes } : state.user,
+        })),
+      markHydrated: () => set({ hasHydrated: true }),
     }),
     {
       name: 'better-meet-auth',
@@ -38,7 +47,7 @@ export const useAuthStore = create<AuthState>()(
         isAuthenticated: state.isAuthenticated,
       }),
       onRehydrateStorage: () => (state) => {
-        if (state) useAuthStore.setState({ hasHydrated: true });
+        state?.markHydrated();
       },
     },
   ),

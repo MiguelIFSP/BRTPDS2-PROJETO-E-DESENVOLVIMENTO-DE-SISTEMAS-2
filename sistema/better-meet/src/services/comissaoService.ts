@@ -1,15 +1,37 @@
-import { API_URL } from '../config/api'; 
+import { apiRequest } from '@/utils/apiClient';
 
-export type PapelComissao = 'ADMINISTRADOR' | 'FACILITADOR' | 'SECRETARIO' | 'MEMBRO';
+// Mesmos valores do enum PapelComissao do schema.prisma.
+export const PAPEIS_COMISSAO = [
+  'ADMINISTRADOR',
+  'FACILITADOR',
+  'SECRETARIO',
+  'MEMBRO',
+] as const;
+export type PapelComissao = (typeof PAPEIS_COMISSAO)[number];
 
-export const papelComissaoLabel = (papel: PapelComissao) => {
-  const labels: Record<PapelComissao, string> = {
-    ADMINISTRADOR: 'Administrador',
-    FACILITADOR: 'Facilitador',
-    SECRETARIO: 'Secretário',
-    MEMBRO: 'Membro',
-  };
-  return labels[papel];
+const PAPEL_COMISSAO_LABELS = {
+  ADMINISTRADOR: 'Administrador',
+  FACILITADOR: 'Facilitador',
+  SECRETARIO: 'Secretário',
+  MEMBRO: 'Membro',
+} satisfies Record<PapelComissao, string>;
+
+export const papelComissaoLabel = (papel: PapelComissao) =>
+  PAPEL_COMISSAO_LABELS[papel];
+
+export type ComissaoEquipe = {
+  comissaoId: number;
+  userId: number;
+  papel: PapelComissao;
+};
+
+export type Comissao = {
+  id: number;
+  nome: string;
+  descricao: string | null;
+  createdAt: string;
+  organizacaoId: number;
+  equipe: ComissaoEquipe[];
 };
 
 export type ComissaoReport = {
@@ -29,132 +51,76 @@ export type ComissaoReport = {
   }[];
 };
 
-const authHeaders = (token: string) => ({
-  Authorization: `Bearer ${token}`,
-  'Content-Type': 'application/json',
-});
-
-const readError = async (response: Response, fallback: string) => {
-  const data = (await response.json().catch(() => ({}))) as { error?: string };
-  return data.error ?? fallback;
-};
-
-// rotas de comissao sao montadas sob /api na API (ver server.ts).
-const fetchReport = async (path: string, token: string, fallback: string) => {
-  const response = await fetch(`${API_URL}${path}`, { headers: authHeaders(token) });
-  if (!response.ok) throw new Error(await readError(response, fallback));
-  return response.json() as Promise<ComissaoReport>;
-};
-
-export interface ComissaoEquipe {
-  comissaoId: number;
-  userId: number;
-  papel: string;
-}
-
-export interface Comissao {
-  id: number;
+export type ComissaoData = {
   nome: string;
   descricao?: string;
   organizacaoId: number;
-  equipe?: ComissaoEquipe[];
-}
+};
+
+type MessageResponse = { message: string };
 
 export const comissaoService = {
   getReport(token: string) {
-    return fetchReport('/comissoes/relatorio', token, 'Não foi possível carregar o relatório de comissões.');
+    return apiRequest<ComissaoReport>('/comissoes/relatorio', {
+      token,
+      fallbackError: 'Não foi possível carregar o relatório de comissões.',
+    });
   },
 
   getReportMine(token: string) {
-    return fetchReport('/comissoes/relatorio/minhas', token, 'Não foi possível carregar o relatório das suas comissões.');
+    return apiRequest<ComissaoReport>('/comissoes/relatorio/minhas', {
+      token,
+      fallbackError:
+        'Não foi possível carregar o relatório das suas comissões.',
+    });
   },
 
-  async listarPorOrganizacao(organizacaoId: number, token: string): Promise<Comissao[]> {
-    try {
-      const response = await fetch(`${API_URL}/organizacoes/${organizacaoId}/comissoes`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Falha ao buscar comissões');
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Erro ao buscar comissões', error);
-      throw error;
-    }
+  listByOrganizacao(token: string, organizacaoId: number) {
+    return apiRequest<Comissao[]>(`/organizacoes/${organizacaoId}/comissoes`, {
+      token,
+      fallbackError: 'Não foi possível carregar as comissões.',
+    });
   },
 
-  async criar(nome: string, descricao: string, organizacaoId: number, token: string): Promise<Comissao> {
-    try {
-      const response = await fetch(`${API_URL}/comissoes`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ nome, descricao, organizacaoId }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Falha ao criar comissão');
-      }
-      return await response.json();
-    } catch (error) {
-      console.error('Erro ao criar comissão', error);
-      throw error;
-    }
+  create(token: string, comissao: ComissaoData) {
+    return apiRequest<Comissao>('/comissoes', {
+      method: 'POST',
+      token,
+      body: comissao,
+      fallbackError: 'Não foi possível criar a comissão.',
+    });
   },
 
-  async excluir(id: number, token: string): Promise<void> {
-    try {
-      const response = await fetch(`${API_URL}/comissoes/${id}`, {
+  delete(token: string, comissaoId: number) {
+    return apiRequest<MessageResponse>(`/comissoes/${comissaoId}`, {
+      method: 'DELETE',
+      token,
+      fallbackError: 'Não foi possível excluir a comissão.',
+    });
+  },
+
+  addMember(
+    token: string,
+    comissaoId: number,
+    userId: number,
+    papel: PapelComissao,
+  ) {
+    return apiRequest<ComissaoEquipe>(`/comissoes/${comissaoId}/membros`, {
+      method: 'POST',
+      token,
+      body: { userId, papel },
+      fallbackError: 'Não foi possível adicionar o membro.',
+    });
+  },
+
+  removeMember(token: string, comissaoId: number, userId: number) {
+    return apiRequest<MessageResponse>(
+      `/comissoes/${comissaoId}/membros/${userId}`,
+      {
         method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Falha ao excluir comissão');
-      }
-    } catch (error) {
-      console.error('Erro ao excluir comissão', error);
-      throw error;
-    }
+        token,
+        fallbackError: 'Não foi possível remover o membro.',
+      },
+    );
   },
-
-  async adicionarMembro(comissaoId: number, userId: number, papel: string, token: string): Promise<void> {
-    try {
-      const response = await fetch(`${API_URL}/comissoes/${comissaoId}/membros`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ userId, papel }),
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Falha ao adicionar membro');
-      }
-    } catch (error) {
-      console.error('Erro ao adicionar membro', error);
-      throw error;
-    }
-  },
-
-  async removerMembro(comissaoId: number, userId: number, token: string): Promise<void> {
-    try {
-      const response = await fetch(`${API_URL}/comissoes/${comissaoId}/membros/${userId}`, {
-        method: 'DELETE',
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.error || 'Falha ao remover membro');
-      }
-    } catch (error) {
-      console.error('Erro ao remover membro', error);
-      throw error;
-    }
-  }
 };

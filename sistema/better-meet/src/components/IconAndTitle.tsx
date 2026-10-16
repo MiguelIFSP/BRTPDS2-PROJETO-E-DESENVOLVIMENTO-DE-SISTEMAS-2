@@ -1,17 +1,24 @@
-import React from "react";
-import { View, Image, Text, StyleSheet, useColorScheme } from "react-native";
-import { Colors } from '../constants/theme';
-  
+import { Image, StyleSheet, Text, View } from 'react-native';
+
+import logo from '@/assets/images/icon.jpeg';
+import { FontFamily, Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
+
 export default function IconAndTitle() {
-  const colorScheme = useColorScheme() === 'dark' ? 'dark' : 'light';
-  const themeColors = Colors[colorScheme];
-  return(
+  const { colors } = useTheme();
+
+  return (
     <View style={styles.iconAndTitle}>
-        <Image source={require('../../assets/images/icon.jpeg')} style={styles.logoImage} resizeMode="contain" />
-        <View style={styles.title}>
-          <Text style={[styles.logoText, {color: themeColors.text} ]}>better</Text>
-          <Text style={[styles.logoText, {color: themeColors.backgroundSelected} ]}>meet</Text>
-        </View>              
+      <Image
+        source={logo}
+        style={styles.logoImage}
+        resizeMode="contain"
+        accessibilityIgnoresInvertColors
+      />
+      <View style={styles.title}>
+        <Text style={[styles.logoText, { color: colors.text }]}>better</Text>
+        <Text style={[styles.logoText, { color: colors.primary }]}>meet</Text>
+      </View>
     </View>
   );
 }
@@ -19,21 +26,20 @@ export default function IconAndTitle() {
 const styles = StyleSheet.create({
   iconAndTitle: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    gap: 8,
+    gap: Spacing.sm,
   },
   title: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 0,
   },
+  // altura mínima do logo no mobile (design system 1.1).
   logoImage: {
-    width: 45,
-    height: 45,
+    width: 44,
+    height: 44,
   },
   logoText: {
-    fontSize: 22,
-    fontWeight: 'bold',
-  },  
+    ...Typography.heading3,
+    fontFamily: FontFamily.bold,
+  },
 });
