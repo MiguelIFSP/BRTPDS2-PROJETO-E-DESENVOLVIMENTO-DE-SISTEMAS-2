@@ -1,5 +1,7 @@
-import type { ComponentProps } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Avatar from '@/components/ui/Avatar';
@@ -41,7 +43,7 @@ type OrganizacaoMembroRowProps = {
 };
 
 type ActionButtonProps = {
-  icon: ComponentProps<typeof Ionicons>['name'];
+  icon: IoniconsIconName;
   color: string;
   accessibilityLabel: string;
   disabled?: boolean;

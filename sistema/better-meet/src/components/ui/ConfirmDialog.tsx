@@ -1,5 +1,8 @@
-import type { ComponentProps, ReactNode } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import type { ReactNode } from 'react';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Button from '@/components/ui/Button';
@@ -25,7 +28,7 @@ type ConfirmDialogProps = {
   variant?: ConfirmVariant;
   confirmLabel?: string;
   // troca o ícone padrão da variante (ex.: check no aviso de conta excluída).
-  icon?: ComponentProps<typeof Ionicons>['name'];
+  icon?: IoniconsIconName;
   confirmDisabled?: boolean;
   isLoading?: boolean;
   // conteúdo extra entre a mensagem e os botões (ex.: escolha de sucessores).

@@ -1010,6 +1010,8 @@ A autenticação (cadastro, login, sessão, troca e recuperação de senha) é f
 - O Better Auth usa o Prisma pelo adaptador próprio (`better-auth/adapters/prisma`) e fica montado no Express sob `/api/auth/*` (alinhado ao EX-12), seguindo a documentação da versão instalada.
 - Segredos do Better Auth (`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`) seguem o EX-13.
 - Se for preciso gerar ou conferir um hash fora dos fluxos do Better Auth, use as funções de hash do próprio Better Auth, nunca uma implementação própria.
+- **Recuperação de senha exige comprovar a posse do e-mail.** A nova senha só é aceita junto com um token (ou código) enviado ao e-mail cadastrado, com prazo de validade curto e uso único, pelo fluxo de redefinição do Better Auth. É proibido o fluxo "informe o e-mail e a nova senha", em que qualquer pessoa que saiba o e-mail troca a senha de outra.
+- **Divergência atual (falha de segurança):** `POST /api/auth/forgot-password` e a tela `recuperar-senha.tsx` trocam a senha só com e-mail + nova senha, sem token.
 
 **Migração:** hoje as senhas são gravadas com SHA-256 sem salt (`server.ts`, `usuarioController.ts`, `authController.ts`). Um hash desses não pode ser convertido. A migração precisa ser planejada, por exemplo exigindo redefinição de senha ou conferindo o hash antigo no primeiro login e regravando no formato novo. A forma como `monitoring-better-meet` e `management-better-meet` validam a sessão (hoje, o JWT emitido pela `api`) será definida na mesma migração.
 
@@ -1041,6 +1043,45 @@ Todo endpoint novo ou alterado é documentado no **mesmo Pull Request** em que �
 - Para cada endpoint, documente o que pede o [padroes_interface_e_nomenclatura.md](../documentos/entrega1_AP/padroes_interface_e_nomenclatura.md) (seção 3.2): método e caminho, parâmetros de URL e de query, headers, corpo da requisição, respostas de sucesso, respostas de erro com seus status e regra de autenticação/permissão (`requireAuth`, `requireAdmin`, `requireSelf`, papel exigido).
 - Textos da documentação em pt-BR (NM-02).
 - **Situação atual:** nenhum serviço tem documentação OpenAPI. Os endpoints existentes devem ser documentados durante a refatoração.
+
+---
+
+### 3.17 Login somente por e-mail (EX-17)
+
+O identificador de login é **o e-mail**, que é único no banco (`@unique`). O nome não identifica ninguém: duas pessoas podem ter o mesmo nome, e um login pelo nome entraria na conta errada ou revelaria que um nome existe.
+
+```ts
+// ✅ Certo
+const user = await prisma.user.findUnique({ where: { email }, select: { … } });
+
+// ❌ Errado: o nome não é único
+where: { OR: [{ email: identifier }, { name: identifier }] }
+```
+
+- O schema de login valida o campo com `emailRule()` (YP-03), e a tela pede só "E-mail", com `keyboardType="email-address"`.
+- Vale para qualquer outra forma de identificar uma pessoa (adicionar membro, escolher sucessor): use o e-mail ou a seleção numa lista (UI-08), nunca o nome digitado.
+- **Divergência atual:** o `authService.login` da API aceita nome ou e-mail (`identifier`), e a tela `login.tsx` pede "Usuário ou e-mail".
+
+---
+
+### 3.18 A plataforma nunca fica sem administrador (EX-18)
+
+Toda operação que remove o papel `ADMIN` de alguém, seja excluindo a conta ou rebaixando o papel, confere antes se existe **outro** `ADMIN`. Se for o último, o service recusa com `AppError(409, …)` e uma mensagem que explique o que fazer (promover outra pessoa antes).
+
+```ts
+// no service, dentro da mesma transação da exclusão
+if (user.role === 'ADMIN') {
+  const outrosAdmins = await transaction.user.count({ where: { role: 'ADMIN', id: { not: userId } } });
+  if (outrosAdmins === 0) {
+    throw new AppError(409, 'Você é o único administrador da plataforma. Promova outra pessoa antes de excluir sua conta.');
+  }
+}
+```
+
+- A conferência fica no service e dentro da transação (PR-02), para duas exclusões simultâneas não deixarem a plataforma sem administrador.
+- O app avisa antes (na tela de exclusão de conta), mas a proteção real é a da API (RN-16).
+- O `ensureDefaultAdmin`, que recria o administrador do `.env` quando a API sobe, é só uma rede de segurança e não substitui esta regra.
+- **Divergência atual:** o `deleteUser` do `usuarioService` exclui um `ADMIN` sem conferir se é o último.
 
 ---
 
@@ -1769,6 +1810,46 @@ O **React Compiler** está ligado nos dois apps (`"reactCompiler": true` no `app
 
 ---
 
+### 6.17 Ícones com `@react-native-vector-icons/ionicons` (RN-17)
+
+Todo ícone da interface vem do pacote **`@react-native-vector-icons/ionicons`**, seguindo a orientação do Expo: o guia de ícones do Expo informa que `@expo/vector-icons` será descontinuado e não é recomendado, e o [post oficial](https://expo.dev/blog/moving-away-from-expo-vector-icons) indica os pacotes do escopo `@react-native-vector-icons`. Os nomes de ícones são os mesmos do Ionicons, que podem ser consultados em https://ionic.io/ionicons.
+
+```tsx
+import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';
+
+type ScreenHeaderProps = { icon: IoniconsIconName; title: string };
+
+<Ionicons name="business-outline" size={28} color={colors.primary} />
+```
+
+- Use o import principal (fonte carregada pelo `expo-font`, funciona no Expo Go), e não o `/static`.
+- Para tipar o nome de um ícone, use `IoniconsIconName`, e não `ComponentProps<typeof Ionicons>['name']`.
+- Proibido: `@expo/vector-icons` e o pacote antigo `react-native-vector-icons`. Também não misture outro pacote que use a mesma fonte: o ícone pode aparecer como `?` ou quadrado vazio. O `npx expo doctor` acusa a mistura.
+- Use um único conjunto (Ionicons) no app inteiro, preferindo a variante `-outline`, para manter o mesmo traço. Trocar de conjunto é decisão da equipe e muda este guia.
+- **Emojis não substituem ícones.** Em títulos, status, botões e mensagens, use um `Ionicons` com cor do tema (UI-02), que segue o tema, o tamanho e o leitor de tela, coisa que o emoji não faz.
+- Ícone que só decora fica sem rótulo. Ícone que age sozinho (botão só com ícone) segue o RN-08, com `accessibilityRole` e `accessibilityLabel`.
+- `expo-symbols` (SF Symbols e Material Symbols) não é usado: está em beta e exige um nome diferente por plataforma.
+
+---
+
+### 6.18 Identidade visual do app instalado (RN-18)
+
+O que o usuário vê fora das telas também é do Better Meet: nome, ícone, splash e favicon usam a arte oficial (`assets/images/better-meet-icon.png`, a mesma do logo do `Header`) e as cores do tema.
+
+| Item (`app.json`) | Padrão |
+|---|---|
+| `name` | `Better Meet` (nome de exibição; o `slug` continua `better-meet`) |
+| `icon` | `./assets/images/better-meet-icon.png`, usado também no iOS (sem `ios.icon` próprio) |
+| `android.adaptiveIcon` | `foregroundImage` com a arte recortada dentro da área segura (cerca de 60% do quadro), `monochromeImage` com a arte em branco e `backgroundColor` igual ao `primaryLight` (`#BFEFE9`) |
+| Splash (`expo-splash-screen`) | Arte recortada sobre o `background` do tema: claro `#F0F7F6` e, em `dark`, arte em `primary` escuro (`#1FD5B5`) sobre `#0D1B1D` |
+| `web.favicon` | Arte oficial reduzida para 48 × 48 |
+
+- O `app.json` não lê o `theme.ts`, por isso é o único lugar fora dele onde a cor do tema aparece em hex (exceção ao UI-02). Ao mudar a paleta, atualize os dois.
+- Nenhum asset do template do Expo (logo do Expo, fundo azul `#208AEF`, `expo.icon`) pode continuar no app (RN-14).
+- Imagens novas de ícone e splash são geradas a partir da arte oficial; não desenhe variações à mão.
+
+---
+
 ## 7. Estado com Zustand
 
 ### 7.1 Um store por assunto, persistido com AsyncStorage (ZS-01)
@@ -2017,6 +2098,17 @@ const styles = StyleSheet.create({
 
 ---
 
+### 8.6 Identificadores internos nunca aparecem na interface (UI-08)
+
+Ids do banco (de usuário, organização, comissão) são detalhes técnicos: **não são mostrados** em tela, mensagem ou rótulo, e o usuário **nunca digita um id**.
+
+- Pessoas aparecem pelo nome (e, quando precisa diferenciar, pelo e-mail), com `Avatar`.
+- Para escolher alguém, mostre uma lista de opções (`Chip`, opções de rádio), como na adição de membros à comissão, que lista os membros da organização. Quando a pessoa ainda não está em nenhuma lista, peça o e-mail (EX-17).
+- O id continua existindo no código (chaves de lista, chamadas à API); ele só não chega à interface.
+- **Divergência atual:** o perfil (`perfil.tsx`) mostra "ID do usuário".
+
+---
+
 ## 9. Git, agentes de IA e testes
 
 ### 9.1 Commits no padrão Conventional Commits, em pt-BR (GT-01)
@@ -2078,6 +2170,12 @@ Segundo o [plano_de_testes.md](../documentos/entrega1_AP/plano_de_testes.md):
 - Todo defeito corrigido ganha um teste que falharia antes da correção.
 - Os testes de rota rodam contra um banco de teste, nunca contra o banco de desenvolvimento.
 - Nos serviços Node, que usam ESM e `.ts` direto (TS-09), o Jest precisa de configuração para ESM e TypeScript. Essa configuração é feita uma vez, junto com o primeiro teste de cada serviço.
+- **Os testes realizados são documentados em toda entrega**, na pasta da entrega em `documentos/`. O registro informa:
+  - o que foi testado, ligado aos casos de uso e requisitos;
+  - como rodar (`npm test` de cada subsistema e testes manuais com o passo a passo);
+  - o resultado da execução, com data, quantidade de testes, falhas e os defeitos encontrados.
+
+  Código de teste no repositório não substitui esse registro.
 
 ---
 
@@ -2124,6 +2222,9 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Endpoints sob `/api` (exceto `/health`).
 - [ ] Segredos só no `.env`, lidos via `config/env.ts`; `.env.example` atualizado; nada sensível em `EXPO_PUBLIC_*`.
 - [ ] Senhas e sessões pelo Better Auth; nenhum hash de senha feito à mão.
+- [ ] Recuperação de senha só com token enviado ao e-mail (validade curta, uso único).
+- [ ] Login e identificação de pessoas pelo e-mail, nunca pelo nome.
+- [ ] Exclusão ou rebaixamento de `ADMIN` recusada quando é o último administrador.
 - [ ] Encerramento gracioso mantido.
 - [ ] `docs/openapi.yaml` atualizado para todo endpoint novo ou alterado.
 
@@ -2162,6 +2263,8 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Nenhum arquivo novo herdado do template do Expo.
 - [ ] Sem `useMemo`/`useCallback`/`React.memo` só para desempenho; componentes puros.
 - [ ] Login checado só no `AppGate`; rotas públicas na lista `publicRoutes`.
+- [ ] Ícones só de `@react-native-vector-icons/ionicons`, tipados com `IoniconsIconName`; nenhum emoji no lugar de ícone.
+- [ ] Nome, ícone, splash e favicon do `app.json` com a arte do Better Meet e as cores do tema.
 
 ## Checklist de revisão — Estado com Zustand
 
@@ -2178,6 +2281,7 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Texto com `Typography`, espaçamento com `Spacing`, cantos com `Radius`, fonte Plus Jakarta Sans.
 - [ ] Componentes base (`Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `ConfirmDialog`) usados no lugar de estilos próprios.
 - [ ] Tela na estrutura `SafeAreaView` → `Header` → `ScrollView` com `MaxContentWidth`.
+- [ ] Nenhum id interno exibido na tela; pessoas escolhidas em lista ou pelo e-mail, nunca digitando id.
 
 ## Checklist de revisão — Git, agentes de IA e testes
 
@@ -2185,3 +2289,4 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Trabalho em `feature/<nome>`, com PR revisado para a `development`; nada direto na `main`.
 - [ ] Mudança no guia acompanhada da atualização do `PROMPT_AGENTES_IA.md`.
 - [ ] Regra de negócio nova ou alterada com teste; `npm test` passando.
+- [ ] Testes realizados na entrega registrados em `documentos/` (o que, como rodar, resultado).

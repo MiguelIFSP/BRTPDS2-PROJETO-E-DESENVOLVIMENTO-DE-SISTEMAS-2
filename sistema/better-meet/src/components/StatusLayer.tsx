@@ -1,4 +1,8 @@
 import { useState } from 'react';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import Card from '@/components/ui/Card';
@@ -32,17 +36,21 @@ const statusColor = (status: StatusDia, colors: ThemeColors) =>
 
 type StatusLayerProps = {
   title: string;
+  icon: IoniconsIconName;
   data: DayStatus[];
 };
 
 // Barra de dias de um subsistema; tocar num dia mostra o resumo dele.
-export default function StatusLayer({ title, data }: StatusLayerProps) {
+export default function StatusLayer({ title, icon, data }: StatusLayerProps) {
   const { colors } = useTheme();
   const [selectedDay, setSelectedDay] = useState<DayStatus | null>(null);
 
   return (
     <Card>
-      <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      <View style={styles.header}>
+        <Ionicons name={icon} size={20} color={colors.primary} />
+        <Text style={[styles.title, { color: colors.text }]}>{title}</Text>
+      </View>
 
       {data.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textSecondary }]}>
@@ -102,6 +110,7 @@ export default function StatusLayer({ title, data }: StatusLayerProps) {
 }
 
 const styles = StyleSheet.create({
+  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.sm },
   title: { ...Typography.bodyLarge, fontFamily: FontFamily.bold },
   empty: { ...Typography.body },
   bars: { flexDirection: 'row', gap: Spacing.xs, paddingBottom: Spacing.sm },

@@ -159,6 +159,7 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
 31. **Autenticação e senhas pelo Better Auth.**
     - Cadastro, login, sessão, troca e recuperação de senha usam a biblioteca Better Auth (adaptador Prisma, montada em `/api/auth/*`). Consulte a documentação da versão instalada.
     - Nunca implemente hash de senha, token ou sessão à mão, e nunca use `crypto.createHash('sha256')` ou outro hash sem salt para senha.
+    - Recuperação de senha só com token (ou código) enviado ao e-mail cadastrado, com validade curta e uso único. Nunca aceite "e-mail + nova senha" sem esse token.
 
 32. **Encerramento gracioso**: mantenha os handlers de `SIGINT`/`SIGTERM` que fecham o servidor e chamam `prisma.$disconnect()`. Tarefas no encerramento têm timeout curto.
 
@@ -166,142 +167,157 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
     - Inclua: método e caminho, parâmetros, headers, corpo, respostas de sucesso e de erro com status, e a regra de autenticação/permissão.
     - Textos em pt-BR.
 
+34. **Login e identificação de pessoas só pelo e-mail**, que é único. Nunca use o nome como login nem para localizar alguém (`where: { OR: [{ email }, { name }] }` é proibido). O schema de login usa `emailRule()`, e a tela pede só "E-mail".
+
+35. **A plataforma nunca fica sem administrador.** Antes de excluir a conta de um `ADMIN` ou rebaixar o papel dele, o service confere, dentro da mesma transação, se existe outro `ADMIN`. Se não existir, lança `AppError(409, '<mensagem dizendo para promover outra pessoa antes>')`. O `ensureDefaultAdmin` não substitui essa regra.
+
 ## Prisma 7 + MySQL (`api`, `monitoring-better-meet`)
 
-34. **Um único `PrismaClient` por serviço**, criado em `src/config/database.ts`. Nunca crie outra instância.
+36. **Um único `PrismaClient` por serviço**, criado em `src/config/database.ts`. Nunca crie outra instância.
 
-35. **Mais de uma escrita que precisa acontecer junta vai em `prisma.$transaction(async (transaction) => { … })`.** Dentro dela, use só `transaction`; auxiliares recebem `Prisma.TransactionClient` como parâmetro.
+37. **Mais de uma escrita que precisa acontecer junta vai em `prisma.$transaction(async (transaction) => { … })`.** Dentro dela, use só `transaction`; auxiliares recebem `Prisma.TransactionClient` como parâmetro.
 
-36. **Converta os erros do Prisma no service, com a mensagem do domínio.**
+38. **Converta os erros do Prisma no service, com a mensagem do domínio.**
     - Use `isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)` / `PRISMA_ERROR.UNIQUE_VIOLATION` (`src/utils/prismaErrors.ts`) e lance `AppError(404 | 409, '<mensagem específica>')`.
     - Termine o `catch` com `throw error`.
     - Nunca teste `'code' in error` à mão.
     - Para duplicidade garantida por `@unique`/`@@id`, grave direto e trate o `P2002`, sem consultar antes.
 
-37. **Formatos de consulta reutilizáveis** ficam em constantes com `satisfies Prisma.XSelect`/`Prisma.XInclude`, e o tipo do resultado é derivado com `Prisma.XGetPayload<{ select: typeof constante }>`.
+39. **Formatos de consulta reutilizáveis** ficam em constantes com `satisfies Prisma.XSelect`/`Prisma.XInclude`, e o tipo do resultado é derivado com `Prisma.XGetPayload<{ select: typeof constante }>`.
 
-38. **Nunca devolva `password` nem outro dado sensível.** Consultas de `User` que saem na resposta usam `select` explícito.
+40. **Nunca devolva `password` nem outro dado sensível.** Consultas de `User` que saem na resposta usam `select` explícito.
 
-39. **Estados fixos são `enum` no `schema.prisma`**, nunca `String`.
+41. **Estados fixos são `enum` no `schema.prisma`**, nunca `String`.
     - No código, use o tipo e os valores gerados (`Object.values(StatusOrganizacao)`) em vez de repetir a lista.
     - Antes de trocar `String` por enum, confira se todos os valores gravados pertencem ao enum.
 
-40. **Mudança de schema só com `npx prisma migrate dev --name <descricao_em_snake_case>`**, e a pasta `prisma/migrations/` é commitada junto.
+42. **Mudança de schema só com `npx prisma migrate dev --name <descricao_em_snake_case>`**, e a pasta `prisma/migrations/` é commitada junto.
     - Nunca use `prisma db push`.
     - Revise o `migration.sql`: renomear model ou campo gera `DROP` + `CREATE` e apaga dados. Troque por `RENAME TABLE`/`RENAME COLUMN`.
     - Nunca altere uma migration já commitada.
 
-41. **Nomes no banco iguais aos do schema**: models em PascalCase no singular, campos em camelCase, enums em PascalCase e valores em UPPER_SNAKE_CASE.
+43. **Nomes no banco iguais aos do schema**: models em PascalCase no singular, campos em camelCase, enums em PascalCase e valores em UPPER_SNAKE_CASE.
     - Não use `@@map` nem `@map`.
     - Models e campos novos do domínio em português.
     - Não renomeie `User` nem seus campos.
 
-42. **Comente no `schema.prisma`** as regras que o banco não expressa (limites por papel, unicidade de negócio) e o significado de cada valor de enum, sem comentários de histórico.
+44. **Comente no `schema.prisma`** as regras que o banco não expressa (limites por papel, unicidade de negócio) e o significado de cada valor de enum, sem comentários de histórico.
 
 ## Validação com Yup
 
-43. **Schemas em `src/schemas/<dominio>Schema.ts`**, exportados como constantes. Nunca declare schema em controller, tela ou componente. Use os valores devolvidos pelo `validate`, não o objeto original.
+45. **Schemas em `src/schemas/<dominio>Schema.ts`**, exportados como constantes. Nunca declare schema em controller, tela ou componente. Use os valores devolvidos pelo `validate`, não o objeto original.
 
-44. **`.trim()` em todo texto livre e mensagem em pt-BR, terminada em ponto, em toda regra** (`required`, `min`, `max`, `email`, `matches`, `oneOf`, `integer`, `positive`). Nunca deixe a mensagem padrão do Yup.
+46. **`.trim()` em todo texto livre e mensagem em pt-BR, terminada em ponto, em toda regra** (`required`, `min`, `max`, `email`, `matches`, `oneOf`, `integer`, `positive`). Nunca deixe a mensagem padrão do Yup.
 
-45. **Nome, e-mail e senha forte vêm de `src/schemas/commonSchema.ts`** (`nomeRule()`, `emailRule()`, `senhaForteRule('A nova senha')`). Nunca copie essas regras. Cada pacote (`api`, `better-meet`, `management-better-meet/web`) tem o seu `commonSchema.ts`, e os três precisam ficar idênticos: ao mudar um, mude os outros.
+47. **Nome, e-mail e senha forte vêm de `src/schemas/commonSchema.ts`** (`nomeRule()`, `emailRule()`, `senhaForteRule('A nova senha')`). Nunca copie essas regras. Cada pacote (`api`, `better-meet`, `management-better-meet/web`) tem o seu `commonSchema.ts`, e os três precisam ficar idênticos: ao mudar um, mude os outros.
 
-46. **`abortEarly`:**
+48. **`abortEarly`:**
     - Na API, não passe `abortEarly` (o padrão é `true`); valide com `{ stripUnknown: true }` e a resposta tem uma única mensagem.
     - Nos formulários do app, use sempre `{ abortEarly: false }` e monte os erros por campo a partir de `error.inner` (`item.path` → `item.message`).
 
 ## React Native + Expo (`better-meet`, `management-better-meet/web`)
 
-47. **Use a documentação do Expo SDK 57** (https://docs.expo.dev/versions/v57.0.0/) para qualquer API do Expo ou do Expo Router, não a versão mais recente nem exemplos antigos.
+49. **Use a documentação do Expo SDK 57** (https://docs.expo.dev/versions/v57.0.0/) para qualquer API do Expo ou do Expo Router, não a versão mais recente nem exemplos antigos.
 
-48. **Telas são arquivos em `src/app/`** com `export default function <Rota em PascalCase>Screen` (`excluir-conta.tsx` → `ExcluirContaScreen`), registradas como `<Drawer.Screen>` no `_layout.tsx`. A tela coordena estado e layout; lógica vai para hooks, HTTP para services e pedaços de interface para componentes.
+50. **Telas são arquivos em `src/app/`** com `export default function <Rota em PascalCase>Screen` (`excluir-conta.tsx` → `ExcluirContaScreen`), registradas como `<Drawer.Screen>` no `_layout.tsx`. A tela coordena estado e layout; lógica vai para hooks, HTTP para services e pedaços de interface para componentes.
 
-49. **Estilo de export.**
+51. **Estilo de export.**
     - Telas (`src/app/`) e componentes (`src/components/`): `export default function NomeDoArquivo`, sempre com função nomeada, nunca anônima. Importe com o nome do arquivo: `import ConfirmDialog from '@/components/ConfirmDialog';`. Tipos do componente podem ser exportados como named no mesmo arquivo.
     - Services, stores, hooks, constants, schemas, utils e todo o backend: named.
 
-50. **Nenhum `fetch` em tela ou componente.** Toda chamada HTTP fica em `src/services/<dominio>Service.ts`.
+52. **Nenhum `fetch` em tela ou componente.** Toda chamada HTTP fica em `src/services/<dominio>Service.ts`.
 
-51. **Services usam o cliente único `apiRequest`** de `src/utils/apiClient.ts`:
+53. **Services usam o cliente único `apiRequest`** de `src/utils/apiClient.ts`:
     `apiRequest<T>(path, { method, token, body, baseUrl, fallbackError })`.
     - Ele monta os headers, converte o JSON e lança `Error` com a mensagem da API.
     - Não repita `authHeaders`, `readError` ou `parseJson` em services.
     - `API_URL` já inclui `/api`. Para outra API (monitoring), passe `baseUrl`.
 
-52. **Telas que carregam dados usam `useFocusEffect(useCallback(() => { let cancelled = false; … return () => { cancelled = true; }; }, [deps]))`**, não `useEffect` de montagem: o Drawer mantém as telas montadas e os dados ficariam velhos.
+54. **Telas que carregam dados usam `useFocusEffect(useCallback(() => { let cancelled = false; … return () => { cancelled = true; }; }, [deps]))`**, não `useEffect` de montagem: o Drawer mantém as telas montadas e os dados ficariam velhos.
 
-53. **Use `Pressable`, nunca `TouchableOpacity`.** O efeito de toque vem do componente base `Button` ou de `style={({ pressed }) => [...]}`.
+55. **Use `Pressable`, nunca `TouchableOpacity`.** O efeito de toque vem do componente base `Button` ou de `style={({ pressed }) => [...]}`.
 
-54. **Todo elemento clicável** tem `accessibilityRole` (`button`, `link`, `switch`…), `accessibilityLabel` em pt-BR e área de toque de pelo menos 44 × 44 px (use `hitSlop` se o visual for menor). Botões desabilitados têm `accessibilityState={{ disabled: true }}`.
+56. **Todo elemento clicável** tem `accessibilityRole` (`button`, `link`, `switch`…), `accessibilityLabel` em pt-BR e área de toque de pelo menos 44 × 44 px (use `hitSlop` se o visual for menor). Botões desabilitados têm `accessibilityState={{ disabled: true }}`.
 
-55. **Estilos**: estilos fixos em `StyleSheet.create` no fim do arquivo; cores do tema aplicadas na renderização (`style={[styles.card, { backgroundColor: colors.backgroundElement }]}`). Sem objetos de estilo grandes inline.
+57. **Estilos**: estilos fixos em `StyleSheet.create` no fim do arquivo; cores do tema aplicadas na renderização (`style={[styles.card, { backgroundColor: colors.backgroundElement }]}`). Sem objetos de estilo grandes inline.
 
-56. **Confirmações usam o componente `ConfirmDialog`.** Nunca use `Alert.alert`, `window.alert` ou `window.confirm`.
+58. **Confirmações usam o componente `ConfirmDialog`.** Nunca use `Alert.alert`, `window.alert` ou `window.confirm`.
 
-57. **Feedback ao usuário:**
+59. **Feedback ao usuário:**
     - erro de validação: texto embaixo do campo (estado `errors`);
     - resultado de ação: `<FeedbackBanner feedback={feedback} />` com `useState<Feedback | null>`, importando o tipo `Feedback` do componente. O sucesso some depois de `SUCCESS_FEEDBACK_MS` (4000); o erro fica até a próxima ação;
     - confirmação: `ConfirmDialog`;
     - aviso que encerra um fluxo: variante de um botão do `ConfirmDialog`.
 
-58. **Imports**: `@/` para tudo fora da pasta atual, `./` só para a mesma pasta, **nunca `../`**. Ordem: bibliotecas externas, linha em branco, `@/`, linha em branco, `./`. (Nos serviços Node continua valendo o import relativo com `.ts`.)
+60. **Imports**: `@/` para tudo fora da pasta atual, `./` só para a mesma pasta, **nunca `../`**. Ordem: bibliotecas externas, linha em branco, `@/`, linha em branco, `./`. (Nos serviços Node continua valendo o import relativo com `.ts`.)
 
-59. **Não crie nem reaproveite arquivos do template do Expo** (`explore.tsx`, `app-tabs`, `hint-row`, `web-badge`, `animated-icon`, `external-link`, `use-color-scheme*.ts`, `reset-project.js`). Se encontrar um em uso no que estiver alterando, informe na resposta.
+61. **Não crie nem reaproveite arquivos do template do Expo** (`explore.tsx`, `app-tabs`, `hint-row`, `web-badge`, `animated-icon`, `external-link`, `use-color-scheme*.ts`, `reset-project.js`). Se encontrar um em uso no que estiver alterando, informe na resposta.
 
-60. **React Compiler está ativo.**
+62. **React Compiler está ativo.**
     - Componentes e hooks são puros, sem alterar props, estado ou objetos recebidos.
     - Não use `ref.current` durante a renderização. Hooks só no nível de cima.
     - Não use `useMemo`, `useCallback` nem `React.memo` só para desempenho; a exceção é quando a API exige função estável (`useFocusEffect`).
 
-61. **Login é checado só no `AppGate`** do `_layout.tsx`, que espera `hasHydrated`. Rotas públicas ficam na lista `publicRoutes`. Restrição por papel pode redirecionar na tela com `router.replace`, mas a proteção real é a da API.
+63. **Login é checado só no `AppGate`** do `_layout.tsx`, que espera `hasHydrated`. Rotas públicas ficam na lista `publicRoutes`. Restrição por papel pode redirecionar na tela com `router.replace`, mas a proteção real é a da API.
+
+64. **Ícones só de `@react-native-vector-icons/ionicons`**: `import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';`.
+    - Tipe nomes de ícone com `IoniconsIconName`, não com `ComponentProps<typeof Ionicons>['name']`.
+    - Proibido: `@expo/vector-icons` (será descontinuado pelo Expo), `react-native-vector-icons` e outro pacote com a mesma fonte.
+    - Um só conjunto no app (Ionicons, de preferência a variante `-outline`). `expo-symbols` não é usado.
+    - Emojis nunca substituem ícones (títulos, status, botões, mensagens).
+
+65. **Identidade visual do app instalado**: no `app.json`, `name` é `Better Meet`. Ícone, ícone adaptativo (fundo `primaryLight`), splash (fundo `background` claro e escuro) e favicon são gerados da arte oficial `assets/images/better-meet-icon.png`. Nenhum asset do template do Expo. O `app.json` é o único lugar fora do `theme.ts` com cores do tema em hex; mantenha os dois iguais.
 
 ## Estado com Zustand
 
-62. **Um store por assunto** em `src/store/<dominio>Store.ts`, exportado como `use<Dominio>Store`.
+66. **Um store por assunto** em `src/store/<dominio>Store.ts`, exportado como `use<Dominio>Store`.
     - Estado que precisa sobreviver ao fechamento do app usa `persist` + `createJSONStorage(() => AsyncStorage)` com a chave `better-meet-<assunto>`.
     - Dados da API (listas, relatórios) ficam no estado da tela, não no store.
 
-63. **Use `partialize`** para persistir só os dados; flags de execução (`hasHydrated`, `isLoading`) e funções ficam fora.
+67. **Use `partialize`** para persistir só os dados; flags de execução (`hasHydrated`, `isLoading`) e funções ficam fora.
 
-64. **Toda decisão de navegação baseada no store espera `hasHydrated`.**
+68. **Toda decisão de navegação baseada no store espera `hasHydrated`.**
 
-65. **Leia o store com seletor**: `useAuthStore((state) => state.token)`. Para vários valores, use `useShallow` (`zustand/react/shallow`). Nunca desestruture o store inteiro (`const { token } = useAuthStore()`). Fora de componentes, use `useAuthStore.getState()`.
+69. **Leia o store com seletor**: `useAuthStore((state) => state.token)`. Para vários valores, use `useShallow` (`zustand/react/shallow`). Nunca desestruture o store inteiro (`const { token } = useAuthStore()`). Fora de componentes, use `useAuthStore.getState()`.
 
-66. **Alterações só por ações declaradas no store**, com nome de verbo (`login`, `logout`, `setTheme`). Não chame `useXStore.setState` fora do arquivo do store.
+70. **Alterações só por ações declaradas no store**, com nome de verbo (`login`, `logout`, `setTheme`). Não chame `useXStore.setState` fora do arquivo do store.
 
 ## Interface e design system
 
 Referência oficial: paleta do `documentos/entrega1_AP/design_system.md` e fonte Plus Jakarta Sans do `documentos/entrega1_AP/padroes_interface_e_nomenclatura.md`.
 
-67. **Tema e cores só por `const { colorScheme, colors } = useTheme();`** (`src/hooks/useTheme.ts`, construído sobre `useAppColorScheme`).
+71. **Tema e cores só por `const { colorScheme, colors } = useTheme();`** (`src/hooks/useTheme.ts`, construído sobre `useAppColorScheme`).
     - Nunca importe `useColorScheme` do `react-native`: ele ignora a escolha do usuário no web.
     - Nunca importe um hook com o nome trocado (`useAppColorScheme as useColorScheme`).
 
-68. **Nenhuma cor em hex fora de `src/constants/theme.ts`.** Use os tokens: `background`, `backgroundElement`, `text`, `textSecondary`, `primary`, `primaryLight`, `onPrimary`, `border`, `success`, `warning`, `danger`, `info`.
+72. **Nenhuma cor em hex fora de `src/constants/theme.ts`.** Use os tokens: `background`, `backgroundElement`, `text`, `textSecondary`, `primary`, `primaryLight`, `onPrimary`, `border`, `success`, `warning`, `danger`, `info`.
     - Mapas de cor por status ou papel apontam para tokens.
     - Cores de estado (`success`, `warning`) em texto sobre fundo claro podem não ter contraste suficiente; prefira usá-las em ícones, bordas e badges.
 
-69. **Texto com `Typography.*`, espaçamento com `Spacing.*` (`xs` 4, `sm` 8, `md` 12, `lg` 16, `xl` 24, `xxl` 32, `xxxl` 48) e cantos com `Radius.*`** (`sm` 4, `md` 8, `lg` 12, `xl` 16, `full`).
+73. **Texto com `Typography.*`, espaçamento com `Spacing.*` (`xs` 4, `sm` 8, `md` 12, `lg` 16, `xl` 24, `xxl` 32, `xxxl` 48) e cantos com `Radius.*`** (`sm` 4, `md` 8, `lg` 12, `xl` 16, `full`).
     - Nunca escreva `fontSize`, `fontWeight`, margens ou raios com números soltos.
     - A fonte é Plus Jakarta Sans: cada estilo de `Typography` define o `fontFamily` do peso (`PlusJakartaSans_700Bold`), não só o `fontWeight`.
 
-70. **Use os componentes base de `src/components/ui/`** (`Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `ConfirmDialog`) em vez de recriar botão, campo, card ou cabeçalho com estilos próprios. Um padrão visual repetido em duas telas vira componente base.
+74. **Use os componentes base de `src/components/ui/`** (`Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `ConfirmDialog`) em vez de recriar botão, campo, card ou cabeçalho com estilos próprios. Um padrão visual repetido em duas telas vira componente base.
 
-71. **Estrutura de tela**: `SafeAreaView` (de `react-native-safe-area-context`, com `colors.background`) → `<Header />` → `ScrollView` com conteúdo de largura máxima `MaxContentWidth`, centralizado, com padding `Spacing.lg`.
+75. **Estrutura de tela**: `SafeAreaView` (de `react-native-safe-area-context`, com `colors.background`) → `<Header />` → `ScrollView` com conteúdo de largura máxima `MaxContentWidth`, centralizado, com padding `Spacing.lg`.
+
+76. **Ids internos nunca aparecem na interface** (texto, rótulo ou mensagem), e o usuário nunca digita um id. Pessoas aparecem por nome (e e-mail, quando precisa diferenciar). Para escolher alguém, mostre uma lista de opções (`Chip`, rádio); se a pessoa não está em nenhuma lista, peça o e-mail.
 
 ## Git, agentes de IA e testes
 
-72. **Mensagens de commit** no formato `<tipo>(<escopo opcional>): <descrição>`, em pt-BR, minúscula, verbo no presente e sem ponto final (`feat(api): adiciona cadastro de reuniões`). Tipos: `feat`, `fix`, `refactor`, `docs`, `test`, `style`, `chore`. Um assunto por commit.
+77. **Mensagens de commit** no formato `<tipo>(<escopo opcional>): <descrição>`, em pt-BR, minúscula, verbo no presente e sem ponto final (`feat(api): adiciona cadastro de reuniões`). Tipos: `feat`, `fix`, `refactor`, `docs`, `test`, `style`, `chore`. Um assunto por commit.
 
-73. **Branches**: trabalhe em `feature/<nome-em-kebab-case>` criada a partir da `development`. Nunca faça commit nem push direto na `main`.
+78. **Branches**: trabalhe em `feature/<nome-em-kebab-case>` criada a partir da `development`. Nunca faça commit nem push direto na `main`.
 
-74. **Instruções para agentes**: não crie cópias de regras ou skills por ferramenta. Ao alterar o `GUIA_DE_CODIFICACAO.md`, atualize também o `PROMPT_AGENTES_IA.md`.
+79. **Instruções para agentes**: não crie cópias de regras ou skills por ferramenta. Ao alterar o `GUIA_DE_CODIFICACAO.md`, atualize também o `PROMPT_AGENTES_IA.md`.
 
-75. **Testes**:
+80. **Testes**:
     - Toda regra de negócio nova ou alterada em um service vem com teste.
     - Serviços Node usam Jest (unitário) e Supertest (rotas); apps usam Jest (`jest-expo`) com React Native Testing Library.
     - Todo defeito corrigido ganha um teste que falharia antes da correção.
     - Testes nunca rodam contra o banco de desenvolvimento.
+    - Os testes realizados em cada entrega são registrados na pasta da entrega em `documentos/`: o que foi testado (ligado a casos de uso e requisitos), como rodar e o resultado (data, quantidade, falhas, defeitos encontrados).
 
 ## Antes de entregar
 
@@ -321,4 +337,7 @@ Confira cada item e corrija o que falhar antes de responder:
 - [ ] camelCase, PascalCase e UPPER_SNAKE_CASE usados nos lugares certos.
 - [ ] Arquivos de camada em `<dominio><Camada>.ts`, componentes em `PascalCase.tsx` e rotas em kebab-case pt-BR.
 - [ ] Comentários explicam o porquê; nenhum comentário de histórico novo, e nenhum existente removido.
+- [ ] Ícones só de `@react-native-vector-icons/ionicons`; nenhum emoji no lugar de ícone.
+- [ ] Nenhum id interno exibido na interface.
+- [ ] Login e identificação de pessoas pelo e-mail, nunca pelo nome.
 ```

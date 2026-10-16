@@ -1,5 +1,7 @@
-import type { ComponentProps } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import { StyleSheet, Text, View } from 'react-native';
 
 import BackButton from '@/components/ui/BackButton';
@@ -7,7 +9,7 @@ import { Radius, Spacing, Typography, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
 type ScreenHeaderProps = {
-  icon: ComponentProps<typeof Ionicons>['name'];
+  icon: IoniconsIconName;
   title: string;
   subtitle?: string;
   // a tela de login não tem para onde voltar.

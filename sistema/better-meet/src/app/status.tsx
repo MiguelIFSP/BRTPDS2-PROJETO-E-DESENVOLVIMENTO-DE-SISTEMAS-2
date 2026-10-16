@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
+import type { IoniconsIconName } from '@react-native-vector-icons/ionicons';
 import { ActivityIndicator, StyleSheet, Text } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -25,10 +26,14 @@ const HISTORY_DAYS = 30;
 
 // key = valor de "subSystem" gravado pela API de monitoramento
 const SUB_SYSTEMS = [
-  { key: 'mobile-app', title: '📱 Aplicativo' },
-  { key: 'data-api', title: '🌐 API' },
-  { key: 'database', title: '🗄️ Banco de Dados' },
-] as const;
+  { key: 'mobile-app', title: 'Aplicativo', icon: 'phone-portrait-outline' },
+  { key: 'data-api', title: 'API', icon: 'globe-outline' },
+  { key: 'database', title: 'Banco de Dados', icon: 'server-outline' },
+] as const satisfies readonly {
+  key: string;
+  title: string;
+  icon: IoniconsIconName;
+}[];
 
 const STATUS_DIA = {
   OPERATIONAL: 'operational',
@@ -54,7 +59,7 @@ function resolveStatusOfTheDay(day: SubSystemHistoryDay): {
   if (day.uptimePercentage == null) {
     return {
       status: 'unknown',
-      message: 'Não houve checagem de status nesse dia 😴',
+      message: 'Não houve checagem de status nesse dia.',
     };
   }
 
@@ -83,7 +88,7 @@ const toDayStatus = (day: SubSystemHistoryDay): DayStatus => ({
   ...resolveStatusOfTheDay(day),
 });
 
-type Layer = { title: string; data: DayStatus[] };
+type Layer = { title: string; icon: IoniconsIconName; data: DayStatus[] };
 
 export default function StatusScreen() {
   const { colors } = useTheme();
@@ -102,9 +107,9 @@ export default function StatusScreen() {
     try {
       const current = await monitoringService.getCurrentStatus(token);
       const results = await Promise.all(
-        SUB_SYSTEMS.map(async ({ key, title }): Promise<Layer> => {
+        SUB_SYSTEMS.map(async ({ key, title, icon }): Promise<Layer> => {
           const subSystem = current.find((item) => item.subSystem === key);
-          if (!subSystem) return { title, data: [] };
+          if (!subSystem) return { title, icon, data: [] };
 
           const history = await monitoringService.getSubSystemHistory(
             token,
@@ -113,7 +118,7 @@ export default function StatusScreen() {
           );
           // API devolve do dia mais antigo pro mais recente — invertido aqui pra mais recente ficar à esquerda
           const mostRecentFirst = [...history.history].reverse();
-          return { title, data: mostRecentFirst.map(toDayStatus) };
+          return { title, icon, data: mostRecentFirst.map(toDayStatus) };
         }),
       );
 
@@ -178,6 +183,7 @@ export default function StatusScreen() {
           <StatusLayer
             key={layer.title}
             title={layer.title}
+            icon={layer.icon}
             data={layer.data}
           />
         ))

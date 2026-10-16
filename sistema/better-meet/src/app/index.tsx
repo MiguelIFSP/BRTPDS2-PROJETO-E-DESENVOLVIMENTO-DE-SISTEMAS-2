@@ -13,7 +13,7 @@ export default function IndexScreen() {
     <Screen>
       <View style={styles.greeting}>
         <Text style={[styles.greetingText, { color: colors.textSecondary }]}>
-          Olá, {userName ?? 'usuário'} 👋
+          Olá, {userName ?? 'usuário'}!
         </Text>
         <Text
           accessibilityRole="header"

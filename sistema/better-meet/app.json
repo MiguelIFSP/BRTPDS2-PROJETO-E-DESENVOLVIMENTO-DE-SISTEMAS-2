@@ -1,20 +1,16 @@
 {
   "expo": {
-    "name": "better-meet",
+    "name": "Better Meet",
     "slug": "better-meet",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/images/better-meet-icon.png",
     "scheme": "bettermeet",
     "userInterfaceStyle": "automatic",
-    "ios": {
-      "icon": "./assets/expo.icon"
-    },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#BFEFE9",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
-        "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
@@ -28,13 +24,18 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#208AEF",
+          "backgroundColor": "#F0F7F6",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 200,
+          "dark": {
+            "backgroundColor": "#0D1B1D",
+            "image": "./assets/images/splash-icon-dark.png"
+          }
         }
       ],
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      "@react-native-vector-icons/ionicons"
     ],
     "experiments": {
       "typedRoutes": true,

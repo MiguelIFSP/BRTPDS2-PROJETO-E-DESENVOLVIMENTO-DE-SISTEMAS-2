@@ -1,5 +1,7 @@
-import type { ComponentProps } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import {
   ActivityIndicator,
   Pressable,
@@ -27,7 +29,7 @@ export type ButtonProps = {
   label: string;
   onPress: () => void;
   variant?: ButtonVariant;
-  icon?: ComponentProps<typeof Ionicons>['name'];
+  icon?: IoniconsIconName;
   isLoading?: boolean;
   // texto mostrado enquanto isLoading (ex.: "Salvando...")
   loadingLabel?: string;

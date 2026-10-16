@@ -4,8 +4,11 @@
 // preferência do usuário (UC04 — Tema Preferido).
 // =====================================================================
 
-import { useState, type ComponentProps } from 'react';
-import { Ionicons } from '@expo/vector-icons';
+import { useState } from 'react';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import { useRouter, type Href } from 'expo-router';
 import {
   DrawerContentScrollView,
@@ -32,7 +35,7 @@ import { getErrorMessage } from '@/utils/apiClient';
 type MenuItem = {
   label: string;
   href: Href;
-  icon: ComponentProps<typeof Ionicons>['name'];
+  icon: IoniconsIconName;
 };
 
 export default function CustomDrawer(props: DrawerContentComponentProps) {
