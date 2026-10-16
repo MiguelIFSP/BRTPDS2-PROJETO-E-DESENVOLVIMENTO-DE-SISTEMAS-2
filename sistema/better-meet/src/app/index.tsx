@@ -1,27 +1,33 @@
-import React, { useEffect } from 'react';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { StyleSheet, Text, View } from 'react-native';
 
-import HomeScreen from '../components/HomeScreen';
-import { useAuthStore } from '../store/authStore';
+import Screen from '@/components/ui/Screen';
+import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
+import { useAuthStore } from '@/store/authStore';
 
-export default function App() {
-  const router = useRouter();
-  const { isAuthenticated } = useAuthStore();
-
-  useEffect(() => {
-    if (!isAuthenticated) {
-      router.replace('/login');
-    }
-  }, [isAuthenticated, router]);
-
-  if (!isAuthenticated) {
-    return null;
-  }
+export default function IndexScreen() {
+  const { colors } = useTheme();
+  const userName = useAuthStore((state) => state.user?.name);
 
   return (
-    <SafeAreaProvider>
-      <HomeScreen />
-    </SafeAreaProvider>
+    <Screen>
+      <View style={styles.greeting}>
+        <Text style={[styles.greetingText, { color: colors.textSecondary }]}>
+          Olá, {userName ?? 'usuário'}!
+        </Text>
+        <Text
+          accessibilityRole="header"
+          style={[styles.title, { color: colors.text }]}
+        >
+          Suas próximas reuniões
+        </Text>
+      </View>
+    </Screen>
   );
 }
+
+const styles = StyleSheet.create({
+  greeting: { gap: Spacing.sm, paddingTop: Spacing.sm },
+  greetingText: { ...Typography.bodyLarge },
+  title: { ...Typography.heading1 },
+});

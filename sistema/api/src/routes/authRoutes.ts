@@ -9,6 +9,8 @@ import { authController } from '../controllers/authController.ts';
 
 const routes = Router();
 
+// pública: é aqui que o usuário obtém o token.
+routes.post('/login', authController.login);
 routes.post('/auth/forgot-password', authController.forgotPassword);
 
 export default routes;

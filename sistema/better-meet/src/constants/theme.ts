@@ -1,116 +1,176 @@
-/**
- * Below are the colors that are used in the app. The colors are defined in the light and dark mode.
- * There are many other ways to style your app. For example, [Nativewind](https://www.nativewind.dev/), [Tamagui](https://tamagui.dev/), [unistyles](https://reactnativeunistyles.vercel.app), etc.
- */
-
-import '@/global.css';
-
 import { Platform } from 'react-native';
+
+// Paleta do documentos/entrega1_AP/design_system.md (seções 2, 4.1 e 10).
+// Nenhuma cor em hex deve aparecer fora deste arquivo (UI-02).
+export type ColorScheme = 'light' | 'dark';
+
+export type ColorToken =
+  | 'background'
+  | 'backgroundElement'
+  | 'text'
+  | 'textSecondary'
+  | 'primary'
+  | 'primaryLight'
+  | 'onPrimary'
+  | 'border'
+  | 'success'
+  | 'warning'
+  | 'danger'
+  | 'onDanger'
+  | 'info'
+  | 'disabled'
+  | 'overlay'
+  | 'shadow';
+
+export type ThemeColors = Record<ColorToken, string>;
 
 export const Colors = {
   light: {
-    text: '#0f172a', // Azul escuro para textos no modo claro
-    background: '#ffffff', // Fundo principal branco
-    backgroundElement: '#ccfbf1', // Verde bem claro para cards e menu
-    backgroundSelected: '#0f766e', // Verde principal para botões/destaques
-    textSecondary: '#134e4a', // Verde escuro para textos secundários/ícones
+    background: '#F0F7F6',
+    backgroundElement: '#FFFFFF',
+    text: '#1F2C31',
+    textSecondary: '#557B88',
+    primary: '#2A8D75',
+    primaryLight: '#BFEFE9',
+    onPrimary: '#FFFFFF',
+    border: '#D4D4D4',
+    success: '#4CAF50',
+    warning: '#FFC107',
+    danger: '#F44336',
+    onDanger: '#FFFFFF',
+    info: '#2196F3',
+    disabled: '#B8C9D1',
+    overlay: 'rgba(13, 27, 29, 0.6)',
+    shadow: '#000000',
   },
   dark: {
-    text: '#ffffff', // Texto branco no modo escuro
-    background: '#0f172a', // Fundo geral escuro (slate)
-    backgroundElement: '#134e4a', // Fundo dos cards no escuro
-    backgroundSelected: '#ccfbf1', // Destaques claros no modo escuro
-    textSecondary: '#0f766e', 
+    background: '#0D1B1D',
+    backgroundElement: '#162126',
+    text: '#FFFFFF',
+    textSecondary: '#557B88',
+    primary: '#1FD5B5',
+    primaryLight: '#BFEFE9',
+    onPrimary: '#0D1B1D',
+    border: '#557B88',
+    success: '#4CAF50',
+    warning: '#FFC107',
+    danger: '#F44336',
+    onDanger: '#FFFFFF',
+    info: '#2196F3',
+    disabled: '#557B88',
+    overlay: 'rgba(0, 0, 0, 0.7)',
+    shadow: '#000000',
   },
+} satisfies Record<ColorScheme, ThemeColors>;
+
+/**
+ * Aplica transparência a uma cor do tema em hex de 6 dígitos (#RRGGBB).
+ * Usado para fundos leves de badge e ícone a partir das cores de estado.
+ */
+export const withAlpha = (color: string, alpha: number) => {
+  const hexAlpha = Math.round(Math.min(Math.max(alpha, 0), 1) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${color}${hexAlpha}`;
+};
+
+// No React Native cada peso de uma fonte carregada tem um nome próprio. Os
+// nomes batem com as chaves passadas ao useFonts no _layout.tsx.
+export const FontFamily = {
+  regular: 'PlusJakartaSans_400Regular',
+  medium: 'PlusJakartaSans_500Medium',
+  semiBold: 'PlusJakartaSans_600SemiBold',
+  bold: 'PlusJakartaSans_700Bold',
 } as const;
 
-export type ThemeColor = keyof typeof Colors.light & keyof typeof Colors.dark;
+export const Fonts = {
+  sans: FontFamily.regular,
+  mono:
+    Platform.select({
+      ios: 'Menlo',
+      android: 'monospace',
+      web: '"Courier New", Menlo, monospace',
+    }) ?? 'monospace',
+};
 
-export const Fonts = Platform.select({
-  ios: {
-    // No iOS, 'System' mapeia nativamente para a fonte -apple-system (San Francisco)
-    sans: 'System', 
-    // Menlo foi a fonte monoespacial especificada para o ecossistema Apple
-    mono: 'Menlo',
-  },
-  android: {
-    // Roboto é a fonte especificada no design system e nativa do Android
-    sans: 'Roboto', 
-    // Monospace nativo do sistema
-    mono: 'monospace',
-  },
-  web: {
-    // Na web podemos usar a cadeia exata de fallback especificada no seu documento
-    sans: '"Segoe UI", Roboto, -apple-system, sans-serif',
-    mono: '"Courier New", Menlo, monospace',
-  },
-  default: {
-    sans: 'normal',
-    mono: 'monospace',
-  },
-});
-
-// Os valores de lineHeight no React Native são em pixels (fontSize * multiplicador do documento)
+// Escala da seção 3.2 do design system. lineHeight em pixels (tamanho * multiplicador).
+// O peso vem do fontFamily, sem fontWeight: no Android, fontWeight sobre uma fonte
+// carregada troca para a fonte do sistema.
 export const Typography = {
-  display: { 
-    fontSize: 32, 
-    fontWeight: '700', 
-    lineHeight: 38.4, // 32 * 1.2
-    letterSpacing: -0.5 
+  display: {
+    fontFamily: FontFamily.bold,
+    fontSize: 32,
+    lineHeight: 38.4,
+    letterSpacing: -0.5,
   },
-  heading1: { 
-    fontSize: 28, 
-    fontWeight: '700', 
-    lineHeight: 36.4, // 28 * 1.3
-    letterSpacing: -0.25 
+  heading1: {
+    fontFamily: FontFamily.bold,
+    fontSize: 28,
+    lineHeight: 36.4,
+    letterSpacing: -0.25,
   },
-  heading2: { 
-    fontSize: 24, 
-    fontWeight: '600', 
-    lineHeight: 33.6, // 24 * 1.4
-    letterSpacing: 0 
+  heading2: {
+    fontFamily: FontFamily.semiBold,
+    fontSize: 24,
+    lineHeight: 33.6,
+    letterSpacing: 0,
   },
-  heading3: { 
-    fontSize: 20, 
-    fontWeight: '600', 
-    lineHeight: 28, // 20 * 1.4
-    letterSpacing: 0 
+  heading3: {
+    fontFamily: FontFamily.semiBold,
+    fontSize: 20,
+    lineHeight: 28,
+    letterSpacing: 0,
   },
-  bodyLarge: { 
-    fontSize: 16, 
-    fontWeight: '400', 
-    lineHeight: 24, // 16 * 1.5
-    letterSpacing: 0.15 
+  bodyLarge: {
+    fontFamily: FontFamily.regular,
+    fontSize: 16,
+    lineHeight: 24,
+    letterSpacing: 0.15,
   },
-  body: { 
-    fontSize: 14, 
-    fontWeight: '400', 
-    lineHeight: 21, // 14 * 1.5
-    letterSpacing: 0.25 
+  body: {
+    fontFamily: FontFamily.regular,
+    fontSize: 14,
+    lineHeight: 21,
+    letterSpacing: 0.25,
   },
-  bodySmall: { 
-    fontSize: 12, 
-    fontWeight: '400', 
-    lineHeight: 16.8, // 12 * 1.4
-    letterSpacing: 0.4 
+  bodySmall: {
+    fontFamily: FontFamily.regular,
+    fontSize: 12,
+    lineHeight: 16.8,
+    letterSpacing: 0.4,
   },
-  caption: { 
-    fontSize: 11, 
-    fontWeight: '500', 
-    lineHeight: 14.3, // 11 * 1.3
-    letterSpacing: 0.5 
+  caption: {
+    fontFamily: FontFamily.medium,
+    fontSize: 11,
+    lineHeight: 14.3,
+    letterSpacing: 0.5,
   },
 } as const;
 
+// Seção 5.1 do design system.
 export const Spacing = {
-  half: 2,
-  one: 4,
-  two: 8,
-  three: 16,
-  four: 24,
-  five: 32,
-  six: 64,
+  xs: 4,
+  sm: 8,
+  md: 12,
+  lg: 16,
+  xl: 24,
+  xxl: 32,
+  xxxl: 48,
 } as const;
 
-export const BottomTabInset = Platform.select({ ios: 50, android: 80 }) ?? 0;
+// Seção 4 do design system.
+export const Radius = {
+  sm: 4, // checkbox
+  md: 8, // botões e campos
+  lg: 12, // cards
+  xl: 16, // modais e chips
+  full: 9999, // avatar e badge
+} as const;
+
+// Seção 9.2 do design system.
+export const TouchTarget = {
+  button: 48,
+  min: 44,
+} as const;
+
 export const MaxContentWidth = 800;

@@ -2,26 +2,29 @@
 // themeStore.ts
 // Guarda a preferência de tema do usuário (light/dark/system).
 //
-// Truque importante: chamamos Appearance.setColorScheme() para que TODAS
-// as telas que já usam useColorScheme() (HomeScreen, Header, IconAndTitle)
-// recebam o novo valor automaticamente, sem precisar alterar uma linha
-// nelas. Assim mantemos a implementação minimalista.
+// As telas leem o tema pelo useTheme(), que já respeita esta preferência.
+// O Appearance.setColorScheme() continua sendo chamado para que os
+// componentes nativos (barra de status, seletores do sistema) sigam o
+// mesmo tema escolhido no app.
 // =====================================================================
 
-import { create } from 'zustand';
-import { createJSONStorage, persist } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Appearance, Platform } from 'react-native';
+import { create } from 'zustand';
+import { createJSONStorage, persist } from 'zustand/middleware';
 
-export type ThemePreference = 'light' | 'dark' | 'system';
+// Mesmos valores do enum Tema do schema.prisma da API.
+export const TEMAS = ['light', 'dark', 'system'] as const;
+export type Tema = (typeof TEMAS)[number];
 
 type ThemeState = {
-  theme: ThemePreference;
-  setTheme: (t: ThemePreference) => void;
-  applyUserPreference: (t: string | null | undefined) => void;
+  theme: Tema;
+  setTheme: (theme: Tema) => void;
+  applyUserPreference: (theme: string | null | undefined) => void;
 };
 
-const VALID: ThemePreference[] = ['light', 'dark', 'system'];
+const isTema = (value: string | null | undefined): value is Tema =>
+  TEMAS.some((tema) => tema === value);
 
 // Aplica no Appearance nativo.
 //
@@ -29,7 +32,7 @@ const VALID: ThemePreference[] = ['light', 'dark', 'system'];
 // ("Parameter specified as non-null is null"). Por isso, quando o tema é
 // 'system', detectamos o esquema atual do SO e aplicamos ele explicitamente,
 // em vez de passar null. No web, essa chamada é no-op.
-function applyToNative(theme: ThemePreference) {
+function applyToNative(theme: Tema) {
   if (Platform.OS === 'web') return;
   try {
     if (theme === 'system') {
@@ -52,15 +55,14 @@ export const useThemeStore = create<ThemeState>()(
     (set) => ({
       theme: 'system',
 
-      setTheme: (t) => {
-        applyToNative(t);
-        set({ theme: t });
+      setTheme: (theme) => {
+        applyToNative(theme);
+        set({ theme });
       },
 
-      applyUserPreference: (t) => {
-        const theme = VALID.includes(t as ThemePreference)
-          ? (t as ThemePreference)
-          : 'system';
+      // valor vindo da API (login): qualquer coisa fora da lista vira 'system'.
+      applyUserPreference: (value) => {
+        const theme = isTema(value) ? value : 'system';
         applyToNative(theme);
         set({ theme });
       },
@@ -68,6 +70,7 @@ export const useThemeStore = create<ThemeState>()(
     {
       name: 'better-meet-theme',
       storage: createJSONStorage(() => AsyncStorage),
+      partialize: (state) => ({ theme: state.theme }),
       // Quando o app abre, o Zustand lê o AsyncStorage. Nesse momento
       // precisamos reaplicar no Appearance, senão o tema salvo só vale
       // a partir do próximo clique. Também é aqui que o crash acontecia,
@@ -75,6 +78,6 @@ export const useThemeStore = create<ThemeState>()(
       onRehydrateStorage: () => (state) => {
         if (state) applyToNative(state.theme);
       },
-    }
-  )
+    },
+  ),
 );

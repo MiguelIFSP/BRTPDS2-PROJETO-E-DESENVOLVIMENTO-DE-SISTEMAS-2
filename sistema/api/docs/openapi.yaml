@@ -1,0 +1,1120 @@
+openapi: 3.0.3
+info:
+  title: Better Meet — API de Dados
+  version: 1.0.0
+  description: |
+    API de dados do Better Meet: usuários, organizações e comissões.
+
+    **Autenticação:** as rotas marcadas com o cadeado exigem o header
+    `Authorization: Bearer <token>`, com o token devolvido por `POST /login`
+    (validade de 7 dias).
+
+    **Erros:** toda resposta de erro tem o corpo `{ "error": "mensagem" }`.
+    Ids de URL malformados devolvem 400 antes de qualquer checagem de
+    permissão (ordem: 400 → 403 → 404).
+servers:
+  - url: /api
+tags:
+  - name: Autenticação
+  - name: Usuários
+  - name: Organizações
+  - name: Comissões
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    UsuarioId:
+      name: id
+      in: path
+      required: true
+      description: Id do próprio usuário autenticado (`requireSelf`).
+      schema: { type: integer, minimum: 1 }
+    OrganizacaoId:
+      name: id
+      in: path
+      required: true
+      description: Id da organização.
+      schema: { type: integer, minimum: 1 }
+    OrganizacaoIdComissoes:
+      name: organizacaoId
+      in: path
+      required: true
+      description: Id da organização.
+      schema: { type: integer, minimum: 1 }
+    ComissaoId:
+      name: comissaoId
+      in: path
+      required: true
+      description: Id da comissão.
+      schema: { type: integer, minimum: 1 }
+    MembroUserId:
+      name: userId
+      in: path
+      required: true
+      description: Id do usuário membro.
+      schema: { type: integer, minimum: 1 }
+
+  responses:
+    BadRequest:
+      description: Dados ou id inválidos.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Unauthorized:
+      description: Sem token, token inválido ou expirado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Forbidden:
+      description: Autenticado, mas sem permissão.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    NotFound:
+      description: Recurso não encontrado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Conflict:
+      description: Conflito (duplicidade, limite de papel ou regra de estado).
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    InternalError:
+      description: Erro inesperado. A mensagem é sempre genérica.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: Organização não encontrada. }
+    Message:
+      type: object
+      required: [message]
+      properties:
+        message: { type: string, example: Operação concluída com sucesso. }
+    Role:
+      type: string
+      enum: [USER, ADMIN]
+    Tema:
+      type: string
+      enum: [light, dark, system]
+    PapelOrganizacao:
+      type: string
+      enum: [CRIADOR, GERENTE, MODERADOR, MEMBRO]
+      description: |
+        CRIADOR: quem pediu a organização (só 1). GERENTE: máximo 1, adiciona e
+        remove membros. MODERADOR: máximo 2, só adiciona membros.
+    StatusOrganizacao:
+      type: string
+      enum: [PENDENTE, ACEITA, RECUSADA]
+    PapelComissao:
+      type: string
+      enum: [ADMINISTRADOR, FACILITADOR, SECRETARIO, MEMBRO]
+    UsuarioResumo:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+    Usuario:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/Role' }
+        themePreference:
+          allOf: [{ $ref: '#/components/schemas/Tema' }]
+          nullable: true
+        createdAt: { type: string, format: date-time }
+    Sessao:
+      allOf:
+        - $ref: '#/components/schemas/Usuario'
+        - type: object
+          properties:
+            token: { type: string, description: JWT com validade de 7 dias. }
+    OrganizacaoMembro:
+      type: object
+      properties:
+        organizacaoId: { type: integer }
+        userId: { type: integer }
+        papel: { $ref: '#/components/schemas/PapelOrganizacao' }
+        user: { $ref: '#/components/schemas/UsuarioResumo' }
+    Comissao:
+      type: object
+      properties:
+        id: { type: integer }
+        nome: { type: string }
+        descricao: { type: string, nullable: true }
+        createdAt: { type: string, format: date-time }
+        organizacaoId: { type: integer }
+    ComissaoEquipe:
+      type: object
+      properties:
+        comissaoId: { type: integer }
+        userId: { type: integer }
+        papel: { $ref: '#/components/schemas/PapelComissao' }
+    Organizacao:
+      type: object
+      properties:
+        id: { type: integer }
+        nome: { type: string }
+        status: { $ref: '#/components/schemas/StatusOrganizacao' }
+        createdAt: { type: string, format: date-time }
+        membros:
+          type: array
+          description: Ordenados por papel (criador primeiro) e depois por nome.
+          items: { $ref: '#/components/schemas/OrganizacaoMembro' }
+        comissoes:
+          type: array
+          items: { $ref: '#/components/schemas/Comissao' }
+    CrescimentoMes:
+      type: object
+      properties:
+        mes: { type: string, example: '2026-10', description: Ano-mês em UTC. }
+        quantidade: { type: integer }
+    Pendente:
+      type: object
+      properties:
+        id: { type: integer }
+        nome: { type: string }
+        organizacaoId:
+          type: integer
+          description: Só nas comissões pendentes.
+        membros:
+          type: array
+          description: Quem pode ser escolhido como sucessor.
+          items: { $ref: '#/components/schemas/UsuarioResumo' }
+    Sucessores:
+      type: object
+      description: Mapa id (organização ou comissão) → id do sucessor.
+      additionalProperties: { type: integer, minimum: 1 }
+      example: { '3': 12 }
+    RelatorioOrganizacoes:
+      type: object
+      properties:
+        total: { type: integer }
+        porStatus:
+          type: object
+          properties:
+            PENDENTE: { type: integer }
+            ACEITA: { type: integer }
+            RECUSADA: { type: integer }
+        crescimentoPorMes:
+          type: array
+          description: Últimos 12 meses, do mais antigo ao mais recente.
+          items: { $ref: '#/components/schemas/CrescimentoMes' }
+        distribuicaoPapeis:
+          type: object
+          description: Só organizações ACEITAS.
+          additionalProperties: { type: integer }
+        mediaMembrosPorOrganizacao:
+          type: number
+          description: Só organizações ACEITAS.
+    RelatorioComissoes:
+      type: object
+      properties:
+        total: { type: integer }
+        totalOrganizacoes: { type: integer }
+        porOrganizacao:
+          type: array
+          items:
+            type: object
+            properties:
+              organizacaoId: { type: integer }
+              nome: { type: string }
+              quantidade: { type: integer }
+        crescimentoPorMes:
+          type: array
+          description: Últimos 12 meses, do mais antigo ao mais recente.
+          items: { $ref: '#/components/schemas/CrescimentoMes' }
+        distribuicaoPapeis:
+          type: object
+          additionalProperties: { type: integer }
+        mediaMembrosPorComissao: { type: number }
+        comissoes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              nome: { type: string }
+              descricao: { type: string, nullable: true }
+              createdAt: { type: string, format: date-time }
+              organizacao:
+                type: object
+                properties:
+                  id: { type: integer }
+                  nome: { type: string }
+              membros: { type: integer, description: Tamanho da equipe. }
+
+paths:
+  /login:
+    post:
+      tags: [Autenticação]
+      summary: Autentica e devolve o token
+      description: Pública. Aceita o e-mail ou o nome do usuário.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [identifier, password]
+              properties:
+                identifier:
+                  { type: string, minLength: 2, description: E-mail ou nome. }
+                password: { type: string }
+      responses:
+        '200':
+          description: Autenticado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Sessao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Usuário/e-mail ou senha inválidos.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/forgot-password:
+    post:
+      tags: [Autenticação]
+      summary: Redefine a senha pelo e-mail (UC02)
+      description: |
+        Pública. **Não há verificação de posse do e-mail**: qualquer pessoa que
+        saiba o e-mail de uma conta consegue trocar a senha. Será substituída
+        na migração para o Better Auth.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, newPassword]
+              properties:
+                email: { type: string, format: email, maxLength: 160 }
+                newPassword:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+                  description: Precisa de maiúscula, minúscula e número.
+      responses:
+        '200':
+          description: Senha redefinida.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '404':
+          description: E-mail não cadastrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios:
+    post:
+      tags: [Usuários]
+      summary: Cadastra um usuário
+      description: Pública. Sempre cria com papel USER.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, email, password]
+              properties:
+                nome: { type: string, minLength: 2, maxLength: 80 }
+                email: { type: string, format: email, maxLength: 160 }
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+                  description: Precisa de maiúscula, minúscula e número.
+                role:
+                  type: string
+                  enum: [USER]
+                  description: Qualquer outro valor devolve 400.
+      responses:
+        '201':
+          description: Usuário criado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/busca:
+    get:
+      tags: [Usuários]
+      summary: Busca usuários por nome ou e-mail
+      description: >-
+        Exige `requireAuth`. Usada para escolher quem adicionar a uma
+        organização. Devolve no máximo 10 usuários, em ordem de nome.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Trecho do nome ou do e-mail.
+          schema: { type: string, minLength: 2, maxLength: 160 }
+        - name: organizacaoId
+          in: query
+          required: false
+          description: Quando informado, deixa de fora quem já é membro dessa organização.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Usuários encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/UsuarioResumo' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/relatorio:
+    get:
+      tags: [Usuários]
+      summary: Relatório de usuários da plataforma
+      description: Exige `requireAuth` + `requireAdmin`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Agregados e lista de usuários.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  total: { type: integer }
+                  porRole:
+                    type: object
+                    properties:
+                      ADMIN: { type: integer }
+                      USER: { type: integer }
+                  crescimentoPorMes:
+                    type: array
+                    description: Últimos 12 meses, do mais antigo ao mais recente.
+                    items: { $ref: '#/components/schemas/CrescimentoMes' }
+                  engajamento:
+                    type: object
+                    properties:
+                      comOrganizacao: { type: integer }
+                      semOrganizacao: { type: integer }
+                      comComissao: { type: integer }
+                      mediaOrganizacoesPorUsuario: { type: number }
+                      mediaComissoesPorUsuario: { type: number }
+                  usuariosPorPapelOrganizacao:
+                    type: object
+                    additionalProperties: { type: integer }
+                  usuariosPorPapelComissao:
+                    type: object
+                    additionalProperties: { type: integer }
+                  maisAtivos:
+                    type: array
+                    description: Até 5 usuários com mais vínculos.
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        name: { type: string }
+                        organizacoes: { type: integer }
+                        comissoes: { type: integer }
+                  porTema:
+                    type: object
+                    additionalProperties: { type: integer }
+                  usuarios:
+                    type: array
+                    items: { type: object }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/{id}:
+    patch:
+      tags: [Usuários]
+      summary: Altera nome e e-mail (UC03)
+      description: Exige `requireAuth` + `requireSelf`.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, email]
+              properties:
+                nome: { type: string, minLength: 2, maxLength: 80 }
+                email: { type: string, format: email, maxLength: 160 }
+      responses:
+        '200':
+          description: Perfil atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: E-mail já em uso por outra conta.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/{id}/senha:
+    patch:
+      tags: [Usuários]
+      summary: Troca a senha (UC01)
+      description: Exige `requireAuth` + `requireSelf`.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [currentPassword, newPassword]
+              properties:
+                currentPassword: { type: string }
+                newPassword:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+                  description: Precisa de maiúscula, minúscula e número, e ser diferente da atual.
+      responses:
+        '200':
+          description: Senha alterada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401':
+          description: Sem token, token inválido ou senha atual incorreta.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/{id}/tema:
+    patch:
+      tags: [Usuários]
+      summary: Altera o tema preferido (UC04)
+      description: Exige `requireAuth` + `requireSelf`.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [theme]
+              properties:
+                theme: { $ref: '#/components/schemas/Tema' }
+      responses:
+        '200':
+          description: Tema atualizado.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id: { type: integer }
+                  themePreference: { $ref: '#/components/schemas/Tema' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/{id}/comissoes-administradas:
+    get:
+      tags: [Usuários]
+      summary: Comissões em que o usuário é ADMINISTRADOR
+      description: |
+        Exige `requireAuth` + `requireSelf`. Usado pela tela de exclusão de
+        conta para escolher quem assume cada comissão.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
+      responses:
+        '200':
+          description: Comissões com organização e equipe.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Comissao'
+                    - type: object
+                      properties:
+                        organizacao:
+                          type: object
+                          properties:
+                            id: { type: integer }
+                            nome: { type: string }
+                        equipe:
+                          type: array
+                          items:
+                            allOf:
+                              - $ref: '#/components/schemas/ComissaoEquipe'
+                              - type: object
+                                properties:
+                                  user:
+                                    {
+                                      $ref: '#/components/schemas/UsuarioResumo',
+                                    }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/{id}/dados-pessoais:
+    delete:
+      tags: [Usuários]
+      summary: Exclui os dados pessoais, mantendo as organizações
+      description: |
+        Exige `requireAuth` + `requireSelf`. Cada organização da qual o usuário
+        é CRIADOR passa para o sucessor informado em `sucessores`, e cada
+        comissão em que ele é o único ADMINISTRADOR passa para o sucessor de
+        `sucessoresComissao` (comissão sem outros membros é apagada). Se faltar
+        algum sucessor, devolve 409 com as pendências. Tudo é feito numa única
+        transação.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sucessores: { $ref: '#/components/schemas/Sucessores' }
+                sucessoresComissao: { $ref: '#/components/schemas/Sucessores' }
+      responses:
+        '200':
+          description: Dados excluídos.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Falta escolher sucessores.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  organizacoesPendentes:
+                    type: array
+                    items: { $ref: '#/components/schemas/Pendente' }
+                  comissoesPendentes:
+                    type: array
+                    items: { $ref: '#/components/schemas/Pendente' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /usuarios/{id}/dados-completos:
+    delete:
+      tags: [Usuários]
+      summary: Exclui a conta e as organizações das quais é criador
+      description: |
+        Exige `requireAuth` + `requireSelf`. Apaga o usuário e as organizações
+        em que ele é CRIADOR (com membros, comissões e equipes). Comissões de
+        outras organizações em que ele é o único ADMINISTRADOR seguem a mesma
+        regra de `sucessoresComissao` da exclusão de dados pessoais.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sucessoresComissao: { $ref: '#/components/schemas/Sucessores' }
+      responses:
+        '200':
+          description: Conta excluída.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Falta escolher sucessores de comissão.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  comissoesPendentes:
+                    type: array
+                    items: { $ref: '#/components/schemas/Pendente' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes:
+    get:
+      tags: [Organizações]
+      summary: Lista todas as organizações
+      description: Exige `requireAuth` + `requireAdmin`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Organizações, da mais nova para a mais antiga.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Organizacao' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [Organizações]
+      summary: Solicita uma organização
+      description: |
+        Exige `requireAuth`. Cria com status PENDENTE e o solicitante como
+        CRIADOR. O admin da plataforma precisa aceitar.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, maxLength: 80 }
+      responses:
+        '201':
+          description: Organização criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organizacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/minhas:
+    get:
+      tags: [Organizações]
+      summary: Organizações das quais o usuário é membro
+      description: Exige `requireAuth`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Organizações do usuário.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Organizacao' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/relatorio:
+    get:
+      tags: [Organizações]
+      summary: Relatório de todas as organizações
+      description: Exige `requireAuth` + `requireAdmin`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Agregados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelatorioOrganizacoes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/relatorio/minhas:
+    get:
+      tags: [Organizações]
+      summary: Relatório das organizações do usuário
+      description: Exige `requireAuth`. Mesmo formato do relatório geral.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Agregados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelatorioOrganizacoes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/{id}:
+    get:
+      tags: [Organizações]
+      summary: Detalha uma organização
+      description: Exige `requireAuth`.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
+      responses:
+        '200':
+          description: Organização com membros e comissões.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organizacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [Organizações]
+      summary: Exclui uma organização
+      description: |
+        Exige `requireAuth`. Só o CRIADOR da organização ou o ADMIN da
+        plataforma. Membros, comissões e equipes são apagados junto.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
+      responses:
+        '200':
+          description: Organização excluída.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/{id}/status:
+    patch:
+      tags: [Organizações]
+      summary: Aceita ou recusa uma organização
+      description: Exige `requireAuth` + `requireAdmin`.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [ACEITA, RECUSADA] }
+      responses:
+        '200':
+          description: Organização atualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organizacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/{id}/membros:
+    post:
+      tags: [Organizações]
+      summary: Adiciona um membro pelo e-mail
+      description: |
+        Exige `requireAuth`. A organização precisa estar ACEITA. Só CRIADOR,
+        GERENTE, MODERADOR ou o ADMIN da plataforma. O membro entra como MEMBRO.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+      responses:
+        '201':
+          description: Membro adicionado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizacaoMembro' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404':
+          description: Organização aprovada ou usuário não encontrado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '409':
+          description: O usuário já é membro.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/{id}/membros/{userId}:
+    patch:
+      tags: [Organizações]
+      summary: Promove ou rebaixa um membro
+      description: |
+        Exige `requireAuth`. Só o CRIADOR (ou o ADMIN da plataforma). Atribuir
+        CRIADOR transfere a organização: só o criador atual pode, e ele passa a
+        MEMBRO na mesma operação. Limites: 1 GERENTE e 2 MODERADORES.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganizacaoId'
+        - $ref: '#/components/parameters/MembroUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [papel]
+              properties:
+                papel: { $ref: '#/components/schemas/PapelOrganizacao' }
+      responses:
+        '200':
+          description: Papel atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/OrganizacaoMembro' }
+        '400':
+          description: Dados inválidos, alteração do criador ou do próprio papel.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Limite de gerentes ou moderadores atingido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [Organizações]
+      summary: Remove um membro
+      description: |
+        Exige `requireAuth`. Só CRIADOR, GERENTE ou o ADMIN da plataforma. O
+        criador não pode ser removido.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/OrganizacaoId'
+        - $ref: '#/components/parameters/MembroUserId'
+      responses:
+        '200':
+          description: Membro removido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/{organizacaoId}/comissoes:
+    get:
+      tags: [Comissões]
+      summary: Lista as comissões de uma organização
+      description: Exige `requireAuth`. Só membros da organização ou o ADMIN da plataforma.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoIdComissoes' }]
+      responses:
+        '200':
+          description: Comissões, da mais nova para a mais antiga, com a equipe.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: '#/components/schemas/Comissao'
+                    - type: object
+                      properties:
+                        equipe:
+                          type: array
+                          items: { $ref: '#/components/schemas/ComissaoEquipe' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /comissoes:
+    post:
+      tags: [Comissões]
+      summary: Cria uma comissão (UC01)
+      description: |
+        Exige `requireAuth`. Quem cria precisa ser membro da organização, que
+        precisa estar ACEITA. O criador entra como ADMINISTRADOR.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome, organizacaoId]
+              properties:
+                nome: { type: string, maxLength: 80 }
+                descricao: { type: string, maxLength: 500 }
+                organizacaoId: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Comissão criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comissao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A organização ainda não foi aprovada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /comissoes/relatorio:
+    get:
+      tags: [Comissões]
+      summary: Relatório de todas as comissões
+      description: Exige `requireAuth` + `requireAdmin`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Agregados e lista de comissões.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelatorioComissoes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /comissoes/relatorio/minhas:
+    get:
+      tags: [Comissões]
+      summary: Relatório das comissões em que o usuário está na equipe
+      description: Exige `requireAuth`. Mesmo formato do relatório geral.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Agregados e lista de comissões.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelatorioComissoes' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /comissoes/{id}:
+    delete:
+      tags: [Comissões]
+      summary: Exclui uma comissão (UC02)
+      description: Exige `requireAuth`. Só o ADMINISTRADOR da comissão.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Id da comissão.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Comissão excluída.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /comissoes/{comissaoId}/membros:
+    post:
+      tags: [Comissões]
+      summary: Adiciona um membro à equipe (UC03)
+      description: |
+        Exige `requireAuth`. Só ADMINISTRADOR ou FACILITADOR da comissão; só o
+        ADMINISTRADOR adiciona outro ADMINISTRADOR. O usuário precisa ser
+        membro da organização.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/ComissaoId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [userId]
+              properties:
+                userId: { type: integer, minimum: 1 }
+                papel:
+                  allOf: [{ $ref: '#/components/schemas/PapelComissao' }]
+                  default: MEMBRO
+      responses:
+        '201':
+          description: Membro adicionado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComissaoEquipe' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: O usuário já faz parte da comissão.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /comissoes/{comissaoId}/membros/{userId}:
+    delete:
+      tags: [Comissões]
+      summary: Remove um membro da equipe (UC03)
+      description: |
+        Exige `requireAuth`. Só ADMINISTRADOR ou FACILITADOR; facilitador não
+        remove administrador; a comissão nunca fica sem administrador.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ComissaoId'
+        - $ref: '#/components/parameters/MembroUserId'
+      responses:
+        '200':
+          description: Membro removido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }

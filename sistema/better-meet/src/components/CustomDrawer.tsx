@@ -4,34 +4,69 @@
 // preferência do usuário (UC04 — Tema Preferido).
 // =====================================================================
 
-import React from 'react';
+import { useState } from 'react';
 import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Switch,
-  Platform,
-  Alert,
-} from 'react-native';
-import { DrawerContentScrollView } from 'expo-router/drawer';
-import { Colors } from '../constants/theme';
-import IconAndTitle from './IconAndTitle';
-import { useRouter } from 'expo-router';
-import { useAuthStore } from '../store/authStore';
-import { useThemeStore } from '../store/themeStore';
-import { useAppColorScheme } from '../hooks/use-app-color-scheme';
-import { API_URL } from '../config/api';
-import { reportMobileError } from '../services/monitoringService';
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
+import { useRouter, type Href } from 'expo-router';
+import {
+  DrawerContentScrollView,
+  type DrawerContentComponentProps,
+} from 'expo-router/drawer';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
-export default function CustomDrawer(props: any) {
+import IconAndTitle from '@/components/IconAndTitle';
+import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
+import {
+  FontFamily,
+  Radius,
+  Spacing,
+  TouchTarget,
+  Typography,
+} from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
+import { monitoringService } from '@/services/monitoringService';
+import { usuarioService } from '@/services/usuarioService';
+import { useAuthStore } from '@/store/authStore';
+import { useThemeStore } from '@/store/themeStore';
+import { getErrorMessage } from '@/utils/apiClient';
+
+type MenuItem = {
+  label: string;
+  href: Href;
+  icon: IoniconsIconName;
+};
+
+export default function CustomDrawer(props: DrawerContentComponentProps) {
   const router = useRouter();
-  const currentTheme = useAppColorScheme();
-  const themeColors = Colors[currentTheme];
-  const { user } = useAuthStore();
-  const setTheme = useThemeStore((s) => s.setTheme);
+  const { colorScheme, colors } = useTheme();
+  const user = useAuthStore((state) => state.user);
+  const setTheme = useThemeStore((state) => state.setTheme);
+  const [themeFeedback, setThemeFeedback] = useState<Feedback | null>(null);
 
-  const isDarkMode = currentTheme === 'dark';
+  const isDarkMode = colorScheme === 'dark';
+
+  const menuItems: MenuItem[] = [
+    { label: 'Status do Sistema', href: '/status', icon: 'pulse-outline' },
+    {
+      label:
+        user?.role === 'ADMIN' ? 'Solicitar organização' : 'Minha organização',
+      href: '/organizacao',
+      icon: 'business-outline',
+    },
+    { label: 'Comissões', href: '/comissao', icon: 'people-outline' },
+    ...(user?.role === 'ADMIN'
+      ? [
+          {
+            label: 'Organizações',
+            href: '/organizacoes',
+            icon: 'albums-outline',
+          } satisfies MenuItem,
+        ]
+      : []),
+    { label: 'Relatórios', href: '/relatorios', icon: 'bar-chart-outline' },
+  ];
 
   // =====================================================================
   // toggleSwitch — UC04 (Tema Preferido)
@@ -46,109 +81,79 @@ export default function CustomDrawer(props: any) {
   const toggleSwitch = async () => {
     const newTheme = isDarkMode ? 'light' : 'dark';
     setTheme(newTheme);
+    setThemeFeedback(null);
 
-    // Sincroniza com o backend (se logado)
-    if (!user || !useAuthStore.getState().token) return;
+    const { token } = useAuthStore.getState();
+    if (!user || !token) return;
 
-    let response: Response;
     try {
-      response = await fetch(`${API_URL}/usuarios/${user.id}/tema`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${useAuthStore.getState().token}`,
-        },
-        body: JSON.stringify({ theme: newTheme }),
-      });
-    } catch (networkError) {
-      reportMobileError(
-        networkError instanceof Error ? networkError.message : 'Falha de rede ao salvar o tema.',
-        networkError instanceof Error ? networkError.stack : undefined,
-        { context: 'CustomDrawer.toggleSwitch', isBlocking: false }
+      await usuarioService.updateTheme(token, user.id, newTheme);
+    } catch (error) {
+      monitoringService.reportRequestFailure(
+        error,
+        'CustomDrawer.toggleSwitch',
+        false,
       );
-      return;
-    }
-
-    if (!response.ok) {
-      const data = (await response.json().catch(() => ({}))) as { error?: string };
-      const message = data.error ?? 'Não foi possível salvar sua preferência de tema.';
-
-      // 400/401 são dado inválido ou sessão expirada, não falha do sistema.
-      if (response.status !== 400 && response.status !== 401) {
-        reportMobileError(message, undefined, { context: 'CustomDrawer.toggleSwitch', isBlocking: false });
-      }
-
-      // Alert.alert não faz nada no react-native-web.
-      const aviso = `O tema foi aplicado neste aparelho, mas não foi salvo na sua conta: ${message}`;
-      if (Platform.OS === 'web') {
-        window.alert(aviso);
-      } else {
-        Alert.alert('Tema não sincronizado', aviso);
-      }
+      setThemeFeedback({
+        type: 'error',
+        message: `O tema foi aplicado neste aparelho, mas não foi salvo na sua conta: ${getErrorMessage(
+          error,
+          'tente novamente mais tarde.',
+        )}`,
+      });
     }
   };
 
   return (
     <DrawerContentScrollView
       {...props}
-      style={[styles.drawerContainer, { backgroundColor: themeColors.background }]}
+      style={[styles.drawerContainer, { backgroundColor: colors.background }]}
     >
       <View style={styles.header}>
         <IconAndTitle />
       </View>
 
-      <TouchableOpacity style={styles.menuItem} onPress={() => router.push('/status')}>
-        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>Status do Sistema</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.menuItem}
-        onPress={() => router.push('/organizacao' as any)}
-      >
-        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>
-          {user?.role === 'ADMIN' ? 'Solicitar organização' : 'Minha organização'}
-        </Text>
-      </TouchableOpacity>
-
-      {user?.role === 'ADMIN' ? (
-        <TouchableOpacity
-          style={styles.menuItem}
-          onPress={() => router.push('/organizacoes' as any)}
-        >
-          <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>
-            Organizações
-          </Text>
-        </TouchableOpacity>
-      ) : null}
-
-      <TouchableOpacity
-        style={styles.menuItem}
-        onPress={() => router.push('/relatorios' as any)}
-      >
-        <Text style={[styles.menuText, { color: themeColors.textSecondary }]}>
-          Relatórios
-        </Text>
-      </TouchableOpacity>
-
-      <View style={[styles.footer, { borderTopColor: themeColors.textSecondary + '40' }]}>
-        <View
-          style={[
-            styles.themeToggleContainer,
-            { borderColor: themeColors.textSecondary + '40' },
+      {menuItems.map((item) => (
+        <Pressable
+          key={item.label}
+          accessibilityRole="link"
+          accessibilityLabel={`Abrir ${item.label}`}
+          onPress={() => router.push(item.href)}
+          style={({ pressed }) => [
+            styles.menuItem,
+            pressed && { backgroundColor: colors.backgroundElement },
           ]}
         >
-          <Text style={[styles.themeText, { color: themeColors.text }]}>
-            {isDarkMode ? '🌙 Modo Escuro' : '☀️ Modo Claro'}
+          <Ionicons name={item.icon} size={20} color={colors.primary} />
+          <Text style={[styles.menuText, { color: colors.text }]}>
+            {item.label}
+          </Text>
+        </Pressable>
+      ))}
+
+      <View style={[styles.footer, { borderTopColor: colors.border }]}>
+        <View style={[styles.themeToggle, { borderColor: colors.border }]}>
+          <Ionicons
+            name={isDarkMode ? 'moon-outline' : 'sunny-outline'}
+            size={20}
+            color={colors.text}
+          />
+          <Text style={[styles.themeText, { color: colors.text }]}>
+            {isDarkMode ? 'Modo Escuro' : 'Modo Claro'}
           </Text>
           <Switch
-            trackColor={{ false: '#767577', true: Colors.light.backgroundSelected }}
-            thumbColor={isDarkMode ? '#ffffff' : '#f4f3f4'}
-            onValueChange={toggleSwitch}
+            accessibilityRole="switch"
+            accessibilityLabel="Modo escuro"
+            trackColor={{ false: colors.textSecondary, true: colors.primary }}
+            thumbColor={colors.backgroundElement}
+            onValueChange={() => void toggleSwitch()}
             value={isDarkMode}
           />
         </View>
 
-        <Text style={[styles.slogan, { color: themeColors.backgroundSelected }]}>
+        <FeedbackBanner feedback={themeFeedback} />
+
+        <Text style={[styles.slogan, { color: colors.primary }]}>
           Better Meetings, Better Results.
         </Text>
       </View>
@@ -158,20 +163,46 @@ export default function CustomDrawer(props: any) {
 
 const styles = StyleSheet.create({
   drawerContainer: { flex: 1 },
-  header: { padding: 24, paddingTop: 40, marginBottom: 20, alignItems: 'center' },
-  menuItem: { paddingVertical: 14, paddingHorizontal: 20, borderRadius: 12, marginBottom: 8 },
-  menuText: { fontSize: 16, fontWeight: '600' },
-  footer: { marginTop: 40, paddingHorizontal: 24, paddingTop: 24, borderTopWidth: 1 },
-  themeToggleContainer: {
+  header: {
+    padding: Spacing.xl,
+    paddingTop: Spacing.xxxl,
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
+  },
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    borderWidth: 1,
-    borderRadius: 24,
-    marginBottom: 40,
+    gap: Spacing.md,
+    minHeight: TouchTarget.button,
+    paddingHorizontal: Spacing.lg,
+    borderRadius: Radius.lg,
+    marginBottom: Spacing.sm,
   },
-  themeText: { fontSize: 16, fontWeight: '600' },
-  slogan: { fontSize: 12, textAlign: 'center', marginBottom: 24 },
+  menuText: { ...Typography.bodyLarge, fontFamily: FontFamily.semiBold },
+  footer: {
+    marginTop: Spacing.xxl,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xl,
+    borderTopWidth: 1,
+    gap: Spacing.lg,
+  },
+  themeToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.md,
+    paddingHorizontal: Spacing.lg,
+    borderWidth: 1,
+    borderRadius: Radius.full,
+  },
+  themeText: {
+    ...Typography.bodyLarge,
+    fontFamily: FontFamily.semiBold,
+    flex: 1,
+  },
+  slogan: {
+    ...Typography.bodySmall,
+    textAlign: 'center',
+    marginBottom: Spacing.xl,
+  },
 });
