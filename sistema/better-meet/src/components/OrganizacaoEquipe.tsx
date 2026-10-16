@@ -1,79 +1,76 @@
 import { useState } from 'react';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import * as yup from 'yup';
 
 import OrganizacaoMembroRow from '@/components/OrganizacaoMembroRow';
-import TextField from '@/components/ui/TextField';
-import {
-  FontFamily,
-  Radius,
-  Spacing,
-  TouchTarget,
-  Typography,
-} from '@/constants/theme';
+import Button from '@/components/ui/Button';
+import PersonPickerSheet, {
+  type Person,
+} from '@/components/ui/PersonPickerSheet';
+import SectionLabel from '@/components/ui/SectionLabel';
+import { Spacing } from '@/constants/theme';
 import type { OrganizacaoAction } from '@/hooks/useOrganizacaoActions';
-import { useTheme } from '@/hooks/useTheme';
 import { membroOrganizacaoSchema } from '@/schemas/organizacaoSchema';
 import { countByPapel, type Organizacao } from '@/services/organizacaoService';
+import { countLabel } from '@/utils/format';
 
 type OrganizacaoEquipeProps = {
   organizacao: Organizacao;
+  // pessoas que o usuário já vê em outras organizações, sugeridas na busca.
+  knownPeople: Person[];
   canAdd: boolean;
   canPromote: boolean;
   canRemove: boolean;
   onRequestAction: (action: OrganizacaoAction) => void;
-  // resolve true quando o membro foi adicionado (o campo é limpo).
-  onAddMember: (email: string) => Promise<boolean>;
+  // resolve com a mensagem de erro, ou null quando o membro foi adicionado.
+  onAddMember: (email: string) => Promise<string | null>;
 };
 
 // Equipe de uma organização aceita: lista de membros com as ações permitidas
-// e o convite por e-mail (o usuário convidado já precisa ter conta).
+// e o convite, que busca entre pessoas conhecidas ou aceita o e-mail de quem
+// já tem conta.
 export default function OrganizacaoEquipe({
   organizacao,
+  knownPeople,
   canAdd,
   canPromote,
   canRemove,
   onRequestAction,
   onAddMember,
 }: OrganizacaoEquipeProps) {
-  const { colors } = useTheme();
-  const [email, setEmail] = useState('');
-  const [emailError, setEmailError] = useState<string>();
-  const [isAdding, setIsAdding] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const gerenteCount = countByPapel(organizacao, 'GERENTE');
   const moderadorCount = countByPapel(organizacao, 'MODERADOR');
   const total = organizacao.membros.length;
+  const idsNaOrganizacao = new Set(
+    organizacao.membros.map((membro) => membro.user.id),
+  );
+  const candidatos = knownPeople.filter(
+    (person) => !idsNaOrganizacao.has(person.id),
+  );
 
-  const handleAdd = async () => {
-    let validEmail: string;
+  const handleAdd = async (email: string) => {
     try {
-      ({ email: validEmail } = await membroOrganizacaoSchema.validate(
+      const values = await membroOrganizacaoSchema.validate(
         { email },
         { abortEarly: false, stripUnknown: true },
-      ));
+      );
+      return await onAddMember(values.email);
     } catch (error) {
       if (error instanceof yup.ValidationError) {
-        setEmailError(error.inner[0]?.message ?? error.message);
+        return error.inner[0]?.message ?? error.message;
       }
-      return;
+      throw error;
     }
-
-    setIsAdding(true);
-    const added = await onAddMember(validEmail);
-    setIsAdding(false);
-    if (added) setEmail('');
   };
 
   return (
     <View style={styles.container}>
-      <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Equipe</Text>
-        <Text style={[styles.count, { color: colors.textSecondary }]}>
-          {total} {total === 1 ? 'pessoa' : 'pessoas'}
-        </Text>
-      </View>
+      <SectionLabel
+        label="Equipe"
+        trailing={countLabel(total, 'pessoa', 'pessoas')}
+      />
 
       <View style={styles.list}>
         {organizacao.membros.map((membro) => {
@@ -105,68 +102,30 @@ export default function OrganizacaoEquipe({
       </View>
 
       {canAdd ? (
-        <View style={styles.addRow}>
-          <TextField
-            accessibilityLabel={`E-mail do novo membro de ${organizacao.nome}`}
-            containerStyle={styles.addField}
-            value={email}
-            onChangeText={(value) => {
-              setEmail(value);
-              setEmailError(undefined);
-            }}
-            placeholder="E-mail do novo membro"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            error={emailError}
+        <>
+          <Button
+            variant="secondary"
+            icon="person-add-outline"
+            label="Adicionar membro"
+            onPress={() => setIsPickerOpen(true)}
           />
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Adicionar membro"
-            accessibilityState={{ disabled: isAdding }}
-            disabled={isAdding}
-            onPress={() => void handleAdd()}
-            style={({ pressed }) => [
-              styles.addButton,
-              { backgroundColor: colors.primary },
-              (pressed || isAdding) && styles.pressed,
-            ]}
-          >
-            <Ionicons
-              name="person-add-outline"
-              size={20}
-              color={colors.onPrimary}
-            />
-          </Pressable>
-        </View>
+          <PersonPickerSheet
+            visible={isPickerOpen}
+            title={`Adicionar a ${organizacao.nome}`}
+            people={candidatos}
+            allowEmail
+            hint="A pessoa entra como Membro. Depois, quem pode promover ajusta o papel."
+            submitLabel="Adicionar à organização"
+            onClose={() => setIsPickerOpen(false)}
+            onSubmit={({ email }) => handleAdd(email)}
+          />
+        </>
       ) : null}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { gap: Spacing.sm },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  title: { ...Typography.body, fontFamily: FontFamily.bold },
-  count: { ...Typography.bodySmall },
+  container: { gap: Spacing.md },
   list: { gap: Spacing.sm },
-  addRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.sm,
-    marginTop: Spacing.xs,
-  },
-  addField: { flex: 1 },
-  addButton: {
-    width: TouchTarget.button,
-    height: TouchTarget.button,
-    borderRadius: Radius.md,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  pressed: { opacity: 0.8 },
 });

@@ -55,6 +55,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       href: '/organizacao',
       icon: 'business-outline',
     },
+    { label: 'Comissões', href: '/comissao', icon: 'people-outline' },
     ...(user?.role === 'ADMIN'
       ? [
           {

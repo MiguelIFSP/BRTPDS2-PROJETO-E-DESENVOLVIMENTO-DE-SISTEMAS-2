@@ -4,15 +4,18 @@ import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 
 import ComissaoCard from '@/components/ComissaoCard';
+import BackButton from '@/components/ui/BackButton';
+import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
 import Chip from '@/components/ui/Chip';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import DashedButton from '@/components/ui/DashedButton';
 import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
+import PageIntro from '@/components/ui/PageIntro';
 import Screen from '@/components/ui/Screen';
-import ScreenHeader from '@/components/ui/ScreenHeader';
+import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
-import { FontFamily, Spacing, Typography } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
 import { comissaoSchema } from '@/schemas/comissaoSchema';
@@ -28,6 +31,7 @@ import {
 } from '@/services/organizacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
+import { countLabel } from '@/utils/format';
 import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
 
 type ComissaoForm = { nome: string; descricao: string };
@@ -42,6 +46,7 @@ export default function ComissaoScreen() {
   const { colors } = useTheme();
   const token = useAuthStore((state) => state.token);
   const [feedback, setFeedback] = useFeedback();
+  const [formFeedback, setFormFeedback] = useFeedback();
 
   // comissao so existe em organizacao aprovada da qual o usuario e membro (regra da API).
   const [organizacoes, setOrganizacoes] = useState<Organizacao[]>([]);
@@ -55,7 +60,7 @@ export default function ComissaoScreen() {
     {},
   );
 
-  const [showCreateForm, setShowCreateForm] = useState(false);
+  const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<ComissaoForm>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<FieldErrors<ComissaoForm>>({});
   const [isCreating, setIsCreating] = useState(false);
@@ -133,9 +138,19 @@ export default function ComissaoScreen() {
     setFormErrors((current) => ({ ...current, [field]: undefined }));
   };
 
+  const openCreate = () => {
+    setFormFeedback(null);
+    setIsFormOpen(true);
+  };
+
+  const closeCreate = () => {
+    setIsFormOpen(false);
+    setFormErrors({});
+  };
+
   const handleCreate = async () => {
     if (!token || !organizacaoAtualId) return;
-    setFeedback(null);
+    setFormFeedback(null);
 
     let values: { nome: string; descricao?: string | undefined };
     try {
@@ -159,8 +174,9 @@ export default function ComissaoScreen() {
         ...(values.descricao ? { descricao: values.descricao } : {}),
       });
       setForm(EMPTY_FORM);
-      setShowCreateForm(false);
+      setIsFormOpen(false);
       await loadComissoes(organizacaoAtualId);
+      setExpandedId(comissao.id);
       setFeedback({
         type: 'success',
         message: `Comissão ${comissao.nome} criada.`,
@@ -170,7 +186,7 @@ export default function ComissaoScreen() {
         error,
         'ComissaoScreen.handleCreate',
       );
-      setFeedback({
+      setFormFeedback({
         type: 'error',
         message: getErrorMessage(error, 'Não foi possível criar a comissão.'),
       });
@@ -182,12 +198,15 @@ export default function ComissaoScreen() {
   const showCardFeedback = (comissaoId: number, value: Feedback) =>
     setCardFeedback((current) => ({ ...current, [comissaoId]: value }));
 
+  // o erro volta para o painel de adição; o sucesso aparece no card.
   const handleAddMember = async (
     comissaoId: number,
     userId: number,
     papel: PapelComissao,
   ) => {
-    if (!token || !organizacaoAtualId) return false;
+    if (!token || !organizacaoAtualId) {
+      return 'Sessão expirada. Entre novamente.';
+    }
     try {
       await comissaoService.addMember(token, comissaoId, userId, papel);
       await loadComissoes(organizacaoAtualId);
@@ -195,13 +214,9 @@ export default function ComissaoScreen() {
         type: 'success',
         message: 'Membro adicionado.',
       });
-      return true;
+      return null;
     } catch (error) {
-      showCardFeedback(comissaoId, {
-        type: 'error',
-        message: getErrorMessage(error, 'Não foi possível adicionar o membro.'),
-      });
-      return false;
+      return getErrorMessage(error, 'Não foi possível adicionar o membro.');
     }
   };
 
@@ -302,17 +317,17 @@ export default function ComissaoScreen() {
 
   return (
     <Screen hasForm>
-      <ScreenHeader
-        icon="people-outline"
-        title="Comissões"
-        subtitle="Gerencie os grupos de trabalho"
+      <BackButton />
+
+      <PageIntro
+        title="Suas comissões"
+        onAdd={organizacaoAtual ? openCreate : undefined}
+        addLabel="Criar comissão"
       />
 
       {organizacoes.length > 1 ? (
         <View style={styles.organizacoes}>
-          <Text style={[styles.label, { color: colors.textSecondary }]}>
-            Organização
-          </Text>
+          <SectionLabel label="Organização" />
           <View style={styles.chips}>
             {organizacoes.map((organizacao) => (
               <Chip
@@ -329,56 +344,58 @@ export default function ComissaoScreen() {
       <FeedbackBanner feedback={feedback} />
 
       {organizacaoAtual ? (
-        showCreateForm ? (
-          <Card>
-            <Text style={[styles.formTitle, { color: colors.text }]}>
-              Nova comissão
-            </Text>
-            <TextField
-              label="Nome"
-              placeholder="Ex.: Comitê de Eventos"
-              value={form.nome}
-              maxLength={80}
-              onChangeText={(value) => updateFormField('nome', value)}
-              error={formErrors.nome}
-            />
-            <TextField
-              label="Descrição"
-              placeholder="Objetivo da comissão..."
-              multiline
-              maxLength={500}
-              value={form.descricao}
-              onChangeText={(value) => updateFormField('descricao', value)}
-              error={formErrors.descricao}
-            />
-            <View style={styles.formActions}>
-              <Button
-                variant="secondary"
-                label="Cancelar"
-                onPress={() => {
-                  setShowCreateForm(false);
-                  setForm(EMPTY_FORM);
-                  setFormErrors({});
-                }}
-              />
-              <Button
-                label="Salvar"
-                loadingLabel="Salvando..."
-                isLoading={isCreating}
-                onPress={() => void handleCreate()}
-              />
-            </View>
-          </Card>
-        ) : (
-          <Button
-            icon="add"
-            label="Nova comissão"
-            onPress={() => setShowCreateForm(true)}
-          />
-        )
+        <SectionLabel
+          label={`Comissões · ${organizacaoAtual.nome}`}
+          showDot
+          trailing={countLabel(comissoes.length, 'comissão', 'comissões')}
+        />
       ) : null}
 
       {renderContent()}
+
+      {organizacaoAtual && !isLoading ? (
+        <DashedButton label="Criar comissão" onPress={openCreate} />
+      ) : null}
+
+      <BottomSheet
+        visible={isFormOpen}
+        title="Nova comissão"
+        onClose={closeCreate}
+      >
+        <View style={styles.field}>
+          <SectionLabel label="Nome da comissão" />
+          <TextField
+            accessibilityLabel="Nome da comissão"
+            placeholder="Ex.: Comitê de Eventos"
+            value={form.nome}
+            maxLength={80}
+            onChangeText={(value) => updateFormField('nome', value)}
+            error={formErrors.nome}
+          />
+        </View>
+
+        <View style={styles.field}>
+          <SectionLabel label="Descrição" />
+          <TextField
+            accessibilityLabel="Descrição"
+            placeholder="Objetivo da comissão..."
+            multiline
+            maxLength={500}
+            value={form.descricao}
+            onChangeText={(value) => updateFormField('descricao', value)}
+            error={formErrors.descricao}
+          />
+        </View>
+
+        <FeedbackBanner feedback={formFeedback} />
+
+        <Button
+          label="Criar comissão"
+          loadingLabel="Criando..."
+          isLoading={isCreating}
+          onPress={() => void handleCreate()}
+        />
+      </BottomSheet>
 
       <ConfirmDialog
         visible={pendingAction !== null}
@@ -406,19 +423,12 @@ export default function ComissaoScreen() {
 
 const styles = StyleSheet.create({
   organizacoes: { gap: Spacing.sm },
-  label: { ...Typography.bodySmall, fontFamily: FontFamily.medium },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  formTitle: { ...Typography.heading3 },
-  formActions: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    flexWrap: 'wrap',
-    gap: Spacing.sm,
-  },
+  field: { gap: Spacing.sm },
   loading: { marginTop: Spacing.xxl },
   empty: {
-    ...Typography.bodyLarge,
+    ...Typography.body,
     textAlign: 'center',
-    marginTop: Spacing.xxl,
+    paddingVertical: Spacing.lg,
   },
 });

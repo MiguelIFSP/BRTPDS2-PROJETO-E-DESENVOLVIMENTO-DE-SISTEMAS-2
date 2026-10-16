@@ -4,17 +4,19 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 
 import Avatar from '@/components/ui/Avatar';
-import Badge from '@/components/ui/Badge';
+import Badge, { type BadgeTone } from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
-import Chip from '@/components/ui/Chip';
+import ExpandableCard from '@/components/ui/ExpandableCard';
 import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
+import PersonPickerSheet from '@/components/ui/PersonPickerSheet';
+import SectionLabel from '@/components/ui/SectionLabel';
 import {
   FontFamily,
   Radius,
   Spacing,
   TouchTarget,
   Typography,
+  withAlpha,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { membroComissaoSchema } from '@/schemas/comissaoSchema';
@@ -25,6 +27,15 @@ import {
   type PapelComissao,
 } from '@/services/comissaoService';
 import type { OrganizacaoMembro } from '@/services/organizacaoService';
+import { countLabel } from '@/utils/format';
+
+// cor do badge por papel, na mesma ordem de hierarquia da organização.
+const PAPEL_TONE = {
+  ADMINISTRADOR: 'primary',
+  FACILITADOR: 'info',
+  SECRETARIO: 'warning',
+  MEMBRO: 'textSecondary',
+} satisfies Record<PapelComissao, BadgeTone>;
 
 type ComissaoCardProps = {
   comissao: Comissao;
@@ -33,8 +44,8 @@ type ComissaoCardProps = {
   expanded: boolean;
   feedback: Feedback | null;
   onToggle: () => void;
-  // resolve true quando o membro foi adicionado (a seleção é limpa).
-  onAddMember: (userId: number, papel: PapelComissao) => Promise<boolean>;
+  // resolve com a mensagem de erro, ou null quando o membro foi adicionado.
+  onAddMember: (userId: number, papel: PapelComissao) => Promise<string | null>;
   onRequestRemoveMember: (userId: number, name: string) => void;
   onRequestDelete: () => void;
 };
@@ -50,10 +61,7 @@ export default function ComissaoCard({
   onRequestDelete,
 }: ComissaoCardProps) {
   const { colors } = useTheme();
-  const [selectedUserId, setSelectedUserId] = useState<number | null>(null);
-  const [papel, setPapel] = useState<PapelComissao>('MEMBRO');
-  const [addError, setAddError] = useState<string>();
-  const [isAdding, setIsAdding] = useState(false);
+  const [isPickerOpen, setIsPickerOpen] = useState(false);
 
   const nomePorUserId = new Map(
     membrosOrganizacao.map((membro) => [membro.user.id, membro.user.name]),
@@ -62,212 +70,147 @@ export default function ComissaoCard({
   const candidatos = membrosOrganizacao.filter(
     (membro) => !idsNaEquipe.has(membro.user.id),
   );
-  const total = comissao.equipe.length;
+  const equipe = comissao.equipe.map((membro) => ({
+    ...membro,
+    name: nomePorUserId.get(membro.userId) ?? 'Ex-membro da organização',
+  }));
+  const total = equipe.length;
 
-  const handleAdd = async () => {
-    let values: { userId: number; papel: string };
+  const handleAdd = async (
+    userId: number | undefined,
+    papel: PapelComissao | null,
+  ) => {
+    if (!papel) return 'Selecione o papel na comissão.';
     try {
-      values = await membroComissaoSchema.validate(
-        { userId: selectedUserId ?? undefined, papel },
+      const values = await membroComissaoSchema.validate(
+        { userId, papel },
         { abortEarly: false, stripUnknown: true },
       );
+      return await onAddMember(values.userId, papel);
     } catch (error) {
       if (error instanceof yup.ValidationError) {
-        setAddError(error.inner[0]?.message ?? error.message);
+        return error.inner[0]?.message ?? error.message;
       }
-      return;
-    }
-
-    setAddError(undefined);
-    setIsAdding(true);
-    const added = await onAddMember(values.userId, papel);
-    setIsAdding(false);
-    if (added) {
-      setSelectedUserId(null);
-      setPapel('MEMBRO');
+      throw error;
     }
   };
 
   return (
-    <Card>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`${expanded ? 'Recolher' : 'Abrir'} comissão ${comissao.nome}`}
-        accessibilityState={{ expanded }}
-        onPress={onToggle}
-        style={styles.header}
-      >
-        <View style={styles.headerInfo}>
-          <Text style={[styles.title, { color: colors.text }]}>
-            {comissao.nome}
-          </Text>
-          {comissao.descricao ? (
-            <Text
-              style={[styles.description, { color: colors.textSecondary }]}
-              numberOfLines={expanded ? undefined : 2}
-            >
-              {comissao.descricao}
-            </Text>
-          ) : null}
-          <Badge
-            label={`${total} ${total === 1 ? 'membro' : 'membros'}`}
-            tone="primary"
-          />
-        </View>
-        <Ionicons
-          name={expanded ? 'chevron-up' : 'chevron-down'}
-          size={22}
-          color={colors.textSecondary}
+    <ExpandableCard
+      icon="people-outline"
+      title={comissao.nome}
+      description={comissao.descricao}
+      meta={countLabel(total, 'membro', 'membros')}
+      memberNames={equipe.map((membro) => membro.name)}
+      expanded={expanded}
+      onToggle={onToggle}
+    >
+      <View style={styles.section}>
+        <SectionLabel
+          label="Equipe"
+          trailing={countLabel(total, 'pessoa', 'pessoas')}
         />
-      </Pressable>
-
-      {expanded ? (
-        <View style={styles.details}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Equipe atual
-          </Text>
-          {comissao.equipe.map((membro) => {
-            const name =
-              nomePorUserId.get(membro.userId) ?? `Usuário ${membro.userId}`;
-            return (
-              <View
-                key={membro.userId}
-                style={[
-                  styles.memberRow,
-                  { backgroundColor: colors.background },
-                ]}
-              >
-                <Avatar name={name} size="sm" />
-                <View style={styles.memberInfo}>
-                  <Text
-                    style={[styles.memberName, { color: colors.text }]}
-                    numberOfLines={1}
-                  >
-                    {name}
-                  </Text>
-                  <Text
-                    style={[styles.memberRole, { color: colors.textSecondary }]}
-                  >
-                    {papelComissaoLabel(membro.papel)}
-                  </Text>
-                </View>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remover ${name} da comissão`}
-                  onPress={() => onRequestRemoveMember(membro.userId, name)}
-                  style={styles.iconButton}
-                >
-                  <Ionicons
-                    name="person-remove-outline"
-                    size={20}
-                    color={colors.danger}
-                  />
-                </Pressable>
-              </View>
-            );
-          })}
-
+        {equipe.map((membro) => (
           <View
-            style={[styles.separator, { backgroundColor: colors.border }]}
-          />
-
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Adicionar membro
-          </Text>
-          {candidatos.length === 0 ? (
-            <Text style={[styles.hint, { color: colors.textSecondary }]}>
-              Todos os membros da organização já estão nesta comissão.
-            </Text>
-          ) : (
-            <>
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Membro da organização
+            key={membro.userId}
+            style={[
+              styles.memberRow,
+              {
+                backgroundColor: colors.background,
+                borderColor: withAlpha(colors.primary, 0.2),
+              },
+            ]}
+          >
+            <Avatar name={membro.name} size="sm" />
+            <View style={styles.memberInfo}>
+              <Text
+                style={[styles.memberName, { color: colors.text }]}
+                numberOfLines={1}
+              >
+                {membro.name}
               </Text>
-              <View style={styles.chips}>
-                {candidatos.map((membro) => (
-                  <Chip
-                    key={membro.user.id}
-                    label={membro.user.name}
-                    selected={selectedUserId === membro.user.id}
-                    onPress={() => {
-                      setSelectedUserId(membro.user.id);
-                      setAddError(undefined);
-                    }}
-                  />
-                ))}
-              </View>
-
-              <Text style={[styles.label, { color: colors.textSecondary }]}>
-                Papel na comissão
-              </Text>
-              <View style={styles.chips}>
-                {PAPEIS_COMISSAO.map((item) => (
-                  <Chip
-                    key={item}
-                    label={papelComissaoLabel(item)}
-                    selected={papel === item}
-                    onPress={() => setPapel(item)}
-                  />
-                ))}
-              </View>
-
-              {addError ? (
-                <Text style={[styles.hint, { color: colors.danger }]}>
-                  {addError}
-                </Text>
-              ) : null}
-
-              <Button
-                label="Adicionar à equipe"
-                loadingLabel="Adicionando..."
-                icon="person-add-outline"
-                isLoading={isAdding}
-                onPress={() => void handleAdd()}
+              <Badge
+                label={papelComissaoLabel(membro.papel)}
+                tone={PAPEL_TONE[membro.papel]}
               />
-            </>
-          )}
+            </View>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`Remover ${membro.name} da comissão`}
+              onPress={() => onRequestRemoveMember(membro.userId, membro.name)}
+              style={({ pressed }) => [
+                styles.iconButton,
+                { backgroundColor: colors.backgroundElement },
+                pressed && styles.pressed,
+              ]}
+            >
+              <Ionicons
+                name="person-remove-outline"
+                size={18}
+                color={colors.danger}
+              />
+            </Pressable>
+          </View>
+        ))}
+      </View>
 
-          <FeedbackBanner feedback={feedback} />
+      <Button
+        variant="secondary"
+        icon="person-add-outline"
+        label="Adicionar membro"
+        onPress={() => setIsPickerOpen(true)}
+      />
+      <PersonPickerSheet
+        visible={isPickerOpen}
+        title={`Adicionar a ${comissao.nome}`}
+        people={candidatos.map((membro) => membro.user)}
+        roles={PAPEIS_COMISSAO.map((item) => ({
+          value: item,
+          label: papelComissaoLabel(item),
+        }))}
+        defaultRole="MEMBRO"
+        hint={
+          candidatos.length === 0
+            ? 'Todos os membros da organização já estão nesta comissão.'
+            : 'Só membros da organização podem entrar na comissão.'
+        }
+        submitLabel="Adicionar à comissão"
+        onClose={() => setIsPickerOpen(false)}
+        onSubmit={({ person, role }) => handleAdd(person?.id, role)}
+      />
 
-          <Button
-            variant="tertiaryDanger"
-            icon="trash-outline"
-            label="Excluir comissão"
-            onPress={onRequestDelete}
-            style={styles.deleteButton}
-          />
-        </View>
-      ) : null}
-    </Card>
+      <FeedbackBanner feedback={feedback} />
+
+      <Button
+        variant="tertiaryDanger"
+        icon="trash-outline"
+        label="Excluir comissão"
+        onPress={onRequestDelete}
+        style={styles.deleteButton}
+      />
+    </ExpandableCard>
   );
 }
 
 const styles = StyleSheet.create({
-  header: { flexDirection: 'row', alignItems: 'center', gap: Spacing.md },
-  headerInfo: { flex: 1, gap: Spacing.xs },
-  title: { ...Typography.heading3 },
-  description: { ...Typography.body },
-  details: { gap: Spacing.md },
-  sectionTitle: { ...Typography.body, fontFamily: FontFamily.bold },
+  section: { gap: Spacing.md },
   memberRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.md,
-    borderRadius: Radius.md,
-    padding: Spacing.sm,
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    padding: Spacing.md,
   },
-  memberInfo: { flex: 1, minWidth: 0 },
+  memberInfo: { flex: 1, minWidth: 0, gap: Spacing.xs },
   memberName: { ...Typography.body, fontFamily: FontFamily.semiBold },
-  memberRole: { ...Typography.bodySmall },
   iconButton: {
     width: TouchTarget.min,
     height: TouchTarget.min,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  separator: { height: 1, marginVertical: Spacing.sm },
-  label: { ...Typography.bodySmall, fontFamily: FontFamily.medium },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  hint: { ...Typography.bodySmall },
+  pressed: { opacity: 0.7 },
   deleteButton: { alignSelf: 'flex-start' },
 });

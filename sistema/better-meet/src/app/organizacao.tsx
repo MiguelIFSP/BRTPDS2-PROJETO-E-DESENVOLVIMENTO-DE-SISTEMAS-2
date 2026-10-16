@@ -5,16 +5,18 @@ import { StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 import { useShallow } from 'zustand/react/shallow';
 
+import OrganizacaoCard from '@/components/OrganizacaoCard';
 import OrganizacaoEquipe from '@/components/OrganizacaoEquipe';
-import Badge from '@/components/ui/Badge';
+import BackButton from '@/components/ui/BackButton';
+import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
-import Card from '@/components/ui/Card';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import DashedButton from '@/components/ui/DashedButton';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
+import PageIntro from '@/components/ui/PageIntro';
 import Screen from '@/components/ui/Screen';
-import ScreenHeader from '@/components/ui/ScreenHeader';
+import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
-import { STATUS_ORGANIZACAO_UI } from '@/constants/status';
 import {
   FontFamily,
   Radius,
@@ -29,11 +31,13 @@ import { organizacaoSchema } from '@/schemas/organizacaoSchema';
 import { monitoringService } from '@/services/monitoringService';
 import {
   getMyPapel,
+  listKnownPeople,
   organizacaoService,
   type Organizacao,
 } from '@/services/organizacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
+import { countLabel } from '@/utils/format';
 
 export default function OrganizacaoScreen() {
   const { colors } = useTheme();
@@ -43,7 +47,10 @@ export default function OrganizacaoScreen() {
   const [nome, setNome] = useState('');
   const [nomeError, setNomeError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [feedback, setFeedback] = useFeedback();
+  const [formFeedback, setFormFeedback] = useFeedback();
   const [organizacoes, setOrganizacoes] = useState<Organizacao[]>([]);
 
   const loadOrganizacoes = async () => {
@@ -89,10 +96,20 @@ export default function OrganizacaoScreen() {
     }, [token, setFeedback]),
   );
 
+  const openCreate = () => {
+    setFormFeedback(null);
+    setIsCreating(true);
+  };
+
+  const closeCreate = () => {
+    setIsCreating(false);
+    setNomeError(undefined);
+  };
+
   // manda a solicitacao. fica pendente ate o admin aceitar.
   const handleCreate = async () => {
     if (!token) return;
-    setFeedback(null);
+    setFormFeedback(null);
 
     let nomeValido: string;
     try {
@@ -112,7 +129,9 @@ export default function OrganizacaoScreen() {
     try {
       const organizacao = await organizacaoService.create(token, nomeValido);
       setNome('');
+      setIsCreating(false);
       await loadOrganizacoes();
+      setExpandedId(organizacao.id);
       setFeedback({
         type: 'success',
         message: `${organizacao.nome} foi criada e está aguardando aprovação do administrador.`,
@@ -122,7 +141,7 @@ export default function OrganizacaoScreen() {
         error,
         'OrganizacaoScreen.handleCreate',
       );
-      setFeedback({
+      setFormFeedback({
         type: 'error',
         message: getErrorMessage(
           error,
@@ -135,8 +154,9 @@ export default function OrganizacaoScreen() {
   };
 
   // convite por email. o usuario ja precisa ter conta.
+  // o erro volta para o painel de adição; o sucesso aparece no card.
   const handleAddMember = async (organizacaoId: number, email: string) => {
-    if (!token) return false;
+    if (!token) return 'Sessão expirada. Entre novamente.';
     try {
       await organizacaoService.addMember(token, organizacaoId, email);
       showCardFeedback(organizacaoId, {
@@ -144,163 +164,172 @@ export default function OrganizacaoScreen() {
         message: 'Membro adicionado.',
       });
       await loadOrganizacoes();
-      return true;
+      return null;
     } catch (error) {
-      showCardFeedback(organizacaoId, {
-        type: 'error',
-        message: getErrorMessage(error, 'Não foi possível adicionar o membro.'),
-      });
-      return false;
+      return getErrorMessage(error, 'Não foi possível adicionar o membro.');
     }
   };
 
+  const total = organizacoes.length;
+  const knownPeople = listKnownPeople(organizacoes);
+
   return (
     <Screen hasForm>
-      <ScreenHeader
-        icon="business-outline"
-        title="Criar organização"
-        subtitle="Reúna sua equipe em um espaço para organizar reuniões, comissões e resultados."
+      <BackButton />
+
+      <PageIntro
+        title="Suas organizações"
+        onAdd={openCreate}
+        addLabel="Criar organização"
       />
 
-      <Card>
-        <TextField
-          label="Nome da organização"
-          autoCapitalize="words"
-          autoCorrect={false}
-          maxLength={80}
-          onChangeText={(value) => {
-            setNome(value);
-            setNomeError(undefined);
-          }}
-          placeholder="Ex.: Grêmio Estudantil"
-          value={nome}
-          error={nomeError}
-        />
+      <FeedbackBanner feedback={feedback} />
 
-        <FeedbackBanner feedback={feedback} />
+      <SectionLabel
+        label="Minhas organizações"
+        showDot
+        trailing={countLabel(total, 'organização', 'organizações')}
+      />
 
-        <Text style={[styles.label, { color: colors.text }]}>
-          Status inicial
+      {organizacoes.map((organizacao) => {
+        const myPapel = getMyPapel(organizacao, user?.id);
+        // quem pode o que nessa org (org tem que estar aceita)
+        const isAceita = organizacao.status === 'ACEITA';
+        const isCreator = myPapel === 'CRIADOR' || user?.role === 'ADMIN';
+        const canAdd =
+          isAceita &&
+          (isCreator || myPapel === 'GERENTE' || myPapel === 'MODERADOR');
+        const canPromote = isAceita && isCreator;
+        const canRemove = isAceita && (isCreator || myPapel === 'GERENTE');
+        const expanded = expandedId === organizacao.id;
+
+        return (
+          <OrganizacaoCard
+            key={organizacao.id}
+            organizacao={organizacao}
+            expanded={expanded}
+            onToggle={() => setExpandedId(expanded ? null : organizacao.id)}
+          >
+            {/* equipe e convite so depois que o admin aceitar */}
+            {isAceita ? (
+              <OrganizacaoEquipe
+                organizacao={organizacao}
+                knownPeople={knownPeople}
+                canAdd={canAdd}
+                canPromote={canPromote}
+                canRemove={canRemove}
+                onRequestAction={requestAction}
+                onAddMember={(email) => handleAddMember(organizacao.id, email)}
+              />
+            ) : (
+              <View style={styles.hintRow}>
+                <Ionicons
+                  name="time-outline"
+                  size={18}
+                  color={colors.textSecondary}
+                />
+                <Text style={[styles.hint, { color: colors.textSecondary }]}>
+                  Aguardando análise do administrador. Como criador, você já faz
+                  parte desta organização.
+                </Text>
+              </View>
+            )}
+
+            <FeedbackBanner feedback={cardFeedback[organizacao.id] ?? null} />
+
+            {isCreator ? (
+              <Button
+                variant="tertiaryDanger"
+                icon="trash-outline"
+                label="Excluir organização"
+                onPress={() =>
+                  requestAction({
+                    type: 'delete-org',
+                    organizacaoId: organizacao.id,
+                    name: organizacao.nome,
+                  })
+                }
+                style={styles.deleteButton}
+              />
+            ) : null}
+          </OrganizacaoCard>
+        );
+      })}
+
+      {total === 0 ? (
+        <Text style={[styles.empty, { color: colors.textSecondary }]}>
+          Você ainda não participa de nenhuma organização.
         </Text>
-        <View style={[styles.statusRow, { borderColor: colors.border }]}>
-          <View
-            style={[styles.statusDot, { backgroundColor: colors.warning }]}
-          />
-          <View style={styles.statusInfo}>
-            <Text style={[styles.statusTitle, { color: colors.text }]}>
-              Aguardando aprovação
-            </Text>
-            <Text
-              style={[
-                styles.statusDescription,
-                { color: colors.textSecondary },
-              ]}
-            >
-              O administrador revisará a solicitação.
-            </Text>
-          </View>
-          <Ionicons
-            name="lock-closed-outline"
-            size={18}
-            color={colors.textSecondary}
+      ) : null}
+
+      <DashedButton label="Criar organização" onPress={openCreate} />
+
+      <BottomSheet
+        visible={isCreating}
+        title="Nova organização"
+        onClose={closeCreate}
+      >
+        <View style={styles.field}>
+          <SectionLabel label="Nome da organização" />
+          <TextField
+            accessibilityLabel="Nome da organização"
+            autoCapitalize="words"
+            autoCorrect={false}
+            maxLength={80}
+            onChangeText={(value) => {
+              setNome(value);
+              setNomeError(undefined);
+            }}
+            placeholder="Ex.: Grêmio Estudantil"
+            value={nome}
+            error={nomeError}
           />
         </View>
+
+        <View style={styles.field}>
+          <SectionLabel label="Status inicial" />
+          <View
+            style={[
+              styles.statusRow,
+              {
+                backgroundColor: withAlpha(colors.primary, 0.1),
+                borderColor: withAlpha(colors.primary, 0.3),
+              },
+            ]}
+          >
+            <View
+              style={[styles.statusDot, { backgroundColor: colors.warning }]}
+            />
+            <View style={styles.statusInfo}>
+              <Text style={[styles.statusTitle, { color: colors.text }]}>
+                Aguardando aprovação
+              </Text>
+              <Text
+                style={[
+                  styles.statusDescription,
+                  { color: colors.textSecondary },
+                ]}
+              >
+                O administrador revisará a solicitação.
+              </Text>
+            </View>
+            <Ionicons
+              name="lock-closed-outline"
+              size={18}
+              color={colors.textSecondary}
+            />
+          </View>
+        </View>
+
+        <FeedbackBanner feedback={formFeedback} />
 
         <Button
           label="Criar organização"
           loadingLabel="Criando..."
-          icon="add-circle-outline"
           isLoading={isSubmitting}
           onPress={() => void handleCreate()}
         />
-      </Card>
-
-      {organizacoes.length > 0 ? (
-        <View style={styles.section}>
-          <Text
-            accessibilityRole="header"
-            style={[styles.sectionTitle, { color: colors.text }]}
-          >
-            Minhas organizações
-          </Text>
-          {organizacoes.map((organizacao) => {
-            const myPapel = getMyPapel(organizacao, user?.id);
-            // quem pode o que nessa org (org tem que estar aceita)
-            const isAceita = organizacao.status === 'ACEITA';
-            const isCreator = myPapel === 'CRIADOR' || user?.role === 'ADMIN';
-            const canAdd =
-              isAceita &&
-              (isCreator || myPapel === 'GERENTE' || myPapel === 'MODERADOR');
-            const canPromote = isAceita && isCreator;
-            const canRemove = isAceita && (isCreator || myPapel === 'GERENTE');
-            const status = STATUS_ORGANIZACAO_UI[organizacao.status];
-
-            return (
-              <Card key={organizacao.id}>
-                <View style={styles.cardHeader}>
-                  <View style={styles.cardTitleBlock}>
-                    <Text style={[styles.cardTitle, { color: colors.text }]}>
-                      {organizacao.nome}
-                    </Text>
-                    <Badge label={status.label} tone={status.tone} showDot />
-                  </View>
-                  <View
-                    style={[
-                      styles.cardIcon,
-                      { backgroundColor: withAlpha(colors.primary, 0.15) },
-                    ]}
-                  >
-                    <Ionicons
-                      name="business-outline"
-                      size={22}
-                      color={colors.primary}
-                    />
-                  </View>
-                </View>
-
-                {/* equipe e convite so depois que o admin aceitar */}
-                {isAceita ? (
-                  <OrganizacaoEquipe
-                    organizacao={organizacao}
-                    canAdd={canAdd}
-                    canPromote={canPromote}
-                    canRemove={canRemove}
-                    onRequestAction={requestAction}
-                    onAddMember={(email) =>
-                      handleAddMember(organizacao.id, email)
-                    }
-                  />
-                ) : (
-                  <Text style={[styles.hint, { color: colors.textSecondary }]}>
-                    Aguardando análise do administrador. Como criador, você já
-                    faz parte desta organização.
-                  </Text>
-                )}
-
-                <FeedbackBanner
-                  feedback={cardFeedback[organizacao.id] ?? null}
-                />
-
-                {isCreator ? (
-                  <Button
-                    variant="tertiaryDanger"
-                    icon="trash-outline"
-                    label="Excluir organização"
-                    onPress={() =>
-                      requestAction({
-                        type: 'delete-org',
-                        organizacaoId: organizacao.id,
-                        name: organizacao.nome,
-                      })
-                    }
-                    style={styles.deleteButton}
-                  />
-                ) : null}
-              </Card>
-            );
-          })}
-        </View>
-      ) : null}
+      </BottomSheet>
 
       <ConfirmDialog {...dialogProps} />
     </Screen>
@@ -308,7 +337,15 @@ export default function OrganizacaoScreen() {
 }
 
 const styles = StyleSheet.create({
-  label: { ...Typography.body, fontFamily: FontFamily.medium },
+  hintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
+  hint: { ...Typography.bodySmall, flex: 1 },
+  deleteButton: { alignSelf: 'flex-start' },
+  empty: {
+    ...Typography.body,
+    textAlign: 'center',
+    paddingVertical: Spacing.lg,
+  },
+  field: { gap: Spacing.sm },
   statusRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -321,23 +358,4 @@ const styles = StyleSheet.create({
   statusInfo: { flex: 1 },
   statusTitle: { ...Typography.body, fontFamily: FontFamily.bold },
   statusDescription: { ...Typography.bodySmall },
-  section: { gap: Spacing.md },
-  sectionTitle: { ...Typography.heading3 },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: Spacing.md,
-  },
-  cardTitleBlock: { flex: 1, gap: Spacing.sm },
-  cardTitle: { ...Typography.heading3 },
-  cardIcon: {
-    width: 44,
-    height: 44,
-    borderRadius: Radius.lg,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  hint: { ...Typography.bodySmall },
-  deleteButton: { alignSelf: 'flex-start' },
 });

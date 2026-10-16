@@ -60,16 +60,6 @@ export default function Header() {
           <View style={styles.logoSlot}>{homeLink}</View>
 
           <View style={styles.rightActions}>
-            {/* NOVO BOTÃO: Atalho para Comissões */}
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Abrir tela de Comissões"
-              onPress={() => router.push('/comissao')}
-              style={styles.iconButton}
-            >
-              <Ionicons name="people-outline" size={26} color={colors.text} />
-            </Pressable>
-
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Abrir perfil do usuário"

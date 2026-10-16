@@ -12,6 +12,7 @@ import {
   Spacing,
   TouchTarget,
   Typography,
+  withAlpha,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import {
@@ -103,8 +104,16 @@ export default function OrganizacaoMembroRow({
     demoted === 'MODERADOR' && moderadorCount >= LIMITE_POR_PAPEL.MODERADOR;
 
   return (
-    <View style={[styles.row, { backgroundColor: colors.background }]}>
-      <Avatar name={membro.user.name} />
+    <View
+      style={[
+        styles.row,
+        {
+          backgroundColor: colors.background,
+          borderColor: withAlpha(colors.primary, 0.2),
+        },
+      ]}
+    >
+      <Avatar name={membro.user.name} size="sm" />
 
       <View style={styles.info}>
         <View style={styles.nameRow}>
@@ -162,6 +171,7 @@ export default function OrganizacaoMembroRow({
 
 const styles = StyleSheet.create({
   row: {
+    borderWidth: 1,
     borderRadius: Radius.lg,
     padding: Spacing.md,
     flexDirection: 'row',
@@ -176,7 +186,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   name: {
-    ...Typography.bodyLarge,
+    ...Typography.body,
     fontFamily: FontFamily.semiBold,
     flexShrink: 1,
   },

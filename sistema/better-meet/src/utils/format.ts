@@ -34,3 +34,15 @@ export const formatMonthLabel = (mes: string) => {
   const label = MESES_ABREVIADOS[Number(month) - 1] ?? mes;
   return `${label}/${year?.slice(2) ?? ''}`;
 };
+
+// "1 membro", "3 membros".
+export const countLabel = (total: number, one: string, many: string) =>
+  `${total} ${total === 1 ? one : many}`;
+
+// Texto de busca sem caixa e sem acento: "José" encontra "jose".
+export const normalizeSearch = (value: string) =>
+  value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();

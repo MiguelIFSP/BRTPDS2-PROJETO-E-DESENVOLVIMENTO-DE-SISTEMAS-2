@@ -17,6 +17,7 @@ import { useFeedback } from '@/hooks/useFeedback';
 import { useOrganizacaoActions } from '@/hooks/useOrganizacaoActions';
 import { useTheme } from '@/hooks/useTheme';
 import {
+  listKnownPeople,
   organizacaoService,
   type Organizacao,
 } from '@/services/organizacaoService';
@@ -103,8 +104,9 @@ export default function OrganizacoesScreen() {
     }
   };
 
+  // o erro volta para o painel de adição; o sucesso aparece no card.
   const handleAddMember = async (organizacaoId: number, email: string) => {
-    if (!token) return false;
+    if (!token) return 'Sessão expirada. Entre novamente.';
     try {
       await organizacaoService.addMember(token, organizacaoId, email);
       showCardFeedback(organizacaoId, {
@@ -112,15 +114,13 @@ export default function OrganizacoesScreen() {
         message: 'Membro adicionado.',
       });
       await loadOrganizacoes();
-      return true;
+      return null;
     } catch (error) {
-      showCardFeedback(organizacaoId, {
-        type: 'error',
-        message: getErrorMessage(error, 'Não foi possível adicionar o membro.'),
-      });
-      return false;
+      return getErrorMessage(error, 'Não foi possível adicionar o membro.');
     }
   };
+
+  const knownPeople = listKnownPeople(organizacoes);
 
   return (
     <Screen hasForm>
@@ -164,6 +164,7 @@ export default function OrganizacoesScreen() {
 
               <OrganizacaoEquipe
                 organizacao={organizacao}
+                knownPeople={knownPeople}
                 canAdd={isAceita}
                 canPromote={isAceita}
                 canRemove={isAceita}
