@@ -32,10 +32,7 @@
             "image": "./assets/images/splash-icon-dark.png"
           }
         }
-      ],
-      "expo-image",
-      "expo-web-browser",
-      "@react-native-vector-icons/ionicons"
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
