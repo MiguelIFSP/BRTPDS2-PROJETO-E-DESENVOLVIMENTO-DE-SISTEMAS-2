@@ -71,19 +71,22 @@ const describe = (action: OrganizacaoAction): DialogCopy => {
 type UseOrganizacaoActionsOptions = {
   token: string | null;
   reload: () => Promise<void>;
-  // a exclusão some com o card, então o resultado dela vai para o banner da tela.
+  // o erro da exclusão vai para o banner da tela.
   onScreenFeedback: (feedback: Feedback) => void;
+  // depois de excluir, a tela da organização não tem o que recarregar: sai dela.
+  onDeleted: () => void;
 };
 
 /**
- * Ações sobre membros e organizações que pedem confirmação, compartilhadas
- * pela tela do usuário (organizacao) e pela do admin (organizacoes).
- * O resultado das ações de membro aparece no card da própria organização.
+ * Ações sobre membros e organizações que pedem confirmação, usadas na tela de
+ * detalhe da organização (pelo usuário e pelo admin).
+ * O resultado das ações de membro aparece junto da equipe.
  */
 export function useOrganizacaoActions({
   token,
   reload,
   onScreenFeedback,
+  onDeleted,
 }: UseOrganizacaoActionsOptions) {
   const [pendingAction, setPendingAction] = useState<OrganizacaoAction | null>(
     null,
@@ -93,7 +96,7 @@ export function useOrganizacaoActions({
     {},
   );
 
-  // a tela fica montada no Drawer: mensagens de uma visita anterior não voltam.
+  // a tela fica montada em segundo plano: mensagens de uma visita anterior não voltam.
   useFocusEffect(
     useCallback(() => {
       return () => setCardFeedback({});
@@ -109,11 +112,10 @@ export function useOrganizacaoActions({
     setIsConfirming(true);
     try {
       if (action.type === 'delete-org') {
-        const { message } = await organizacaoService.delete(
-          token,
-          action.organizacaoId,
-        );
-        onScreenFeedback({ type: 'success', message });
+        await organizacaoService.delete(token, action.organizacaoId);
+        setPendingAction(null);
+        onDeleted();
+        return;
       } else if (action.type === 'remove-member') {
         await organizacaoService.removeMember(
           token,

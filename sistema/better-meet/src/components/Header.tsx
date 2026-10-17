@@ -9,6 +9,9 @@ import { Radius, Spacing, TouchTarget, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 
+// Topo com o logo: só na tela inicial (com convites e atalho para a conta) e
+// nas telas públicas (login, cadastro). As demais telas mostram só o próprio
+// título.
 export default function Header() {
   const { colors } = useTheme();
   const router = useRouter();
@@ -17,16 +20,6 @@ export default function Header() {
       user: state.user,
       isAuthenticated: state.isAuthenticated,
     })),
-  );
-
-  const homeLink = (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel="Ir para a página inicial"
-      onPress={() => router.push('/')}
-    >
-      <IconAndTitle />
-    </Pressable>
   );
 
   return (
@@ -40,8 +33,10 @@ export default function Header() {
         !isAuthenticated && styles.publicHeader,
       ]}
     >
+      <IconAndTitle />
+
       {isAuthenticated ? (
-        <>
+        <View style={styles.rightActions}>
           <Pressable
             accessibilityRole="button"
             accessibilityLabel="Ver convites pendentes"
@@ -60,25 +55,23 @@ export default function Header() {
               pressed && styles.pressed,
             ]}
           >
-            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.primary}
+            />
           </Pressable>
 
-          <View style={styles.logoSlot}>{homeLink}</View>
-
-          <View style={styles.rightActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Abrir perfil do usuário"
-              onPress={() => router.push('/perfil')}
-              hitSlop={2}
-            >
-              <Avatar name={user?.name ?? ''} size="sm" />
-            </Pressable>
-          </View>
-        </>
-      ) : (
-        homeLink
-      )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir conta de usuário"
+            onPress={() => router.push('/mais/perfil')}
+            hitSlop={2}
+          >
+            <Avatar name={user?.name ?? ''} size="sm" />
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -96,24 +89,18 @@ const styles = StyleSheet.create({
   publicHeader: {
     justifyContent: 'center',
   },
-  logoSlot: {
-    flex: 1,
+  rightActions: {
+    flexDirection: 'row',
     alignItems: 'center',
+    gap: Spacing.sm,
   },
   iconButton: {
     minWidth: TouchTarget.min,
     minHeight: TouchTarget.min,
-    width: 42,
-    height: 42,
     borderWidth: 1,
     borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
   pressed: { opacity: 0.7 },
-  rightActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
 });

@@ -25,3 +25,6 @@ export const membroComissaoSchema = yup.object({
     .oneOf(Object.values(PapelComissao), 'Papel inválido.')
     .default(PapelComissao.MEMBRO),
 });
+
+// edição: mesmos campos, mas a comissão não muda de organização.
+export const comissaoUpdateSchema = comissaoSchema.omit(['organizacaoId']);

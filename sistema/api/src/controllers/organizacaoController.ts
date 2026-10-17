@@ -44,8 +44,19 @@ export const organizacaoController = {
   },
 
   async getById(request: Request, response: Response) {
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
     const id = parseId(request.params.id, 'da organização');
-    const organizacao = await organizacaoService.getById(id);
+    const organizacao = await organizacaoService.getById(id, userId, role);
+    response.status(200).json(organizacao);
+  },
+
+  async update(request: Request, response: Response) {
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
+    const id = parseId(request.params.id, 'da organização');
+    const { nome } = await organizacaoSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const organizacao = await organizacaoService.update(id, userId, role, nome);
     response.status(200).json(organizacao);
   },
 

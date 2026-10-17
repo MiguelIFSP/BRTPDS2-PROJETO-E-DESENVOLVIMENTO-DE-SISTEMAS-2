@@ -81,7 +81,7 @@ export default function ExcluirContaScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+  // useFocusEffect (não useEffect) porque a navegação é por abas: a tela fica
   // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
   // deixaria a lista de organizações desatualizada ao voltar pra essa tela depois
   // de mudar algo (ex.: cadastrar um gerente) em outra.

@@ -13,13 +13,12 @@ import {
   useRouter,
   useSegments,
 } from 'expo-router';
-import { Drawer } from 'expo-router/drawer';
+import { Stack } from 'expo-router/stack';
 import * as SplashScreen from 'expo-splash-screen';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useShallow } from 'zustand/react/shallow';
 
-import CustomDrawer from '@/components/CustomDrawer';
 import { Colors, type ColorScheme } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
@@ -28,22 +27,6 @@ void SplashScreen.preventAutoHideAsync();
 
 // rotas que não exigem login. Ao criar ou renomear uma rota pública, atualize aqui.
 const PUBLIC_ROUTES = ['login', 'usuario', 'recuperar-senha'];
-
-// telas que existem no Drawer mas não aparecem como item do menu padrão
-// (o menu é desenhado pelo CustomDrawer).
-const HIDDEN_SCREENS = [
-  'login',
-  'usuario',
-  'recuperar-senha',
-  'perfil',
-  'excluir-conta',
-  'organizacao',
-  'organizacoes',
-  'comissao',
-  'reuniao',
-  'relatorios',
-  'status',
-] as const;
 
 const navigationThemes = {
   dark: {
@@ -86,7 +69,6 @@ function AppGate() {
 
 export default function RootLayout() {
   const { colorScheme } = useTheme();
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const [fontsLoaded] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
@@ -104,23 +86,8 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <ThemeProvider value={navigationThemes[colorScheme]}>
         <AppGate />
-        <Drawer
-          drawerContent={(props) => <CustomDrawer {...props} />}
-          screenOptions={{
-            headerShown: false,
-            drawerType: 'slide',
-            swipeEnabled: isAuthenticated,
-          }}
-        >
-          <Drawer.Screen name="index" />
-          {HIDDEN_SCREENS.map((name) => (
-            <Drawer.Screen
-              key={name}
-              name={name}
-              options={{ drawerItemStyle: { display: 'none' } }}
-            />
-          ))}
-        </Drawer>
+        {/* (tabs) é o app logado (barra inferior); login e cadastro ficam fora dela. */}
+        <Stack screenOptions={{ headerShown: false }} />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

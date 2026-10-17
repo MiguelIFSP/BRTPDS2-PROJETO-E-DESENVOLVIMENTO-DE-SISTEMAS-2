@@ -24,6 +24,8 @@ routes.get(
   requireAuth,
   comissaoController.getAllByOrganizacao,
 );
+routes.get('/comissoes/:id', requireAuth, comissaoController.getById);
+routes.patch('/comissoes/:id', requireAuth, comissaoController.update);
 routes.delete('/comissoes/:id', requireAuth, comissaoController.delete);
 routes.post(
   '/comissoes/:comissaoId/membros',

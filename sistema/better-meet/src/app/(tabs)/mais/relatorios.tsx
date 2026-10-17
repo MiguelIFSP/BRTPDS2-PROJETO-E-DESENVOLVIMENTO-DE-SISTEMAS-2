@@ -77,7 +77,7 @@ export default function RelatoriosScreen() {
   // um erro por aba: se um relatório falhar, os outros ainda aparecem.
   const [errors, setErrors] = useState<Partial<Record<Tab, Feedback>>>({});
 
-  // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+  // useFocusEffect (não useEffect) porque a navegação é por abas: a tela fica
   // montada em segundo plano — sem isso, o relatório ficaria desatualizado ao
   // voltar aqui depois de aceitar/recusar uma organização em outra tela.
   // Cada relatório carrega separado: se um falhar, os outros ainda aparecem.

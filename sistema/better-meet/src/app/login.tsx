@@ -92,7 +92,7 @@ export default function LoginScreen() {
   };
 
   return (
-    <Screen hasForm>
+    <Screen hasForm showHeader>
       <ScreenHeader
         showBack={false}
         icon="log-in-outline"

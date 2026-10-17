@@ -90,7 +90,7 @@ export default function RecuperarSenhaScreen() {
   };
 
   return (
-    <Screen hasForm>
+    <Screen hasForm showHeader>
       <ScreenHeader
         icon="lock-closed-outline"
         title="Recuperar conta"

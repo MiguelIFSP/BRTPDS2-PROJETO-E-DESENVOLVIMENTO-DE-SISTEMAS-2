@@ -10,6 +10,25 @@ type CreateComissaoData = {
   organizacaoId: number;
 };
 
+type UpdateComissaoData = Omit<CreateComissaoData, 'organizacaoId'>;
+
+// detalhe da comissao: equipe com nome/email (o nome de quem saiu da org
+// continua aparecendo) e a org a que ela pertence.
+const detalheInclude = {
+  organizacao: { select: { id: true, nome: true } },
+  equipe: {
+    include: { user: { select: { id: true, name: true, email: true } } },
+  },
+} satisfies Prisma.ComissaoInclude;
+
+// ordem na equipe: administrador primeiro, membro por ultimo.
+const ORDEM_PAPEL = {
+  ADMINISTRADOR: 0,
+  FACILITADOR: 1,
+  SECRETARIO: 2,
+  MEMBRO: 3,
+} satisfies Record<PapelComissao, number>;
+
 // o que o relatorio precisa de cada comissao: org (nome) e papeis da equipe.
 const reportSelect = {
   id: true,
@@ -167,6 +186,65 @@ export const comissaoService = {
       where: { organizacaoId },
       orderBy: { createdAt: 'desc' },
       include: { equipe: true },
+    });
+  },
+
+  /**
+   * UC02: Detalha uma comissão (membros da org ou admin do sistema).
+   */
+  async getById(id: number, actorId: number, actorRole: Role) {
+    const comissao = await prisma.comissao.findUnique({
+      where: { id },
+      include: detalheInclude,
+    });
+    if (!comissao) {
+      throw new AppError(404, 'Comissão não encontrada.');
+    }
+
+    if (actorRole !== 'ADMIN') {
+      const membro = await prisma.organizacaoMembro.findUnique({
+        where: {
+          organizacaoId_userId: {
+            organizacaoId: comissao.organizacaoId,
+            userId: actorId,
+          },
+        },
+      });
+      if (!membro) {
+        throw new AppError(403, 'Você não é membro desta organização.');
+      }
+    }
+
+    return {
+      ...comissao,
+      equipe: [...comissao.equipe].sort((left, right) => {
+        const byRole = ORDEM_PAPEL[left.papel] - ORDEM_PAPEL[right.papel];
+        if (byRole !== 0) return byRole;
+        return left.user.name.localeCompare(right.user.name, 'pt-BR');
+      }),
+    };
+  },
+
+  /**
+   * UC02: Altera nome e descrição (ADMINISTRADOR ou FACILITADOR).
+   */
+  async update(
+    id: number,
+    actorId: number,
+    { nome, descricao }: UpdateComissaoData,
+  ) {
+    const { papel } = await getPapelNaComissao(id, actorId);
+
+    if (!podeGerenciarEquipe(papel)) {
+      throw new AppError(
+        403,
+        'Acesso negado. Apenas administrador ou facilitador pode editar a comissão.',
+      );
+    }
+
+    return prisma.comissao.update({
+      where: { id },
+      data: { nome, descricao: descricao || null },
     });
   },
 

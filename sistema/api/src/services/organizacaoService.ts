@@ -201,7 +201,8 @@ export const organizacaoService = {
     return buildOrganizacaoReport(organizacoes);
   },
 
-  async getById(id: number) {
+  // so membro da org (ou admin da plataforma) ve o detalhe.
+  async getById(id: number, actorId: number, actorRole: Role) {
     const organizacao = await prisma.organizacao.findUnique({
       where: { id },
       include: organizacaoDetails,
@@ -209,7 +210,35 @@ export const organizacaoService = {
     if (!organizacao) {
       throw new AppError(404, 'Organização não encontrada.');
     }
+    if (
+      actorRole !== 'ADMIN' &&
+      !organizacao.membros.some((membro) => membro.userId === actorId)
+    ) {
+      throw new AppError(403, 'Você não é membro desta organização.');
+    }
     return withSortedMembros(organizacao);
+  },
+
+  // renomear: criador, gerente ou admin da plataforma.
+  async update(id: number, actorId: number, actorRole: Role, nome: string) {
+    const organizacao = await findWithMembros(id);
+
+    const actor = organizacao.membros.find(
+      (membro) => membro.userId === actorId,
+    );
+    assertCanManage(
+      actorRole,
+      actor?.papel,
+      ['CRIADOR', 'GERENTE'],
+      'Somente o criador ou o gerente pode editar a organização.',
+    );
+
+    const updated = await prisma.organizacao.update({
+      where: { id },
+      data: { nome },
+      include: organizacaoDetails,
+    });
+    return withSortedMembros(updated);
   },
 
   // admin aceita ou recusa. criador ja existe, so muda o status.

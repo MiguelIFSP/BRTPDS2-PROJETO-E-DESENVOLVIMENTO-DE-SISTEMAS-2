@@ -1,16 +1,14 @@
 import { useCallback, useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 import { useShallow } from 'zustand/react/shallow';
 
 import OrganizacaoCard from '@/components/OrganizacaoCard';
-import OrganizacaoEquipe from '@/components/OrganizacaoEquipe';
-import BackButton from '@/components/ui/BackButton';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
+import Chip from '@/components/ui/Chip';
 import DashedButton from '@/components/ui/DashedButton';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import PageIntro from '@/components/ui/PageIntro';
@@ -25,12 +23,10 @@ import {
   withAlpha,
 } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
-import { useOrganizacaoActions } from '@/hooks/useOrganizacaoActions';
 import { useTheme } from '@/hooks/useTheme';
 import { organizacaoSchema } from '@/schemas/organizacaoSchema';
 import { monitoringService } from '@/services/monitoringService';
 import {
-  getMyPapel,
   organizacaoService,
   type Organizacao,
 } from '@/services/organizacaoService';
@@ -38,43 +34,60 @@ import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import { countLabel } from '@/utils/format';
 
+// filtros do admin, que vê todas as organizações da plataforma.
+type Filtro = 'minhas' | 'pendentes' | 'todas';
+
+/**
+ * Aba Organização. O usuário vê as organizações de que participa e solicita
+ * novas; o admin vê todas, filtra por chips e aceita/recusa as pendentes
+ * direto no card. Dados, equipe e exclusão ficam na tela da organização.
+ */
 export default function OrganizacaoScreen() {
+  const router = useRouter();
   const { colors } = useTheme();
   const { token, user } = useAuthStore(
     useShallow((state) => ({ token: state.token, user: state.user })),
   );
+  const isAdmin = user?.role === 'ADMIN';
   const [nome, setNome] = useState('');
   const [nomeError, setNomeError] = useState<string>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isCreating, setIsCreating] = useState(false);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
   const [feedback, setFeedback] = useFeedback();
   const [formFeedback, setFormFeedback] = useFeedback();
   const [organizacoes, setOrganizacoes] = useState<Organizacao[]>([]);
+  const [filtro, setFiltro] = useState<Filtro>('minhas');
+
+  const fetchOrganizacoes = useCallback(
+    (authToken: string) =>
+      isAdmin
+        ? organizacaoService.listAll(authToken)
+        : organizacaoService.listMine(authToken),
+    [isAdmin],
+  );
 
   const loadOrganizacoes = async () => {
     if (!token) return;
-    setOrganizacoes(await organizacaoService.listMine(token));
+    setOrganizacoes(await fetchOrganizacoes(token));
   };
 
-  const { requestAction, cardFeedback, showCardFeedback, dialogProps } =
-    useOrganizacaoActions({
-      token,
-      reload: loadOrganizacoes,
-      onScreenFeedback: setFeedback,
+  const openOrganizacao = (organizacaoId: number) =>
+    router.push({
+      pathname: '/organizacao/[id]',
+      params: { id: String(organizacaoId) },
     });
 
-  // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
-  // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
-  // deixaria a lista desatualizada ao voltar pra essa tela depois de mudar algo
-  // (criar organização, entrar como membro, etc.) em outra.
+  // useFocusEffect (não useEffect): a lista fica montada por baixo da tela da
+  // organização e nas outras abas, então um useEffect de montagem só rodaria
+  // uma vez e deixaria a lista desatualizada ao voltar depois de mudar algo
+  // (editar, excluir, mudar a equipe) no detalhe ou em outra tela.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
       const load = async () => {
         if (!token) return;
         try {
-          const data = await organizacaoService.listMine(token);
+          const data = await fetchOrganizacoes(token);
           if (!cancelled) setOrganizacoes(data);
         } catch (error) {
           if (!cancelled) {
@@ -82,7 +95,7 @@ export default function OrganizacaoScreen() {
               type: 'error',
               message: getErrorMessage(
                 error,
-                'Não foi possível carregar suas organizações.',
+                'Não foi possível carregar as organizações.',
               ),
             });
           }
@@ -92,8 +105,33 @@ export default function OrganizacaoScreen() {
       return () => {
         cancelled = true;
       };
-    }, [token, setFeedback]),
+    }, [token, fetchOrganizacoes, setFeedback]),
   );
+
+  // admin: aceitar/recusar a solicitação.
+  const updateStatus = async (
+    organizacaoId: number,
+    status: 'ACEITA' | 'RECUSADA',
+  ) => {
+    if (!token) return;
+    try {
+      await organizacaoService.updateStatus(token, organizacaoId, status);
+      setFeedback({
+        type: 'success',
+        message:
+          status === 'ACEITA' ? 'Solicitação aceita.' : 'Solicitação recusada.',
+      });
+      await loadOrganizacoes();
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(
+          error,
+          'Não foi possível atualizar a solicitação.',
+        ),
+      });
+    }
+  };
 
   const openCreate = () => {
     setFormFeedback(null);
@@ -130,7 +168,6 @@ export default function OrganizacaoScreen() {
       setNome('');
       setIsCreating(false);
       await loadOrganizacoes();
-      setExpandedId(organizacao.id);
       setFeedback({
         type: 'success',
         message: `${organizacao.nome} foi criada e está aguardando aprovação do administrador.`,
@@ -152,110 +189,111 @@ export default function OrganizacaoScreen() {
     }
   };
 
-  // convite por email. o usuario ja precisa ter conta.
-  // o erro volta para o painel de adição; o sucesso aparece no card.
-  const handleAddMember = async (organizacaoId: number, email: string) => {
-    if (!token) return 'Sessão expirada. Entre novamente.';
-    try {
-      await organizacaoService.addMember(token, organizacaoId, email);
-      showCardFeedback(organizacaoId, {
-        type: 'success',
-        message: 'Membro adicionado.',
-      });
-      await loadOrganizacoes();
-      return null;
-    } catch (error) {
-      return getErrorMessage(error, 'Não foi possível adicionar o membro.');
-    }
-  };
-
-  const total = organizacoes.length;
+  const minhas = isAdmin
+    ? organizacoes.filter((organizacao) =>
+        organizacao.membros.some((membro) => membro.user.id === user?.id),
+      )
+    : organizacoes;
+  const pendentes = organizacoes.filter(
+    (organizacao) => organizacao.status === 'PENDENTE',
+  );
+  const FILTROS = {
+    minhas: {
+      label: 'Minhas',
+      section: 'Minhas organizações',
+      lista: minhas,
+      empty: 'Você ainda não participa de nenhuma organização.',
+    },
+    pendentes: {
+      label: `Pendentes${pendentes.length > 0 ? ` (${pendentes.length})` : ''}`,
+      section: 'Solicitações pendentes',
+      lista: pendentes,
+      empty: 'Nenhuma solicitação aguardando análise.',
+    },
+    todas: {
+      label: 'Todas',
+      section: 'Todas as organizações',
+      lista: organizacoes,
+      empty: 'Nenhuma organização cadastrada.',
+    },
+  } satisfies Record<
+    Filtro,
+    { label: string; section: string; lista: Organizacao[]; empty: string }
+  >;
+  const atual = FILTROS[isAdmin ? filtro : 'minhas'];
 
   return (
     <Screen hasForm>
-      <BackButton />
-
       <PageIntro
-        title="Suas organizações"
+        title={isAdmin ? 'Organizações' : 'Suas organizações'}
         onAdd={openCreate}
         addLabel="Criar organização"
       />
 
+      {isAdmin ? (
+        <View style={styles.chips}>
+          {(Object.keys(FILTROS) as Filtro[]).map((key) => (
+            <Chip
+              key={key}
+              label={FILTROS[key].label}
+              selected={filtro === key}
+              onPress={() => setFiltro(key)}
+            />
+          ))}
+        </View>
+      ) : null}
+
       <FeedbackBanner feedback={feedback} />
 
       <SectionLabel
-        label="Minhas organizações"
+        label={atual.section}
         showDot
-        trailing={countLabel(total, 'organização', 'organizações')}
+        trailing={countLabel(atual.lista.length, 'organização', 'organizações')}
       />
 
-      {organizacoes.map((organizacao) => {
-        const myPapel = getMyPapel(organizacao, user?.id);
-        // quem pode o que nessa org (org tem que estar aceita)
-        const isAceita = organizacao.status === 'ACEITA';
-        const isCreator = myPapel === 'CRIADOR' || user?.role === 'ADMIN';
-        const canAdd =
-          isAceita &&
-          (isCreator || myPapel === 'GERENTE' || myPapel === 'MODERADOR');
-        const canPromote = isAceita && isCreator;
-        const canRemove = isAceita && (isCreator || myPapel === 'GERENTE');
-        const expanded = expandedId === organizacao.id;
-
+      {atual.lista.map((organizacao) => {
+        const criador = organizacao.membros.find(
+          (membro) => membro.papel === 'CRIADOR',
+        );
         return (
           <OrganizacaoCard
             key={organizacao.id}
             organizacao={organizacao}
-            expanded={expanded}
-            onToggle={() => setExpandedId(expanded ? null : organizacao.id)}
+            onPress={() => openOrganizacao(organizacao.id)}
           >
-            {/* equipe e convite so depois que o admin aceitar */}
-            {isAceita ? (
-              <OrganizacaoEquipe
-                organizacao={organizacao}
-                canAdd={canAdd}
-                canPromote={canPromote}
-                canRemove={canRemove}
-                onRequestAction={requestAction}
-                onAddMember={(email) => handleAddMember(organizacao.id, email)}
-              />
-            ) : (
-              <View style={styles.hintRow}>
-                <Ionicons
-                  name="time-outline"
-                  size={18}
-                  color={colors.textSecondary}
-                />
-                <Text style={[styles.hint, { color: colors.textSecondary }]}>
-                  Aguardando análise do administrador. Como criador, você já faz
-                  parte desta organização.
+            {isAdmin && organizacao.status === 'PENDENTE' ? (
+              <View style={styles.pending}>
+                <Text
+                  style={[styles.requester, { color: colors.textSecondary }]}
+                >
+                  {criador
+                    ? `Solicitado por ${criador.user.name} · ${criador.user.email}`
+                    : 'Criador não identificado'}
                 </Text>
+                <View style={styles.actions}>
+                  <Button
+                    variant="secondary"
+                    icon="close-circle-outline"
+                    label="Recusar"
+                    onPress={() =>
+                      void updateStatus(organizacao.id, 'RECUSADA')
+                    }
+                  />
+                  <Button
+                    icon="checkmark-circle-outline"
+                    label="Aceitar"
+                    onPress={() => void updateStatus(organizacao.id, 'ACEITA')}
+                  />
+                </View>
               </View>
-            )}
-
-            <FeedbackBanner feedback={cardFeedback[organizacao.id] ?? null} />
-
-            {isCreator ? (
-              <Button
-                variant="tertiaryDanger"
-                icon="trash-outline"
-                label="Excluir organização"
-                onPress={() =>
-                  requestAction({
-                    type: 'delete-org',
-                    organizacaoId: organizacao.id,
-                    name: organizacao.nome,
-                  })
-                }
-                style={styles.deleteButton}
-              />
             ) : null}
           </OrganizacaoCard>
         );
       })}
 
-      {total === 0 ? (
+      {atual.lista.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textSecondary }]}>
-          Você ainda não participa de nenhuma organização.
+          {atual.empty}
         </Text>
       ) : null}
 
@@ -327,16 +365,20 @@ export default function OrganizacaoScreen() {
           onPress={() => void handleCreate()}
         />
       </BottomSheet>
-
-      <ConfirmDialog {...dialogProps} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  hintRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
-  hint: { ...Typography.bodySmall, flex: 1 },
-  deleteButton: { alignSelf: 'flex-start' },
+  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  pending: { gap: Spacing.md },
+  requester: { ...Typography.bodySmall },
+  actions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    flexWrap: 'wrap',
+    gap: Spacing.sm,
+  },
   empty: {
     ...Typography.body,
     textAlign: 'center',

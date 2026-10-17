@@ -15,11 +15,17 @@ type ScreenProps = {
   children: ReactNode;
   // telas com formulário: o teclado não pode cobrir o campo em foco.
   hasForm?: boolean;
+  // logo no topo: só na tela inicial e nas telas públicas.
+  showHeader?: boolean;
 };
 
-// Estrutura padrão de tela (UI-05): SafeAreaView → Header → ScrollView com
+// Estrutura padrão de tela (UI-05): SafeAreaView → Header (opcional) → ScrollView com
 // conteúdo de largura máxima, centralizado.
-export default function Screen({ children, hasForm = false }: ScreenProps) {
+export default function Screen({
+  children,
+  hasForm = false,
+  showHeader = false,
+}: ScreenProps) {
   const { colors } = useTheme();
 
   const content = (
@@ -35,7 +41,7 @@ export default function Screen({ children, hasForm = false }: ScreenProps) {
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: colors.background }]}
     >
-      <Header />
+      {showHeader ? <Header /> : null}
       {hasForm ? (
         <KeyboardAvoidingView
           style={styles.keyboardView}

@@ -27,6 +27,7 @@ routes.get(
   organizacaoController.getAll,
 );
 routes.get('/organizacoes/:id', requireAuth, organizacaoController.getById);
+routes.patch('/organizacoes/:id', requireAuth, organizacaoController.update);
 routes.patch(
   '/organizacoes/:id/status',
   requireAuth,

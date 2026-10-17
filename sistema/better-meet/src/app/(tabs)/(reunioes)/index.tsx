@@ -58,7 +58,7 @@ export default function IndexScreen() {
   );
 
   return (
-    <Screen>
+    <Screen showHeader>
       <View style={styles.headerRow}>
         <View style={styles.greeting}>
           <Text style={[styles.greetingText, { color: colors.textSecondary }]}>

@@ -144,7 +144,7 @@ export default function StatusScreen() {
     }
   }, [token, router, logout]);
 
-  // useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+  // useFocusEffect (não useEffect) porque a navegação é por abas: a tela fica
   // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
   // deixaria o status desatualizado ao voltar pra essa tela depois.
   useFocusEffect(

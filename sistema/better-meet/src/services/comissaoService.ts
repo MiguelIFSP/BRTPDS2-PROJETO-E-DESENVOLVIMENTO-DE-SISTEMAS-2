@@ -34,6 +34,14 @@ export type Comissao = {
   equipe: ComissaoEquipe[];
 };
 
+// GET /comissoes/:id: equipe com os dados de cada pessoa, ordenada por papel.
+export type ComissaoDetalhe = Omit<Comissao, 'equipe'> & {
+  organizacao: { id: number; nome: string };
+  equipe: (ComissaoEquipe & {
+    user: { id: number; name: string; email: string };
+  })[];
+};
+
 export type ComissaoReport = {
   total: number;
   totalOrganizacoes: number;
@@ -88,6 +96,26 @@ export const comissaoService = {
       token,
       body: comissao,
       fallbackError: 'Não foi possível criar a comissão.',
+    });
+  },
+
+  getById(token: string, comissaoId: number) {
+    return apiRequest<ComissaoDetalhe>(`/comissoes/${comissaoId}`, {
+      token,
+      fallbackError: 'Não foi possível carregar a comissão.',
+    });
+  },
+
+  update(
+    token: string,
+    comissaoId: number,
+    comissao: Omit<ComissaoData, 'organizacaoId'>,
+  ) {
+    return apiRequest<Comissao>(`/comissoes/${comissaoId}`, {
+      method: 'PATCH',
+      token,
+      body: comissao,
+      fallbackError: 'Não foi possível salvar a comissão.',
     });
   },
 

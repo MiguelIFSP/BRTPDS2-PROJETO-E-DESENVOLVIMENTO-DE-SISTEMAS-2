@@ -91,7 +91,7 @@ export default function UsuarioScreen() {
   };
 
   return (
-    <Screen hasForm>
+    <Screen hasForm showHeader>
       <ScreenHeader
         icon="person-add-outline"
         title="Cadastro de usuário"

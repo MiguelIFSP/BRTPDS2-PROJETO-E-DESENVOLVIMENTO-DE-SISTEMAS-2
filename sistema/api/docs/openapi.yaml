@@ -776,7 +776,9 @@ paths:
     get:
       tags: [Organizações]
       summary: Detalha uma organização
-      description: Exige `requireAuth`.
+      description: |
+        Exige `requireAuth`. Só membros da organização ou o ADMIN da
+        plataforma.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
       responses:
@@ -787,6 +789,34 @@ paths:
               schema: { $ref: '#/components/schemas/Organizacao' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      tags: [Organizações]
+      summary: Renomeia uma organização
+      description: |
+        Exige `requireAuth`. Só o CRIADOR, o GERENTE ou o ADMIN da plataforma.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, maxLength: 80 }
+      responses:
+        '200':
+          description: Organização atualizada, com membros e comissões.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Organizacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
     delete:
@@ -1034,6 +1064,84 @@ paths:
         '500': { $ref: '#/components/responses/InternalError' }
 
   /comissoes/{id}:
+    get:
+      tags: [Comissões]
+      summary: Detalha uma comissão (UC02)
+      description: |
+        Exige `requireAuth`. Só membros da organização ou o ADMIN da
+        plataforma. A equipe vem ordenada por papel e depois por nome.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Id da comissão.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Comissão com a organização e a equipe.
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Comissao'
+                  - type: object
+                    properties:
+                      organizacao:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          nome: { type: string }
+                      equipe:
+                        type: array
+                        items:
+                          allOf:
+                            - $ref: '#/components/schemas/ComissaoEquipe'
+                            - type: object
+                              properties:
+                                user:
+                                  $ref: '#/components/schemas/UsuarioResumo'
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    patch:
+      tags: [Comissões]
+      summary: Altera nome e descrição de uma comissão (UC02)
+      description: |
+        Exige `requireAuth`. Só o ADMINISTRADOR ou o FACILITADOR da comissão.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Id da comissão.
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [nome]
+              properties:
+                nome: { type: string, maxLength: 80 }
+                descricao:
+                  type: string
+                  maxLength: 500
+                  description: Vazia ou ausente limpa a descrição.
+      responses:
+        '200':
+          description: Comissão atualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Comissao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
     delete:
       tags: [Comissões]
       summary: Exclui uma comissão (UC02)

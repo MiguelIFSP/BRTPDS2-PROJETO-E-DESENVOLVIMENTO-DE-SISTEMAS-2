@@ -66,7 +66,7 @@ export default function PerfilScreen() {
   const [isSavingProfile, setIsSavingProfile] = useState(false);
 
   // Os campos são preenchidos a partir do `user` do store ao abrir o formulário:
-  // a tela fica montada no Drawer, e um valor lido só na montagem ficaria velho
+  // a tela fica montada na aba Mais, e um valor lido só na montagem ficaria velho
   // depois de trocar de usuário (logout/login) ou editar em outro aparelho.
   const toggleProfileForm = () => {
     if (!showProfileForm && user) {
@@ -315,7 +315,7 @@ export default function PerfilScreen() {
           variant="danger"
           icon="trash-outline"
           label="Excluir meus dados"
-          onPress={() => router.push('/excluir-conta')}
+          onPress={() => router.push('/mais/excluir-conta')}
         />
         <Button icon="log-out-outline" label="Sair" onPress={handleLogout} />
       </Card>

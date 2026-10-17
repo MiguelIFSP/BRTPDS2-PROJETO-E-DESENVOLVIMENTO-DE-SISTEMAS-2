@@ -2,6 +2,7 @@ import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/authMiddleware.ts';
 import {
   comissaoSchema,
+  comissaoUpdateSchema,
   membroComissaoSchema,
 } from '../schemas/comissaoSchema.ts';
 import { comissaoService } from '../services/comissaoService.ts';
@@ -32,6 +33,23 @@ export const comissaoController = {
       role,
     );
     response.status(200).json(comissoes);
+  },
+
+  async getById(request: Request, response: Response) {
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
+    const id = parseId(request.params.id, 'da comissão');
+    const comissao = await comissaoService.getById(id, userId, role);
+    response.status(200).json(comissao);
+  },
+
+  async update(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    const id = parseId(request.params.id, 'da comissão');
+    const data = await comissaoUpdateSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const comissao = await comissaoService.update(id, userId, data);
+    response.status(200).json(comissao);
   },
 
   async delete(request: Request, response: Response) {
