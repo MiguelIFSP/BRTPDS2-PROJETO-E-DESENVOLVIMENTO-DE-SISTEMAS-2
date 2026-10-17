@@ -40,6 +40,7 @@ const HIDDEN_SCREENS = [
   'organizacao',
   'organizacoes',
   'comissao',
+  'reuniao',
   'relatorios',
   'status',
 ] as const;

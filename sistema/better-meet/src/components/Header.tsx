@@ -1,22 +1,16 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useNavigation, useRouter } from 'expo-router';
-import type { DrawerNavigationProp } from 'expo-router/drawer';
+import { useRouter } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import IconAndTitle from '@/components/IconAndTitle';
 import Avatar from '@/components/ui/Avatar';
-import { Spacing, TouchTarget } from '@/constants/theme';
+import { Radius, Spacing, TouchTarget, withAlpha } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
 
-type DrawerNavigation = DrawerNavigationProp<
-  Record<string, object | undefined>
->;
-
 export default function Header() {
   const { colors } = useTheme();
-  const navigation = useNavigation<DrawerNavigation>();
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore(
     useShallow((state) => ({
@@ -50,11 +44,23 @@ export default function Header() {
         <>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Abrir menu"
-            onPress={() => navigation.openDrawer()}
-            style={styles.iconButton}
+            accessibilityLabel="Ver convites pendentes"
+            onPress={() =>
+              router.push({
+                pathname: '/reuniao',
+                params: { openPendingInvites: '1' },
+              })
+            }
+            style={({ pressed }) => [
+              styles.iconButton,
+              {
+                backgroundColor: withAlpha(colors.primary, 0.12),
+                borderColor: withAlpha(colors.primary, 0.35),
+              },
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="menu" size={28} color={colors.text} />
+            <Ionicons name="notifications-outline" size={22} color={colors.primary} />
           </Pressable>
 
           <View style={styles.logoSlot}>{homeLink}</View>
@@ -97,9 +103,14 @@ const styles = StyleSheet.create({
   iconButton: {
     minWidth: TouchTarget.min,
     minHeight: TouchTarget.min,
+    width: 42,
+    height: 42,
+    borderWidth: 1,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pressed: { opacity: 0.7 },
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',

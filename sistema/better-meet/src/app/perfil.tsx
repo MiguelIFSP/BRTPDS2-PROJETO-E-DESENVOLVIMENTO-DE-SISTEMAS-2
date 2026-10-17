@@ -231,10 +231,10 @@ export default function PerfilScreen() {
             style={[styles.formBox, { backgroundColor: colors.background }]}
           >
             <TextField
-              label="Nome completo"
+              label="Nome de usuário"
               value={perfilForm.nome}
               onChangeText={(value) => updatePerfilField('nome', value)}
-              placeholder="Seu nome"
+              placeholder="Seu usuário"
               autoCapitalize="words"
               error={perfilErrors.nome}
             />

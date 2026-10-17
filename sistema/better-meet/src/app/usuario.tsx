@@ -100,12 +100,12 @@ export default function UsuarioScreen() {
 
       <Card>
         <TextField
-          label="Nome completo"
+          label="Nome de usuário"
           autoCapitalize="words"
           autoCorrect={false}
           maxLength={80}
           onChangeText={(value) => updateField('nome', value)}
-          placeholder="Ex.: Maria Souza"
+          placeholder="Ex.: maria_souza"
           value={form.nome}
           error={errors.nome}
         />

@@ -44,6 +44,7 @@ export default function BottomSheet({
       <KeyboardAvoidingView
         style={styles.flex}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
       >
         <View style={[styles.backdrop, { backgroundColor: colors.overlay }]}>
           <Pressable

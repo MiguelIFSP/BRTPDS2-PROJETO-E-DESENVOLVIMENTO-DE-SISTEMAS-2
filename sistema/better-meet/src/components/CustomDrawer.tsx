@@ -51,7 +51,7 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
     { label: 'Status do Sistema', href: '/status', icon: 'pulse-outline' },
     {
       label:
-        user?.role === 'ADMIN' ? 'Solicitar organização' : 'Minha organização',
+        user?.role === 'ADMIN' ? 'Organizações' : 'Organizações',
       href: '/organizacao',
       icon: 'business-outline',
     },
