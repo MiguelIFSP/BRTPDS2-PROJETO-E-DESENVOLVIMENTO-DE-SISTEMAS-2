@@ -42,6 +42,7 @@ const HIDDEN_SCREENS = [
   'comissao',
   'relatorios',
   'status',
+  'lista-presenca',
 ] as const;
 
 const navigationThemes = {

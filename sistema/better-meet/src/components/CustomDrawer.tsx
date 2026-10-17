@@ -56,6 +56,11 @@ export default function CustomDrawer(props: DrawerContentComponentProps) {
       icon: 'business-outline',
     },
     { label: 'Comissões', href: '/comissao', icon: 'people-outline' },
+    {
+      label: 'Lista de presença (prévia)',
+      href: '/lista-presenca',
+      icon: 'document-text-outline',
+    },
     ...(user?.role === 'ADMIN'
       ? [
           {
