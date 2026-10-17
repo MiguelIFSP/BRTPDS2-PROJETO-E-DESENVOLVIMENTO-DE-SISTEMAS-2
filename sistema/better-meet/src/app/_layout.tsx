@@ -60,7 +60,7 @@ function AppGate() {
       return;
     }
     if (isAuthenticated && currentRoute === 'login') {
-      router.replace('/');
+      router.replace('/(tabs)/(reunioes)/index' as any);
     }
   }, [segments, isAuthenticated, hasHydrated, router]);
 

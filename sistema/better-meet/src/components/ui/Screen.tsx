@@ -15,7 +15,7 @@ type ScreenProps = {
   children: ReactNode;
   // telas com formulário: o teclado não pode cobrir o campo em foco.
   hasForm?: boolean;
-  // logo no topo: só na tela inicial e nas telas públicas.
+  // mantém o cabeçalho principal fixo nas telas do app.
   showHeader?: boolean;
 };
 
@@ -24,7 +24,7 @@ type ScreenProps = {
 export default function Screen({
   children,
   hasForm = false,
-  showHeader = false,
+  showHeader = true,
 }: ScreenProps) {
   const { colors } = useTheme();
 

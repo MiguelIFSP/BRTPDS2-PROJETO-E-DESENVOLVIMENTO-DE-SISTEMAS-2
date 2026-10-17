@@ -79,7 +79,7 @@ export default function LoginScreen() {
         message: `Login realizado com sucesso. Bem-vindo(a), ${user.name}!`,
       });
       setForm(INITIAL_VALUES);
-      setTimeout(() => router.replace('/'), 600);
+      setTimeout(() => router.replace('/(tabs)/(reunioes)/index' as any), 600);
     } catch (error) {
       monitoringService.reportRequestFailure(error, 'LoginScreen.handleLogin');
       setFeedback({
