@@ -14,7 +14,7 @@ datasource db {
 }
 
 enum Role {
-  USER  // usuário comum da plataforma
+  USER // usuário comum da plataforma
   ADMIN // administrador da plataforma: aprova organizações e vê os relatórios gerais
 }
 
@@ -27,15 +27,27 @@ enum PapelOrganizacao {
 
 enum StatusOrganizacao {
   PENDENTE // aguardando o admin da plataforma aceitar
-  ACEITA   // só organizações aceitas recebem membros e comissões
+  ACEITA // só organizações aceitas recebem membros e comissões
   RECUSADA
 }
 
 enum PapelComissao {
   ADMINISTRADOR // controle total da comissão (pode excluir a comissão)
-  FACILITADOR   // pode gerenciar os membros e as pautas
-  SECRETARIO    // focado em só registrar as atas e decisões
-  MEMBRO        // participante normal
+  FACILITADOR // pode gerenciar os membros e as pautas
+  SECRETARIO // focado em só registrar as atas e decisões
+  MEMBRO // participante normal
+}
+
+enum StatusReuniao {
+  AGENDADA
+  REALIZADA
+  CANCELADA
+}
+
+enum StatusConviteReuniao {
+  PENDENTE
+  ACEITO
+  RECUSADO
 }
 
 // Valores em minúsculas porque já trafegam assim pela API e pelo app (PR-08).
@@ -70,6 +82,8 @@ model User {
   // NOVO: tokens de recuperação de conta (UC02)
   // -------------------------------------------------------------------
   passwordResetTokens PasswordResetToken[]
+  reunioesCriadas     Reuniao[]            @relation("ReuniaoCriador")
+  convitesReuniao     ConviteReuniao[]
 }
 
 model Organizacao {
@@ -96,15 +110,16 @@ model OrganizacaoMembro {
 // Só existe dentro de organização ACEITA, e só membros da organização entram
 // na equipe (regra do comissaoService, o banco não garante).
 model Comissao {
-  id            Int      @id @default(autoincrement())
-  nome          String
-  descricao     String?
-  createdAt     DateTime @default(now())
+  id        Int      @id @default(autoincrement())
+  nome      String
+  descricao String?
+  createdAt DateTime @default(now())
 
   organizacaoId Int
   organizacao   Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
 
-  equipe ComissaoEquipe[]
+  equipe   ComissaoEquipe[]
+  reunioes Reuniao[]
 }
 
 model ComissaoEquipe {
@@ -138,4 +153,41 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
+}
+
+model Reuniao {
+  id              Int           @id @default(autoincrement())
+  comissaoId      Int
+  titulo          String
+  pauta           String
+  descricao       String?
+  data            String // Data no formato AAAA-MM-DD para o contrato do app.
+  horaInicio      String // Horário no formato HH:mm.
+  horaFim         String // Horário no formato HH:mm.
+  status          StatusReuniao @default(AGENDADA)
+  criadoPorUserId Int
+  createdAt       DateTime      @default(now())
+
+  comissao  Comissao         @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
+  criadoPor User             @relation("ReuniaoCriador", fields: [criadoPorUserId], references: [id])
+  convites  ConviteReuniao[]
+
+  @@index([comissaoId])
+  @@index([criadoPorUserId])
+  @@index([data])
+}
+
+model ConviteReuniao {
+  id           Int                  @id @default(autoincrement())
+  reuniaoId    Int
+  userId       Int
+  status       StatusConviteReuniao @default(PENDENTE)
+  createdAt    DateTime             @default(now())
+  respondidoAt DateTime?
+
+  reuniao Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reuniaoId, userId])
+  @@index([userId, status])
 }

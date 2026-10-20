@@ -21,6 +21,7 @@ import { handleError } from './middlewares/errorMiddleware.ts';
 import comissaoRoutes from './routes/comissaoRoutes.ts';
 import organizacaoRoutes from './routes/organizacaoRoutes.ts';
 import usuarioRoutes from './routes/usuarioRoutes.ts';
+import reuniaoRoutes from './routes/reuniaoRoutes.ts';
 
 // NOVO: rotas de recuperação de conta (UC02)
 import authRoutes from './routes/authRoutes.ts';
@@ -51,6 +52,7 @@ apiRouter.use(authRoutes);
 apiRouter.use(usuarioRoutes);
 apiRouter.use(organizacaoRoutes);
 apiRouter.use(comissaoRoutes);
+apiRouter.use(reuniaoRoutes);
 
 app.use('/api', apiRouter);
 

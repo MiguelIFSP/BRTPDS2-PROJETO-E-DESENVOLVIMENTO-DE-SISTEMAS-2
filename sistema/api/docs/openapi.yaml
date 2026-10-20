@@ -19,6 +19,7 @@ tags:
   - name: Usuários
   - name: Organizações
   - name: Comissões
+  - name: Reuniões
 
 components:
   securitySchemes:
@@ -120,6 +121,51 @@ components:
     PapelComissao:
       type: string
       enum: [ADMINISTRADOR, FACILITADOR, SECRETARIO, MEMBRO]
+    StatusReuniao:
+      type: string
+      enum: [AGENDADA, REALIZADA, CANCELADA]
+    StatusConviteReuniao:
+      type: string
+      enum: [PENDENTE, ACEITO, RECUSADO]
+    Reuniao:
+      type: object
+      properties:
+        id: { type: integer }
+        comissaoId: { type: integer }
+        titulo: { type: string }
+        pauta: { type: string }
+        descricao: { type: string, nullable: true }
+        data: { type: string, format: date }
+        horaInicio: { type: string, example: '14:00' }
+        horaFim: { type: string, example: '15:00' }
+        status: { $ref: '#/components/schemas/StatusReuniao' }
+        criadoPorUserId: { type: integer }
+        comissao:
+          type: object
+          properties:
+            id: { type: integer }
+            nome: { type: string }
+        convites:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              status: { $ref: '#/components/schemas/StatusConviteReuniao' }
+    ConviteReuniao:
+      type: object
+      properties:
+        id: { type: integer }
+        reuniaoId: { type: integer }
+        titulo: { type: string }
+        pauta: { type: string }
+        descricao: { type: string, nullable: true }
+        data: { type: string, format: date }
+        horaInicio: { type: string, example: '14:00' }
+        horaFim: { type: string, example: '15:00' }
+        usuario: { type: string }
+        status: { $ref: '#/components/schemas/StatusConviteReuniao' }
+        comissao: { type: string }
     UsuarioResumo:
       type: object
       properties:
@@ -1225,4 +1271,109 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/minhas:
+    get:
+      tags: [Reuniões]
+      summary: Lista as reuniões do usuário autenticado
+      description: Exige `requireAuth`. Lista reuniões das comissões das quais o usuário participa.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Reuniões encontradas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Reuniao' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/convites:
+    get:
+      tags: [Reuniões]
+      summary: Lista os convites pendentes do usuário autenticado
+      description: Exige `requireAuth`. Retorna somente convites ainda não respondidos.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Convites pendentes encontrados.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/ConviteReuniao' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes:
+    post:
+      tags: [Reuniões]
+      summary: Cria uma reunião
+      description: |
+        Exige `requireAuth`. O usuário precisa participar da comissão.
+        A reunião e os convites para os demais membros são criados juntos.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [comissaoId, titulo, pauta, data, horaInicio, horaFim]
+              properties:
+                comissaoId: { type: integer, minimum: 1 }
+                titulo: { type: string, maxLength: 120 }
+                pauta: { type: string, maxLength: 1000 }
+                descricao: { type: string, nullable: true, maxLength: 2000 }
+                data: { type: string, format: date, example: '2026-10-20' }
+                horaInicio: { type: string, example: '14:00' }
+                horaFim: { type: string, example: '15:00' }
+      responses:
+        '201':
+          description: Reunião criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reuniao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/convites/{inviteId}/responder:
+    patch:
+      tags: [Reuniões]
+      summary: Responde a um convite de reunião
+      description: Exige `requireAuth`. O usuário só pode responder ao próprio convite pendente.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          description: Identificador do convite.
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status:
+                  $ref: '#/components/schemas/StatusConviteReuniao'
+      responses:
+        '200':
+          description: Convite respondido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ConviteReuniao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
