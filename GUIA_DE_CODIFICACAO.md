@@ -964,7 +964,7 @@ app.get('/health', (_request, response) => {
 ```
 
 - No app, a variável de ambiente da URL base já inclui o prefixo (ex.: `EXPO_PUBLIC_API_URL=http://localhost:3333/api`), e os services do app **não** acrescentam `/api` à mão.
-- **Divergências atuais:** na `api`, só as rotas de comissão estão sob `/api` (e o `comissaoService` do app acrescenta `/api` manualmente). No `monitoring-better-meet`, as rotas estão sob `/monitoring-better-meet/...`; ao mudar para `/api/...`, atualizar também quem chama a monitoring (`monitoringReporter.ts` da `api` e da management, `monitoringService.ts` do app e do web da gestão).
+- **Divergências atuais:** na `api`, só as rotas de comissão estão sob `/api` (e o `comissaoService` do app acrescenta `/api` manualmente). No `monitoring-better-meet`, as rotas estão sob `/monitoring-better-meet/...`; ao mudar para `/api/...`, atualizar também quem chama a monitoring (`monitoringReporter.ts` da `api` e da management, `monitoringService.ts` do app e do web da gestão). Exceção temporária: a `api` também responde `POST /login` fora do `/api`, porque o web da management ainda chama essa rota; remover quando a management for refatorada.
 
 ---
 
@@ -998,7 +998,7 @@ export const env = {
 
 - Segredos nunca são impressos no log.
 - **No app Expo**, toda variável `EXPO_PUBLIC_*` é embutida no aplicativo e qualquer pessoa pode lê-la. Use apenas para valores públicos (URLs). Nunca coloque chave ou segredo em `EXPO_PUBLIC_*`.
-- **Divergências atuais:** admin padrão com e-mail e senha no código e senha impressa no log ao subir (`usuarioController.ts`/`server.ts`); URL do banco com usuário e senha como padrão em `api/src/config/database.ts`; leitura de `process.env` espalhada pelos arquivos; `api/.env.example` com um valor de `JWT_SECRET` que parece real; chave interna da monitoring exposta no app via `EXPO_PUBLIC_MONITORING_API_KEY`.
+- **Divergências atuais:** admin padrão com e-mail e senha no código e senha impressa no log ao subir (`usuarioController.ts`/`server.ts`); URL do banco com usuário e senha como padrão em `api/src/config/database.ts`; leitura de `process.env` espalhada pelos arquivos; `api/.env.example` com um valor de `JWT_SECRET` que parece real; chave interna da monitoring exposta no app via `EXPO_PUBLIC_MONITORING_API_KEY` (mantida como exceção temporária no `better-meet`, porque a monitoring ainda exige essa chave no `POST /status`; sai quando a monitoring for refatorada).
 
 ---
 

@@ -5,6 +5,8 @@ type ApiRequestOptions = {
   token?: string | null;
   body?: unknown;
   baseUrl?: string;
+  // cabeçalhos extras; hoje só a chave da monitoring (ver monitoringService).
+  headers?: Record<string, string>;
   fallbackError: string;
 };
 
@@ -45,10 +47,11 @@ export async function apiRequest<T>(
     token,
     body,
     baseUrl = API_URL,
+    headers: extraHeaders,
     fallbackError,
   }: ApiRequestOptions,
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...extraHeaders };
   if (token) headers.Authorization = `Bearer ${token}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 

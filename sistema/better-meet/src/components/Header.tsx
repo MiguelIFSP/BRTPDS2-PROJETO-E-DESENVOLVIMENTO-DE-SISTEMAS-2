@@ -41,8 +41,8 @@ export default function Header() {
             accessibilityRole="button"
             accessibilityLabel="Ver convites pendentes"
             onPress={() =>
-              router.push({
-                pathname: '/reuniao',
+              router.navigate({
+                pathname: '/',
                 params: { openPendingInvites: '1' },
               })
             }

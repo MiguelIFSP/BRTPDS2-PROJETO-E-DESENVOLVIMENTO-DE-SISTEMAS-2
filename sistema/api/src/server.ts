@@ -25,6 +25,8 @@ import usuarioRoutes from './routes/usuarioRoutes.ts';
 // NOVO: rotas de recuperação de conta (UC02)
 import authRoutes from './routes/authRoutes.ts';
 
+import { authController } from './controllers/authController.ts';
+
 import { monitoringService } from './services/monitoringService.ts';
 import { usuarioService } from './services/usuarioService.ts';
 
@@ -51,6 +53,11 @@ apiRouter.use(organizacaoRoutes);
 apiRouter.use(comissaoRoutes);
 
 app.use('/api', apiRouter);
+
+// EXCEÇÃO TEMPORÁRIA ao padrão /api: o painel da management-better-meet/web
+// ainda faz login em POST /login, sem o prefixo. Sai quando a management for
+// refatorada para chamar /api/login.
+app.post('/login', authController.login);
 
 // Healthcheck
 // Fora do /api de propósito: usado pela monitoring e pelo start-all.ps1.
