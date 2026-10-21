@@ -1,6 +1,7 @@
 import { describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
+import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
@@ -108,5 +109,35 @@ describe('ConfirmDialog', () => {
 
     expect(screen.queryByRole('button', { name: 'Cancelar' })).toBeNull();
     expect(screen.getByRole('button', { name: 'OK' })).toBeOnTheScreen();
+  });
+});
+
+describe('BottomSheet', () => {
+  it('fecha pelo botão de seta', async () => {
+    const onClose = jest.fn();
+    await render(
+      <BottomSheet visible title="Nova reunião" onClose={onClose}>
+        {null}
+      </BottomSheet>,
+    );
+
+    expect(screen.getByText('Nova reunião')).toBeOnTheScreen();
+    await fireEvent.press(screen.getByRole('button', { name: 'Fechar' }));
+
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('não fecha ao tocar no fundo escurecido', async () => {
+    const onClose = jest.fn();
+    await render(
+      <BottomSheet visible title="Nova reunião" onClose={onClose}>
+        {null}
+      </BottomSheet>,
+    );
+
+    await fireEvent.press(screen.getByTestId('bottom-sheet-fundo'));
+
+    expect(onClose).not.toHaveBeenCalled();
+    expect(screen.getAllByRole('button')).toHaveLength(1);
   });
 });
