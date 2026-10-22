@@ -3,12 +3,11 @@ import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
-import { useShallow } from 'zustand/react/shallow';
 
+import ReuniaoCheckIn from '@/components/ReuniaoCheckIn';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
 import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
-import PageIntro from '@/components/ui/PageIntro';
 import Screen from '@/components/ui/Screen';
 import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
@@ -22,7 +21,10 @@ import {
 import { useTheme } from '@/hooks/useTheme';
 import { comissaoService } from '@/services/comissaoService';
 import { organizacaoService } from '@/services/organizacaoService';
-import { reuniaoService } from '@/services/reuniaoService';
+import {
+  reuniaoService,
+  type ReuniaoRegistro,
+} from '@/services/reuniaoService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 
@@ -35,6 +37,7 @@ type ReuniaoItem = {
   pauta: string;
   descricao?: string;
   status: 'AGENDADA' | 'REALIZADA' | 'CANCELADA';
+  meuRegistro?: ReuniaoRegistro | null;
   comissaoNome?: string;
 };
 
@@ -68,13 +71,15 @@ export default function ReunioesScreen() {
   const router = useRouter();
   const userName = useAuthStore((state) => state.user?.name);
   const token = useAuthStore((state) => state.token);
-  const { openPendingInvites } = useLocalSearchParams<{ openPendingInvites?: string }>();
+  const { openPendingInvites } = useLocalSearchParams<{
+    openPendingInvites?: string;
+  }>();
 
   const formatDateValue = (value: Date) => {
     const day = String(value.getDate()).padStart(2, '0');
     const month = String(value.getMonth() + 1).padStart(2, '0');
     const year = value.getFullYear();
-    return `${day}/${month}/${year}`;
+    return `${year}-${month}-${day}`;
   };
 
   const formatTimeValue = (value: Date) => {
@@ -91,16 +96,20 @@ export default function ReunioesScreen() {
   const [titulo, setTitulo] = useState('');
   const [pauta, setPauta] = useState('');
   const [descricao, setDescricao] = useState('');
-  const [data, setData] = useState(() => formatDateValue(new Date()));
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
   const [comissoes, setComissoes] = useState<ComissaoOption[]>([]);
-  const [comissaoSelecionada, setComissaoSelecionada] = useState<number | null>(null);
+  const [comissaoSelecionada, setComissaoSelecionada] = useState<number | null>(
+    null,
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showHoraInicioPicker, setShowHoraInicioPicker] = useState(false);
   const [showHoraFimPicker, setShowHoraFimPicker] = useState(false);
   const [datePickerValue, setDatePickerValue] = useState(new Date());
-  const [horaInicioPickerValue, setHoraInicioPickerValue] = useState(new Date());
+  const data = formatDateValue(datePickerValue);
+  const [horaInicioPickerValue, setHoraInicioPickerValue] = useState(
+    new Date(),
+  );
   const [horaFimPickerValue, setHoraFimPickerValue] = useState(new Date());
 
   const pendingInvites = useMemo(
@@ -171,6 +180,7 @@ export default function ReunioesScreen() {
         pauta: reuniao.pauta,
         descricao: reuniao.descricao ?? undefined,
         status: reuniao.status,
+        meuRegistro: reuniao.meuRegistro,
         comissaoNome: reuniao.comissao?.nome,
       }));
 
@@ -209,7 +219,8 @@ export default function ReunioesScreen() {
   // O sino do Header abre os convites navegando para cá com
   // ?openPendingInvites=1; fechar limpa o parâmetro para o próximo toque.
   const isInvitesVisible = openPendingInvites === '1';
-  const closeInvites = () => router.setParams({ openPendingInvites: undefined });
+  const closeInvites = () =>
+    router.setParams({ openPendingInvites: undefined });
 
   const handleCreateMeeting = async () => {
     if (!titulo.trim() || !pauta.trim() || !data || !horaInicio || !horaFim) {
@@ -256,7 +267,7 @@ export default function ReunioesScreen() {
       setTitulo('');
       setPauta('');
       setDescricao('');
-      setData(() => formatDateValue(new Date()));
+      setDatePickerValue(new Date());
       setHoraInicio('');
       setHoraFim('');
     } catch (error) {
@@ -290,7 +301,10 @@ export default function ReunioesScreen() {
     } catch (error) {
       setFeedback({
         type: 'error',
-        message: getErrorMessage(error, 'Não foi possível responder ao convite.'),
+        message: getErrorMessage(
+          error,
+          'Não foi possível responder ao convite.',
+        ),
       });
     }
   };
@@ -317,7 +331,8 @@ export default function ReunioesScreen() {
             if (!canCreateMeeting) {
               setFeedback({
                 type: 'error',
-                message: 'Você precisa participar de uma comissão para criar reuniões.',
+                message:
+                  'Você precisa participar de uma comissão para criar reuniões.',
               });
               return;
             }
@@ -348,18 +363,29 @@ export default function ReunioesScreen() {
         reunioes.map((reuniao) => (
           <View
             key={reuniao.id}
-            style={[styles.card, { backgroundColor: colors.backgroundElement, borderColor: colors.border }]}
+            style={[
+              styles.card,
+              {
+                backgroundColor: colors.backgroundElement,
+                borderColor: colors.border,
+              },
+            ]}
           >
             <View style={styles.cardHeader}>
               <View style={styles.titleWrap}>
                 <Text style={[styles.cardTitle, { color: colors.text }]}>
                   {reuniao.titulo}
                 </Text>
-                <Text style={[styles.cardMeta, { color: colors.textSecondary }]}>
-                  {reuniao.data} · {reuniao.horaInicio} às {reuniao.horaFim}
+                <Text
+                  style={[styles.cardMeta, { color: colors.textSecondary }]}
+                >
+                  {reuniao.data.split('-').reverse().join('-')} ·{' '}
+                  {reuniao.horaInicio} às {reuniao.horaFim}
                 </Text>
                 {reuniao.comissaoNome ? (
-                  <Text style={[styles.metaText, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[styles.metaText, { color: colors.textSecondary }]}
+                  >
                     Comissão: {reuniao.comissaoNome}
                   </Text>
                 ) : null}
@@ -391,11 +417,25 @@ export default function ReunioesScreen() {
                 {reuniao.descricao}
               </Text>
             ) : null}
+
+            {token ? (
+              <ReuniaoCheckIn
+                key={`${token}:${reuniao.id}`}
+                reuniaoId={reuniao.id}
+                token={token}
+                status={reuniao.status}
+                meuRegistro={reuniao.meuRegistro}
+              />
+            ) : null}
           </View>
         ))
       )}
 
-      <BottomSheet visible={isCreateOpen} title="Nova reunião" onClose={() => setIsCreateOpen(false)}>
+      <BottomSheet
+        visible={isCreateOpen}
+        title="Nova reunião"
+        onClose={() => setIsCreateOpen(false)}
+      >
         {comissoes.length === 0 ? (
           <View style={styles.emptyCommissionState}>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
@@ -415,8 +455,18 @@ export default function ReunioesScreen() {
             </View>
 
             <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>Comissão</Text>
-              <View style={[styles.selector, { backgroundColor: colors.background, borderColor: colors.border }]}>
+              <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                Comissão
+              </Text>
+              <View
+                style={[
+                  styles.selector,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
+              >
                 {comissoes.map((comissao) => {
                   const isSelected = comissao.id === comissaoSelecionada;
 
@@ -429,8 +479,12 @@ export default function ReunioesScreen() {
                       style={({ pressed }) => [
                         styles.optionChip,
                         {
-                          backgroundColor: isSelected ? colors.primary : colors.background,
-                          borderColor: isSelected ? colors.primary : colors.border,
+                          backgroundColor: isSelected
+                            ? colors.primary
+                            : colors.background,
+                          borderColor: isSelected
+                            ? colors.primary
+                            : colors.border,
                         },
                         pressed && styles.pressed,
                       ]}
@@ -438,7 +492,9 @@ export default function ReunioesScreen() {
                       <Text
                         style={[
                           styles.optionChipText,
-                          { color: isSelected ? colors.onPrimary : colors.text },
+                          {
+                            color: isSelected ? colors.onPrimary : colors.text,
+                          },
                         ]}
                       >
                         {comissao.nome}
@@ -462,12 +518,18 @@ export default function ReunioesScreen() {
                 pressed && styles.pressed,
               ]}
             >
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>Data</Text>
+              <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                Data
+              </Text>
               <View style={styles.pickerValueRow}>
                 <Text style={[styles.pickerValue, { color: colors.text }]}>
-                  {data}
+                  {data.split('-').reverse().join('-')}
                 </Text>
-                <Ionicons name="calendar-outline" size={18} color={colors.textSecondary} />
+                <Ionicons
+                  name="calendar-outline"
+                  size={18}
+                  color={colors.textSecondary}
+                />
               </View>
             </Pressable>
 
@@ -486,12 +548,25 @@ export default function ReunioesScreen() {
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={[styles.fieldLabel, { color: colors.text }]}>Início</Text>
+                <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                  Início
+                </Text>
                 <View style={styles.pickerValueRow}>
-                  <Text style={[styles.pickerValue, { color: horaInicio ? colors.text : colors.textSecondary }]}>
+                  <Text
+                    style={[
+                      styles.pickerValue,
+                      {
+                        color: horaInicio ? colors.text : colors.textSecondary,
+                      },
+                    ]}
+                  >
                     {horaInicio || 'Selecionar'}
                   </Text>
-                  <Ionicons name="time-outline" size={18} color={colors.textSecondary} />
+                  <Ionicons
+                    name="time-outline"
+                    size={18}
+                    color={colors.textSecondary}
+                  />
                 </View>
               </Pressable>
 
@@ -509,12 +584,23 @@ export default function ReunioesScreen() {
                   pressed && styles.pressed,
                 ]}
               >
-                <Text style={[styles.fieldLabel, { color: colors.text }]}>Término</Text>
+                <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                  Término
+                </Text>
                 <View style={styles.pickerValueRow}>
-                  <Text style={[styles.pickerValue, { color: horaFim ? colors.text : colors.textSecondary }]}>
+                  <Text
+                    style={[
+                      styles.pickerValue,
+                      { color: horaFim ? colors.text : colors.textSecondary },
+                    ]}
+                  >
                     {horaFim || 'Selecionar'}
                   </Text>
-                  <Ionicons name="time-outline" size={18} color={colors.textSecondary} />
+                  <Ionicons
+                    name="time-outline"
+                    size={18}
+                    color={colors.textSecondary}
+                  />
                 </View>
               </Pressable>
             </View>
@@ -551,13 +637,11 @@ export default function ReunioesScreen() {
           value={datePickerValue}
           mode="date"
           display="default"
-          onChange={(_, selectedDate) => {
+          onValueChange={(_, selectedDate) => {
             setShowDatePicker(false);
-            if (selectedDate) {
-              setDatePickerValue(selectedDate);
-              setData(formatDateValue(selectedDate));
-            }
+            setDatePickerValue(selectedDate);
           }}
+          onDismiss={() => setShowDatePicker(false)}
         />
       ) : null}
 
@@ -566,13 +650,12 @@ export default function ReunioesScreen() {
           value={horaInicioPickerValue}
           mode="time"
           display="default"
-          onChange={(_, selectedDate) => {
+          onValueChange={(_, selectedDate) => {
             setShowHoraInicioPicker(false);
-            if (selectedDate) {
-              setHoraInicioPickerValue(selectedDate);
-              setHoraInicio(formatTimeValue(selectedDate));
-            }
+            setHoraInicioPickerValue(selectedDate);
+            setHoraInicio(formatTimeValue(selectedDate));
           }}
+          onDismiss={() => setShowHoraInicioPicker(false)}
         />
       ) : null}
 
@@ -581,18 +664,24 @@ export default function ReunioesScreen() {
           value={horaFimPickerValue}
           mode="time"
           display="default"
-          onChange={(_, selectedDate) => {
+          onValueChange={(_, selectedDate) => {
             setShowHoraFimPicker(false);
-            if (selectedDate) {
-              setHoraFimPickerValue(selectedDate);
-              setHoraFim(formatTimeValue(selectedDate));
-            }
+            setHoraFimPickerValue(selectedDate);
+            setHoraFim(formatTimeValue(selectedDate));
           }}
+          onDismiss={() => setShowHoraFimPicker(false)}
         />
       ) : null}
 
-      <BottomSheet visible={isInvitesVisible} title="Convites pendentes" onClose={closeInvites}>
-        <ScrollView style={styles.inviteList} contentContainerStyle={styles.inviteListContent}>
+      <BottomSheet
+        visible={isInvitesVisible}
+        title="Convites pendentes"
+        onClose={closeInvites}
+      >
+        <ScrollView
+          style={styles.inviteList}
+          contentContainerStyle={styles.inviteListContent}
+        >
           {pendingInvites.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Nenhum convite pendente.
@@ -601,16 +690,28 @@ export default function ReunioesScreen() {
             pendingInvites.map((convite) => (
               <View
                 key={convite.id}
-                style={[styles.inviteCard, { backgroundColor: colors.background, borderColor: colors.border }]}
+                style={[
+                  styles.inviteCard,
+                  {
+                    backgroundColor: colors.background,
+                    borderColor: colors.border,
+                  },
+                ]}
               >
                 <Text style={[styles.inviteTitle, { color: colors.text }]}>
                   {convite.titulo}
                 </Text>
-                <Text style={[styles.inviteMeta, { color: colors.textSecondary }]}>
-                  {convite.usuario} · {convite.data} · {convite.horaInicio} às {convite.horaFim}
+                <Text
+                  style={[styles.inviteMeta, { color: colors.textSecondary }]}
+                >
+                  {convite.usuario} ·{' '}
+                  {convite.data.split('-').reverse().join('-')} ·{' '}
+                  {convite.horaInicio} às {convite.horaFim}
                 </Text>
                 {convite.comissaoNome ? (
-                  <Text style={[styles.inviteMeta, { color: colors.textSecondary }]}>
+                  <Text
+                    style={[styles.inviteMeta, { color: colors.textSecondary }]}
+                  >
                     Comissão: {convite.comissaoNome}
                   </Text>
                 ) : null}
@@ -619,7 +720,13 @@ export default function ReunioesScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Aceitar convite de ${convite.titulo}`}
                     onPress={() => handleInviteResponse(convite.id, 'ACEITO')}
-                    style={[styles.actionButton, { backgroundColor: colors.success, borderColor: colors.success }]}
+                    style={[
+                      styles.actionButton,
+                      {
+                        backgroundColor: colors.success,
+                        borderColor: colors.success,
+                      },
+                    ]}
                   >
                     <Text style={styles.actionText}>Aceitar</Text>
                   </Pressable>
@@ -627,9 +734,17 @@ export default function ReunioesScreen() {
                     accessibilityRole="button"
                     accessibilityLabel={`Recusar convite de ${convite.titulo}`}
                     onPress={() => handleInviteResponse(convite.id, 'RECUSADO')}
-                    style={[styles.actionButton, { backgroundColor: 'transparent', borderColor: colors.border }]}
+                    style={[
+                      styles.actionButton,
+                      {
+                        backgroundColor: 'transparent',
+                        borderColor: colors.border,
+                      },
+                    ]}
                   >
-                    <Text style={[styles.actionText, { color: colors.text }]}>Recusar</Text>
+                    <Text style={[styles.actionText, { color: colors.text }]}>
+                      Recusar
+                    </Text>
                   </Pressable>
                 </View>
               </View>

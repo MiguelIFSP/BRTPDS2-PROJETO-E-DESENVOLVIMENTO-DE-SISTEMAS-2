@@ -73,11 +73,55 @@ const assertMembroDaComissao = async (comissaoId: number, userId: number) => {
 
 export const reuniaoService = {
   async listMine(userId: number) {
-    return prisma.reuniao.findMany({
+    const reunioes = await prisma.reuniao.findMany({
       where: { comissao: { equipe: { some: { userId } } } },
       orderBy: [{ data: 'asc' }, { horaInicio: 'asc' }],
-      select: reuniaoSelect,
+      select: {
+        ...reuniaoSelect,
+        registros: { where: { userId } },
+      },
     });
+    return reunioes.map(({ registros, ...reuniao }) => ({
+      ...reuniao,
+      meuRegistro: registros[0] ?? null,
+    }));
+  },
+
+  async checkIn(userId: number, reuniaoId: number) {
+    const reuniao = await prisma.reuniao.findUnique({
+      where: { id: reuniaoId },
+      select: { comissaoId: true, status: true },
+    });
+    if (!reuniao) {
+      throw new AppError(404, 'Reunião não encontrada.');
+    }
+
+    await assertMembroDaComissao(reuniao.comissaoId, userId);
+
+    const where = { reuniaoId_userId: { reuniaoId, userId } };
+    const existente = await prisma.reuniaoRegistro.findUnique({ where });
+    // Uma repetição confirma a primeira entrada, mesmo após o encerramento.
+    if (existente) return { registro: existente, jaRegistrado: true };
+
+    if (reuniao.status !== 'AGENDADA') {
+      throw new AppError(409, 'Esta reunião não está disponível para entrada.');
+    }
+
+    try {
+      // O banco gera entradaAt: o cliente não controla o horário da presença.
+      const registro = await prisma.reuniaoRegistro.create({
+        data: { reuniaoId, userId },
+      });
+      return { registro, jaRegistrado: false };
+    } catch (error) {
+      // Duas requisições podem consultar antes da primeira gravação. A chave
+      // única decide qual cria; a outra devolve o mesmo registro sem alterá-lo.
+      if (isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) {
+        const registro = await prisma.reuniaoRegistro.findUnique({ where });
+        if (registro) return { registro, jaRegistrado: true };
+      }
+      throw error;
+    }
   },
 
   async listPendingInvites(userId: number) {
