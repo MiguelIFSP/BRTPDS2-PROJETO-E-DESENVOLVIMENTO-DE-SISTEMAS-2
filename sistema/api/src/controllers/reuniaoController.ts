@@ -26,6 +26,18 @@ export const reuniaoController = {
     });
   },
 
+  async checkOut(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    const result = await reuniaoService.checkOut(userId, reuniaoId);
+    response.status(200).json({
+      ...result,
+      message: result.jaRegistrado
+        ? 'Sua saída já está registrada nesta reunião.'
+        : 'Saída registrada.',
+    });
+  },
+
   async listPendingInvites(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const convites = await reuniaoService.listPendingInvites(userId);

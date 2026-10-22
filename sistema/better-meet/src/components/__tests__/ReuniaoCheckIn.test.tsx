@@ -6,6 +6,7 @@ import { monitoringService } from '@/services/monitoringService';
 import {
   reuniaoService,
   type EntradaReuniaoResponse,
+  type SaidaReuniaoResponse,
 } from '@/services/reuniaoService';
 import { ApiError } from '@/utils/apiClient';
 
@@ -21,12 +22,18 @@ const response: EntradaReuniaoResponse = {
   message: 'Presença confirmada.',
   jaRegistrado: false,
 };
+const saidaResponse: SaidaReuniaoResponse = {
+  registro: { ...registro, saidaAt: '2026-10-21T16:00:00.000Z' },
+  message: 'Saída registrada.',
+  jaRegistrado: false,
+};
 const props = {
   reuniaoId: 31,
   token: 'jwt-teste',
   status: 'AGENDADA' as const,
 };
 const checkIn = jest.spyOn(reuniaoService, 'checkIn');
+const checkOut = jest.spyOn(reuniaoService, 'checkOut');
 jest
   .spyOn(monitoringService, 'reportRequestFailure')
   .mockImplementation(() => {});
@@ -34,6 +41,8 @@ jest
 beforeEach(() => {
   checkIn.mockReset();
   checkIn.mockResolvedValue(response);
+  checkOut.mockReset();
+  checkOut.mockResolvedValue(saidaResponse);
 });
 
 describe('ReuniaoCheckIn', () => {
@@ -47,7 +56,7 @@ describe('ReuniaoCheckIn', () => {
       );
 
       expect(checkIn).toHaveBeenCalledWith('jwt-teste', 31);
-      expect(await screen.findByText('Presença Confirmada')).toBeOnTheScreen();
+      expect(await screen.findByText('Presença ativa')).toBeOnTheScreen();
       expect(
         screen.queryByRole('button', { name: 'Entrar na Reunião' }),
       ).toBeNull();
@@ -76,7 +85,7 @@ describe('ReuniaoCheckIn', () => {
     await act(() => {
       finish(response);
     });
-    expect(await screen.findByText('Presença Confirmada')).toBeOnTheScreen();
+    expect(await screen.findByText('Presença ativa')).toBeOnTheScreen();
   });
 
   it('permite tentar novamente após falha sem confirmar presença antes do sucesso', async () => {
@@ -86,7 +95,7 @@ describe('ReuniaoCheckIn', () => {
       screen.getByRole('button', { name: 'Entrar na Reunião' }),
     );
     expect(await screen.findByText('Sem conexão.')).toBeOnTheScreen();
-    expect(screen.queryByText('Presença Confirmada')).toBeNull();
+    expect(screen.queryByText('Presença ativa')).toBeNull();
     expect(
       screen.getByRole('button', { name: 'Entrar na Reunião' }),
     ).not.toBeDisabled();
@@ -94,7 +103,7 @@ describe('ReuniaoCheckIn', () => {
     await fireEvent.press(
       screen.getByRole('button', { name: 'Entrar na Reunião' }),
     );
-    expect(await screen.findByText('Presença Confirmada')).toBeOnTheScreen();
+    expect(await screen.findByText('Presença ativa')).toBeOnTheScreen();
     expect(checkIn).toHaveBeenCalledTimes(2);
   });
 
@@ -102,8 +111,31 @@ describe('ReuniaoCheckIn', () => {
     await render(
       <ReuniaoCheckIn {...props} status="REALIZADA" meuRegistro={registro} />,
     );
-    expect(screen.getByText('Presença Confirmada')).toBeOnTheScreen();
+    expect(screen.getByText('Presença ativa')).toBeOnTheScreen();
+    expect(screen.getByRole('button', { name: 'Registrar saída' })).toBeOnTheScreen();
     expect(checkIn).not.toHaveBeenCalled();
+  });
+
+  it('registra a saída e substitui a presença ativa pelo estado encerrado', async () => {
+    await render(<ReuniaoCheckIn {...props} meuRegistro={registro} />);
+    await fireEvent.press(screen.getByRole('button', { name: 'Registrar saída' }));
+
+    expect(checkOut).toHaveBeenCalledWith('jwt-teste', 31);
+    expect(await screen.findByText('Saída registrada')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Registrar saída' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Entrar na Reunião' })).toBeNull();
+  });
+
+  it('mostra estado encerrado recebido do servidor sem permitir reentrada', async () => {
+    await render(
+      <ReuniaoCheckIn {...props} meuRegistro={saidaResponse.registro} />,
+    );
+
+    expect(screen.getByText('Saída registrada')).toBeOnTheScreen();
+    expect(screen.queryByRole('button', { name: 'Registrar saída' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Entrar na Reunião' })).toBeNull();
+    expect(checkIn).not.toHaveBeenCalled();
+    expect(checkOut).not.toHaveBeenCalled();
   });
 
   it.each(['REALIZADA', 'CANCELADA'] as const)(

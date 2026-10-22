@@ -17,7 +17,11 @@ const jwtSecret = 'segredo-ficticio-dos-testes-de-check-in';
 const prisma = {
   reuniao: { findUnique: jest.fn(), findMany: jest.fn() },
   comissao: { findUnique: jest.fn() },
-  reuniaoRegistro: { findUnique: jest.fn(), create: jest.fn() },
+  reuniaoRegistro: {
+    findUnique: jest.fn(),
+    create: jest.fn(),
+    updateMany: jest.fn(),
+  },
 };
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
@@ -45,6 +49,10 @@ const post = (id = reuniaoId) =>
   request(app)
     .post(`/api/reunioes/${id}/entrar`)
     .set('Authorization', `Bearer ${token}`);
+const postOut = (id = reuniaoId) =>
+  request(app)
+    .post(`/api/reunioes/${id}/sair`)
+    .set('Authorization', `Bearer ${token}`);
 const registro = {
   id: 12,
   reuniaoId,
@@ -71,6 +79,7 @@ beforeEach(() => {
   });
   prisma.reuniaoRegistro.findUnique.mockResolvedValue(null);
   prisma.reuniaoRegistro.create.mockResolvedValue(registro);
+  prisma.reuniaoRegistro.updateMany.mockResolvedValue({ count: 1 });
 });
 afterEach(() => jest.restoreAllMocks());
 
@@ -230,6 +239,61 @@ describe('POST /api/reunioes/:id/entrar', () => {
     const error = duplicateError();
     prisma.reuniaoRegistro.create.mockRejectedValue(error);
     await expect(reuniaoService.checkIn(userId, reuniaoId)).rejects.toBe(error);
+  });
+});
+
+describe('POST /api/reunioes/:id/sair', () => {
+  test('usa o JWT e horário do servidor sem alterar a entrada', async () => {
+    const saidaAt = new Date('2026-10-21T16:00:00.000Z');
+    prisma.reuniaoRegistro.findUnique
+      .mockResolvedValueOnce(registro)
+      .mockResolvedValueOnce({ ...registro, saidaAt });
+    prisma.reuniaoRegistro.updateMany.mockImplementation(async ({ data }) => {
+      expect(data.saidaAt).toBeInstanceOf(Date);
+      expect(data.saidaAt).not.toEqual(new Date('1999-01-02'));
+      return { count: 1 };
+    });
+
+    const response = await postOut().send({
+      userId: 999,
+      entradaAt: '1999-01-01',
+      saidaAt: '1999-01-02',
+    });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toMatchObject({
+      jaRegistrado: false,
+      registro: {
+        userId,
+        reuniaoId,
+        entradaAt: registro.entradaAt.toISOString(),
+        saidaAt: saidaAt.toISOString(),
+      },
+    });
+    expect(prisma.reuniaoRegistro.updateMany).toHaveBeenCalledWith({
+      where: { reuniaoId, userId, saidaAt: null },
+      data: { saidaAt: expect.any(Date) },
+    });
+  });
+
+  test('repetição mantém o primeiro horário de saída', async () => {
+    const saidaAt = new Date('2026-10-21T16:00:00.000Z');
+    prisma.reuniaoRegistro.findUnique.mockResolvedValue({ ...registro, saidaAt });
+
+    const response = await postOut();
+
+    expect(response.status).toBe(200);
+    expect(response.body.jaRegistrado).toBe(true);
+    expect(response.body.registro).toMatchObject({
+      entradaAt: registro.entradaAt.toISOString(),
+      saidaAt: saidaAt.toISOString(),
+    });
+    expect(prisma.reuniaoRegistro.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('não permite saída sem entrada registrada', async () => {
+    expect((await postOut()).status).toBe(409);
+    expect(prisma.reuniaoRegistro.updateMany).not.toHaveBeenCalled();
   });
 });
 

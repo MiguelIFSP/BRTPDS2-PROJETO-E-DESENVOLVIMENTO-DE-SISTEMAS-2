@@ -12,6 +12,7 @@ routes.get(
 );
 routes.post('/reunioes', requireAuth, reuniaoController.create);
 routes.post('/reunioes/:id/entrar', requireAuth, reuniaoController.checkIn);
+routes.post('/reunioes/:id/sair', requireAuth, reuniaoController.checkOut);
 routes.patch(
   '/reunioes/convites/:inviteId/responder',
   requireAuth,

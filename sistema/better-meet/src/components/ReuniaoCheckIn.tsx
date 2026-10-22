@@ -31,7 +31,7 @@ export default function ReuniaoCheckIn({
   const [isLoading, setIsLoading] = useState(false);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const requestPending = useRef(false);
-  const registro = meuRegistro ?? registroConfirmado;
+  const registro = registroConfirmado ?? meuRegistro ?? null;
 
   const handleCheckIn = async () => {
     // Bloqueia um segundo toque antes mesmo da próxima renderização.
@@ -61,15 +61,57 @@ export default function ReuniaoCheckIn({
     }
   };
 
+  const handleCheckOut = async () => {
+    if (requestPending.current || !registro || registro.saidaAt) return;
+    requestPending.current = true;
+    setIsLoading(true);
+    setFeedback(null);
+    try {
+      const result = await reuniaoService.checkOut(token, reuniaoId);
+      setRegistroConfirmado(result.registro);
+    } catch (error) {
+      monitoringService.reportRequestFailure(
+        error,
+        'ReuniaoCheckIn.handleCheckOut',
+        false,
+      );
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'Não foi possível registrar sua saída.'),
+      });
+    } finally {
+      requestPending.current = false;
+      setIsLoading(false);
+    }
+  };
+
   if (registro) {
     return (
-      <View
-        accessible
-        accessibilityRole="alert"
-        accessibilityLiveRegion="polite"
-        accessibilityLabel="Presença Confirmada"
-      >
-        <Badge label="Presença Confirmada" tone="success" showDot />
+      <View style={styles.container}>
+        <View
+          accessible
+          accessibilityRole="alert"
+          accessibilityLiveRegion="polite"
+          accessibilityLabel={registro.saidaAt ? 'Saída registrada' : 'Presença ativa'}
+        >
+          <Badge
+            label={registro.saidaAt ? 'Saída registrada' : 'Presença ativa'}
+            tone={registro.saidaAt ? 'textSecondary' : 'success'}
+            showDot
+          />
+        </View>
+        {registro.saidaAt ? null : (
+          <>
+            <Button
+              label="Registrar saída"
+              icon="log-out-outline"
+              isLoading={isLoading}
+              loadingLabel="Registrando saída..."
+              onPress={() => void handleCheckOut()}
+            />
+            <FeedbackBanner feedback={feedback} />
+          </>
+        )}
       </View>
     );
   }

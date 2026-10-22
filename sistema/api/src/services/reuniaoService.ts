@@ -124,6 +124,38 @@ export const reuniaoService = {
     }
   },
 
+  async checkOut(userId: number, reuniaoId: number) {
+    const reuniao = await prisma.reuniao.findUnique({
+      where: { id: reuniaoId },
+      select: { comissaoId: true },
+    });
+    if (!reuniao) {
+      throw new AppError(404, 'Reunião não encontrada.');
+    }
+
+    await assertMembroDaComissao(reuniao.comissaoId, userId);
+
+    const where = { reuniaoId_userId: { reuniaoId, userId } };
+    const existente = await prisma.reuniaoRegistro.findUnique({ where });
+    if (!existente) {
+      throw new AppError(409, 'Registre sua entrada antes de sair da reunião.');
+    }
+    if (existente.saidaAt) {
+      return { registro: existente, jaRegistrado: true };
+    }
+
+    const atualizado = await prisma.reuniaoRegistro.updateMany({
+      where: { reuniaoId, userId, saidaAt: null },
+      data: { saidaAt: new Date() },
+    });
+    const registro = await prisma.reuniaoRegistro.findUnique({ where });
+    if (!registro) {
+      throw new AppError(404, 'Registro de presença não encontrado.');
+    }
+
+    return { registro, jaRegistrado: atualizado.count === 0 };
+  },
+
   async listPendingInvites(userId: number) {
     const convites = await prisma.conviteReuniao.findMany({
       where: { userId, status: StatusConviteReuniao.PENDENTE },

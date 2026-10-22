@@ -24,6 +24,12 @@ export type EntradaReuniaoResponse = {
   jaRegistrado: boolean;
 };
 
+export type SaidaReuniaoResponse = {
+  message: string;
+  registro: ReuniaoRegistro;
+  jaRegistrado: boolean;
+};
+
 export type Reuniao = {
   id: number;
   comissaoId: number;
@@ -70,6 +76,14 @@ export const reuniaoService = {
       method: 'POST',
       token,
       fallbackError: 'Não foi possível confirmar sua presença.',
+    });
+  },
+
+  checkOut(token: string, reuniaoId: number) {
+    return apiRequest<SaidaReuniaoResponse>(`/reunioes/${reuniaoId}/sair`, {
+      method: 'POST',
+      token,
+      fallbackError: 'Não foi possível registrar sua saída.',
     });
   },
 
