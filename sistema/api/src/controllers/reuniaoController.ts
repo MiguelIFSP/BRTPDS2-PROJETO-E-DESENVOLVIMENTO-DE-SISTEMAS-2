@@ -14,6 +14,18 @@ export const reuniaoController = {
     response.status(200).json(reunioes);
   },
 
+  async checkIn(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    const result = await reuniaoService.checkIn(userId, reuniaoId);
+    response.status(result.jaRegistrado ? 200 : 201).json({
+      ...result,
+      message: result.jaRegistrado
+        ? 'Sua presença já está registrada nesta reunião.'
+        : 'Presença confirmada.',
+    });
+  },
+
   async listPendingInvites(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const convites = await reuniaoService.listPendingInvites(userId);

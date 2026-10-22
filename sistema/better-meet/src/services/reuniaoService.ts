@@ -10,6 +10,20 @@ export const STATUS_CONVITE_REUNIAO = [
 ] as const;
 export type StatusConviteReuniao = (typeof STATUS_CONVITE_REUNIAO)[number];
 
+export type ReuniaoRegistro = {
+  id: number;
+  reuniaoId: number;
+  userId: number;
+  entradaAt: string;
+  saidaAt: string | null;
+};
+
+export type EntradaReuniaoResponse = {
+  message: string;
+  registro: ReuniaoRegistro;
+  jaRegistrado: boolean;
+};
+
 export type Reuniao = {
   id: number;
   comissaoId: number;
@@ -21,6 +35,7 @@ export type Reuniao = {
   horaFim: string;
   status: StatusReuniao;
   criadoPorUserId: number;
+  meuRegistro?: ReuniaoRegistro | null;
   comissao?: { id: number; nome: string };
   convites?: { id: number; status: StatusConviteReuniao }[];
 };
@@ -50,6 +65,14 @@ export type ReuniaoCreateInput = {
 };
 
 export const reuniaoService = {
+  checkIn(token: string, reuniaoId: number) {
+    return apiRequest<EntradaReuniaoResponse>(`/reunioes/${reuniaoId}/entrar`, {
+      method: 'POST',
+      token,
+      fallbackError: 'Não foi possível confirmar sua presença.',
+    });
+  },
+
   listMine(token: string) {
     return apiRequest<Reuniao[]>('/reunioes/minhas', {
       token,

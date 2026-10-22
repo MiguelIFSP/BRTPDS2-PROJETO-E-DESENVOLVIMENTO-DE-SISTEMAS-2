@@ -11,6 +11,7 @@ routes.get(
   reuniaoController.listPendingInvites,
 );
 routes.post('/reunioes', requireAuth, reuniaoController.create);
+routes.post('/reunioes/:id/entrar', requireAuth, reuniaoController.checkIn);
 routes.patch(
   '/reunioes/convites/:inviteId/responder',
   requireAuth,

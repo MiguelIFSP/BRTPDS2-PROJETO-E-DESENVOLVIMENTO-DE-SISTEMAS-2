@@ -84,6 +84,7 @@ model User {
   passwordResetTokens PasswordResetToken[]
   reunioesCriadas     Reuniao[]            @relation("ReuniaoCriador")
   convitesReuniao     ConviteReuniao[]
+  registrosReuniao    ReuniaoRegistro[]
 }
 
 model Organizacao {
@@ -171,6 +172,7 @@ model Reuniao {
   comissao  Comissao         @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
   criadoPor User             @relation("ReuniaoCriador", fields: [criadoPorUserId], references: [id])
   convites  ConviteReuniao[]
+  registros ReuniaoRegistro[]
 
   @@index([comissaoId])
   @@index([criadoPorUserId])
@@ -190,4 +192,19 @@ model ConviteReuniao {
 
   @@unique([reuniaoId, userId])
   @@index([userId, status])
+}
+
+// Uma presença por integrante; repetir a entrada preserva o primeiro horário.
+model ReuniaoRegistro {
+  id        Int       @id @default(autoincrement())
+  reuniaoId Int
+  userId    Int
+  entradaAt DateTime  @default(now())
+  saidaAt   DateTime?
+
+  reuniao Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reuniaoId, userId])
+  @@index([userId])
 }

@@ -152,6 +152,29 @@ components:
             properties:
               id: { type: integer }
               status: { $ref: '#/components/schemas/StatusConviteReuniao' }
+        meuRegistro:
+          description: Presença do próprio usuário, incluída em GET /reunioes/minhas.
+          nullable: true
+          allOf: [{ $ref: '#/components/schemas/ReuniaoRegistro' }]
+    ReuniaoRegistro:
+      type: object
+      required: [id, reuniaoId, userId, entradaAt, saidaAt]
+      properties:
+        id: { type: integer }
+        reuniaoId: { type: integer }
+        userId: { type: integer }
+        entradaAt:
+          type: string
+          format: date-time
+          description: Horário da primeira entrada, gerado pelo servidor.
+        saidaAt: { type: string, format: date-time, nullable: true }
+    EntradaReuniao:
+      type: object
+      required: [message, registro, jaRegistrado]
+      properties:
+        message: { type: string }
+        registro: { $ref: '#/components/schemas/ReuniaoRegistro' }
+        jaRegistrado: { type: boolean }
     ConviteReuniao:
       type: object
       properties:
@@ -1371,6 +1394,39 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ConviteReuniao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/entrar:
+    post:
+      tags: [Reuniões]
+      summary: Registra a primeira entrada do integrante na reunião
+      description: |
+        Exige participação na comissão de uma organização aprovada.
+        A identidade vem exclusivamente do JWT; não aceita horário ou usuário do cliente.
+        Novas entradas exigem reunião AGENDADA. Repetições devolvem o registro
+        original, sem alterar entradaAt ou saidaAt, inclusive após o encerramento.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Primeira entrada registrada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntradaReuniao' }
+        '200':
+          description: Presença já registrada; o horário original foi preservado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntradaReuniao' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
