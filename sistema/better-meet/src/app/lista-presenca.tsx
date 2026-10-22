@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { Platform, Share, StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 
 import ListaPresencaView from '@/components/presenca/ListaPresencaView';
+import ListaPresencaEditor from '@/components/presenca/ListaPresencaEditor';
 import BackButton from '@/components/ui/BackButton';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
@@ -27,6 +28,12 @@ import {
   formatListaPresencaText,
   STATUS_LISTA_LABELS,
 } from '@/utils/listaPresenca';
+import {
+  formatListaPresencaCsv,
+  getResumoPresenca,
+  mergeMarcacoesPresenca,
+  type MarcacaoPresenca,
+} from '@/utils/marcacoesPresenca';
 
 type ListaPresencaForm = { observacoes: string };
 
@@ -35,6 +42,7 @@ type ListaPresencaForm = { observacoes: string };
  * e compartilhamento. Não consulta a API nem grava dados no aparelho.
  */
 export default function ListaPresencaScreen() {
+  const { reuniaoId } = useLocalSearchParams<{ reuniaoId?: string }>();
   const { colors } = useTheme();
   const [feedback, setFeedback] = useFeedback();
   const {
@@ -46,18 +54,58 @@ export default function ListaPresencaScreen() {
     resetPreview,
   } = useListaPresencaPreview();
   const [isSharing, setIsSharing] = useState(false);
-  const [observacoes, setObservacoes] = useState('');
+  const [observacoes, setObservacoes] = useState(
+    selectedLista?.observacoes ?? '',
+  );
+  const [marcacoes, setMarcacoes] = useState<MarcacaoPresenca[]>([]);
+  const [pendingVersionId, setPendingVersionId] = useState<number | null>(null);
   const [errors, setErrors] = useState<FieldErrors<ListaPresencaForm>>({});
   const [pendingData, setPendingData] = useState<GerarListaPresencaData | null>(
     null,
   );
+  const marcacoesExibidas = selectedLista
+    ? mergeMarcacoesPresenca(
+        selectedLista.snapshot.membros,
+        selectedLista.marcacoes ?? [],
+        marcacoes,
+      )
+    : [];
+  const resumo = getResumoPresenca(
+    selectedLista?.snapshot.membros ?? [],
+    marcacoesExibidas,
+  );
+  const hasUnsavedChanges =
+    marcacoes.length > 0 || observacoes !== (selectedLista?.observacoes ?? '');
+
+  const handleSelectVersion = (id: number) => {
+    if (id === selectedId) return;
+    if (hasUnsavedChanges) {
+      setPendingVersionId(id);
+      return;
+    }
+    selectVersion(id);
+    setObservacoes(versoes.find((lista) => lista.id === id)?.observacoes ?? '');
+  };
+
+  const discardChanges = () => {
+    if (pendingVersionId === null) return;
+    selectVersion(pendingVersionId);
+    setMarcacoes([]);
+    setObservacoes(
+      versoes.find((lista) => lista.id === pendingVersionId)?.observacoes ?? '',
+    );
+    setErrors({});
+    setPendingVersionId(null);
+  };
 
   // O Drawer mantém a tela montada: restaurar no foco torna explícito que
   // as versões simuladas são descartadas ao sair e voltar para a prévia.
   useFocusEffect(
     useCallback(() => {
-      resetPreview();
-      setObservacoes('');
+      const listaInicial = resetPreview();
+      setObservacoes(listaInicial?.observacoes ?? '');
+      setMarcacoes([]);
+      setPendingVersionId(null);
       setErrors({});
       setPendingData(null);
       return () => setPendingData(null);
@@ -68,13 +116,14 @@ export default function ListaPresencaScreen() {
     setFeedback(null);
     try {
       const values = await listaPresencaSchema.validate(
-        { observacoes },
+        { observacoes, presencas: marcacoesExibidas },
         { abortEarly: false, stripUnknown: true },
       );
       setErrors({});
-      setPendingData(
-        values.observacoes ? { observacoes: values.observacoes } : {},
-      );
+      setPendingData({
+        observacoes: values.observacoes ?? '',
+        presencas: values.presencas ?? [],
+      });
     } catch (error) {
       if (error instanceof yup.ValidationError) {
         setErrors(toFieldErrors<ListaPresencaForm>(error));
@@ -85,16 +134,17 @@ export default function ListaPresencaScreen() {
   const handleGenerate = () => {
     if (!pendingData) return;
     generateVersion(pendingData);
-    setObservacoes('');
+    setObservacoes(pendingData.observacoes?.trim() ?? '');
+    setMarcacoes([]);
     setPendingData(null);
     setFeedback({
       type: 'success',
-      message: 'Versão simulada criada nesta prévia.',
+      message: 'Lista simulada salva em uma nova versão nesta prévia.',
     });
   };
 
   const handleShare = async () => {
-    if (!selectedLista || isSharing) return;
+    if (!selectedLista || isSharing || hasUnsavedChanges) return;
     setIsSharing(true);
     setFeedback(null);
     try {
@@ -132,6 +182,54 @@ export default function ListaPresencaScreen() {
     }
   };
 
+  const handleExportCsv = async () => {
+    if (!selectedLista || isSharing || hasUnsavedChanges) return;
+    setIsSharing(true);
+    setFeedback(null);
+    try {
+      const csv =
+        '\uFEFF"Prévia — dados fictícios"\r\n' +
+        formatListaPresencaCsv(selectedLista).replace(/^\uFEFF/, '');
+      if (Platform.OS === 'web') {
+        if (
+          typeof document === 'undefined' ||
+          typeof URL.createObjectURL !== 'function'
+        ) {
+          throw new Error('Este navegador não permite baixar a lista em CSV.');
+        }
+        const url = URL.createObjectURL(
+          new Blob([csv], { type: 'text/csv;charset=utf-8' }),
+        );
+        const link = document.createElement('a');
+        try {
+          link.href = url;
+          link.download = `lista-presenca-previa-v${selectedLista.versao}.csv`;
+          document.body.appendChild(link);
+          link.click();
+        } finally {
+          link.remove();
+          URL.revokeObjectURL(url);
+        }
+        setFeedback({
+          type: 'success',
+          message: 'CSV da versão simulada exportado.',
+        });
+      } else {
+        await Share.share({
+          title: 'Lista de presença — CSV de demonstração',
+          message: csv,
+        });
+      }
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'Não foi possível exportar o exemplo.'),
+      });
+    } finally {
+      setIsSharing(false);
+    }
+  };
+
   return (
     <Screen hasForm>
       <BackButton />
@@ -146,14 +244,42 @@ export default function ListaPresencaScreen() {
           Ao sair e voltar para esta tela, as versões simuladas são descartadas
           e os dois exemplos iniciais reaparecem.
         </Text>
+        {reuniaoId !== undefined ? (
+          <Text style={[styles.body, { color: colors.textSecondary }]}>
+            Esta prévia apresenta a reunião de exemplo. O acesso à reunião
+            selecionada será ligado na integração.
+          </Text>
+        ) : null}
       </Card>
       <FeedbackBanner feedback={feedback} />
-      <Card>
-        <SectionLabel label="Simular nova versão" />
-        <Text style={[styles.body, { color: colors.textSecondary }]}>
-          A simulação reutiliza os registros do exemplo final e mantém as
-          versões anteriores enquanto você estiver nesta tela.
+      <Card tone="tinted">
+        <SectionLabel label="Resumo da revisão" />
+        <Text style={[styles.body, { color: colors.text }]}>
+          {resumo.convidados} pessoas na lista · {resumo.presentes} presentes ·{' '}
+          {resumo.adesao}% de adesão
         </Text>
+        <Text style={[styles.body, { color: colors.textSecondary }]}>
+          Atrasados e quem saiu antes contam como comparecimento. As marcações
+          não alteram as respostas aos convites.
+        </Text>
+      </Card>
+      <Card>
+        <SectionLabel label="Revisar lista de presença" />
+        <Text style={[styles.body, { color: colors.textSecondary }]}>
+          Marque a presença de cada participante, inclusive em reuniões
+          presenciais. Os horários permanecem os dos registros originais.
+        </Text>
+        {selectedLista ? (
+          <ListaPresencaEditor
+            membros={selectedLista.snapshot.membros}
+            marcacoes={marcacoesExibidas}
+            errors={errors}
+            onChange={(values) => {
+              setMarcacoes(values);
+              setErrors({});
+            }}
+          />
+        ) : null}
         <TextField
           label="Observações (opcional)"
           value={observacoes}
@@ -166,7 +292,7 @@ export default function ListaPresencaScreen() {
           }}
         />
         <Button
-          label="Gerar nova versão simulada"
+          label="Salvar lista simulada"
           icon="document-text-outline"
           onPress={() => void prepareGeneration()}
         />
@@ -178,12 +304,17 @@ export default function ListaPresencaScreen() {
             key={lista.id}
             label={`Versão ${lista.versao} — ${STATUS_LISTA_LABELS[lista.status]}`}
             selected={selectedId === lista.id}
-            onPress={() => selectVersion(lista.id)}
+            onPress={() => handleSelectVersion(lista.id)}
           />
         ))}
       </View>
       {selectedLista ? (
         <>
+          {hasUnsavedChanges ? (
+            <Text style={[styles.body, { color: colors.textSecondary }]}>
+              Salve a revisão para compartilhar as marcações atuais.
+            </Text>
+          ) : null}
           <Button
             label={
               Platform.OS === 'web'
@@ -193,19 +324,42 @@ export default function ListaPresencaScreen() {
             variant="secondary"
             icon="share-outline"
             isLoading={isSharing}
+            disabled={hasUnsavedChanges}
             onPress={() => void handleShare()}
           />
+          <Button
+            label={
+              Platform.OS === 'web'
+                ? 'Exportar exemplo em CSV'
+                : 'Compartilhar CSV em texto'
+            }
+            variant="secondary"
+            icon="download-outline"
+            isLoading={isSharing}
+            disabled={hasUnsavedChanges}
+            onPress={() => void handleExportCsv()}
+          />
+          <SectionLabel label="Versão salva" />
           <ListaPresencaView lista={selectedLista} />
         </>
       ) : null}
       <ConfirmDialog
         visible={pendingData !== null}
-        title="Gerar nova versão simulada?"
-        message="O exemplo será acrescentado somente à memória desta tela. Ao sair e voltar, os exemplos iniciais serão restaurados."
+        title="Salvar lista simulada?"
+        message="As marcações e observações serão guardadas em uma nova versão nesta tela, preservando o histórico. Ao sair e voltar, os exemplos iniciais serão restaurados."
         variant="info"
-        confirmLabel="Simular geração"
+        confirmLabel="Salvar versão simulada"
         onConfirm={handleGenerate}
         onCancel={() => setPendingData(null)}
+      />
+      <ConfirmDialog
+        visible={pendingVersionId !== null}
+        title="Descartar alterações desta revisão?"
+        message="As marcações e observações ainda não salvas serão descartadas ao abrir outra versão."
+        variant="warning"
+        confirmLabel="Descartar e trocar"
+        onConfirm={discardChanges}
+        onCancel={() => setPendingVersionId(null)}
       />
     </Screen>
   );

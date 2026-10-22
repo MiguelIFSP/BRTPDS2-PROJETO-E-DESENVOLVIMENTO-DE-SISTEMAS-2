@@ -2,17 +2,17 @@
 
 ## Entrega atual e limites
 
-A entrega atual é um **mockup navegável com dados fictícios e histórico em memória**. Permite avaliar a apresentação da lista, os status, observações, seleção de versões e compartilhamento em texto. O aviso de demonstração identifica que o resultado não é uma lista oficial.
+A entrega atual é um **mockup funcional com dados fictícios e histórico em memória**. Permite marcar manualmente a presença de cada participante, adicionar observações individuais e gerais, acompanhar o resumo de adesão, salvar versões locais e compartilhar texto ou exportar CSV. O aviso de demonstração identifica que o resultado não é uma lista oficial.
 
-**O mockup não cadastra reuniões, convites, entradas, saídas ou listas reais. Não cria tabelas, aplica migrações nem registra endpoints de lista de presença.** A implementação de reuniões continua com o colega responsável. O núcleo puro de consolidação foi preparado separadamente, sem HTTP ou banco, para testar as regras e facilitar a futura integração.
+**O mockup não cadastra reuniões, convites, entradas, saídas ou listas reais. Não cria tabelas, aplica migrações nem registra endpoints de lista de presença.** A implementação de reuniões e a integração entre features continuam com o colega responsável. Os núcleos puros de consolidação e marcação, os tipos e as validações foram preparados separadamente, sem HTTP ou banco, para facilitar essa integração.
 
 As seções de API e banco deste documento são propostas futuras, não recursos disponíveis. A prévia não valida permissões de servidor. PDF, assinatura digital, envio automático de e-mail e links públicos não são implementados; o compartilhamento é textual.
 
-| Responsabilidade                | Limite                                                                                                                         |
-| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
-| Módulo de reuniões do colega    | Cadastro, título, pauta, datas, local/plataforma e cancelamento.                                                               |
-| Módulos de convites e registros | Convites e respostas; entradas, saídas e suas correções.                                                                       |
-| Lista de presença               | Consolidar os dados recebidos e apresentar versões. Agora, demonstrar a interface com dados locais e preparar as regras puras. |
+| Responsabilidade                | Limite                                                                                                                                   |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Módulo de reuniões do colega    | Cadastro, título, pauta, datas, local/plataforma e cancelamento.                                                                         |
+| Módulos de convites e registros | Convites e respostas; entradas, saídas e suas correções.                                                                                 |
+| Lista de presença               | Consolidar os dados recebidos, revisar marcações e apresentar versões. Agora, demonstrar com dados locais e preparar regras e contratos. |
 
 Não são recriadas telas ou regras dos colegas, nem solicitado que o usuário digite IDs internos.
 
@@ -22,13 +22,17 @@ O menu abre `/lista-presenca`, identificado como prévia, sem exigir uma reuniã
 
 Os exemplos iniciais são versões independentes: uma parcial às 10h30 e uma final às 11h10, com quatro convidados fictícios, sendo três aceitos e um pendente. A parcial apresenta um presente, um atrasado, um ausente e um sem resposta. A final apresenta um presente, um que saiu antes — e também atrasou —, um ausente e um sem resposta.
 
-Gerar nova versão **copia o cenário final demonstrativo**, com snapshot independente, observações e data fictícia. Não consulta dados atuais de reunião nem executa o núcleo do backend. Ao sair e voltar à tela, o reset em foco restaura os exemplos; não há persistência durável. O service HTTP preparado para uma futura integração não é chamado pela prévia.
+O editor permite escolher `PRESENTE`, `ATRASADO`, `SAIU_ANTES`, `AUSENTE` ou `SEM_RESPOSTA` para cada pessoa, com observação opcional de até 2.000 caracteres. A revisão fica em `ListaPresenca.marcacoes`, separada do `snapshot` dos registros originais: não modifica resposta ao convite, entrada, saída, permanência, flags ou totais consolidados da origem.
 
-No navegador, compartilhar copia o texto quando a área de transferência está disponível; no dispositivo móvel, abre o compartilhamento do sistema. O texto também deve indicar que é demonstração.
+Salvar a lista simulada **copia a versão selecionada** e suas marcações, aplica a revisão e cria uma nova versão independente após validação e confirmação. As anteriores permanecem intactas. O hook ainda admite a geração demonstrativa sem marcações a partir do cenário final; a tela atual usa o fluxo de revisão. Nenhum desses fluxos consulta reuniões reais ou executa o núcleo do backend. Ao sair e voltar à tela, o reset em foco restaura os exemplos; não há persistência durável. O service HTTP preparado para integração não é chamado pela prévia.
+
+O resumo considera todas as pessoas incluídas na lista; recusados já estão excluídos. `PRESENTE`, `ATRASADO` e `SAIU_ANTES` contam como comparecimento uma vez por pessoa. Adesão é `Math.round(presentes / pessoasNaLista * 100)`, ou zero para lista vazia, usando a marcação manual quando houver e o status original nos demais casos.
+
+Trocar de versão com marcações ou observações pendentes exige confirmar o descarte. O compartilhamento e a exportação ficam desabilitados até salvar a revisão. No navegador, compartilhar copia o texto e exportar CSV baixa um arquivo; no dispositivo móvel, ambos abrem o compartilhamento do sistema, sendo o CSV enviado como texto. As duas saídas indicam que são demonstração. O CSV usa ponto e vírgula, BOM UTF-8, escape de células e proteção contra interpretação de fórmulas em textos livres.
 
 ## Regras de negócio preparadas
 
-As regras de cálculo são implementadas pelo núcleo puro; as regras de observações e histórico temporário são demonstradas pela interface e seu hook local. Elas orientam a futura integração. O mockup usa resultados fictícios compatíveis para demonstrar a apresentação.
+As regras de cálculo são implementadas pelo núcleo puro; as regras de marcação, observações e histórico temporário são demonstradas pela interface e seu hook local. Elas orientam a futura integração. RN-LP01 a RN-LP13 descrevem os registros de origem, preservados mesmo quando há marcação manual. O mockup usa resultados fictícios compatíveis para demonstrar a apresentação.
 
 | Código  | Regra                                                                                                                                                                                                                                  |
 | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -47,6 +51,10 @@ As regras de cálculo são implementadas pelo núcleo puro; as regras de observa
 | RN-LP13 | Fonte inválida ou reunião cancelada impede o cálculo. A consolidação não corrige dados dos outros módulos.                                                                                                                             |
 | RN-LP14 | Nova geração deve preservar as versões anteriores. Na prévia, o histórico é somente temporário em memória.                                                                                                                             |
 | RN-LP15 | Observações opcionais com trim e máximo de 2.000 caracteres.                                                                                                                                                                           |
+| RN-LP16 | Cada pessoa incluída pode receber uma marcação manual com um dos cinco status existentes e observação individual opcional, também com trim e máximo de 2.000 caracteres.                                                               |
+| RN-LP17 | Marcações manuais ficam separadas do snapshot. Não alteram convites, horários, duração, flags ou totais originais; duplicidades e pessoas fora da lista são rejeitadas.                                                                |
+| RN-LP18 | Resumo da revisão conta as pessoas incluídas; presentes = `PRESENTE` + `ATRASADO` + `SAIU_ANTES`; adesão é o percentual arredondado, zero para lista vazia.                                                                            |
+| RN-LP19 | Salvar revisão cria versão local da selecionada e preserva as anteriores. Compartilhar e exportar exigem revisão salva; trocar de versão com rascunho pede descarte.                                                                   |
 
 Exemplo: sessões 09h50–10h30 e 10h20–10h45 somam 55 minutos, contando a sobreposição uma vez. Se a segunda sessão estiver aberta e a geração ocorrer às 10h40, a permanência será de 50 minutos e a saída continuará pendente.
 
@@ -85,40 +93,48 @@ Mostrar organização, comissão, título, datas, local/plataforma e versão no 
 
 **Atual:** tela de demonstração com dados fictícios e aviso visível, acessível sem cadastrar reunião.
 
-### RF-LP03 — Demonstrar novas versões
+### RF-LP03 — Salvar revisões em novas versões
 
-Gerar nova versão local e permitir selecionar versões anteriores. A nova versão recebe snapshot independente e não altera as anteriores. Observações são validadas antes da confirmação e geração.
+Salvar as marcações e observações em nova versão local e permitir selecionar versões anteriores. A revisão copia o snapshot da versão selecionada, preserva seus registros e mantém as escolhas manuais separadas. Observações são validadas antes da confirmação e gravação local. A troca de versão exige confirmação para descartar alterações pendentes.
 
-**Atual:** cópia do cenário final fictício com nova numeração; histórico em memória reiniciado no foco. Não há reserva de versão no banco, persistência após recarga ou garantia de concorrência.
+**Atual:** revisão da versão selecionada com nova numeração e cópias independentes; histórico em memória reiniciado no foco. Não há reserva de versão no banco, persistência após recarga ou garantia de concorrência.
 
-### RF-LP04 — Compartilhar texto
+### RF-LP04 — Compartilhar texto e exportar CSV
 
-Compartilhar a versão selecionada com seu conteúdo e indicação de demonstração. Usar cópia no navegador ou compartilhamento do dispositivo, informando indisponibilidade em pt-BR.
+Compartilhar a versão salva selecionada com seu conteúdo, marcações e indicação de demonstração. Usar cópia no navegador ou compartilhamento do dispositivo, informando indisponibilidade em pt-BR. Exportar CSV em arquivo no navegador ou compartilhar seu conteúdo textual no dispositivo. Impedir as duas ações enquanto houver alterações pendentes.
 
-**Atual:** texto, sem PDF, assinatura, envio automático ou link público.
+**Atual:** compartilhamento textual e CSV; sem PDF, assinatura digital, envio automático ou link público.
 
 ### RF-LP05 — Integrar futuramente
 
 Consumir os modelos reais dos colegas por uma camada de serviço, sem recriar cadastro de reuniões, convites ou sessões. Aplicar autorização no servidor e persistir snapshots versionados.
 
-**Atual:** contrato documentado e núcleo de cálculo preparado. Não há endpoints, adaptador de reunião ativo, schema ou migração de lista de presença. Não se anuncia resposta HTTP `503` como comportamento implementado.
+**Atual:** contratos, tipos, schema Yup e núcleos puros preparados; service do app reserva consulta, geração (`POST`) e salvamento (`PUT`). Não há endpoints, adaptador de reunião ativo, model Prisma ou migração de lista de presença. O schema de validação não cria tabela ou rota. Não se anuncia resposta HTTP `503` como comportamento implementado.
+
+### RF-LP06 — Marcar presença e acompanhar adesão
+
+Disponibilizar os cinco status estabelecidos e observação individual opcional para cada participante, inclusive em reuniões presenciais. Exibir nome, e-mail e papel, sem pedir IDs. Calcular o resumo a partir das escolhas atuais e apresentar na versão salva a marcação manual junto aos registros originais.
+
+**Atual:** editor reutilizável `ListaPresencaEditor`, funções de marcação e resumo, validação de entradas e representação em tela, texto e CSV. É uma simulação do papel de administrador, sem autorização real validada pelo servidor.
 
 ## Requisitos não funcionais verificáveis
 
 Critérios não representam resultados de execução. As metas de API/banco dependem da integração futura.
 
-| Código   | Métrica                                                                                                                        | Verificação / escopo                                                            |
-| -------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
-| RNF-LP01 | `presentes + atrasados + sairamAntes + ausentes = aceitos`, e linhas = aceitos + sem resposta, em 100% dos resultados válidos. | Combinações de convite e status; núcleo puro.                                   |
-| RNF-LP02 | Sobreposições contadas uma vez; permanência não negativa e limitada a `min(geradoEm, fim)`.                                    | Sessões repetidas, sobrepostas e abertas; núcleo puro.                          |
-| RNF-LP03 | 100% dos rótulos e mensagens visíveis em pt-BR.                                                                                | Inspeção de tela e texto compartilhado; mockup.                                 |
-| RNF-LP04 | Aviso de dados fictícios visível; nenhuma gravação real ao gerar na prévia.                                                    | Inspecionar origem dos dados e chamadas de rede.                                |
-| RNF-LP05 | Nova versão não muda nenhum campo de versões locais anteriores.                                                                | Comparação de snapshots antes/depois.                                           |
-| RNF-LP06 | Nenhum ID interno exigido por digitação ou exibido como conteúdo da lista.                                                     | Inspeção da navegação e visualização.                                           |
-| RNF-LP07 | Futura geração real em até 3 segundos para até 50 convidados, com serviços disponíveis.                                        | Medição em ambiente integrado, com configuração/amostras registradas; pendente. |
-| RNF-LP08 | Futura API: `401` sem autenticação e `403` sem permissão, sem expor dados pessoais.                                            | Testes HTTP; não validado por mockup.                                           |
-| RNF-LP09 | Futuro banco: nenhum par `reuniaoId, versao` duplicado.                                                                        | Chave única e teste concorrente em banco exclusivo de teste; pendente.          |
-| RNF-LP10 | TypeScript estrito mantido e sem `any` no código novo.                                                                         | Verificações de qualidade e resultados no relatório.                            |
+| Código   | Métrica                                                                                                                                              | Verificação / escopo                                                            |
+| -------- | ---------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
+| RNF-LP01 | No snapshot original, `presentes + atrasados + sairamAntes + ausentes = aceitos`, e linhas = aceitos + sem resposta, em 100% dos resultados válidos. | Combinações de convite e status; núcleo puro.                                   |
+| RNF-LP02 | Sobreposições contadas uma vez; permanência não negativa e limitada a `min(geradoEm, fim)`.                                                          | Sessões repetidas, sobrepostas e abertas; núcleo puro.                          |
+| RNF-LP03 | 100% dos rótulos e mensagens visíveis em pt-BR.                                                                                                      | Inspeção de tela e texto compartilhado; mockup.                                 |
+| RNF-LP04 | Aviso de dados fictícios visível; nenhuma gravação real ao gerar na prévia.                                                                          | Inspecionar origem dos dados e chamadas de rede.                                |
+| RNF-LP05 | Nova versão não muda nenhum campo de versões locais anteriores.                                                                                      | Comparação de snapshots antes/depois.                                           |
+| RNF-LP06 | Nenhum ID interno exigido por digitação ou exibido como conteúdo da lista.                                                                           | Inspeção da navegação e visualização.                                           |
+| RNF-LP07 | Futura geração real em até 3 segundos para até 50 convidados, com serviços disponíveis.                                                              | Medição em ambiente integrado, com configuração/amostras registradas; pendente. |
+| RNF-LP08 | Futura API: `401` sem autenticação e `403` sem permissão, sem expor dados pessoais.                                                                  | Testes HTTP; não validado por mockup.                                           |
+| RNF-LP09 | Futuro banco: nenhum par `reuniaoId, versao` duplicado.                                                                                              | Chave única e teste concorrente em banco exclusivo de teste; pendente.          |
+| RNF-LP10 | TypeScript estrito mantido e sem `any` no código novo.                                                                                               | Verificações de qualidade e resultados no relatório.                            |
+| RNF-LP11 | Revisão não muda snapshot ou versões anteriores; resumo conta cada pessoa uma vez.                                                                   | Testes de marcação, resumo e hook local.                                        |
+| RNF-LP12 | CSV preserva acentos, separadores e quebras de linha; texto livre não inicia fórmula executável na planilha.                                         | Testes de formatação e exportação.                                              |
 
 Não há requisito de arquivo A4 nesta etapa, pois não há exportação PDF.
 
@@ -133,6 +149,7 @@ flowchart LR
         M1([UC-LP01 Visualizar demonstração])
         M2([UC-LP02 Gerar versão local])
         M3([UC-LP03 Consultar e compartilhar versão])
+        M4([UC-LP04 Marcar presença e revisar adesão])
     end
     subgraph Futuro[Integração futura — dados reais]
         R1([Gerar lista persistida])
@@ -142,6 +159,7 @@ flowchart LR
     U --> M1
     U --> M2
     U --> M3
+    U --> M4
     AC --> R1
     AC --> R2
     AP --> R1
@@ -164,28 +182,51 @@ flowchart LR
 
 ### UC-LP02 — Gerar versão local
 
-| Campo              | Descrição                                                                                                                                                                 |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Descrição / ator   | Usuário da prévia demonstra geração e versionamento em memória.                                                                                                           |
-| Entrada / origem   | Dados fictícios e observações opcionais; botão de geração.                                                                                                                |
-| Saída / destino    | Nova versão temporária e sua visualização.                                                                                                                                |
-| Pré-condição       | Cenário local disponível e observações válidas.                                                                                                                           |
-| Ação               | 1. Solicitar geração.<br/>2. Validar observações e confirmar.<br/>3. Criar cópia independente do cenário final.<br/>4. Selecionar resultado, preservando histórico local. |
-| Exceções           | Validação inválida impede gerar; cancelar confirmação preserva o estado.                                                                                                  |
-| Pós-condição       | Nova versão local selecionada; sem persistência durável.                                                                                                                  |
-| Efeitos colaterais | Nenhuma escrita real ou correção de presença.                                                                                                                             |
+| Campo              | Descrição                                                                                                                                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Descrição / ator   | Usuário da prévia demonstra geração e versionamento em memória.                                                                                                                                                  |
+| Entrada / origem   | Versão fictícia selecionada, marcações manuais e observações opcionais; botão de salvar.                                                                                                                         |
+| Saída / destino    | Nova versão temporária e sua visualização.                                                                                                                                                                       |
+| Pré-condição       | Cenário local disponível e observações válidas.                                                                                                                                                                  |
+| Ação               | 1. Revisar a versão selecionada.<br/>2. Validar marcações/observações e confirmar.<br/>3. Copiar snapshot selecionado e guardar marcações separadas.<br/>4. Selecionar nova versão, preservando histórico local. |
+| Exceções           | Validação inválida impede gerar; cancelar confirmação preserva o estado.                                                                                                                                         |
+| Pós-condição       | Nova versão local selecionada; sem persistência durável.                                                                                                                                                         |
+| Efeitos colaterais | Nenhuma escrita real ou correção de presença.                                                                                                                                                                    |
 
 ### UC-LP03 — Consultar e compartilhar versão
 
-| Campo            | Descrição                                                                                                                                    |
-| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| Descrição / ator | Usuário da prévia seleciona uma versão e compartilha seu texto.                                                                              |
-| Entrada / origem | Versão no histórico e ação de compartilhamento.                                                                                              |
-| Pré-condição     | Versão demonstrativa disponível.                                                                                                             |
-| Ação             | 1. Selecionar versão.<br/>2. Apresentar seu conteúdo.<br/>3. Formatar texto selecionado.<br/>4. Copiar ou abrir compartilhamento do sistema. |
-| Saída / destino  | Texto demonstrativo copiado ou enviado ao compartilhamento.                                                                                  |
-| Exceções         | Recurso indisponível: feedback em pt-BR sem alterar a lista.                                                                                 |
-| Pós-condição     | Histórico e versões inalterados.                                                                                                             |
+| Campo            | Descrição                                                                                                                                                                                                            |
+| ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Descrição / ator | Usuário da prévia seleciona uma versão salva e compartilha texto ou exporta CSV.                                                                                                                                     |
+| Entrada / origem | Versão no histórico e ação de compartilhamento.                                                                                                                                                                      |
+| Pré-condição     | Versão demonstrativa disponível e nenhuma alteração pendente.                                                                                                                                                        |
+| Ação             | 1. Selecionar versão, confirmando descarte se houver rascunho.<br/>2. Apresentar conteúdo salvo.<br/>3. Formatar texto ou CSV.<br/>4. Copiar texto/baixar CSV no navegador ou abrir compartilhamento no dispositivo. |
+| Saída / destino  | Texto demonstrativo copiado ou compartilhado; CSV baixado no navegador ou compartilhado como texto no dispositivo.                                                                                                   |
+| Exceções         | Recurso indisponível: feedback em pt-BR sem alterar a lista.                                                                                                                                                         |
+| Pós-condição     | Histórico e versões inalterados.                                                                                                                                                                                     |
+
+### UC-LP04 — Marcar presença e revisar adesão
+
+| Campo            | Descrição                                                                                                                                                 |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Descrição / ator | Usuário da prévia simula a revisão pelo administrador da comissão.                                                                                        |
+| Entrada / origem | Participantes da versão selecionada; escolha de status e observação individual opcional.                                                                  |
+| Pré-condição     | Lista demonstrativa disponível.                                                                                                                           |
+| Ação             | 1. Escolher um dos cinco status por pessoa.<br/>2. Adicionar observação opcional.<br/>3. Conferir pessoas, presentes e adesão.<br/>4. Salvar por UC-LP02. |
+| Exceções         | Observação inválida, duplicidade ou pessoa fora da lista impede aplicação válida; cancelar salvamento preserva o rascunho.                                |
+| Pós-condição     | Nova versão guarda marcações separadas; registros de origem e versões anteriores preservados.                                                             |
+
+```mermaid
+flowchart LR
+    V[Versão selecionada] --> E[Revisar status e observações]
+    E --> R[Resumo da revisão]
+    R --> C{Validar e confirmar}
+    C -->|Salvar| N[Nova versão local]
+    C -->|Cancelar| E
+    N --> X[Compartilhar texto ou exportar CSV]
+    V --> O[Snapshot original preservado]
+    N --> O
+```
 
 ### Caso de uso futuro — Gerar lista real
 
@@ -255,6 +296,12 @@ Datas são comparadas como instantes absolutos, não como textos de horário for
 
 O resultado não guarda a lista bruta de sessões nem campo independente de resposta do convite. Guarda horários consolidados, duração, status e flags. Autoria, observações, geração e número da versão são metadados da versão, fora desse resultado puro.
 
+### Marcações manuais da versão
+
+`ListaPresenca.marcacoes?: MarcacaoPresenca[]` complementa o snapshot sem substituí-lo. Cada item contém `usuarioId: number`, `status` com um dos cinco valores existentes e `observacao?: string` com trim e limite de 2.000 caracteres. Na ausência de marcação para uma pessoa, vale o status do snapshot. A entrada do salvamento usa `{ presencas: MarcacaoPresenca[], observacoes?: string }`; os nomes `presencas` na requisição e `marcacoes` na versão são distintos.
+
+O schema Yup da API valida IDs positivos e seguros, status, observações e duplicidade. A aplicação das marcações também deve validar pertencimento à lista autorizada no servidor. Tipos, schema e núcleo puro não dependem do modelo de reunião do colega nem registram endpoints.
+
 ## Diagrama de classes
 
 Tipos e consolidação representam a preparação atual. `ListaPresenca` é a proposta de entidade persistida, não um model Prisma criado. A representação UML não exige converter os tipos ou objetos de serviço em classes TypeScript.
@@ -316,6 +363,12 @@ classDiagram
         +String observacoes
         +String urlArquivo
         +Json snapshot
+        +MarcacaoPresenca[] marcacoes
+    }
+    class MarcacaoPresenca {
+        +number usuarioId
+        +StatusPresenca status
+        +string observacao
     }
     ReuniaoPresencaSource "1" *-- "0..*" ConvidadoPresenca
     ConvidadoPresenca "1" *-- "0..*" RegistroPresenca
@@ -323,6 +376,7 @@ classDiagram
     ConsolidacaoListaPresenca ..> ListaPresencaConsolidada : produz
     ListaPresencaConsolidada "1" *-- "0..*" MembroListaPresenca
     ListaPresenca "1" *-- "1" ListaPresencaConsolidada : snapshot futuro
+    ListaPresenca "1" *-- "0..*" MarcacaoPresenca : revisão separada
 ```
 
 As nulabilidades estão nos dicionários, embora o diagrama resuma o tipo base.
@@ -358,6 +412,7 @@ erDiagram
         String observacoes "anulavel"
         String urlArquivo "anulavel"
         Json snapshot
+        Json marcacoes "revisoes manuais separadas"
     }
 ```
 
@@ -378,6 +433,7 @@ erDiagram
 | `observacoes`   | `String?` com armazenamento de texto | Sim   | Trim, máximo de 2.000 caracteres; vazio pode ser nulo.                          |
 | `urlArquivo`    | `String?`                            | Sim   | Reserva para futura exportação; sem PDF agora.                                  |
 | `snapshot`      | `Json`                               | Não   | Conteúdo consolidado, copiado por versão.                                       |
+| `marcacoes`     | `Json`                               | Não   | Marcações manuais separadas; lista vazia quando não houver revisão.             |
 
 Proposta de unicidade: `@@unique([reuniaoId, versao])`. A gravação futura deverá consultar a maior versão e inserir a seguinte na mesma transação, com repetição limitada em conflito de unicidade. Não deverá reescrever versões anteriores.
 
@@ -387,12 +443,15 @@ Nenhum desses itens aplica migração no banco compartilhado. Alteração futura
 
 ## API — contrato proposto, sem endpoints nesta entrega
 
-| Método e caminho futuro                 | Requisição proposta                             | Resposta proposta                   | Acesso                                                    |
-| --------------------------------------- | ----------------------------------------------- | ----------------------------------- | --------------------------------------------------------- |
-| `POST /api/reunioes/:id/lista-presenca` | Token; ID positivo; `{ observacoes?: string }`. | `201` com a versão criada.          | `ADMIN` global ou `ADMINISTRADOR` da comissão da reunião. |
-| `GET /api/reunioes/:id/lista-presenca`  | Token e ID positivo.                            | `200` com `{ podeGerar, versoes }`. | Mesma proteção do POST.                                   |
+| Método e caminho futuro                 | Requisição proposta                                                                              | Resposta proposta                                                               | Acesso                                                    |
+| --------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- | --------------------------------------------------------- |
+| `POST /api/reunioes/:id/lista-presenca` | Token; ID positivo; `{ observacoes?: string }`.                                                  | `201` com a versão gerada da fonte real.                                        | `ADMIN` global ou `ADMINISTRADOR` da comissão da reunião. |
+| `PUT /api/reunioes/:id/lista-presenca`  | Token; ID positivo; `{ presencas: [{ usuarioId, status, observacao? }], observacoes?: string }`. | Nova versão com marcações manuais; resposta de sucesso a definir na integração. | Mesma proteção do POST.                                   |
+| `GET /api/reunioes/:id/lista-presenca`  | Token e ID positivo.                                                                             | `200` com `{ podeGerar, versoes }`.                                             | Mesma proteção do POST.                                   |
 
-O autor virá exclusivamente da identidade autenticada. O cliente não deverá fornecer identidade, papel, snapshot, convidados ou registros para controlar a consolidação. A camada de serviço consultará a fonte real dos colegas.
+O autor virá exclusivamente da identidade autenticada. O cliente não deverá fornecer identidade, papel, snapshot, convidados ou registros para controlar a consolidação. A camada de serviço consultará a fonte real dos colegas, verificará se cada pessoa marcada pertence à lista autorizada e preservará os registros de origem. No `PUT`, `usuarioId` identifica apenas a pessoa cuja presença é revisada; não identifica o autor da ação.
+
+O schema Yup `listaPresencaSchema` da API prepara o body de salvamento com `presencas` obrigatório e permite uma lista vazia. A geração automática por `POST` deverá usar validação própria das observações quando for integrada, sem exigir marcações manuais. A futura camada HTTP deverá usar `validate(body, { stripUnknown: true })` e os valores devolvidos.
 
 O prefixo `/api` deverá ser aplicado uma vez, conforme o projeto. O service HTTP do aplicativo permanece preparatório e não é usado no mockup. A OpenAPI só deverá anunciar essas rotas quando forem implementadas. Não há rota de PDF nesta entrega.
 
@@ -406,25 +465,34 @@ sequenceDiagram
     participant T as ListaPresencaScreen
     participant H as useListaPresencaPreview
     participant M as listaPresencaMock
+    participant E as ListaPresencaEditor
     participant F as Formatação textual
 
     T->>H: resetPreview() ao receber foco
     H->>M: createListaPresencaMock()
     M-->>H: Versões fictícias 2 Final e 1 Parcial
     H-->>T: Histórico e versão selecionada
-    U->>T: Solicita gerar e confirma
+    U->>E: Escolhe status e observação por pessoa
+    E-->>T: Marcações do rascunho
+    T->>T: Atualiza resumo sem mudar o snapshot
+    U->>T: Solicita salvar e confirma
     T->>H: generateVersion(data)
     H->>M: createListaPresencaMockVersion(proximaVersao, data)
-    M-->>H: Cópia independente do cenário final
+    M-->>H: Metadados locais da nova versão
+    H->>H: Copia snapshot selecionado e mescla marcações separadas
     H-->>T: Histórico local atualizado
     U->>T: Seleciona versão
+    opt Há revisão pendente
+        T-->>U: Confirma descarte antes de trocar
+    end
     T->>H: selectVersion(id)
     H-->>T: Versão selecionada
-    U->>T: Compartilha
+    U->>T: Compartilha texto ou exporta CSV salvo
     T->>F: formatListaPresencaText(listaSelecionada)
-    F-->>T: Texto da versão selecionada
-    T->>T: Adiciona aviso de prévia com dados fictícios
-    T-->>U: Copia no navegador ou abre compartilhamento
+    Note over T,F: CSV usa formatListaPresencaCsv(listaSelecionada)
+    F-->>T: Conteúdo da versão salva com marcações
+    T->>T: Adiciona aviso de dados fictícios
+    T-->>U: Copia texto ou baixa CSV no navegador; compartilha texto no dispositivo
     Note over T,M: Sem HTTP, banco ou armazenamento persistente
 ```
 
@@ -497,7 +565,8 @@ O mockup não percorre esse fluxo HTTP. A integração dependerá do módulo de 
 ### Ambientes
 
 - Núcleo puro: fonte e relógio controlados, sem banco.
-- Mockup: fixtures, navegação, versões locais, observações e compartilhamento textual.
+- Mockup: fixtures, navegação, marcação manual, resumo, versões locais, observações, descarte e exportações.
+- Contrato preparado: schema Yup e aplicação pura das marcações, sem HTTP ou banco.
 - Integração futura: API, autorização, migração e concorrência; banco exclusivo de teste, nunca desenvolvimento.
 
 As ferramentas do guia são Jest, React Native Testing Library e Supertest para futuras rotas. Resultados reais ficam no relatório de implementação; os cenários abaixo são critérios de aceitação.
@@ -529,19 +598,37 @@ As ferramentas do guia são Jest, React Native Testing Library e Supertest para 
 
 ### Mockup
 
-| ID      | Requisito / UC    | Ação                                    | Resultado esperado                                       |
-| ------- | ----------------- | --------------------------------------- | -------------------------------------------------------- |
-| TM-LP01 | RF-LP02 / UC-LP01 | Abrir prévia.                           | Aviso fictício visível; cabeçalho, membros e rodapé.     |
-| TM-LP02 | RF-LP03 / UC-LP02 | Gerar duas versões locais.              | Numeração crescente e histórico temporário.              |
-| TM-LP03 | RF-LP03 / UC-LP03 | Selecionar versões anteriores.          | Conteúdo preservado.                                     |
-| TM-LP04 | RF-LP03 / UC-LP02 | Observações acima de 2.000 caracteres.  | Validação impede valor inválido.                         |
-| TM-LP05 | RF-LP03 / UC-LP02 | Cancelar confirmação.                   | Nenhuma nova versão.                                     |
-| TM-LP06 | RF-LP04 / UC-LP03 | Compartilhar seleção.                   | Texto correspondente e indicação de demonstração.        |
-| TM-LP07 | RF-LP04 / UC-LP03 | Cópia ou compartilhamento indisponível. | Feedback de erro; lista preservada.                      |
-| TM-LP08 | RNF-LP04          | Navegar/gerar com inspeção de rede.     | Nenhuma gravação de lista ou reunião real.               |
-| TM-LP09 | RNF-LP06          | Percorrer controles.                    | Sem digitação ou exibição de IDs internos como conteúdo. |
-| TM-LP10 | RF-LP02           | Conferir saída pendente.                | Não apresentada como horário real de saída.              |
-| TM-LP11 | RF-LP03           | Sair e voltar à tela.                   | Exemplos iniciais restaurados pelo reset em foco.        |
+| ID      | Requisito / UC     | Ação                                                                               | Resultado esperado                                                                       |
+| ------- | ------------------ | ---------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| TM-LP01 | RF-LP02 / UC-LP01  | Abrir prévia.                                                                      | Aviso fictício visível; cabeçalho, membros e rodapé.                                     |
+| TM-LP02 | RF-LP03 / UC-LP02  | Salvar duas revisões locais.                                                       | Numeração crescente e histórico temporário; snapshot selecionado preservado.             |
+| TM-LP03 | RF-LP03 / UC-LP03  | Selecionar versões anteriores.                                                     | Conteúdo preservado.                                                                     |
+| TM-LP04 | RF-LP03 / UC-LP02  | Observações acima de 2.000 caracteres.                                             | Validação impede valor inválido.                                                         |
+| TM-LP05 | RF-LP03 / UC-LP02  | Cancelar confirmação.                                                              | Nenhuma nova versão.                                                                     |
+| TM-LP06 | RF-LP04 / UC-LP03  | Compartilhar seleção.                                                              | Texto correspondente e indicação de demonstração.                                        |
+| TM-LP07 | RF-LP04 / UC-LP03  | Cópia ou compartilhamento indisponível.                                            | Feedback de erro; lista preservada.                                                      |
+| TM-LP08 | RNF-LP04           | Navegar/gerar com inspeção de rede.                                                | Nenhuma gravação de lista ou reunião real.                                               |
+| TM-LP09 | RNF-LP06           | Percorrer controles.                                                               | Sem digitação ou exibição de IDs internos como conteúdo.                                 |
+| TM-LP10 | RF-LP02            | Conferir saída pendente.                                                           | Não apresentada como horário real de saída.                                              |
+| TM-LP11 | RF-LP03            | Sair e voltar à tela.                                                              | Exemplos iniciais restaurados pelo reset em foco.                                        |
+| TM-LP12 | RF-LP06 / UC-LP04  | Marcar cada um dos cinco status e observação individual.                           | Escolhas acessíveis, resumo atualizado e texto individual preservado.                    |
+| TM-LP13 | RF-LP06 / UC-LP04  | Alterar presença de pessoa sem registro de entrada.                                | Marcação muda; entrada/saída/duração e totais originais ficam intactos.                  |
+| TM-LP14 | RF-LP03 / UC-LP02  | Revisar uma versão parcial antiga.                                                 | Nova versão conserva snapshot e tipo parcial selecionados; anteriores idênticas.         |
+| TM-LP15 | RF-LP03 / UC-LP03  | Trocar versão com rascunho e cancelar/confirmar descarte.                          | Cancelar preserva rascunho; confirmar descarta e abre a versão escolhida.                |
+| TM-LP16 | RF-LP04            | Tentar exportar ou compartilhar com revisão pendente.                              | Ações desabilitadas até salvar.                                                          |
+| TM-LP17 | RF-LP04            | Exportar CSV no navegador e no dispositivo.                                        | Arquivo no navegador; conteúdo CSV como texto no compartilhamento móvel.                 |
+| TM-LP18 | RF-LP04 / RNF-LP12 | CSV com acentos, ponto e vírgula, aspas, quebras e prefixos de fórmula.            | Formatação preservada e textos livres protegidos contra fórmulas.                        |
+| TM-LP19 | RF-LP06            | Resumo com atrasado, saída antecipada, ausente e sem resposta; depois lista vazia. | Comparecimento inclui os três status de presença; percentual arredondado; vazio dá zero. |
+
+### Validações e núcleo de marcação preparados
+
+| ID      | Cenário                                                                   | Resultado esperado                                                                             |
+| ------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| TV-LP01 | Status desconhecido, ID inválido ou observação acima de 2.000 caracteres. | Schema rejeita, com mensagem em pt-BR.                                                         |
+| TV-LP02 | Mesmo participante repetido no body.                                      | Schema e núcleo rejeitam a duplicidade.                                                        |
+| TV-LP03 | Pessoa fora da lista ao aplicar marcações.                                | Núcleo rejeita sem alterar a origem.                                                           |
+| TV-LP04 | Observações com espaços nas bordas e campos extras no body.               | Trim aplicado; futura validação HTTP com `stripUnknown: true` usa apenas os campos permitidos. |
+| TV-LP05 | Aplicar revisão válida.                                                   | Marcações ficam separadas e fonte não é modificada.                                            |
 
 ### Integração futura — pendente
 
@@ -562,17 +649,20 @@ As ferramentas do guia são Jest, React Native Testing Library e Supertest para 
 
 1. Abrir “Lista de presença (prévia)” e conferir o aviso de dados fictícios.
 2. Conferir título, organização, comissão, datas e membros sem cadastrar reunião.
-3. Gerar versão local com observações e confirmar o resultado.
-4. Gerar novamente e alternar versões, conferindo a preservação do histórico temporário.
-5. Conferir atraso, saída antecipada, ausência e saída pendente.
-6. Compartilhar seleção e comparar texto/visualização.
-7. Sair e voltar, conferindo que os exemplos são restaurados.
-8. Confirmar ausência de criação/alteração de reuniões, convites e registros reais.
+3. Marcar presença e observações individuais; conferir o resumo de pessoas, presentes e adesão.
+4. Conferir que horários, permanência e respostas aos convites da origem continuam preservados.
+5. Salvar lista simulada com observação geral e confirmar a nova versão.
+6. Selecionar uma versão parcial, revisar e salvar; conferir que a revisão mantém seu snapshot e as anteriores permanecem intactas.
+7. Criar rascunho e trocar de versão; cancelar e depois confirmar o descarte.
+8. Conferir o bloqueio de compartilhamento/CSV com alterações pendentes; salvar e comparar texto/CSV com a versão salva.
+9. Conferir atraso, saída antecipada, ausência e saída pendente na visualização dos registros.
+10. Sair e voltar, conferindo que os exemplos são restaurados.
+11. Confirmar ausência de criação/alteração de reuniões, convites e registros reais.
 
 PDF não possui teste de execução nesta etapa. Arquivo válido e padrão A4 deverão ser especificados quando essa exportação existir.
 
 ## Registro de resultados
 
-Em 16/10/2026, foram aprovados 39 testes do núcleo na API e 64 testes em 10 suítes do aplicativo, além de lint dos dois subsistemas, TypeScript da API e exportação web do Expo. O TypeScript do aplicativo apresenta um erro preexistente em `src/utils/__tests__/apiClient.test.ts:16`, reproduzido também com os arquivos originais; esse arquivo de outro módulo não foi alterado.
+O registro anterior, de 16/10/2026, documenta 39 testes do núcleo na API e 64 testes em 10 suítes do aplicativo, além de lint dos dois subsistemas, TypeScript da API e exportação web do Expo. Esses números correspondem à entrega anterior e não validam por si só as novas marcações e exportações. A validação atual e eventuais limitações de TypeScript são registradas no relatório de implementação.
 
-Os comandos, evidências e limites estão em [RELATORIO_LISTA_PRESENCA.md](../../RELATORIO_LISTA_PRESENCA.md). Esses resultados não significam execução de todos os cenários deste plano: teste unitário ou exportação não comprova integração com reuniões reais, autorização HTTP ou banco. A entrega atual continua sendo o mockup e o núcleo puro preparatório; persistência e endpoints permanecem propostas futuras.
+Os comandos, evidências e limites estão em [RELATORIO_LISTA_PRESENCA.md](../../RELATORIO_LISTA_PRESENCA.md). Esses resultados não significam execução de todos os cenários deste plano: teste unitário ou exportação não comprova integração com reuniões reais, autorização HTTP ou banco. A entrega atual é o mockup funcional e os contratos, validações e núcleos puros preparatórios; persistência e endpoints permanecem propostas futuras.

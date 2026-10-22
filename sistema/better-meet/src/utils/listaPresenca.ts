@@ -4,6 +4,10 @@ import type {
   StatusListaPresenca,
   StatusPresenca,
 } from '@/services/listaPresencaService';
+import {
+  getResumoPresenca,
+  getStatusPresenca,
+} from '@/utils/marcacoesPresenca';
 
 export const STATUS_PRESENCA_LABELS = {
   PRESENTE: 'Presente',
@@ -41,6 +45,7 @@ export const formatPermanencia = (segundos: number) => {
 export const formatListaPresencaText = (lista: ListaPresenca) => {
   const { cabecalho, membros, totais } = lista.snapshot;
   const { reuniao, organizacao, comissao } = cabecalho;
+  const resumo = getResumoPresenca(membros, lista.marcacoes ?? []);
   const linhas = [
     'Lista de presença — Better Meet',
     `Organização: ${organizacao.nome}`,
@@ -51,18 +56,28 @@ export const formatListaPresencaText = (lista: ListaPresenca) => {
     `Local: ${reuniao.local ?? 'Não informado'}`,
     `Plataforma: ${reuniao.plataforma ?? 'Não informada'}`,
     `Versão ${lista.versao} — ${STATUS_LISTA_LABELS[lista.status]}`,
+    `${resumo.convidados} pessoas na lista; ${resumo.presentes} presentes; ${resumo.adesao}% de adesão.`,
     '',
     `Convites aceitos: ${totais.aceitos}; sem resposta: ${totais.semResposta}.`,
-    `Presentes: ${totais.presentes}; atrasados: ${totais.atrasados}; saíram antes: ${totais.sairamAntes}; ausentes: ${totais.ausentes}.`,
+    `Nos registros: presentes: ${totais.presentes}; atrasados: ${totais.atrasados}; saíram antes: ${totais.sairamAntes}; ausentes: ${totais.ausentes}.`,
     '',
   ];
 
   for (const membro of membros) {
+    const marcacao = lista.marcacoes?.find(
+      (item) => item.usuarioId === membro.userId,
+    );
     linhas.push(
       `${membro.nome} | ${membro.email} | ${papelComissaoLabel(membro.papel)}`,
       `Entrada: ${formatPresencaDateTime(membro.entrada)}; saída: ${formatPresencaDateTime(membro.saida)}.`,
       `Permanência: ${formatPermanencia(membro.permanenciaSegundos)}${membro.saidaPendente ? ' (saída pendente)' : ''}.`,
-      `Status: ${STATUS_PRESENCA_LABELS[membro.status]}.${membro.atrasado && membro.saiuAntes ? ' Também registrou atraso.' : ''}`,
+      `Status: ${STATUS_PRESENCA_LABELS[getStatusPresenca(membro, lista.marcacoes ?? [])]}.${membro.atrasado && membro.saiuAntes ? ' Também registrou atraso.' : ''}`,
+      ...(marcacao
+        ? [
+            `Marcação manual. Status dos registros: ${STATUS_PRESENCA_LABELS[membro.status]}.`,
+            `Observação do participante: ${marcacao.observacao ?? 'Sem observações.'}`,
+          ]
+        : []),
       '',
     );
   }

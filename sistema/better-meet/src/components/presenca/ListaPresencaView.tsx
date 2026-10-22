@@ -17,6 +17,10 @@ import {
   STATUS_LISTA_LABELS,
   STATUS_PRESENCA_LABELS,
 } from '@/utils/listaPresenca';
+import {
+  getResumoPresenca,
+  getStatusPresenca,
+} from '@/utils/marcacoesPresenca';
 
 type ListaPresencaViewProps = { lista: ListaPresenca };
 
@@ -68,15 +72,21 @@ function ListaPresencaCabecalho({ lista }: ListaPresencaViewProps) {
 function ListaPresencaCorpo({ lista }: ListaPresencaViewProps) {
   const { colors } = useTheme();
   const { membros, totais } = lista.snapshot;
+  const resumo = getResumoPresenca(membros, lista.marcacoes ?? []);
   return (
     <Card>
       <SectionLabel label="Presenças" />
       <Text style={[styles.body, { color: colors.text }]}>
+        {resumo.convidados} pessoas na lista · {resumo.presentes} presentes ·{' '}
+        {resumo.adesao}% de adesão
+      </Text>
+      <Text style={[styles.body, { color: colors.text }]}>
         Convites aceitos: {totais.aceitos}. Sem resposta: {totais.semResposta}.
       </Text>
       <Text style={[styles.body, { color: colors.text }]}>
-        Presentes: {totais.presentes}. Atrasados: {totais.atrasados}. Saíram
-        antes: {totais.sairamAntes}. Ausentes: {totais.ausentes}.
+        Nos registros: presentes: {totais.presentes}. Atrasados:{' '}
+        {totais.atrasados}. Saíram antes: {totais.sairamAntes}. Ausentes:{' '}
+        {totais.ausentes}.
       </Text>
       {membros.length === 0 ? (
         <Text style={[styles.body, { color: colors.textSecondary }]}>
@@ -175,9 +185,46 @@ function ListaPresencaCorpo({ lista }: ListaPresencaViewProps) {
                   </Text>
                   <View style={styles.statusCell}>
                     <Badge
-                      label={STATUS_PRESENCA_LABELS[membro.status]}
-                      tone={STATUS_TONES[membro.status]}
+                      label={
+                        STATUS_PRESENCA_LABELS[
+                          getStatusPresenca(membro, lista.marcacoes ?? [])
+                        ]
+                      }
+                      tone={
+                        STATUS_TONES[
+                          getStatusPresenca(membro, lista.marcacoes ?? [])
+                        ]
+                      }
                     />
+                    {lista.marcacoes?.some(
+                      (item) => item.usuarioId === membro.userId,
+                    ) ? (
+                      <Text
+                        style={[
+                          styles.caption,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        Marcação manual. Status dos registros:{' '}
+                        {STATUS_PRESENCA_LABELS[membro.status]}.
+                      </Text>
+                    ) : null}
+                    {lista.marcacoes?.find(
+                      (item) => item.usuarioId === membro.userId,
+                    )?.observacao ? (
+                      <Text
+                        style={[
+                          styles.caption,
+                          { color: colors.textSecondary },
+                        ]}
+                      >
+                        {
+                          lista.marcacoes.find(
+                            (item) => item.usuarioId === membro.userId,
+                          )?.observacao
+                        }
+                      </Text>
+                    ) : null}
                     {membro.atrasado && membro.saiuAntes ? (
                       <Text
                         style={[

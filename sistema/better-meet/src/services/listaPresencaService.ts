@@ -1,5 +1,6 @@
 import type { PapelComissao } from '@/services/comissaoService';
 import { apiRequest } from '@/utils/apiClient';
+import type { MarcacaoPresenca } from '@/utils/marcacoesPresenca';
 
 export type StatusListaPresenca = 'PARCIAL' | 'FINAL';
 export type StatusPresenca =
@@ -55,6 +56,8 @@ export type ListaPresenca = {
   observacoes: string | null;
   urlArquivo: string | null;
   snapshot: ListaPresencaConsolidada;
+  // As escolhas manuais não substituem horários nem respostas aos convites.
+  marcacoes?: MarcacaoPresenca[];
 };
 
 export type HistoricoListaPresenca = {
@@ -62,7 +65,10 @@ export type HistoricoListaPresenca = {
   versoes: ListaPresenca[];
 };
 
-export type GerarListaPresencaData = { observacoes?: string };
+export type GerarListaPresencaData = {
+  observacoes?: string;
+  presencas?: MarcacaoPresenca[];
+};
 
 /**
  * Contrato reservado à integração futura. A tela de prévia usa somente mocks
@@ -87,6 +93,16 @@ export const listaPresencaService = {
       token,
       body: data,
       fallbackError: 'Não foi possível gerar a lista de presença.',
+    });
+  },
+
+  /** Envia marcações; autor e permissão deverão ser conferidos pelo servidor. */
+  save(token: string, reuniaoId: number, data: GerarListaPresencaData) {
+    return apiRequest<ListaPresenca>(`/reunioes/${reuniaoId}/lista-presenca`, {
+      method: 'PUT',
+      token,
+      body: data,
+      fallbackError: 'Não foi possível salvar a lista de presença.',
     });
   },
 };

@@ -1,6 +1,9 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
-import { listaPresencaService } from '@/services/listaPresencaService';
+import {
+  listaPresencaService,
+  type GerarListaPresencaData,
+} from '@/services/listaPresencaService';
 import { apiRequest } from '@/utils/apiClient';
 
 jest.mock('@/utils/apiClient');
@@ -47,5 +50,69 @@ describe('listaPresencaService', () => {
     await expect(listaPresencaService.generate('token', 7, {})).rejects.toBe(
       error,
     );
+  });
+
+  it('salva as marcações por PUT autenticado sem acrescentar autor nem papel', async () => {
+    const data: GerarListaPresencaData = {
+      observacoes: 'Conferência dos participantes.',
+      presencas: [
+        {
+          usuarioId: 3,
+          status: 'AUSENTE',
+          observacao: 'Ausência justificada.',
+        },
+        { usuarioId: 4, status: 'ATRASADO' },
+      ],
+    };
+    const listaSalva = { id: 8, versao: 3, marcacoes: data.presencas };
+    request.mockResolvedValue(listaSalva);
+
+    await expect(listaPresencaService.save('token', 7, data)).resolves.toEqual(
+      listaSalva,
+    );
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith('/reunioes/7/lista-presenca', {
+      method: 'PUT',
+      token: 'token',
+      body: {
+        observacoes: 'Conferência dos participantes.',
+        presencas: [
+          {
+            usuarioId: 3,
+            status: 'AUSENTE',
+            observacao: 'Ausência justificada.',
+          },
+          { usuarioId: 4, status: 'ATRASADO' },
+        ],
+      },
+      fallbackError: 'Não foi possível salvar a lista de presença.',
+    });
+  });
+
+  it('mantém POST na geração quando também são enviadas marcações manuais', async () => {
+    const data: GerarListaPresencaData = {
+      presencas: [{ usuarioId: 3, status: 'PRESENTE' }],
+    };
+    request.mockResolvedValue({ id: 9 });
+
+    await listaPresencaService.generate('token', 7, data);
+
+    expect(request).toHaveBeenCalledWith('/reunioes/7/lista-presenca', {
+      method: 'POST',
+      token: 'token',
+      body: data,
+      fallbackError: 'Não foi possível gerar a lista de presença.',
+    });
+  });
+
+  it('propaga a recusa da API ao salvar para que a tela apresente o erro', async () => {
+    const error = new Error('Você não tem permissão para salvar esta lista.');
+    request.mockRejectedValue(error);
+
+    await expect(
+      listaPresencaService.save('token', 7, {
+        presencas: [{ usuarioId: 3, status: 'PRESENTE' }],
+      }),
+    ).rejects.toBe(error);
   });
 });
