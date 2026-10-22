@@ -1,7 +1,7 @@
 import { Image, StyleSheet, Text, View } from 'react-native';
 
 import logo from '@/assets/images/icon.jpeg';
-import { FontFamily, Spacing, Typography } from '@/constants/theme';
+import { FontFamily, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function IconAndTitle() {
@@ -37,6 +37,8 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 44,
     height: 44,
+    borderRadius: Radius.lg,
+    overflow: 'hidden',
   },
   logoText: {
     ...Typography.heading3,

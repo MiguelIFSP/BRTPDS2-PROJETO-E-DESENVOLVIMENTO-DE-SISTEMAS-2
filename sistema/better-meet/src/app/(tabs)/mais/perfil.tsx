@@ -9,9 +9,10 @@ import Avatar from '@/components/ui/Avatar';
 import BackButton from '@/components/ui/BackButton';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import FeedbackBanner from '@/components/ui/FeedbackBanner';
+import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import TextField from '@/components/ui/TextField';
+import Toast from '@/components/ui/Toast';
 import { FontFamily, Radius, Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
@@ -49,6 +50,14 @@ export default function PerfilScreen() {
     })),
   );
   const [feedback, setFeedback] = useFeedback();
+  const [toast, setToast] = useState<Feedback | null>(null);
+
+  // Depois do toast de sucesso, volta para a tela de onde o perfil foi aberto.
+  const finishToast = () => {
+    setToast(null);
+    if (router.canGoBack()) router.back();
+    else router.replace('/mais');
+  };
 
   // ---------- Estados para troca de senha (UC01) ----------
   const [showPasswordForm, setShowPasswordForm] = useState(false);
@@ -115,10 +124,7 @@ export default function PerfilScreen() {
         values,
       );
       updateUser({ name: updated.name, email: updated.email });
-      setFeedback({
-        type: 'success',
-        message: 'Dados atualizados com sucesso.',
-      });
+      setToast({ type: 'success', message: 'Dados atualizados com sucesso.' });
       setShowProfileForm(false);
     } catch (error) {
       monitoringService.reportRequestFailure(
@@ -163,7 +169,7 @@ export default function PerfilScreen() {
         values.currentPassword,
         values.newPassword,
       );
-      setFeedback({ type: 'success', message });
+      setToast({ type: 'success', message });
       setSenhaForm(EMPTY_SENHA_FORM);
       setShowPasswordForm(false);
     } catch (error) {
@@ -190,7 +196,7 @@ export default function PerfilScreen() {
   const isAdmin = user.role === 'ADMIN';
 
   return (
-    <Screen hasForm>
+    <Screen hasForm toast={<Toast toast={toast} onFinish={finishToast} />}>
       <BackButton />
 
       <Card>

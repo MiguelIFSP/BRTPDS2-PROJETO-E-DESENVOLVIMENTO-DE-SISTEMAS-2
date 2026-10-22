@@ -1,7 +1,7 @@
 // =====================================================================
 // recuperar-senha.tsx — Recuperação de conta
 // Tela única: e-mail + nova senha + confirmar senha.
-// Em caso de sucesso, volta pro login.
+// Em caso de sucesso, mostra o toast e volta pro login quando ele termina.
 // =====================================================================
 
 import { useState } from 'react';
@@ -11,10 +11,11 @@ import * as yup from 'yup';
 
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import FeedbackBanner from '@/components/ui/FeedbackBanner';
+import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import TextField from '@/components/ui/TextField';
+import Toast from '@/components/ui/Toast';
 import { Spacing } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { recuperacaoSenhaSchema } from '@/schemas/authSchema';
@@ -42,6 +43,7 @@ export default function RecuperarSenhaScreen() {
   const [errors, setErrors] = useState<FieldErrors<RecuperacaoForm>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useFeedback();
+  const [toast, setToast] = useState<Feedback | null>(null);
 
   const updateField = (field: keyof RecuperacaoForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -72,9 +74,8 @@ export default function RecuperarSenhaScreen() {
         values.email,
         values.newPassword,
       );
-      setFeedback({ type: 'success', message });
+      setToast({ type: 'success', message });
       setForm(INITIAL_VALUES);
-      setTimeout(() => router.replace('/login'), 900);
     } catch (error) {
       monitoringService.reportRequestFailure(
         error,
@@ -90,7 +91,11 @@ export default function RecuperarSenhaScreen() {
   };
 
   return (
-    <Screen hasForm showHeader>
+    <Screen
+      hasForm
+      showHeader
+      toast={<Toast toast={toast} onFinish={() => router.replace('/login')} />}
+    >
       <ScreenHeader
         icon="lock-closed-outline"
         title="Recuperar conta"
@@ -136,6 +141,7 @@ export default function RecuperarSenhaScreen() {
           loadingLabel="Salvando..."
           icon="save-outline"
           isLoading={isSubmitting}
+          disabled={Boolean(toast)}
           onPress={() => void handleSubmit()}
           style={styles.submit}
         />

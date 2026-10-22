@@ -2,24 +2,24 @@ import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 import {
   Animated,
-  KeyboardAvoidingView,
   Modal,
   PanResponder,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
   useWindowDimensions,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import KeyboardAwareScrollView from '@/components/ui/KeyboardAwareScrollView';
 import {
   MaxContentWidth,
   Radius,
   Spacing,
   Typography,
 } from '@/constants/theme';
+import { useKeyboard } from '@/hooks/useKeyboard';
 import { useTheme } from '@/hooks/useTheme';
 
 type BottomSheetProps = {
@@ -36,6 +36,8 @@ const DRAG_START_DISTANCE = 4;
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 0.8;
 const ANIMATION_MS = 250;
+// Parte da altura livre que o painel pode ocupar.
+const MAX_HEIGHT_RATIO = 0.9;
 
 // Painel que sobe do rodapé, como o "Nova Reunião" do mockup. Fecha só ao
 // arrastar o topo para baixo ou pelo botão de seta; tocar fora não fecha.
@@ -47,6 +49,20 @@ export default function BottomSheet({
 }: BottomSheetProps) {
   const { colors } = useTheme();
   const { height: screenHeight } = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const keyboard = useKeyboard();
+  const [containerHeight, setContainerHeight] = useState(screenHeight);
+
+  // O Modal ocupa a tela toda e, no Android edge-to-edge, não encolhe com o
+  // teclado: o painel sobe exatamente o trecho que o teclado cobre. Se o
+  // sistema encolher a janela, containerHeight acompanha e o recuo vira 0.
+  const keyboardLift =
+    keyboard.top == null ? 0 : Math.max(0, containerHeight - keyboard.top);
+  const freeHeight = containerHeight - keyboardLift;
+  const sheetMaxHeight = Math.min(
+    freeHeight * MAX_HEIGHT_RATIO,
+    freeHeight - insets.top - Spacing.sm,
+  );
 
   // Mantém o Modal montado durante a animação de saída. Montar é feito na
   // renderização (e não num efeito) para o painel já abrir no mesmo ciclo.
@@ -138,16 +154,18 @@ export default function BottomSheet({
             { backgroundColor: colors.overlay, opacity: backdropOpacity },
           ]}
         />
-        <KeyboardAvoidingView
-          style={styles.container}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-          keyboardVerticalOffset={Platform.OS === 'ios' ? 24 : 0}
+        <View
+          style={[styles.container, { paddingBottom: keyboardLift }]}
+          onLayout={(event) =>
+            setContainerHeight(event.nativeEvent.layout.height)
+          }
         >
           <Animated.View
             accessibilityViewIsModal
             style={[
               styles.sheet,
               {
+                maxHeight: sheetMaxHeight,
                 backgroundColor: colors.backgroundElement,
                 borderColor: colors.border,
                 transform: [{ translateY }],
@@ -183,14 +201,11 @@ export default function BottomSheet({
                 </Pressable>
               </View>
             </View>
-            <ScrollView
-              contentContainerStyle={styles.content}
-              keyboardShouldPersistTaps="handled"
-            >
+            <KeyboardAwareScrollView contentContainerStyle={styles.content}>
               {children}
-            </ScrollView>
+            </KeyboardAwareScrollView>
           </Animated.View>
-        </KeyboardAvoidingView>
+        </View>
       </View>
     </Modal>
   );
@@ -202,7 +217,6 @@ const styles = StyleSheet.create({
   sheet: {
     width: '100%',
     maxWidth: MaxContentWidth,
-    maxHeight: '90%',
     alignSelf: 'center',
     borderTopLeftRadius: Radius.xl * 1.5,
     borderTopRightRadius: Radius.xl * 1.5,

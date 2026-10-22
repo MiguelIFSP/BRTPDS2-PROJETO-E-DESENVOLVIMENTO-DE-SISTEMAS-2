@@ -1,13 +1,9 @@
 import type { ReactNode } from 'react';
-import {
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  StyleSheet,
-} from 'react-native';
+import { ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Header from '@/components/Header';
+import KeyboardAwareScrollView from '@/components/ui/KeyboardAwareScrollView';
 import { MaxContentWidth, Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
@@ -17,6 +13,8 @@ type ScreenProps = {
   hasForm?: boolean;
   // logo no topo: só na tela inicial e nas telas públicas.
   showHeader?: boolean;
+  // <Toast /> da tela: fica por cima do conteúdo, no rodapé.
+  toast?: ReactNode;
 };
 
 // Estrutura padrão de tela (UI-05): SafeAreaView → Header (opcional) → ScrollView com
@@ -25,17 +23,9 @@ export default function Screen({
   children,
   hasForm = false,
   showHeader = false,
+  toast,
 }: ScreenProps) {
   const { colors } = useTheme();
-
-  const content = (
-    <ScrollView
-      contentContainerStyle={styles.content}
-      keyboardShouldPersistTaps="handled"
-    >
-      {children}
-    </ScrollView>
-  );
 
   return (
     <SafeAreaView
@@ -43,22 +33,24 @@ export default function Screen({
     >
       {showHeader ? <Header /> : null}
       {hasForm ? (
-        <KeyboardAvoidingView
-          style={styles.keyboardView}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
-          {content}
-        </KeyboardAvoidingView>
+        <KeyboardAwareScrollView contentContainerStyle={styles.content}>
+          {children}
+        </KeyboardAwareScrollView>
       ) : (
-        content
+        <ScrollView
+          contentContainerStyle={styles.content}
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
       )}
+      {toast}
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: { flex: 1 },
-  keyboardView: { flex: 1 },
   content: {
     width: '100%',
     maxWidth: MaxContentWidth,

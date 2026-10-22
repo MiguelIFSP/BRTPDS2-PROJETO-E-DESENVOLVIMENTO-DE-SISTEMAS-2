@@ -101,6 +101,17 @@ export const monitoringService = {
     });
   },
 
+  // Pede pra monitoring checar UM subsistema agora (fora do cron de 6h) e
+  // devolve o status recém-gravado. Também exige a chave interna (ver reportError).
+  checkSubSystemNow(subSystem: string) {
+    return apiRequest<SubSystemStatus>(`/status/${subSystem}/check`, {
+      method: 'POST',
+      baseUrl: MONITORING_API_URL,
+      headers: { 'x-api-key': MONITORING_API_KEY },
+      fallbackError: 'Não foi possível verificar o status agora.',
+    });
+  },
+
   getSubSystemHistory(token: string, subSystemId: number, days: number) {
     return apiRequest<SubSystemHistory>(
       `/status/${subSystemId}/history?days=${days}`,

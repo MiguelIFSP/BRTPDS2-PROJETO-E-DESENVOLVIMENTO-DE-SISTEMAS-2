@@ -22,6 +22,12 @@ export const MONITORING_API_URL = requireEnv(
   process.env.EXPO_PUBLIC_MONITORING_API_URL,
 );
 
+// URL base da API de Gestão (start/stop/restart dos subsistemas, só ADMIN).
+export const MANAGEMENT_API_URL = requireEnv(
+  'EXPO_PUBLIC_MANAGEMENT_API_URL',
+  process.env.EXPO_PUBLIC_MANAGEMENT_API_URL,
+);
+
 // EXCEÇÃO TEMPORÁRIA ao EX-13: a monitoring ainda exige a chave interna
 // (x-api-key) no POST /status, e o app só consegue reportar erro com ela.
 // Fica embutida no app (é pública) até a monitoring ser refatorada.

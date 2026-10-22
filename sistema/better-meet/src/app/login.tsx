@@ -5,14 +5,15 @@ import * as yup from 'yup';
 
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import FeedbackBanner from '@/components/ui/FeedbackBanner';
+import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import TextField from '@/components/ui/TextField';
+import Toast from '@/components/ui/Toast';
 import { Spacing } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { loginSchema } from '@/schemas/authSchema';
-import { authService } from '@/services/authService';
+import { authService, type LoginResponse } from '@/services/authService';
 import { monitoringService } from '@/services/monitoringService';
 import { useAuthStore } from '@/store/authStore';
 import { useThemeStore } from '@/store/themeStore';
@@ -40,6 +41,19 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<FieldErrors<LoginForm>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useFeedback();
+  const [toast, setToast] = useState<Feedback | null>(null);
+  // A sessão só é gravada quando o toast termina: ao logar, o AppGate já
+  // manda para o início e o toast nem apareceria.
+  const [session, setSession] = useState<LoginResponse | null>(null);
+
+  const finishLogin = () => {
+    setToast(null);
+    if (!session) return;
+    const { token, themePreference, ...user } = session;
+    login(user, token);
+    applyUserPreference(themePreference);
+    router.replace('/');
+  };
 
   const updateField = (field: keyof LoginForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -66,20 +80,16 @@ export default function LoginScreen() {
 
     setIsSubmitting(true);
     try {
-      const { token, themePreference, ...user } = await authService.login(
+      const result = await authService.login(
         values.identifier,
         values.password,
       );
-      login(user, token);
-      // Aplica o tema salvo do usuário ao logar
-      applyUserPreference(themePreference);
-
-      setFeedback({
+      setSession(result);
+      setToast({
         type: 'success',
-        message: `Login realizado com sucesso. Bem-vindo(a), ${user.name}!`,
+        message: `Login realizado com sucesso. Bem-vindo(a), ${result.name}!`,
       });
       setForm(INITIAL_VALUES);
-      setTimeout(() => router.replace('/'), 600);
     } catch (error) {
       monitoringService.reportRequestFailure(error, 'LoginScreen.handleLogin');
       setFeedback({
@@ -92,7 +102,11 @@ export default function LoginScreen() {
   };
 
   return (
-    <Screen hasForm showHeader>
+    <Screen
+      hasForm
+      showHeader
+      toast={<Toast toast={toast} onFinish={finishLogin} />}
+    >
       <ScreenHeader
         showBack={false}
         icon="log-in-outline"
@@ -129,6 +143,7 @@ export default function LoginScreen() {
           loadingLabel="Entrando..."
           icon="log-in-outline"
           isLoading={isSubmitting}
+          disabled={Boolean(session)}
           onPress={() => void handleLogin()}
           style={styles.submit}
         />

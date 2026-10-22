@@ -5,10 +5,11 @@ import * as yup from 'yup';
 
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import FeedbackBanner from '@/components/ui/FeedbackBanner';
+import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import TextField from '@/components/ui/TextField';
+import Toast from '@/components/ui/Toast';
 import { Spacing } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { cadastroUsuarioSchema } from '@/schemas/usuarioSchema';
@@ -38,6 +39,7 @@ export default function UsuarioScreen() {
   const [errors, setErrors] = useState<FieldErrors<CadastroForm>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useFeedback();
+  const [toast, setToast] = useState<Feedback | null>(null);
 
   const updateField = (field: keyof CadastroForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -70,12 +72,11 @@ export default function UsuarioScreen() {
         password: values.password,
       });
       setForm(INITIAL_VALUES);
-      setFeedback({
+      setToast({
         type: 'success',
         message:
           'Cadastro realizado com sucesso! Agora você pode entrar na sua conta.',
       });
-      setTimeout(() => router.replace('/login'), 700);
     } catch (error) {
       monitoringService.reportRequestFailure(
         error,
@@ -91,7 +92,11 @@ export default function UsuarioScreen() {
   };
 
   return (
-    <Screen hasForm showHeader>
+    <Screen
+      hasForm
+      showHeader
+      toast={<Toast toast={toast} onFinish={() => router.replace('/login')} />}
+    >
       <ScreenHeader
         icon="person-add-outline"
         title="Cadastro de usuário"
@@ -148,6 +153,7 @@ export default function UsuarioScreen() {
           loadingLabel="Cadastrando..."
           icon="person-add-outline"
           isLoading={isSubmitting}
+          disabled={Boolean(toast)}
           onPress={() => void handleCreateUser()}
           style={styles.submit}
         />
