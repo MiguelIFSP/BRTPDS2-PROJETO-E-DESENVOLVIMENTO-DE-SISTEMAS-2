@@ -16,14 +16,14 @@ export type EventoIcs = {
   participante: { nome: string; email: string };
 };
 
-const formatarUtc = (instante: Date) =>
+const formatUtc = (instante: Date) =>
   instante
     .toISOString()
     .replace(/[-:]/g, '')
     .replace(/\.\d{3}/, '');
 
 // Texto de propriedade: \, ; e , escapados e quebras de linha como \n.
-const escapar = (texto: string) =>
+const escapeText = (texto: string) =>
   texto
     .replace(/\\/g, '\\\\')
     .replace(/;/g, '\\;')
@@ -31,13 +31,13 @@ const escapar = (texto: string) =>
     .replace(/\r?\n/g, '\\n');
 
 // Parâmetro (CN): sem aspas, e entre aspas se tiver : ; ou ,.
-const parametro = (texto: string) => {
+const quoteParam = (texto: string) => {
   const limpo = texto.replace(/"/g, "'");
   return /[:;,]/.test(limpo) ? `"${limpo}"` : limpo;
 };
 
 // Linhas de no máximo 75 bytes; a continuação começa com um espaço.
-const dobrar = (linha: string) => {
+const foldLine = (linha: string) => {
   const partes: string[] = [];
   let atual = '';
   for (const caractere of linha) {
@@ -56,7 +56,7 @@ const dobrar = (linha: string) => {
 export const uidDaReuniao = (reuniaoId: number) =>
   `reuniao-${reuniaoId}@better-meet`;
 
-export const gerarIcs = (
+export const buildIcs = (
   metodo: MetodoIcs,
   evento: EventoIcs,
   agora = new Date(),
@@ -72,18 +72,18 @@ export const gerarIcs = (
     // Cresce a cada envio (segundos desde 1970), para o calendário aceitar a
     // versão nova do mesmo evento sem um contador no banco.
     `SEQUENCE:${Math.floor(agora.getTime() / 1000)}`,
-    `DTSTAMP:${formatarUtc(agora)}`,
-    `DTSTART:${formatarUtc(evento.inicio)}`,
-    `DTEND:${formatarUtc(evento.fim)}`,
-    `SUMMARY:${escapar(evento.titulo)}`,
-    ...(evento.local ? [`LOCATION:${escapar(evento.local)}`] : []),
-    `DESCRIPTION:${escapar(evento.descricao)}`,
-    `ORGANIZER;CN=${parametro(evento.organizador.nome)}:mailto:${evento.organizador.email}`,
+    `DTSTAMP:${formatUtc(agora)}`,
+    `DTSTART:${formatUtc(evento.inicio)}`,
+    `DTEND:${formatUtc(evento.fim)}`,
+    `SUMMARY:${escapeText(evento.titulo)}`,
+    ...(evento.local ? [`LOCATION:${escapeText(evento.local)}`] : []),
+    `DESCRIPTION:${escapeText(evento.descricao)}`,
+    `ORGANIZER;CN=${quoteParam(evento.organizador.nome)}:mailto:${evento.organizador.email}`,
     // RSVP=FALSE: a resposta vale no app, não por e-mail ao remetente.
-    `ATTENDEE;CN=${parametro(evento.participante.nome)};ROLE=REQ-PARTICIPANT;RSVP=FALSE:mailto:${evento.participante.email}`,
+    `ATTENDEE;CN=${quoteParam(evento.participante.nome)};ROLE=REQ-PARTICIPANT;RSVP=FALSE:mailto:${evento.participante.email}`,
     `STATUS:${metodo === 'CANCEL' ? 'CANCELLED' : 'CONFIRMED'}`,
     'END:VEVENT',
     'END:VCALENDAR',
   ];
-  return linhas.map(dobrar).join('\r\n') + '\r\n';
+  return linhas.map(foldLine).join('\r\n') + '\r\n';
 };

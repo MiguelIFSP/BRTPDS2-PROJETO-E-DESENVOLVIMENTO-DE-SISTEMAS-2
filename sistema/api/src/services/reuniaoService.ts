@@ -7,11 +7,11 @@ import {
 import prisma from '../config/database.ts';
 import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
-import { emailService, type Destinatario } from './email/emailService.ts';
-import type { ReuniaoEmail } from './email/templates.ts';
+import { emailService, type Destinatario } from './emailService.ts';
+import type { ReuniaoEmail } from '../utils/emailTemplates.ts';
 import { instanteNoFuso } from '../utils/fusoHorario.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
-import { gerarTokenResposta } from '../utils/tokenResposta.ts';
+import { generateTokenResposta } from '../utils/tokenResposta.ts';
 
 type CreateReuniaoData = {
   comissaoId: number;
@@ -122,7 +122,7 @@ const assertMembroDaComissao = async (comissaoId: number, userId: number) => {
  * Convite só pode ser respondido até o fim da reunião (no app e pelo link do
  * e-mail). Depois disso, aceitar ou recusar não muda mais nada.
  */
-export const conviteExpirado = (
+const isConviteExpirado = (
   reuniao: { data: string; horaFim: string },
   agora = new Date(),
 ) => agora >= instanteNoFuso(reuniao.data, reuniao.horaFim, env.TZ_REUNIOES);
@@ -160,7 +160,7 @@ const destinatariosDoAviso = (reuniao: ReuniaoAviso, actorId: number) =>
     ]),
   ].filter((id) => id !== actorId);
 
-const formatarData = (data: string) => data.split('-').reverse().join('/');
+const formatDate = (data: string) => data.split('-').reverse().join('/');
 
 const paraEmail = (reuniaoId: number, reuniao: ReuniaoAviso): ReuniaoEmail => ({
   id: reuniaoId,
@@ -175,9 +175,7 @@ const paraEmail = (reuniaoId: number, reuniao: ReuniaoAviso): ReuniaoEmail => ({
   organizador: reuniao.criadoPor.name,
 });
 
-const buscarDestinatarios = async (
-  userIds: number[],
-): Promise<Destinatario[]> => {
+const getDestinatarios = async (userIds: number[]): Promise<Destinatario[]> => {
   if (userIds.length === 0) return [];
   const usuarios = await prisma.user.findMany({
     where: { id: { in: userIds } },
@@ -190,9 +188,9 @@ const buscarDestinatarios = async (
 };
 
 // Convite por e-mail (com .ics) para quem acabou de ser convidado.
-const enviarConvites = (reuniaoId: number, convidados: number[]) => {
+const sendConvites = (reuniaoId: number, convidados: number[]) => {
   if (convidados.length === 0) return;
-  emailService.emSegundoPlano(async () => {
+  emailService.runInBackground(async () => {
     const reuniao = await prisma.reuniao.findUnique({
       where: { id: reuniaoId },
       select: reuniaoAvisoSelect,
@@ -206,7 +204,7 @@ const enviarConvites = (reuniaoId: number, convidados: number[]) => {
         user: { select: { name: true, email: true } },
       },
     });
-    await emailService.enviarConvite(
+    await emailService.sendConvite(
       paraEmail(reuniaoId, reuniao),
       convites.map((convite) => ({
         nome: convite.user.name,
@@ -217,7 +215,7 @@ const enviarConvites = (reuniaoId: number, convidados: number[]) => {
   });
 };
 
-const mudouHorario = (
+const hasHorarioChanged = (
   antes: ReuniaoAviso,
   depois: Omit<CreateReuniaoData, 'comissaoId'>,
 ) =>
@@ -230,10 +228,10 @@ const avisoDeAtualizacao = (
   antes: ReuniaoAviso,
   depois: Omit<CreateReuniaoData, 'comissaoId'>,
 ) => {
-  if (mudouHorario(antes, depois)) {
+  if (hasHorarioChanged(antes, depois)) {
     return {
       titulo: 'Reunião remarcada',
-      mensagem: `"${depois.titulo}" agora será em ${formatarData(depois.data)}, das ${depois.horaInicio} às ${depois.horaFim}.`,
+      mensagem: `"${depois.titulo}" agora será em ${formatDate(depois.data)}, das ${depois.horaInicio} às ${depois.horaFim}.`,
     };
   }
   if (antes.local !== depois.local) {
@@ -256,6 +254,8 @@ const avisoDeAtualizacao = (
 };
 
 export const reuniaoService = {
+  isConviteExpirado,
+
   async listMine(userId: number) {
     const reunioes = await prisma.reuniao.findMany({
       where: {
@@ -353,7 +353,7 @@ export const reuniaoService = {
           });
         }
         // Lembretes já enviados valiam para o horário antigo.
-        if (mudouHorario(reuniao, data)) {
+        if (hasHorarioChanged(reuniao, data)) {
           await transaction.lembreteEnviado.deleteMany({
             where: { reuniaoId },
           });
@@ -362,14 +362,14 @@ export const reuniaoService = {
       });
 
       if (aviso && destinatarios.length > 0) {
-        emailService.emSegundoPlano(async () =>
-          emailService.enviarAtualizacao(
+        emailService.runInBackground(async () =>
+          emailService.sendAtualizacao(
             paraEmail(reuniaoId, {
               ...reuniao,
               ...data,
               descricao: data.descricao || null,
             }),
-            await buscarDestinatarios(destinatarios),
+            await getDestinatarios(destinatarios),
             aviso,
           ),
         );
@@ -408,7 +408,7 @@ export const reuniaoService = {
               tipo: TipoNotificacao.REUNIAO_EXCLUIDA,
               reuniaoId,
               titulo: 'Reunião excluída',
-              mensagem: `"${reuniao.titulo}", marcada para ${formatarData(reuniao.data)} às ${reuniao.horaInicio}, foi excluída.`,
+              mensagem: `"${reuniao.titulo}", marcada para ${formatDate(reuniao.data)} às ${reuniao.horaInicio}, foi excluída.`,
             })),
           });
         }
@@ -416,10 +416,10 @@ export const reuniaoService = {
       });
 
       if (destinatarios.length > 0) {
-        emailService.emSegundoPlano(async () =>
-          emailService.enviarExclusao(
+        emailService.runInBackground(async () =>
+          emailService.sendExclusao(
             paraEmail(reuniaoId, reuniao),
-            await buscarDestinatarios(destinatarios),
+            await getDestinatarios(destinatarios),
           ),
         );
       }
@@ -547,7 +547,7 @@ export const reuniaoService = {
 
     // Convite de reunião que já terminou não pode mais ser respondido.
     return convites
-      .filter((convite) => !conviteExpirado(convite.reuniao))
+      .filter((convite) => !isConviteExpirado(convite.reuniao))
       .map((convite) => ({
         id: convite.id,
         reuniaoId: convite.reuniaoId,
@@ -612,11 +612,11 @@ export const reuniaoService = {
       data: novos.map((userId) => ({
         reuniaoId,
         userId,
-        tokenResposta: gerarTokenResposta(),
+        tokenResposta: generateTokenResposta(),
       })),
       skipDuplicates: true,
     });
-    enviarConvites(reuniaoId, novos);
+    sendConvites(reuniaoId, novos);
     return { message: `${resultado.count} convite(s) enviado(s).` };
   },
 
@@ -652,7 +652,7 @@ export const reuniaoService = {
             convites: {
               create: userIds.map((membroId) => ({
                 userId: membroId,
-                tokenResposta: gerarTokenResposta(),
+                tokenResposta: generateTokenResposta(),
               })),
             },
           },
@@ -665,12 +665,12 @@ export const reuniaoService = {
         throw error;
       }
     });
-    enviarConvites(criada.id, userIds);
+    sendConvites(criada.id, userIds);
     return criada;
   },
 
   /** Convite do botão do e-mail, com o que a página de resposta mostra. */
-  buscarConvitePorToken(token: string) {
+  getConviteByToken(token: string) {
     return prisma.conviteReuniao.findUnique({
       where: { tokenResposta: token },
       select: {
@@ -734,7 +734,7 @@ export const reuniaoService = {
     if (convite.status !== StatusConviteReuniao.PENDENTE) {
       throw new AppError(409, 'Este convite já foi respondido.');
     }
-    if (conviteExpirado(convite.reuniao)) {
+    if (isConviteExpirado(convite.reuniao)) {
       throw new AppError(
         410,
         'Esta reunião já terminou; o convite não pode mais ser respondido.',

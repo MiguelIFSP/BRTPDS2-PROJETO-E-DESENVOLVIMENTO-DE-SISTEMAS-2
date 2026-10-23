@@ -5,12 +5,12 @@ import { conviteRespostaController } from '../controllers/conviteRespostaControl
 // convidado, faz o papel do login (botões Aceitar/Recusar do convite).
 const routes = Router();
 
-routes.get('/convites/:token', conviteRespostaController.mostrar);
+routes.get('/convites/:token', conviteRespostaController.show);
 routes.post(
   '/convites/:token',
   // o botão da página envia um formulário HTML, não JSON.
   express.urlencoded({ extended: false, limit: '1kb' }),
-  conviteRespostaController.responder,
+  conviteRespostaController.respond,
 );
 
 export default routes;

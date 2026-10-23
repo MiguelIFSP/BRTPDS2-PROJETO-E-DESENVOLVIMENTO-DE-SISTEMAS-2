@@ -793,6 +793,14 @@ async create(request: Request, response: Response) {
 
 - Use sempre `{ stripUnknown: true }` no `validate`, para descartar campos não previstos.
 
+**Exceção: páginas HTML abertas pelo e-mail.** As rotas públicas `GET` e `POST /api/convites/:token` são abertas no navegador pelos botões Aceitar/Recusar do e-mail de convite, então respondem **HTML**, inclusive nos erros, e não JSON. Só nelas:
+
+- o controller (`conviteRespostaController.ts`) tem `try/catch` e converte `yup.ValidationError` e `AppError` em uma página de erro com o mesmo status; qualquer outro erro é relançado para o `errorMiddleware` (500);
+- a validação continua com Yup, em `schemas/conviteRespostaSchema.ts`;
+- as páginas são montadas em `utils/paginaResposta.ts`, com texto escapado, e enviadas com `Cache-Control: no-store`, `Referrer-Policy: no-referrer` e `X-Robots-Tag: noindex`, porque o token da URL é a credencial.
+
+Uma rota nova só entra nesta exceção se também for aberta direto no navegador; todo o resto da API responde JSON.
+
 ---
 
 ### 3.5 Formato das respostas (EX-05)
@@ -813,7 +821,10 @@ async create(request: Request, response: Response) {
 | 403 | Autenticado, mas sem permissão |
 | 404 | Recurso não encontrado |
 | 409 | Conflito (duplicidade, limite de papel atingido) |
+| 410 | O recurso existiu, mas não aceita mais a ação (ex.: convite de reunião que já terminou) |
 | 500 | Erro inesperado |
+
+As páginas HTML do convite (exceção do EX-04) usam os mesmos status, com o corpo em HTML.
 
 ---
 
@@ -2094,6 +2105,7 @@ Elementos que se repetem em várias telas são **componentes base**, em `src/com
 | `FeedbackBanner` | Resultado de ações (6.11) | — |
 | `Toast` | Sucesso que termina saindo da tela (6.11) | — |
 | `ConfirmDialog` | Confirmações e avisos de um botão (6.10 e 6.11) | Design system 4.10 |
+| `PickerField` | Campo que abre um seletor nativo (data, hora) em vez do teclado | Design system 4.2 |
 
 - Antes de criar um elemento visual numa tela, verifique se um componente base já resolve. Se um padrão novo aparecer em duas telas, ele vira componente base.
 
@@ -2241,7 +2253,7 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Controller e service exportados como objeto literal (`<dominio>Controller`, `<dominio>Service`), com parâmetros `request`/`response`.
 - [ ] Erros de negócio lançados com `AppError`; nenhuma resposta de erro montada à mão.
 - [ ] Schemas Yup em `schemas/<dominio>Schema.ts`; controllers sem `try/catch` e sem `handleError` próprio.
-- [ ] Respostas no formato `{ error }` / `{ message }` / recurso, com o status HTTP correto.
+- [ ] Respostas no formato `{ error }` / `{ message }` / recurso, com o status HTTP correto (HTML só nas páginas do convite por e-mail).
 - [ ] Nenhum 500 devolve mensagem interna.
 - [ ] Usuário da requisição lido só do token.
 - [ ] Rotas `/usuarios/:id/...` protegidas por `requireSelf`.

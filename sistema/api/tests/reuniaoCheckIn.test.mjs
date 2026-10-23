@@ -278,7 +278,10 @@ describe('POST /api/reunioes/:id/sair', () => {
 
   test('repetição mantém o primeiro horário de saída', async () => {
     const saidaAt = new Date('2026-10-21T16:00:00.000Z');
-    prisma.reuniaoRegistro.findUnique.mockResolvedValue({ ...registro, saidaAt });
+    prisma.reuniaoRegistro.findUnique.mockResolvedValue({
+      ...registro,
+      saidaAt,
+    });
 
     const response = await postOut();
 
@@ -298,20 +301,58 @@ describe('POST /api/reunioes/:id/sair', () => {
 });
 
 describe('presença ao recarregar reuniões', () => {
-  test('busca apenas o registro do usuário autenticado e omite a relação interna', async () => {
+  test('meuRegistro traz só o registro do usuário autenticado e a relação interna fica de fora', async () => {
+    const outroId = 8;
+    const registroDoOutro = { ...registro, id: 13, userId: outroId };
+    const comissao = {
+      id: 4,
+      nome: 'Comissão de Teste',
+      equipe: [
+        {
+          userId,
+          papel: 'MEMBRO',
+          user: { name: 'Integrante', email: 'integrante@example.test' },
+        },
+        {
+          userId: outroId,
+          papel: 'ADMINISTRADOR',
+          user: { name: 'Organizador', email: 'organizador@example.test' },
+        },
+      ],
+    };
     prisma.reuniao.findMany.mockResolvedValue([
-      { id: reuniaoId, registros: [registro] },
-      { id: 32, registros: [] },
+      {
+        id: reuniaoId,
+        criadoPorUserId: outroId,
+        comissao,
+        convites: [
+          { id: 1, userId, status: 'ACEITO', user: { name: 'Integrante' } },
+        ],
+        registros: [registroDoOutro, registro],
+      },
+      {
+        id: 32,
+        criadoPorUserId: outroId,
+        comissao,
+        convites: [],
+        registros: [registroDoOutro],
+      },
     ]);
-    const result = await reuniaoService.listMine(userId);
-    expect(prisma.reuniao.findMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        select: expect.objectContaining({ registros: { where: { userId } } }),
-      }),
-    );
-    expect(result).toEqual([
-      { id: reuniaoId, meuRegistro: registro },
-      { id: 32, meuRegistro: null },
+
+    const [comPresenca, semPresenca] = await reuniaoService.listMine(userId);
+
+    expect(comPresenca.meuRegistro).toEqual(registro);
+    expect(semPresenca.meuRegistro).toBeNull();
+    expect(comPresenca).not.toHaveProperty('registros');
+    // a presença de cada participante sai junto dele, não numa lista solta.
+    expect(
+      comPresenca.participantes.map((participante) => [
+        participante.userId,
+        participante.registro,
+      ]),
+    ).toEqual([
+      [userId, registro],
+      [outroId, registroDoOutro],
     ]);
   });
 });

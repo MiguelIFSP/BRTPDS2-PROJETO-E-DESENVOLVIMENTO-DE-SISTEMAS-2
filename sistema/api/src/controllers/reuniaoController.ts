@@ -1,10 +1,10 @@
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/authMiddleware.ts';
 import {
-  atualizarReuniaoSchema,
-  convidarMembrosReuniaoSchema,
+  edicaoReuniaoSchema,
+  conviteMembrosReuniaoSchema,
   reuniaoSchema,
-  responderConviteSchema,
+  respostaConviteSchema,
 } from '../schemas/reuniaoSchema.ts';
 import { reuniaoService } from '../services/reuniaoService.ts';
 import { parseId } from '../utils/parseId.ts';
@@ -58,7 +58,7 @@ export const reuniaoController = {
   async update(request: Request, response: Response) {
     const { id: userId, role } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');
-    const data = await atualizarReuniaoSchema.validate(request.body, {
+    const data = await edicaoReuniaoSchema.validate(request.body, {
       stripUnknown: true,
     });
     const reuniao = await reuniaoService.update(userId, role, reuniaoId, data);
@@ -80,7 +80,7 @@ export const reuniaoController = {
   async inviteMembers(request: Request, response: Response) {
     const { id: actorId, role } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');
-    const { convidados } = await convidarMembrosReuniaoSchema.validate(
+    const { convidados } = await conviteMembrosReuniaoSchema.validate(
       request.body,
       { stripUnknown: true },
     );
@@ -96,7 +96,7 @@ export const reuniaoController = {
   async respondInvite(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const inviteId = parseId(request.params.inviteId, 'do convite');
-    const { status } = await responderConviteSchema.validate(request.body, {
+    const { status } = await respostaConviteSchema.validate(request.body, {
       stripUnknown: true,
     });
     const convite = await reuniaoService.respondInvite(

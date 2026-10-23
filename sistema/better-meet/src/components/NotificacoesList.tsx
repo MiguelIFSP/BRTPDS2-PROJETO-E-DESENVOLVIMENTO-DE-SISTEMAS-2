@@ -7,6 +7,7 @@ import ReanimatedSwipeable from 'react-native-gesture-handler/ReanimatedSwipeabl
 import SectionLabel from '@/components/ui/SectionLabel';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -176,7 +177,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   clearText: { ...Typography.bodySmall, fontFamily: FontFamily.semiBold },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
   emptyText: { ...Typography.body },
   swipeContainer: { borderRadius: Radius.md },
   swipeAction: {

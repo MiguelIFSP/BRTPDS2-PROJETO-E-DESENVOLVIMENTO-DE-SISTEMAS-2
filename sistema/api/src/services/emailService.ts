@@ -1,13 +1,13 @@
 import type { TipoLembrete } from '@prisma/client';
 import nodemailer, { type Transporter } from 'nodemailer';
-import { env } from '../../config/env.ts';
-import { instanteNoFuso } from '../../utils/fusoHorario.ts';
-import { gerarIcs, type MetodoIcs } from './ics.ts';
+import { env } from '../config/env.ts';
+import { instanteNoFuso } from '../utils/fusoHorario.ts';
+import { buildIcs, type MetodoIcs } from '../utils/ics.ts';
 import {
-  templates,
+  emailTemplates,
   type EmailMontado,
   type ReuniaoEmail,
-} from './templates.ts';
+} from '../utils/emailTemplates.ts';
 
 export type Destinatario = {
   nome: string;
@@ -32,7 +32,7 @@ let avisouDesligado = false;
 
 // Sem credenciais o envio fica desligado; avisa uma vez só, para não poluir o
 // log a cada reunião criada.
-const obterTransporter = () => {
+const getTransporter = () => {
   if (!env.GMAIL_USER || !env.GMAIL_APP_PASSWORD) {
     if (!avisouDesligado) {
       console.warn(
@@ -56,14 +56,14 @@ const descricaoIcs = (reuniao: ReuniaoEmail) =>
     `Comissão: ${reuniao.comissao}`,
   ].join('\n');
 
-const icsPara = (
+const buildAnexoIcs = (
   metodo: MetodoIcs,
   reuniao: ReuniaoEmail,
   destinatario: Destinatario,
 ) => ({
   method: metodo,
   filename: metodo === 'CANCEL' ? 'cancelamento.ics' : 'convite.ics',
-  content: gerarIcs(metodo, {
+  content: buildIcs(metodo, {
     reuniaoId: reuniao.id,
     titulo: reuniao.titulo,
     descricao: descricaoIcs(reuniao),
@@ -76,12 +76,12 @@ const icsPara = (
 });
 
 /** Envia um e-mail. Devolve false se o envio está desligado ou falhou. */
-const enviar = async (
+const send = async (
   destinatario: Destinatario,
   email: EmailMontado,
-  ics?: ReturnType<typeof icsPara>,
+  ics?: ReturnType<typeof buildAnexoIcs>,
 ) => {
-  const transporte = obterTransporter();
+  const transporte = getTransporter();
   if (!transporte) return false;
   try {
     await transporte.sendMail({
@@ -104,62 +104,62 @@ const enviar = async (
 
 // Um e-mail por pessoa, em sequência: cada .ics leva o próprio participante, e
 // o Gmail limita conexões simultâneas.
-const enviarParaCada = async (
+const sendToEach = async (
   destinatarios: Destinatario[],
-  montar: (destinatario: Destinatario) => {
+  build: (destinatario: Destinatario) => {
     email: EmailMontado;
-    ics?: ReturnType<typeof icsPara>;
+    ics?: ReturnType<typeof buildAnexoIcs>;
   },
 ) => {
   let enviados = 0;
   for (const destinatario of destinatarios) {
-    const { email, ics } = montar(destinatario);
-    if (await enviar(destinatario, email, ics)) enviados += 1;
+    const { email, ics } = build(destinatario);
+    if (await send(destinatario, email, ics)) enviados += 1;
   }
   return enviados;
 };
 
 export const emailService = {
-  estaLigado: () => Boolean(env.GMAIL_USER && env.GMAIL_APP_PASSWORD),
+  isEnabled: () => Boolean(env.GMAIL_USER && env.GMAIL_APP_PASSWORD),
 
-  enviarConvite: (reuniao: ReuniaoEmail, destinatarios: Destinatario[]) =>
-    enviarParaCada(destinatarios, (destinatario) => ({
-      email: templates.convite(
+  sendConvite: (reuniao: ReuniaoEmail, destinatarios: Destinatario[]) =>
+    sendToEach(destinatarios, (destinatario) => ({
+      email: emailTemplates.convite(
         reuniao,
         linksResposta(destinatario.tokenResposta),
       ),
-      ics: icsPara('REQUEST', reuniao, destinatario),
+      ics: buildAnexoIcs('REQUEST', reuniao, destinatario),
     })),
 
-  enviarAtualizacao: (
+  sendAtualizacao: (
     reuniao: ReuniaoEmail,
     destinatarios: Destinatario[],
     aviso: { titulo: string; mensagem: string },
   ) =>
-    enviarParaCada(destinatarios, (destinatario) => ({
-      email: templates.atualizacao(reuniao, aviso),
-      ics: icsPara('REQUEST', reuniao, destinatario),
+    sendToEach(destinatarios, (destinatario) => ({
+      email: emailTemplates.atualizacao(reuniao, aviso),
+      ics: buildAnexoIcs('REQUEST', reuniao, destinatario),
     })),
 
-  enviarExclusao: (reuniao: ReuniaoEmail, destinatarios: Destinatario[]) =>
-    enviarParaCada(destinatarios, (destinatario) => ({
-      email: templates.exclusao(reuniao),
-      ics: icsPara('CANCEL', reuniao, destinatario),
+  sendExclusao: (reuniao: ReuniaoEmail, destinatarios: Destinatario[]) =>
+    sendToEach(destinatarios, (destinatario) => ({
+      email: emailTemplates.exclusao(reuniao),
+      ics: buildAnexoIcs('CANCEL', reuniao, destinatario),
     })),
 
-  enviarLembrete: (
+  sendLembrete: (
     reuniao: ReuniaoEmail,
     destinatario: Destinatario,
     tipo: TipoLembrete,
-  ) => enviar(destinatario, templates.lembrete(reuniao, tipo)),
+  ) => send(destinatario, emailTemplates.lembrete(reuniao, tipo)),
 
   /**
    * Dispara sem segurar a resposta HTTP: o e-mail sai depois que a operação no
    * banco já foi confirmada, e uma falha só vai para o log. Com o e-mail
    * desligado nem chama `envio`, que costuma consultar o banco.
    */
-  emSegundoPlano(envio: () => Promise<unknown>) {
-    if (!obterTransporter()) return;
+  runInBackground(envio: () => Promise<unknown>) {
+    if (!getTransporter()) return;
     void envio().catch((error: unknown) =>
       console.error('Falha no envio de e-mails:', error),
     );

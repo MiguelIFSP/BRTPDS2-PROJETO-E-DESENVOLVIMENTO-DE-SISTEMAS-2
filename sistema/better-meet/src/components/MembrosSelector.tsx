@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import TextField from '@/components/ui/TextField';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   Typography,
@@ -39,15 +40,14 @@ export default function MembrosSelector({
   const { colors } = useTheme();
   const [busca, setBusca] = useState('');
 
-  const filtrados = useMemo(() => {
-    const termo = normalizar(busca.trim());
-    if (!termo) return membros;
-    return membros.filter(
-      (membro) =>
-        normalizar(membro.name).includes(termo) ||
-        normalizar(membro.email).includes(termo),
-    );
-  }, [busca, membros]);
+  const termo = normalizar(busca.trim());
+  const filtrados = termo
+    ? membros.filter(
+        (membro) =>
+          normalizar(membro.name).includes(termo) ||
+          normalizar(membro.email).includes(termo),
+      )
+    : membros;
 
   const toggle = (id: number) =>
     onChange(
@@ -147,5 +147,5 @@ const styles = StyleSheet.create({
   info: { flex: 1, gap: Spacing.xs },
   name: { ...Typography.body, fontFamily: FontFamily.medium },
   metaText: { ...Typography.bodySmall },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
 });

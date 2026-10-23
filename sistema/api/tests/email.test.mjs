@@ -39,13 +39,11 @@ jest.unstable_mockModule('../src/config/env.ts', () => ({
 }));
 const { instanteNoFuso, dataNoFuso } =
   await import('../src/utils/fusoHorario.ts');
-const { gerarIcs } = await import('../src/services/email/ics.ts');
-const { templates } = await import('../src/services/email/templates.ts');
-const { emailService } = await import('../src/services/email/emailService.ts');
-const { lembretesNaHora, processarLembretes } =
-  await import('../src/services/lembreteService.ts');
-const { reuniaoService, conviteExpirado } =
-  await import('../src/services/reuniaoService.ts');
+const { buildIcs } = await import('../src/utils/ics.ts');
+const { emailTemplates } = await import('../src/utils/emailTemplates.ts');
+const { emailService } = await import('../src/services/emailService.ts');
+const { lembreteService } = await import('../src/services/lembreteService.ts');
+const { reuniaoService } = await import('../src/services/reuniaoService.ts');
 const { default: conviteRespostaRoutes } =
   await import('../src/routes/conviteRespostaRoutes.ts');
 const { handleError } = await import('../src/middlewares/errorMiddleware.ts');
@@ -105,7 +103,7 @@ describe('.ics', () => {
   };
 
   test('convite com UID fixo, horários em UTC e texto escapado', () => {
-    const ics = gerarIcs('REQUEST', evento, em('2026-10-21T12:00:00Z'));
+    const ics = buildIcs('REQUEST', evento, em('2026-10-21T12:00:00Z'));
     expect(ics).toContain('METHOD:REQUEST');
     expect(ics).toContain('UID:reuniao-31@better-meet');
     expect(ics).toContain('DTSTART:20261022T130000Z');
@@ -116,15 +114,15 @@ describe('.ics', () => {
   });
 
   test('linhas com no máximo 75 bytes, terminadas em CRLF', () => {
-    const ics = gerarIcs('REQUEST', evento);
+    const ics = buildIcs('REQUEST', evento);
     const linhas = ics.split('\r\n');
     expect(linhas.every((linha) => Buffer.byteLength(linha) <= 75)).toBe(true);
     expect(ics.endsWith('END:VCALENDAR\r\n')).toBe(true);
   });
 
   test('cancelamento usa o mesmo UID e SEQUENCE maior', () => {
-    const convite = gerarIcs('REQUEST', evento, em('2026-10-21T12:00:00Z'));
-    const cancelamento = gerarIcs('CANCEL', evento, em('2026-10-21T13:00:00Z'));
+    const convite = buildIcs('REQUEST', evento, em('2026-10-21T12:00:00Z'));
+    const cancelamento = buildIcs('CANCEL', evento, em('2026-10-21T13:00:00Z'));
     const sequencia = (ics) => Number(/SEQUENCE:(\d+)/.exec(ics)[1]);
     expect(cancelamento).toContain('METHOD:CANCEL');
     expect(cancelamento).toContain('STATUS:CANCELLED');
@@ -133,9 +131,9 @@ describe('.ics', () => {
   });
 });
 
-describe('templates', () => {
+describe('emailTemplates', () => {
   test('escapa HTML e transforma o link do local em <a>', () => {
-    const email = templates.convite({
+    const email = emailTemplates.convite({
       ...reuniaoEmail,
       titulo: '<script>x</script>',
     });
@@ -153,9 +151,9 @@ describe('templates', () => {
 
 describe('quais lembretes estão na hora', () => {
   const naHora = (iso, horaInicio = '10:00') =>
-    lembretesNaHora('2026-10-22', horaInicio, fuso, em(iso)).map(
-      (lembrete) => lembrete.tipo,
-    );
+    lembreteService
+      .listDue('2026-10-22', horaInicio, fuso, em(iso))
+      .map((lembrete) => lembrete.tipo);
 
   test('07h, 1 hora e 15 minutos antes de uma reunião às 10h', () => {
     expect(naHora('2026-10-22T10:00:00Z')).toEqual(['MANHA']); // 07h local
@@ -198,7 +196,7 @@ describe('job de lembretes', () => {
   test('envia para o criador e quem aceitou, reservando antes', async () => {
     prisma.reuniao.findMany.mockResolvedValue([reuniaoDoJob()]);
 
-    expect(await processarLembretes(agora)).toBe(2);
+    expect(await lembreteService.sendDue(agora)).toBe(2);
 
     const consulta = prisma.reuniao.findMany.mock.calls[0][0];
     expect(consulta.where).toEqual({
@@ -225,7 +223,7 @@ describe('job de lembretes', () => {
       { ...reuniaoDoJob(), horaInicio: '08:05', convites: [] },
     ]);
 
-    expect(await processarLembretes(em('2026-10-22T10:06:00Z'))).toBe(1);
+    expect(await lembreteService.sendDue(em('2026-10-22T10:06:00Z'))).toBe(1);
     expect(prisma.lembreteEnviado.create.mock.calls[0][0].data.tipo).toBe(
       'UMA_HORA',
     );
@@ -247,7 +245,7 @@ describe('job de lembretes', () => {
       }),
     );
 
-    expect(await processarLembretes(agora)).toBe(0);
+    expect(await lembreteService.sendDue(agora)).toBe(0);
     expect(prisma.lembreteEnviado.create).toHaveBeenCalledTimes(1);
     expect(sendMail).not.toHaveBeenCalled();
   });
@@ -259,7 +257,7 @@ describe('job de lembretes', () => {
     sendMail.mockRejectedValue(new Error('SMTP fora'));
     jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    expect(await processarLembretes(agora)).toBe(0);
+    expect(await lembreteService.sendDue(agora)).toBe(0);
     expect(prisma.lembreteEnviado.deleteMany).toHaveBeenCalledWith({
       where: { reuniaoId: 31, userId: 1, tipo: 'UMA_HORA' },
     });
@@ -330,7 +328,7 @@ describe('e-mails disparados pelas reuniões', () => {
   });
 
   test('convite antigo, sem token, sai sem os botões', async () => {
-    await emailService.enviarConvite(reuniaoEmail, [
+    await emailService.sendConvite(reuniaoEmail, [
       { nome: 'Bia', email: 'bia@example.test', tokenResposta: null },
     ]);
     const mensagem = sendMail.mock.calls[0][0];
@@ -342,7 +340,7 @@ describe('e-mails disparados pelas reuniões', () => {
     sendMail.mockRejectedValue(new Error('SMTP fora'));
     const erro = jest.spyOn(console, 'error').mockImplementation(() => {});
 
-    const enviados = await emailService.enviarExclusao(reuniaoEmail, [
+    const enviados = await emailService.sendExclusao(reuniaoEmail, [
       { nome: 'Bia', email: 'bia@example.test' },
     ]);
 
@@ -351,7 +349,7 @@ describe('e-mails disparados pelas reuniões', () => {
   });
 
   test('exclusão manda .ics de cancelamento', async () => {
-    await emailService.enviarExclusao(reuniaoEmail, [
+    await emailService.sendExclusao(reuniaoEmail, [
       { nome: 'Bia', email: 'bia@example.test' },
     ]);
     const mensagem = sendMail.mock.calls[0][0];
@@ -521,8 +519,12 @@ describe('botões Aceitar/Recusar do e-mail', () => {
 describe('expiração do convite ao fim da reunião', () => {
   test('vale até o horário de término, no fuso das reuniões', () => {
     const reuniao = { data: '2026-10-22', horaFim: '11:00' }; // 14:00 UTC
-    expect(conviteExpirado(reuniao, em('2026-10-22T13:59:00Z'))).toBe(false);
-    expect(conviteExpirado(reuniao, em('2026-10-22T14:00:00Z'))).toBe(true);
+    expect(
+      reuniaoService.isConviteExpirado(reuniao, em('2026-10-22T13:59:00Z')),
+    ).toBe(false);
+    expect(
+      reuniaoService.isConviteExpirado(reuniao, em('2026-10-22T14:00:00Z')),
+    ).toBe(true);
   });
 
   test('convites pendentes de reuniões encerradas saem da lista', async () => {

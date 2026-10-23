@@ -87,7 +87,7 @@ export const reuniaoSchema = yup
     });
   });
 
-export const responderConviteSchema = yup.object({
+export const respostaConviteSchema = yup.object({
   status: yup
     .string<StatusConviteReuniao>()
     .oneOf(
@@ -97,7 +97,7 @@ export const responderConviteSchema = yup.object({
     .required('Informe a resposta do convite.'),
 });
 
-export const convidarMembrosReuniaoSchema = yup.object({
+export const conviteMembrosReuniaoSchema = yup.object({
   convidados: yup
     .array()
     .of(idRule('Um dos convidados é inválido.').defined())
@@ -110,4 +110,4 @@ export const convidarMembrosReuniaoSchema = yup.object({
     ),
 });
 
-export const atualizarReuniaoSchema = reuniaoSchema.omit(['comissaoId']);
+export const edicaoReuniaoSchema = reuniaoSchema.omit(['comissaoId']);

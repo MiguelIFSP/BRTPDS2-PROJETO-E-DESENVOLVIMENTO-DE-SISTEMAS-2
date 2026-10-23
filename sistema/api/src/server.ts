@@ -15,6 +15,7 @@ import swaggerUi from 'swagger-ui-express';
 import YAML from 'yaml';
 import prisma from './config/database.ts';
 import { env } from './config/env.ts';
+import { lembreteJob } from './jobs/lembreteJob.ts';
 import { handleError } from './middlewares/errorMiddleware.ts';
 
 // Rotas existentes
@@ -30,7 +31,6 @@ import authRoutes from './routes/authRoutes.ts';
 
 import { authController } from './controllers/authController.ts';
 
-import { lembreteService } from './services/lembreteService.ts';
 import { monitoringService } from './services/monitoringService.ts';
 import { usuarioService } from './services/usuarioService.ts';
 
@@ -85,13 +85,13 @@ app.use(handleError);
 const server = app.listen(env.PORT, async () => {
   await usuarioService.ensureDefaultAdmin();
   console.log(`API Better Meet disponível em http://localhost:${env.PORT}/api`);
-  lembreteService.iniciar();
+  lembreteJob.start();
   await monitoringService.reportStatus('OPERATIONAL', 'Serviço iniciado');
 });
 
 // Reporta a própria parada antes de sair, pra monitoring não esperar o cron.
 const shutdown = async () => {
-  lembreteService.parar();
+  lembreteJob.stop();
   await monitoringService.reportStatus('MAINTENANCE', 'Parada solicitada');
   server.close();
   await prisma.$disconnect();

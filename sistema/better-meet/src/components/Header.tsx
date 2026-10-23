@@ -7,6 +7,7 @@ import IconAndTitle from '@/components/IconAndTitle';
 import Avatar from '@/components/ui/Avatar';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -146,5 +147,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   counterText: { ...Typography.caption, fontFamily: FontFamily.semiBold },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
 });

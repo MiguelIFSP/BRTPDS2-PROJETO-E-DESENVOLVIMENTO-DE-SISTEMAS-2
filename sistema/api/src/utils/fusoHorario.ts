@@ -49,5 +49,5 @@ export const instanteNoFuso = (data: string, hora: string, fuso: string) => {
 export const dataNoFuso = (instante: Date, fuso: string) =>
   new Date(partesNoFuso(instante, fuso)).toISOString().slice(0, 10);
 
-export const somarMinutos = (instante: Date, minutos: number) =>
+export const addMinutes = (instante: Date, minutos: number) =>
   new Date(instante.getTime() + minutos * MINUTO_MS);

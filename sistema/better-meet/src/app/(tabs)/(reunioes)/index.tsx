@@ -1,30 +1,36 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as yup from 'yup';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import ConvitesSemAceite from '@/components/ConvitesSemAceite';
+import ConvitePendenteCard, {
+  type ConvitePendente,
+} from '@/components/ConvitePendenteCard';
 import LocalReuniaoField from '@/components/LocalReuniaoField';
 import MembrosSelector from '@/components/MembrosSelector';
 import NotificacoesList from '@/components/NotificacoesList';
-import ReuniaoCheckIn from '@/components/ReuniaoCheckIn';
+import ReuniaoCard, { type ReuniaoCardData } from '@/components/ReuniaoCard';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
-import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
+import FeedbackBanner from '@/components/ui/FeedbackBanner';
+import PickerField from '@/components/ui/PickerField';
 import Screen from '@/components/ui/Screen';
 import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
+  TouchTarget,
   Typography,
-  withAlpha,
 } from '@/constants/theme';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
+import { reuniaoSchema } from '@/schemas/reuniaoSchema';
 import {
   comissaoService,
   type ComissaoDetalhe,
@@ -34,57 +40,16 @@ import {
   type Notificacao,
 } from '@/services/notificacaoService';
 import { organizacaoService } from '@/services/organizacaoService';
-import {
-  reuniaoService,
-  type ReuniaoRegistro,
-} from '@/services/reuniaoService';
+import { reuniaoService } from '@/services/reuniaoService';
 import { useAuthStore } from '@/store/authStore';
 import { useNotificacaoStore } from '@/store/notificacaoStore';
 import { getErrorMessage } from '@/utils/apiClient';
+import { formatReuniaoDate, toDateValue, toTimeValue } from '@/utils/format';
 import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
-import { reuniaoSchema } from '@/schemas/reuniaoSchema';
 
-type ReuniaoItem = {
-  id: number;
-  titulo: string;
-  data: string;
-  horaInicio: string;
-  horaFim: string;
-  pauta: string;
-  descricao?: string;
-  local?: string;
-  comissaoId: number;
-  criadoPorUserId: number;
-  status: 'AGENDADA' | 'REALIZADA' | 'CANCELADA';
-  meuRegistro?: ReuniaoRegistro | null;
-  participantes?: {
-    userId: number;
-    nome: string;
-    email: string;
-    papel: string;
-    registro: ReuniaoRegistro | null;
-  }[];
-  convites?: {
-    id: number;
-    userId: number;
-    nome: string;
-    status: 'PENDENTE' | 'ACEITO' | 'RECUSADO';
-  }[];
-  comissaoNome?: string;
-};
+type ReuniaoItem = ReuniaoCardData;
 
-type ConviteItem = {
-  id: number;
-  reuniaoId: number;
-  titulo: string;
-  data: string;
-  horaInicio: string;
-  horaFim: string;
-  usuario: string;
-  status: 'PENDENTE' | 'ACEITO' | 'RECUSADO';
-  local?: string;
-  comissaoNome?: string;
-};
+type ConviteItem = ConvitePendente;
 
 type ComissaoOption = {
   id: number;
@@ -110,19 +75,6 @@ export default function ReunioesScreen() {
     openPendingInvites?: string;
   }>();
 
-  const formatDateValue = (value: Date) => {
-    const day = String(value.getDate()).padStart(2, '0');
-    const month = String(value.getMonth() + 1).padStart(2, '0');
-    const year = value.getFullYear();
-    return `${year}-${month}-${day}`;
-  };
-
-  const formatTimeValue = (value: Date) => {
-    const hours = String(value.getHours()).padStart(2, '0');
-    const minutes = String(value.getMinutes()).padStart(2, '0');
-    return `${hours}:${minutes}`;
-  };
-
   const [reunioes, setReunioes] = useState<ReuniaoItem[]>(INITIAL_REUNIOES);
   const [convites, setConvites] = useState<ConviteItem[]>(INITIAL_CONVITES);
   const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
@@ -137,7 +89,7 @@ export default function ReunioesScreen() {
   const [inviteReuniao, setInviteReuniao] = useState<ReuniaoItem | null>(null);
   const [inviteSelection, setInviteSelection] = useState<number[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
-  const [feedback, setFeedback] = useState<Feedback | null>(null);
+  const [feedback, setFeedback] = useFeedback();
   const [formErrors, setFormErrors] = useState<
     FieldErrors<{
       titulo: string;
@@ -164,40 +116,35 @@ export default function ReunioesScreen() {
     [],
   );
   const [convidados, setConvidados] = useState<number[]>([]);
-  const [isLoadingMembros, setIsLoadingMembros] = useState(false);
+  // comissão cujos membros já chegaram; enquanto for outra, a lista carrega.
+  const [membrosComissaoId, setMembrosComissaoId] = useState<number | null>(
+    null,
+  );
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showHoraInicioPicker, setShowHoraInicioPicker] = useState(false);
   const [showHoraFimPicker, setShowHoraFimPicker] = useState(false);
   const [datePickerValue, setDatePickerValue] = useState(new Date());
-  const data = formatDateValue(datePickerValue);
+  const data = toDateValue(datePickerValue);
   const [horaInicioPickerValue, setHoraInicioPickerValue] = useState(
     new Date(),
   );
   const [horaFimPickerValue, setHoraFimPickerValue] = useState(new Date());
 
-  const pendingInvites = useMemo(
-    () => convites.filter((convite) => convite.status === 'PENDENTE'),
-    [convites],
+  const pendingInvites = convites.filter(
+    (convite) => convite.status === 'PENDENTE',
   );
-  const naoLidas = useMemo(
-    () => notificacoes.filter((notificacao) => !notificacao.lidaAt).length,
-    [notificacoes],
-  );
+  const naoLidas = notificacoes.filter(
+    (notificacao) => !notificacao.lidaAt,
+  ).length;
 
   useEffect(() => {
     setContagem({ convitesPendentes: pendingInvites.length, naoLidas });
   }, [naoLidas, pendingInvites.length, setContagem]);
 
   // Quem já tem convite (pendente, aceito ou recusado) não aparece de novo.
-  const membrosSemConvite = useMemo(
-    () =>
-      membrosDaComissao.filter(
-        (membro) =>
-          !inviteReuniao?.convites?.some(
-            (convite) => convite.userId === membro.id,
-          ),
-      ),
-    [inviteReuniao, membrosDaComissao],
+  const membrosSemConvite = membrosDaComissao.filter(
+    (membro) =>
+      !inviteReuniao?.convites?.some((convite) => convite.userId === membro.id),
   );
 
   const canCreateMeeting = comissoes.length > 0 && Boolean(comissaoSelecionada);
@@ -245,12 +192,14 @@ export default function ReunioesScreen() {
     setIsCreateOpen(true);
   };
 
+  const targetComissaoId = inviteReuniao?.comissaoId ?? comissaoSelecionada;
+  const isLoadingMembros =
+    targetComissaoId !== null && membrosComissaoId !== targetComissaoId;
+
   useEffect(() => {
-    const targetComissaoId = inviteReuniao?.comissaoId ?? comissaoSelecionada;
     if (!token || !targetComissaoId || (!isCreateOpen && !inviteReuniao))
       return;
     let cancelled = false;
-    const loadingTimer = setTimeout(() => setIsLoadingMembros(true), 0);
     void comissaoService
       .getById(token, targetComissaoId)
       .then((comissao) => {
@@ -260,6 +209,7 @@ export default function ReunioesScreen() {
               .map((membro) => membro.user)
               .filter((membro) => membro.id !== user?.id),
           );
+          setMembrosComissaoId(targetComissaoId);
         }
       })
       .catch((error) => {
@@ -272,115 +222,130 @@ export default function ReunioesScreen() {
             ),
           });
           setMembrosDaComissao([]);
+          setMembrosComissaoId(targetComissaoId);
         }
-      })
-      .finally(() => {
-        if (!cancelled) setIsLoadingMembros(false);
       });
     return () => {
       cancelled = true;
-      clearTimeout(loadingTimer);
     };
-  }, [comissaoSelecionada, inviteReuniao, isCreateOpen, token, user?.id]);
+  }, [
+    inviteReuniao,
+    isCreateOpen,
+    setFeedback,
+    targetComissaoId,
+    token,
+    user?.id,
+  ]);
 
-  const loadComissoes = useCallback(async () => {
-    if (!token) {
-      setComissoes([]);
-      setComissaoSelecionada(null);
-      return;
-    }
+  // isActive: false quando a tela perdeu o foco antes da resposta chegar.
+  const loadComissoes = useCallback(
+    async (isActive: () => boolean = () => true) => {
+      if (!token) {
+        setComissoes([]);
+        setComissaoSelecionada(null);
+        return;
+      }
 
-    try {
-      const organizacoes = await organizacaoService.listMine(token);
-      const lista = await Promise.all(
-        organizacoes.map(async (organizacao) => {
-          const comissoesDaOrg = await comissaoService.listByOrganizacao(
-            token,
-            organizacao.id,
-          );
+      try {
+        const organizacoes = await organizacaoService.listMine(token);
+        const lista = await Promise.all(
+          organizacoes.map(async (organizacao) => {
+            const comissoesDaOrg = await comissaoService.listByOrganizacao(
+              token,
+              organizacao.id,
+            );
 
-          return comissoesDaOrg.map((comissao) => ({
-            id: comissao.id,
-            nome: comissao.nome,
-            organizacaoId: comissao.organizacaoId,
-            organizacaoNome: organizacao.nome,
-          }));
-        }),
-      );
+            return comissoesDaOrg.map((comissao) => ({
+              id: comissao.id,
+              nome: comissao.nome,
+              organizacaoId: comissao.organizacaoId,
+              organizacaoNome: organizacao.nome,
+            }));
+          }),
+        );
 
-      const todas = lista.flat();
-      setComissoes(todas);
-      setComissaoSelecionada((current) => current ?? todas[0]?.id ?? null);
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: getErrorMessage(
-          error,
-          'Não foi possível carregar as comissões disponíveis.',
-        ),
-      });
-    }
-  }, [setFeedback, token]);
+        if (!isActive()) return;
+        const todas = lista.flat();
+        setComissoes(todas);
+        setComissaoSelecionada((current) => current ?? todas[0]?.id ?? null);
+      } catch (error) {
+        if (!isActive()) return;
+        setFeedback({
+          type: 'error',
+          message: getErrorMessage(
+            error,
+            'Não foi possível carregar as comissões disponíveis.',
+          ),
+        });
+      }
+    },
+    [setFeedback, token],
+  );
 
-  const loadReunioes = useCallback(async () => {
-    if (!token) {
-      setReunioes(INITIAL_REUNIOES);
-      setConvites(INITIAL_CONVITES);
-      setNotificacoes([]);
-      return;
-    }
+  const loadReunioes = useCallback(
+    async (isActive: () => boolean = () => true) => {
+      if (!token) {
+        setReunioes(INITIAL_REUNIOES);
+        setConvites(INITIAL_CONVITES);
+        setNotificacoes([]);
+        return;
+      }
 
-    try {
-      const [mine, pending, avisos] = await Promise.all([
-        reuniaoService.listMine(token),
-        reuniaoService.listPendingInvites(token),
-        notificacaoService.listMine(token),
-      ]);
+      try {
+        const [mine, pending, avisos] = await Promise.all([
+          reuniaoService.listMine(token),
+          reuniaoService.listPendingInvites(token),
+          notificacaoService.listMine(token),
+        ]);
+        if (!isActive()) return;
 
-      const mappedMine = mine.map((reuniao) => ({
-        id: reuniao.id,
-        titulo: reuniao.titulo,
-        data: reuniao.data,
-        horaInicio: reuniao.horaInicio,
-        horaFim: reuniao.horaFim,
-        pauta: reuniao.pauta,
-        descricao: reuniao.descricao ?? undefined,
-        local: reuniao.local ?? undefined,
-        comissaoId: reuniao.comissaoId,
-        criadoPorUserId: reuniao.criadoPorUserId,
-        status: reuniao.status,
-        meuRegistro: reuniao.meuRegistro,
-        participantes: reuniao.participantes,
-        convites: reuniao.convites,
-        comissaoNome: reuniao.comissao?.nome,
-      }));
+        const mappedMine = mine.map((reuniao) => ({
+          id: reuniao.id,
+          titulo: reuniao.titulo,
+          data: reuniao.data,
+          horaInicio: reuniao.horaInicio,
+          horaFim: reuniao.horaFim,
+          pauta: reuniao.pauta,
+          descricao: reuniao.descricao ?? undefined,
+          local: reuniao.local ?? undefined,
+          comissaoId: reuniao.comissaoId,
+          criadoPorUserId: reuniao.criadoPorUserId,
+          status: reuniao.status,
+          meuRegistro: reuniao.meuRegistro,
+          participantes: reuniao.participantes,
+          convites: reuniao.convites,
+          comissaoNome: reuniao.comissao?.nome,
+        }));
 
-      setReunioes(mappedMine);
-      setConvites(
-        pending.map((convite) => ({
-          id: convite.id,
-          reuniaoId: convite.reuniaoId,
-          titulo: convite.titulo,
-          data: convite.data,
-          horaInicio: convite.horaInicio,
-          horaFim: convite.horaFim,
-          usuario: convite.usuario,
-          status: convite.status,
-          local: convite.local ?? undefined,
-          comissaoNome: convite.comissao,
-        })),
-      );
-      setNotificacoes(avisos);
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: getErrorMessage(
-          error,
-          'Não foi possível carregar as reuniões no momento.',
-        ),
-      });
-    }
-  }, [setFeedback, token]);
+        setReunioes(mappedMine);
+        setConvites(
+          pending.map((convite) => ({
+            id: convite.id,
+            reuniaoId: convite.reuniaoId,
+            titulo: convite.titulo,
+            data: convite.data,
+            horaInicio: convite.horaInicio,
+            horaFim: convite.horaFim,
+            usuario: convite.usuario,
+            status: convite.status,
+            local: convite.local ?? undefined,
+            comissaoNome: convite.comissao,
+          })),
+        );
+        setNotificacoes(avisos);
+      } catch (error) {
+        if (!isActive()) return;
+        setFeedback({
+          type: 'error',
+          message: getErrorMessage(
+            error,
+            'Não foi possível carregar as reuniões no momento.',
+          ),
+        });
+      }
+    },
+    [setFeedback, token],
+  );
 
   const refreshReunioes = useCallback(async () => {
     setIsRefreshing(true);
@@ -393,8 +358,13 @@ export default function ReunioesScreen() {
 
   useFocusEffect(
     useCallback(() => {
-      void loadReunioes();
-      void loadComissoes();
+      let cancelled = false;
+      const isActive = () => !cancelled;
+      void loadReunioes(isActive);
+      void loadComissoes(isActive);
+      return () => {
+        cancelled = true;
+      };
     }, [loadReunioes, loadComissoes]),
   );
 
@@ -660,191 +630,15 @@ export default function ReunioesScreen() {
         </Text>
       ) : (
         reunioes.map((reuniao) => (
-          <View
+          <ReuniaoCard
             key={reuniao.id}
-            style={[
-              styles.card,
-              {
-                backgroundColor: colors.backgroundElement,
-                borderColor: colors.border,
-              },
-            ]}
-          >
-            <View style={styles.cardHeader}>
-              <Text
-                numberOfLines={2}
-                ellipsizeMode="tail"
-                style={[styles.cardTitle, { color: colors.text }]}
-              >
-                {reuniao.titulo}
-              </Text>
-              <View style={styles.cardInfoRow}>
-                <View style={styles.titleWrap}>
-                  <Text
-                    style={[styles.cardMeta, { color: colors.textSecondary }]}
-                  >
-                    {reuniao.data.split('-').reverse().join('-')} ·{' '}
-                    {reuniao.horaInicio} às {reuniao.horaFim}
-                  </Text>
-                  {reuniao.comissaoNome ? (
-                    <Text
-                      style={[styles.metaText, { color: colors.textSecondary }]}
-                    >
-                      Comissão: {reuniao.comissaoNome}
-                    </Text>
-                  ) : null}
-                </View>
-                <View style={styles.cardActions}>
-                  {canManageMeeting(reuniao) ? (
-                    <>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Convidar membro para ${reuniao.titulo}`}
-                        onPress={() => openInviteMembers(reuniao)}
-                      >
-                        <Ionicons
-                          name="person-add-outline"
-                          size={21}
-                          color={colors.primary}
-                        />
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Editar reunião ${reuniao.titulo}`}
-                        onPress={() => openEditMeeting(reuniao)}
-                      >
-                        <Ionicons
-                          name="create-outline"
-                          size={21}
-                          color={colors.primary}
-                        />
-                      </Pressable>
-                      <Pressable
-                        accessibilityRole="button"
-                        accessibilityLabel={`Remover reunião ${reuniao.titulo}`}
-                        onPress={() => setReuniaoToDelete(reuniao)}
-                      >
-                        <Ionicons
-                          name="trash-outline"
-                          size={21}
-                          color={colors.danger}
-                        />
-                      </Pressable>
-                    </>
-                  ) : null}
-                  <View
-                    style={[
-                      styles.statusPill,
-                      {
-                        backgroundColor: withAlpha(colors.primary, 0.12),
-                        borderColor: withAlpha(colors.primary, 0.3),
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[styles.statusText, { color: colors.primary }]}
-                    >
-                      {reuniao.status}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-            </View>
-
-            <View style={styles.localRow}>
-              <Ionicons
-                name="location-outline"
-                size={18}
-                color={colors.textSecondary}
-              />
-              <Text
-                selectable
-                style={[
-                  styles.localText,
-                  { color: reuniao.local ? colors.text : colors.textSecondary },
-                ]}
-              >
-                {reuniao.local ?? 'Local não informado'}
-              </Text>
-            </View>
-
-            <Text style={[styles.pautaLabel, { color: colors.textSecondary }]}>
-              Pauta
-            </Text>
-            <Text style={[styles.pautaText, { color: colors.text }]}>
-              {reuniao.pauta}
-            </Text>
-
-            {reuniao.descricao ? (
-              <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-                {reuniao.descricao}
-              </Text>
-            ) : null}
-
-            {reuniao.participantes?.length ? (
-              <View style={styles.participants}>
-                <Text
-                  style={[styles.pautaLabel, { color: colors.textSecondary }]}
-                >
-                  Participantes
-                </Text>
-                {reuniao.participantes.map((participante) => {
-                  const presence = participante.registro?.saidaAt
-                    ? 'Saída registrada'
-                    : participante.registro
-                      ? 'Entrada registrada'
-                      : 'Não entrou';
-                  return (
-                    <View
-                      key={participante.userId}
-                      style={styles.participantRow}
-                    >
-                      <Ionicons
-                        name={
-                          participante.registro
-                            ? 'checkmark-circle-outline'
-                            : 'ellipse-outline'
-                        }
-                        size={18}
-                        color={
-                          participante.registro
-                            ? colors.success
-                            : colors.textSecondary
-                        }
-                      />
-                      <Text
-                        style={[styles.participantName, { color: colors.text }]}
-                      >
-                        {participante.nome}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.participantStatus,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
-                        {presence}
-                      </Text>
-                    </View>
-                  );
-                })}
-              </View>
-            ) : null}
-
-            {canManageMeeting(reuniao) ? (
-              <ConvitesSemAceite convites={reuniao.convites} />
-            ) : null}
-
-            {token ? (
-              <ReuniaoCheckIn
-                key={`${token}:${reuniao.id}`}
-                reuniaoId={reuniao.id}
-                token={token}
-                status={reuniao.status}
-                meuRegistro={reuniao.meuRegistro}
-              />
-            ) : null}
-          </View>
+            reuniao={reuniao}
+            canManage={canManageMeeting(reuniao)}
+            token={token}
+            onInvite={() => openInviteMembers(reuniao)}
+            onEdit={() => openEditMeeting(reuniao)}
+            onDelete={() => setReuniaoToDelete(reuniao)}
+          />
         ))
       )}
 
@@ -951,33 +745,13 @@ export default function ReunioesScreen() {
               </View>
             ) : null}
 
-            <Pressable
-              accessibilityRole="button"
+            <PickerField
+              label="Data"
               accessibilityLabel="Selecionar data da reunião"
+              value={formatReuniaoDate(data)}
+              icon="calendar-outline"
               onPress={() => setShowDatePicker(true)}
-              style={({ pressed }) => [
-                styles.pickerField,
-                {
-                  backgroundColor: colors.background,
-                  borderColor: colors.border,
-                },
-                pressed && styles.pressed,
-              ]}
-            >
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>
-                Data
-              </Text>
-              <View style={styles.pickerValueRow}>
-                <Text style={[styles.pickerValue, { color: colors.text }]}>
-                  {data.split('-').reverse().join('-')}
-                </Text>
-                <Ionicons
-                  name="calendar-outline"
-                  size={18}
-                  color={colors.textSecondary}
-                />
-              </View>
-            </Pressable>
+            />
             {formErrors.data ? (
               <Text style={[styles.errorText, { color: colors.danger }]}>
                 {formErrors.data}
@@ -985,75 +759,22 @@ export default function ReunioesScreen() {
             ) : null}
 
             <View style={styles.twoColumns}>
-              <Pressable
-                accessibilityRole="button"
+              <PickerField
+                label="Início"
                 accessibilityLabel="Selecionar hora de início da reunião"
+                value={horaInicio}
+                icon="time-outline"
                 onPress={() => setShowHoraInicioPicker(true)}
-                style={({ pressed }) => [
-                  styles.pickerField,
-                  styles.halfField,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  },
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={[styles.fieldLabel, { color: colors.text }]}>
-                  Início
-                </Text>
-                <View style={styles.pickerValueRow}>
-                  <Text
-                    style={[
-                      styles.pickerValue,
-                      {
-                        color: horaInicio ? colors.text : colors.textSecondary,
-                      },
-                    ]}
-                  >
-                    {horaInicio || 'Selecionar'}
-                  </Text>
-                  <Ionicons
-                    name="time-outline"
-                    size={18}
-                    color={colors.textSecondary}
-                  />
-                </View>
-              </Pressable>
-
-              <Pressable
-                accessibilityRole="button"
+                style={styles.halfField}
+              />
+              <PickerField
+                label="Término"
                 accessibilityLabel="Selecionar hora de término da reunião"
+                value={horaFim}
+                icon="time-outline"
                 onPress={() => setShowHoraFimPicker(true)}
-                style={({ pressed }) => [
-                  styles.pickerField,
-                  styles.halfField,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  },
-                  pressed && styles.pressed,
-                ]}
-              >
-                <Text style={[styles.fieldLabel, { color: colors.text }]}>
-                  Término
-                </Text>
-                <View style={styles.pickerValueRow}>
-                  <Text
-                    style={[
-                      styles.pickerValue,
-                      { color: horaFim ? colors.text : colors.textSecondary },
-                    ]}
-                  >
-                    {horaFim || 'Selecionar'}
-                  </Text>
-                  <Ionicons
-                    name="time-outline"
-                    size={18}
-                    color={colors.textSecondary}
-                  />
-                </View>
-              </Pressable>
+                style={styles.halfField}
+              />
             </View>
             {formErrors.horaInicio || formErrors.horaFim ? (
               <Text style={[styles.errorText, { color: colors.danger }]}>
@@ -1145,7 +866,7 @@ export default function ReunioesScreen() {
           onValueChange={(_, selectedDate) => {
             setShowHoraInicioPicker(false);
             setHoraInicioPickerValue(selectedDate);
-            setHoraInicio(formatTimeValue(selectedDate));
+            setHoraInicio(toTimeValue(selectedDate));
           }}
           onDismiss={() => setShowHoraInicioPicker(false)}
         />
@@ -1159,7 +880,7 @@ export default function ReunioesScreen() {
           onValueChange={(_, selectedDate) => {
             setShowHoraFimPicker(false);
             setHoraFimPickerValue(selectedDate);
-            setHoraFim(formatTimeValue(selectedDate));
+            setHoraFim(toTimeValue(selectedDate));
           }}
           onDismiss={() => setShowHoraFimPicker(false)}
         />
@@ -1181,74 +902,13 @@ export default function ReunioesScreen() {
             </Text>
           ) : (
             pendingInvites.map((convite) => (
-              <View
+              <ConvitePendenteCard
                 key={convite.id}
-                style={[
-                  styles.inviteCard,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                <Text style={[styles.inviteTitle, { color: colors.text }]}>
-                  {convite.titulo}
-                </Text>
-                <Text
-                  style={[styles.inviteMeta, { color: colors.textSecondary }]}
-                >
-                  {convite.usuario} ·{' '}
-                  {convite.data.split('-').reverse().join('-')} ·{' '}
-                  {convite.horaInicio} às {convite.horaFim}
-                </Text>
-                {convite.comissaoNome ? (
-                  <Text
-                    style={[styles.inviteMeta, { color: colors.textSecondary }]}
-                  >
-                    Comissão: {convite.comissaoNome}
-                  </Text>
-                ) : null}
-                {convite.local ? (
-                  <Text
-                    selectable
-                    style={[styles.inviteMeta, { color: colors.textSecondary }]}
-                  >
-                    Local: {convite.local}
-                  </Text>
-                ) : null}
-                <View style={styles.inviteActions}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Aceitar convite de ${convite.titulo}`}
-                    onPress={() => handleInviteResponse(convite.id, 'ACEITO')}
-                    style={[
-                      styles.actionButton,
-                      {
-                        backgroundColor: colors.success,
-                        borderColor: colors.success,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.actionText}>Aceitar</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Recusar convite de ${convite.titulo}`}
-                    onPress={() => handleInviteResponse(convite.id, 'RECUSADO')}
-                    style={[
-                      styles.actionButton,
-                      {
-                        backgroundColor: 'transparent',
-                        borderColor: colors.border,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.actionText, { color: colors.text }]}>
-                      Recusar
-                    </Text>
-                  </Pressable>
-                </View>
-              </View>
+                convite={convite}
+                onRespond={(status) =>
+                  void handleInviteResponse(convite.id, status)
+                }
+              />
             ))
           )}
 
@@ -1283,14 +943,14 @@ const styles = StyleSheet.create({
   greetingText: { ...Typography.bodyLarge },
   screenTitle: { ...Typography.heading1 },
   createButton: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
+    width: TouchTarget.button,
+    height: TouchTarget.button,
+    borderRadius: Radius.full,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 6,
+    marginTop: Spacing.xs,
   },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
   field: { gap: Spacing.sm },
   emptyCommissionState: {
     paddingVertical: Spacing.md,
@@ -1311,24 +971,8 @@ const styles = StyleSheet.create({
     alignSelf: 'flex-start',
   },
   optionChipText: { ...Typography.bodySmall, fontFamily: FontFamily.medium },
-  pickerField: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.md,
-    minHeight: 62,
-    justifyContent: 'center',
-  },
   fieldLabel: { ...Typography.body, fontFamily: FontFamily.medium },
   errorText: { ...Typography.bodySmall },
-  pickerValueRow: {
-    marginTop: Spacing.xs,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.sm,
-  },
-  pickerValue: { ...Typography.body },
   twoColumns: {
     flexDirection: 'row',
     gap: Spacing.md,
@@ -1337,76 +981,8 @@ const styles = StyleSheet.create({
   halfField: {
     flex: 1,
   },
-  card: {
-    borderWidth: 1,
-    borderRadius: Radius.lg,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  cardHeader: {
-    gap: Spacing.sm,
-  },
-  cardActions: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  cardInfoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: Spacing.md,
-  },
-  titleWrap: { flex: 1 },
-  cardTitle: { ...Typography.bodyLarge, fontFamily: FontFamily.semiBold },
-  cardMeta: { ...Typography.bodySmall },
-  statusPill: {
-    borderWidth: 1,
-    borderRadius: Radius.full,
-    paddingVertical: Spacing.xs,
-    paddingHorizontal: Spacing.sm,
-  },
-  statusText: { ...Typography.bodySmall },
-  localRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: Spacing.xs,
-  },
-  localText: { ...Typography.bodySmall, flex: 1 },
-  pautaLabel: { ...Typography.bodySmall },
-  pautaText: { ...Typography.body },
   metaText: { ...Typography.bodySmall },
-  participants: { gap: Spacing.xs, marginTop: Spacing.xs },
-  participantRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  participantName: { ...Typography.bodySmall, flex: 1 },
-  participantStatus: { ...Typography.bodySmall },
   inviteList: { maxHeight: 360 },
   inviteListContent: { gap: Spacing.md },
-  inviteCard: {
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-    gap: Spacing.sm,
-  },
-  inviteTitle: { ...Typography.bodyLarge, fontFamily: FontFamily.semiBold },
-  inviteMeta: { ...Typography.bodySmall },
-  inviteActions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  actionButton: {
-    flex: 1,
-    minHeight: 40,
-    borderRadius: Radius.md,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: Spacing.sm,
-  },
-  actionText: { ...Typography.body, fontFamily: FontFamily.semiBold },
   emptyText: { ...Typography.body },
 });

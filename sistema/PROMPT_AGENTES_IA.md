@@ -126,12 +126,13 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
     - Schemas Yup ficam em `src/schemas/<dominio>Schema.ts` (no backend e no app), nunca dentro de controllers, telas ou componentes.
     - Use sempre `schema.validate(request.body, { stripUnknown: true })`.
     - Controllers **não têm `try/catch`**: o Express 5 envia os erros ao middleware `handleError` (`src/middlewares/errorMiddleware.ts`), registrado por último no `server.ts`, logo depois de um 404 em JSON para rotas inexistentes. Ele converte Yup → 400, `AppError` → status próprio (com `details`), JSON malformado → 400, Prisma `P2025` → 404, `P2002` → 409 e o resto → 500 genérico.
+    - Exceção: as rotas públicas `/api/convites/:token`, abertas no navegador pelos botões do e-mail, respondem HTML também nos erros. Só no `conviteRespostaController` há `try/catch`, que converte `yup.ValidationError` e `AppError` em página (via `utils/paginaResposta.ts`) e relança o resto. A validação continua em `schemas/conviteRespostaSchema.ts`. Não crie outras rotas HTML sem que sejam abertas direto no navegador.
 
 22. **Formato das respostas.**
     - Erro: `{ "error": "mensagem em pt-BR" }`.
     - Sucesso com dados: o recurso ou a lista.
     - Sucesso sem dados: `{ "message": "mensagem em pt-BR" }`.
-    - Status: 200, 201 (criação), 202 (aceito), 400, 401, 403, 404, 409 e 500, cada um no seu caso.
+    - Status: 200, 201 (criação), 202 (aceito), 400, 401, 403, 404, 409, 410 (recurso que não aceita mais a ação, ex.: convite de reunião encerrada) e 500, cada um no seu caso.
 
 23. **Nunca devolva `error.message` interno no 500.** A resposta é genérica (`'Erro interno. Tente novamente mais tarde.'`) e os detalhes vão para o `console.error`.
 
@@ -303,7 +304,7 @@ Referência oficial: paleta do `documentos/entrega1_AP/design_system.md` e fonte
     - Nunca escreva `fontSize`, `fontWeight`, margens ou raios com números soltos.
     - A fonte é Plus Jakarta Sans: cada estilo de `Typography` define o `fontFamily` do peso (`PlusJakartaSans_700Bold`), não só o `fontWeight`.
 
-74. **Use os componentes base de `src/components/ui/`** (`Screen`, `Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `Toast`, `ConfirmDialog`) em vez de recriar botão, campo, card ou cabeçalho com estilos próprios. Um padrão visual repetido em duas telas vira componente base.
+74. **Use os componentes base de `src/components/ui/`** (`Screen`, `Button`, `TextField`, `PickerField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `Toast`, `ConfirmDialog`) em vez de recriar botão, campo, card ou cabeçalho com estilos próprios. Um padrão visual repetido em duas telas vira componente base.
 
 75. **Estrutura de tela**: toda tela usa o componente `Screen` (`src/components/ui/Screen.tsx`), que monta `SafeAreaView` (com `colors.background`) → `Header` opcional → `ScrollView` com conteúdo de largura máxima `MaxContentWidth`, centralizado, com padding `Spacing.lg`. Props: `showHeader` (só na tela inicial e nas públicas), `hasForm` (telas com campo de texto), `toast`, `refreshing`/`onRefresh`. Não monte `SafeAreaView`/`ScrollView` à mão.
 

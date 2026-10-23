@@ -1,23 +1,33 @@
 import { StatusConviteReuniao } from '@prisma/client';
 import type { Request, Response } from 'express';
+import * as yup from 'yup';
 import { AppError } from '../errors/AppError.ts';
+import { conviteRespostaSchema } from '../schemas/conviteRespostaSchema.ts';
+import { reuniaoService } from '../services/reuniaoService.ts';
 import {
+  RESPOSTAS_DO_LINK,
   paginaResposta,
   type RespostaDoLink,
-} from '../services/email/paginaResposta.ts';
-import { conviteExpirado, reuniaoService } from '../services/reuniaoService.ts';
+} from '../utils/paginaResposta.ts';
+
+// EXCEÇÃO ao EX-04 e ao EX-05: estas rotas são abertas no navegador pelos
+// botões do e-mail, então respondem HTML, inclusive nos erros. Por isso o
+// controller converte os próprios erros em página, em vez de deixar o JSON do
+// errorMiddleware chegar ao convidado.
 
 const STATUS_DA_RESPOSTA = {
   aceitar: StatusConviteReuniao.ACEITO,
   recusar: StatusConviteReuniao.RECUSADO,
 } satisfies Record<RespostaDoLink, StatusConviteReuniao>;
 
+// O ?resposta= do link só escolhe qual página mostrar; valor desconhecido
+// mostra as duas opções, sem erro.
 const isResposta = (valor: unknown): valor is RespostaDoLink =>
-  valor === 'aceitar' || valor === 'recusar';
+  RESPOSTAS_DO_LINK.some((resposta) => resposta === valor);
 
 // O token na URL é a credencial: a página não pode ficar em cache, ser
 // indexada nem vazar o endereço para outro site pelo Referer.
-const enviarPagina = (response: Response, status: number, html: string) => {
+const sendPage = (response: Response, status: number, html: string) => {
   response
     .status(status)
     .set({
@@ -31,15 +41,15 @@ const enviarPagina = (response: Response, status: number, html: string) => {
     .send(html);
 };
 
-const tokenDaRota = (request: Request) => String(request.params.token);
+const getToken = (request: Request) => String(request.params.token);
 
 export const conviteRespostaController = {
   // GET: só mostra. Nunca grava a resposta (ver paginaResposta.ts).
-  async mostrar(request: Request, response: Response) {
-    const token = tokenDaRota(request);
-    const convite = await reuniaoService.buscarConvitePorToken(token);
+  async show(request: Request, response: Response) {
+    const token = getToken(request);
+    const convite = await reuniaoService.getConviteByToken(token);
     if (!convite) {
-      enviarPagina(
+      sendPage(
         response,
         404,
         paginaResposta.mensagem(
@@ -50,7 +60,7 @@ export const conviteRespostaController = {
       return;
     }
     if (convite.reuniao.status === 'CANCELADA') {
-      enviarPagina(
+      sendPage(
         response,
         409,
         paginaResposta.mensagem(
@@ -61,7 +71,7 @@ export const conviteRespostaController = {
       return;
     }
     if (convite.status !== StatusConviteReuniao.PENDENTE) {
-      enviarPagina(
+      sendPage(
         response,
         200,
         paginaResposta.mensagem(
@@ -72,8 +82,8 @@ export const conviteRespostaController = {
       return;
     }
 
-    if (conviteExpirado(convite.reuniao)) {
-      enviarPagina(
+    if (reuniaoService.isConviteExpirado(convite.reuniao)) {
+      sendPage(
         response,
         410,
         paginaResposta.mensagem(
@@ -85,39 +95,54 @@ export const conviteRespostaController = {
     }
 
     const { resposta } = request.query;
-    enviarPagina(
+    sendPage(
       response,
       200,
       isResposta(resposta)
-        ? paginaResposta.confirmar(convite, token, resposta)
-        : paginaResposta.escolher(convite, token),
+        ? paginaResposta.confirm(convite, token, resposta)
+        : paginaResposta.choose(convite, token),
     );
   },
 
   // POST do botão de confirmação: grava com as mesmas regras do app.
-  async responder(request: Request, response: Response) {
-    const resposta = (request.body as { resposta?: unknown } | undefined)
-      ?.resposta;
-    if (!isResposta(resposta)) {
-      enviarPagina(
-        response,
-        400,
-        paginaResposta.mensagem(
-          'Resposta inválida',
-          'Volte ao e-mail e use o botão Aceitar ou Recusar.',
-        ),
-      );
-      return;
-    }
-
+  async respond(request: Request, response: Response) {
     try {
+      const { resposta } = await conviteRespostaSchema.validate(
+        request.body ?? {},
+        { stripUnknown: true },
+      );
       await reuniaoService.respondInviteByToken(
-        tokenDaRota(request),
+        getToken(request),
         STATUS_DA_RESPOSTA[resposta],
       );
+
+      sendPage(
+        response,
+        200,
+        resposta === 'aceitar'
+          ? paginaResposta.mensagem(
+              'Presença confirmada',
+              'Você aceitou o convite. A reunião já aparece no app, e os lembretes chegam por e-mail.',
+            )
+          : paginaResposta.mensagem(
+              'Convite recusado',
+              'Sua resposta foi registrada. Quem organizou a reunião verá no app.',
+            ),
+      );
     } catch (error) {
+      if (error instanceof yup.ValidationError) {
+        sendPage(
+          response,
+          400,
+          paginaResposta.mensagem(
+            'Resposta inválida',
+            'Volte ao e-mail e use o botão Aceitar ou Recusar.',
+          ),
+        );
+        return;
+      }
       if (error instanceof AppError) {
-        enviarPagina(
+        sendPage(
           response,
           error.statusCode,
           paginaResposta.mensagem('Não foi possível responder', error.message),
@@ -126,19 +151,5 @@ export const conviteRespostaController = {
       }
       throw error;
     }
-
-    enviarPagina(
-      response,
-      200,
-      resposta === 'aceitar'
-        ? paginaResposta.mensagem(
-            'Presença confirmada',
-            'Você aceitou o convite. A reunião já aparece no app, e os lembretes chegam por e-mail.',
-          )
-        : paginaResposta.mensagem(
-            'Convite recusado',
-            'Sua resposta foi registrada. Quem organizou a reunião verá no app.',
-          ),
-    );
   },
 };

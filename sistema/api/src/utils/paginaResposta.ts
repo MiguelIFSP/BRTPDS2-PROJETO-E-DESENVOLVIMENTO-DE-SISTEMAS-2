@@ -3,7 +3,8 @@
 // por segurança antes do usuário clicar. A resposta só é gravada pelo botão
 // de confirmação (POST).
 
-export type RespostaDoLink = 'aceitar' | 'recusar';
+export const RESPOSTAS_DO_LINK = ['aceitar', 'recusar'] as const;
+export type RespostaDoLink = (typeof RESPOSTAS_DO_LINK)[number];
 
 export type ConviteDaPagina = {
   reuniao: {
@@ -17,14 +18,14 @@ export type ConviteDaPagina = {
   user: { name: string };
 };
 
-const escapar = (texto: string) =>
+const escapeHtml = (texto: string) =>
   texto
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/"/g, '&quot;');
 
-const formatarData = (data: string) => data.split('-').reverse().join('/');
+const formatDate = (data: string) => data.split('-').reverse().join('/');
 
 const CORES = { aceitar: '#2e7d32', recusar: '#c62828' } as const;
 const ROTULOS = { aceitar: 'Aceitar', recusar: 'Recusar' } as const;
@@ -33,7 +34,7 @@ const layout = (titulo: string, corpo: string) => `<!doctype html>
 <html lang="pt-BR"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>${escapar(titulo)} · Better Meet</title>
+<title>${escapeHtml(titulo)} · Better Meet</title>
 <style>
 body{margin:0;padding:24px 16px;background:#f4f6f6;font-family:Arial,Helvetica,sans-serif;color:#1b1f20}
 main{max-width:480px;margin:0 auto;background:#fff;border:1px solid #dfe5e5;border-radius:12px;padding:24px}
@@ -48,10 +49,10 @@ button{font:inherit;font-weight:bold;font-size:16px;border:0;border-radius:8px;p
 
 const resumo = (convite: ConviteDaPagina) => {
   const { reuniao } = convite;
-  return `<h1>${escapar(reuniao.titulo)}</h1>
-<p class="meta">${formatarData(reuniao.data)}, das ${reuniao.horaInicio} às ${reuniao.horaFim}<br>
-Comissão: ${escapar(reuniao.comissao.nome)}${
-    reuniao.local ? `<br>Local: ${escapar(reuniao.local)}` : ''
+  return `<h1>${escapeHtml(reuniao.titulo)}</h1>
+<p class="meta">${formatDate(reuniao.data)}, das ${reuniao.horaInicio} às ${reuniao.horaFim}<br>
+Comissão: ${escapeHtml(reuniao.comissao.nome)}${
+    reuniao.local ? `<br>Local: ${escapeHtml(reuniao.local)}` : ''
   }</p>`;
 };
 
@@ -63,7 +64,7 @@ const formulario = (token: string, resposta: RespostaDoLink, rotulo: string) =>
 
 export const paginaResposta = {
   /** Link de um botão do e-mail: pede a confirmação daquela resposta. */
-  confirmar: (
+  confirm: (
     convite: ConviteDaPagina,
     token: string,
     resposta: RespostaDoLink,
@@ -72,7 +73,7 @@ export const paginaResposta = {
       resposta === 'aceitar' ? 'recusar' : 'aceitar';
     return layout(
       'Confirmar resposta',
-      `<p>Olá, ${escapar(convite.user.name)}. Confirme sua resposta ao convite:</p>
+      `<p>Olá, ${escapeHtml(convite.user.name)}. Confirme sua resposta ao convite:</p>
 ${resumo(convite)}
 <div class="acoes">${formulario(token, resposta, `Confirmar: ${ROTULOS[resposta].toLowerCase()}`)}</div>
 <p class="meta" style="margin-top:16px">Mudou de ideia? <a href="/api/convites/${encodeURIComponent(token)}?resposta=${outra}">${ROTULOS[outra]} o convite</a>.</p>`,
@@ -80,15 +81,15 @@ ${resumo(convite)}
   },
 
   /** Link sem resposta escolhida: mostra as duas opções. */
-  escolher: (convite: ConviteDaPagina, token: string) =>
+  choose: (convite: ConviteDaPagina, token: string) =>
     layout(
       'Responder convite',
-      `<p>Olá, ${escapar(convite.user.name)}. Você vai participar?</p>
+      `<p>Olá, ${escapeHtml(convite.user.name)}. Você vai participar?</p>
 ${resumo(convite)}
 <div class="acoes">${formulario(token, 'aceitar', 'Aceitar')}${formulario(token, 'recusar', 'Recusar')}</div>`,
     ),
 
   /** Resultado ou erro, sem ações. */
   mensagem: (titulo: string, texto: string) =>
-    layout(titulo, `<h1>${escapar(titulo)}</h1><p>${escapar(texto)}</p>`),
+    layout(titulo, `<h1>${escapeHtml(titulo)}</h1><p>${escapeHtml(texto)}</p>`),
 };
