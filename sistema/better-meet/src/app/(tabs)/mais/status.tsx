@@ -124,71 +124,83 @@ export default function StatusScreen() {
     router.replace('/login');
   }, [logout, router]);
 
-  const loadStatus = useCallback(async () => {
-    if (!token) return;
-    setError(null);
+  // isActive: false quando a tela perdeu o foco antes da resposta chegar, para
+  // não gravar estado de uma visita que já acabou (ver useFocusEffect abaixo).
+  const loadStatus = useCallback(
+    async (isActive: () => boolean = () => true) => {
+      if (!token) return;
+      setError(null);
 
-    try {
-      const current = await monitoringService.getCurrentStatus(token);
-      setMonitoringUnreachable(false);
-      setStatusList(current);
+      try {
+        const current = await monitoringService.getCurrentStatus(token);
+        if (!isActive()) return;
+        setMonitoringUnreachable(false);
+        setStatusList(current);
 
-      const historyEntries = await Promise.all(
-        SUBSYSTEMS.map(async ({ monitoringKey }) => {
-          const subSystem = current.find(
-            (item) => item.subSystem === monitoringKey,
-          );
-          if (!subSystem) return [monitoringKey, []] as const;
-
-          try {
-            const history = await monitoringService.getSubSystemHistory(
-              token,
-              subSystem.id,
-              HISTORY_DAYS,
+        const historyEntries = await Promise.all(
+          SUBSYSTEMS.map(async ({ monitoringKey }) => {
+            const subSystem = current.find(
+              (item) => item.subSystem === monitoringKey,
             );
-            // API devolve do dia mais antigo pro mais recente — invertido aqui pra mais recente ficar à esquerda
-            const mostRecentFirst = [...history.history].reverse();
-            return [
-              monitoringKey,
-              mostRecentFirst.map(resolveStatusOfTheDay),
-            ] as const;
-          } catch {
-            return [monitoringKey, []] as const;
-          }
-        }),
-      );
-      setHistoryMap(Object.fromEntries(historyEntries));
-    } catch (loadError) {
-      if (loadError instanceof ApiError && loadError.status === 401) {
-        handleUnauthorized();
-        return;
-      }
+            if (!subSystem) return [monitoringKey, []] as const;
 
-      // status 0 = a requisição nem chegou na monitoring (fora do ar, sem rede)
-      if (loadError instanceof ApiError && loadError.status === 0) {
-        setMonitoringUnreachable(true);
-      }
+            try {
+              const history = await monitoringService.getSubSystemHistory(
+                token,
+                subSystem.id,
+                HISTORY_DAYS,
+              );
+              // API devolve do dia mais antigo pro mais recente — invertido aqui pra mais recente ficar à esquerda
+              const mostRecentFirst = [...history.history].reverse();
+              return [
+                monitoringKey,
+                mostRecentFirst.map(resolveStatusOfTheDay),
+              ] as const;
+            } catch {
+              return [monitoringKey, []] as const;
+            }
+          }),
+        );
+        if (!isActive()) return;
+        setHistoryMap(Object.fromEntries(historyEntries));
+      } catch (loadError) {
+        if (!isActive()) return;
+        if (loadError instanceof ApiError && loadError.status === 401) {
+          handleUnauthorized();
+          return;
+        }
 
-      setError(
-        getErrorMessage(loadError, 'Não foi possível carregar o status.'),
-      );
-      // Falha ao carregar o próprio painel de monitoramento também é reportada — impede
-      // o usuário de completar a ação essencial da tela (ver o status do sistema).
-      monitoringService.reportRequestFailure(
-        loadError,
-        'StatusScreen.loadStatus',
-      );
-    } finally {
-      setHasLoadedOnce(true);
-    }
-  }, [token, handleUnauthorized]);
+        // status 0 = a requisição nem chegou na monitoring (fora do ar, sem rede)
+        if (loadError instanceof ApiError && loadError.status === 0) {
+          setMonitoringUnreachable(true);
+        }
+
+        setError(
+          getErrorMessage(loadError, 'Não foi possível carregar o status.'),
+        );
+        // Falha ao carregar o próprio painel de monitoramento também é reportada — impede
+        // o usuário de completar a ação essencial da tela (ver o status do sistema).
+        monitoringService.reportRequestFailure(
+          loadError,
+          'StatusScreen.loadStatus',
+        );
+      } finally {
+        if (isActive()) setHasLoadedOnce(true);
+      }
+    },
+    [token, handleUnauthorized],
+  );
 
   // useFocusEffect (não useEffect) porque a navegação é por abas: a tela fica
   // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
   // deixaria o status desatualizado ao voltar pra essa tela depois.
   useFocusEffect(
     useCallback(() => {
-      void loadStatus();
+      let cancelled = false;
+      void loadStatus(() => !cancelled);
+      return () => {
+        cancelled = true;
+      };
     }, [loadStatus]),
   );
 

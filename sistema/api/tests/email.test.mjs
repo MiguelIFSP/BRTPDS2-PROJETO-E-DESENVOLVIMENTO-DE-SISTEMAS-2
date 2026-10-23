@@ -44,7 +44,8 @@ const { templates } = await import('../src/services/email/templates.ts');
 const { emailService } = await import('../src/services/email/emailService.ts');
 const { lembretesNaHora, processarLembretes } =
   await import('../src/services/lembreteService.ts');
-const { reuniaoService } = await import('../src/services/reuniaoService.ts');
+const { reuniaoService, conviteExpirado } =
+  await import('../src/services/reuniaoService.ts');
 const { default: conviteRespostaRoutes } =
   await import('../src/routes/conviteRespostaRoutes.ts');
 const { handleError } = await import('../src/middlewares/errorMiddleware.ts');
@@ -362,6 +363,7 @@ describe('e-mails disparados pelas reuniões', () => {
 
 describe('botões Aceitar/Recusar do e-mail', () => {
   const token = 'tok-valido-do-convite';
+  const dataFutura = '2099-10-22';
   const conviteDaPagina = (
     status = 'PENDENTE',
     reuniaoStatus = 'AGENDADA',
@@ -372,7 +374,7 @@ describe('botões Aceitar/Recusar do e-mail', () => {
     user: { name: 'Caio' },
     reuniao: {
       titulo: 'Planejamento <Q4>',
-      data: '2026-10-22',
+      data: dataFutura,
       horaInicio: '10:00',
       horaFim: '11:00',
       local: 'Sala 4',
@@ -434,7 +436,7 @@ describe('botões Aceitar/Recusar do e-mail', () => {
       .mockResolvedValueOnce({
         userId: 3,
         status: 'PENDENTE',
-        reuniao: { status: 'AGENDADA' },
+        reuniao: { status: 'AGENDADA', data: dataFutura, horaFim: '11:00' },
       });
     prisma.conviteReuniao.update.mockResolvedValue({
       id: 5,
@@ -469,7 +471,7 @@ describe('botões Aceitar/Recusar do e-mail', () => {
       .mockResolvedValueOnce({
         userId: 3,
         status: 'ACEITO',
-        reuniao: { status: 'AGENDADA' },
+        reuniao: { status: 'AGENDADA', data: dataFutura, horaFim: '11:00' },
       });
 
     const response = await confirmar();
@@ -479,9 +481,74 @@ describe('botões Aceitar/Recusar do e-mail', () => {
     expect(prisma.conviteReuniao.update).not.toHaveBeenCalled();
   });
 
+  test('link de reunião que já terminou não oferece os botões', async () => {
+    const convite = conviteDaPagina();
+    convite.reuniao.data = '2020-01-10';
+    prisma.conviteReuniao.findUnique.mockResolvedValue(convite);
+
+    const response = await request(app).get(
+      `/api/convites/${token}?resposta=aceitar`,
+    );
+
+    expect(response.status).toBe(410);
+    expect(response.text).toContain('Reunião encerrada');
+    expect(response.text).not.toContain('<form');
+  });
+
+  test('confirmar depois do fim da reunião é recusado', async () => {
+    prisma.conviteReuniao.findUnique
+      .mockResolvedValueOnce({ id: 5, userId: 3 })
+      .mockResolvedValueOnce({
+        userId: 3,
+        status: 'PENDENTE',
+        reuniao: { status: 'AGENDADA', data: '2020-01-10', horaFim: '11:00' },
+      });
+
+    const response = await confirmar();
+
+    expect(response.status).toBe(410);
+    expect(response.text).toContain('Esta reunião já terminou');
+    expect(prisma.conviteReuniao.update).not.toHaveBeenCalled();
+  });
+
   test('resposta inválida no formulário responde 400', async () => {
     const response = await confirmar('talvez');
     expect(response.status).toBe(400);
     expect(prisma.conviteReuniao.findUnique).not.toHaveBeenCalled();
+  });
+});
+
+describe('expiração do convite ao fim da reunião', () => {
+  test('vale até o horário de término, no fuso das reuniões', () => {
+    const reuniao = { data: '2026-10-22', horaFim: '11:00' }; // 14:00 UTC
+    expect(conviteExpirado(reuniao, em('2026-10-22T13:59:00Z'))).toBe(false);
+    expect(conviteExpirado(reuniao, em('2026-10-22T14:00:00Z'))).toBe(true);
+  });
+
+  test('convites pendentes de reuniões encerradas saem da lista', async () => {
+    const convite = (id, data) => ({
+      id,
+      reuniaoId: id,
+      status: 'PENDENTE',
+      reuniao: {
+        titulo: `Reunião ${id}`,
+        pauta: 'Pauta',
+        descricao: null,
+        local: 'Sala 4',
+        data,
+        horaInicio: '10:00',
+        horaFim: '11:00',
+        comissao: { nome: 'Comissão' },
+        criadoPor: { name: 'Ana' },
+      },
+    });
+    prisma.conviteReuniao.findMany.mockResolvedValue([
+      convite(1, '2020-01-10'),
+      convite(2, '2099-10-22'),
+    ]);
+
+    const pendentes = await reuniaoService.listPendingInvites(3);
+
+    expect(pendentes.map((pendente) => pendente.id)).toEqual([2]);
   });
 });

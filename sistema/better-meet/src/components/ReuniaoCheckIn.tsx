@@ -77,7 +77,10 @@ export default function ReuniaoCheckIn({
       );
       setFeedback({
         type: 'error',
-        message: getErrorMessage(error, 'Não foi possível registrar sua saída.'),
+        message: getErrorMessage(
+          error,
+          'Não foi possível registrar sua saída.',
+        ),
       });
     } finally {
       requestPending.current = false;
@@ -92,7 +95,9 @@ export default function ReuniaoCheckIn({
           accessible
           accessibilityRole="alert"
           accessibilityLiveRegion="polite"
-          accessibilityLabel={registro.saidaAt ? 'Saída registrada' : 'Presença ativa'}
+          accessibilityLabel={
+            registro.saidaAt ? 'Saída registrada' : 'Presença ativa'
+          }
         >
           <Badge
             label={registro.saidaAt ? 'Saída registrada' : 'Presença ativa'}

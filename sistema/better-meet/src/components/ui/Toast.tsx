@@ -1,4 +1,7 @@
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import { useEffect, useEffectEvent, useRef, useState } from 'react';
 import {
   Animated,
@@ -41,7 +44,7 @@ const ICONS = {
   success: 'checkmark-circle',
   error: 'alert-circle',
   info: 'information-circle',
-} as const satisfies Record<Feedback['type'], string>;
+} as const satisfies Record<Feedback['type'], IoniconsIconName>;
 
 // Aviso no rodapé da tela com uma barra que mostra o tempo restante. Vai no
 // prop `toast` do Screen, que o posiciona por cima do conteúdo.

@@ -33,7 +33,8 @@ export const MANAGEMENT_API_URL = requireEnv(
 );
 
 // EXCEÇÃO TEMPORÁRIA ao EX-13: a monitoring ainda exige a chave interna
-// (x-api-key) no POST /status, e o app só consegue reportar erro com ela.
+// (x-api-key) no POST /status (o app reporta os próprios erros) e no
+// POST /status/:subSystem/check (a tela de status pede uma checagem na hora).
 // Fica embutida no app (é pública) até a monitoring ser refatorada.
 export const MONITORING_API_KEY = requireEnv(
   'EXPO_PUBLIC_MONITORING_API_KEY',

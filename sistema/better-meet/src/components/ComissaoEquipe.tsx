@@ -10,6 +10,7 @@ import PersonPickerSheet from '@/components/ui/PersonPickerSheet';
 import SectionLabel from '@/components/ui/SectionLabel';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -222,5 +223,5 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
 });

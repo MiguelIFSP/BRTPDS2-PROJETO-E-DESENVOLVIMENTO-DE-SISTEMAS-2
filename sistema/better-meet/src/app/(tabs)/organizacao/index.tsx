@@ -197,7 +197,7 @@ export default function OrganizacaoScreen() {
   const pendentes = organizacoes.filter(
     (organizacao) => organizacao.status === 'PENDENTE',
   );
-  const FILTROS = {
+  const filtros = {
     minhas: {
       label: 'Minhas',
       section: 'Minhas organizações',
@@ -220,7 +220,7 @@ export default function OrganizacaoScreen() {
     Filtro,
     { label: string; section: string; lista: Organizacao[]; empty: string }
   >;
-  const atual = FILTROS[isAdmin ? filtro : 'minhas'];
+  const atual = filtros[isAdmin ? filtro : 'minhas'];
 
   return (
     <Screen hasForm>
@@ -232,10 +232,10 @@ export default function OrganizacaoScreen() {
 
       {isAdmin ? (
         <View style={styles.chips}>
-          {(Object.keys(FILTROS) as Filtro[]).map((key) => (
+          {(Object.keys(filtros) as Filtro[]).map((key) => (
             <Chip
               key={key}
-              label={FILTROS[key].label}
+              label={filtros[key].label}
               selected={filtro === key}
               onPress={() => setFiltro(key)}
             />

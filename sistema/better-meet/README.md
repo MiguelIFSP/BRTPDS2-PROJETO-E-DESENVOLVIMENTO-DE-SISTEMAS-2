@@ -24,7 +24,7 @@ O código segue o [Guia de Codificação](../GUIA_DE_CODIFICACAO.md). Para APIs 
 
 | Pasta            | Conteúdo                                                                                                                                                 |
 | ---------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `app/`           | Telas (rotas do Expo Router, em kebab-case pt-BR). O `_layout.tsx` carrega as fontes, registra as telas no Drawer e faz a checagem de login (`AppGate`)  |
+| `app/`           | Telas (rotas do Expo Router, em kebab-case pt-BR). O `_layout.tsx` carrega as fontes e faz a checagem de login (`AppGate`); o app logado fica em `(tabs)/`, com a barra inferior e uma pilha por aba  |
 | `components/ui/` | Componentes base do design system: `Button`, `TextField`, `Card`, `Screen`, `ScreenHeader`, `FeedbackBanner`, `ConfirmDialog`, `Badge`, `Avatar`, `Chip` |
 | `components/`    | Componentes do domínio (`OrganizacaoEquipe`, `ComissaoCard`, `relatorio/…`)                                                                              |
 | `constants/`     | Tema (`theme.ts`: cores, tipografia, espaçamento, raios) e rótulos de status                                                                             |

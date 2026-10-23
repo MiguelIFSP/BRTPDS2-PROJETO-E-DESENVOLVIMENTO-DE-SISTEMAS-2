@@ -1439,7 +1439,9 @@ paths:
     patch:
       tags: [Reuniões]
       summary: Responde a um convite de reunião
-      description: Exige `requireAuth`. O usuário só pode responder ao próprio convite pendente.
+      description: |
+        Exige `requireAuth`. O usuário só pode responder ao próprio convite pendente,
+        até o horário de término da reunião (fuso TZ_REUNIOES).
       security: [{ bearerAuth: [] }]
       parameters:
         - name: inviteId
@@ -1468,6 +1470,7 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
+        '410': { description: A reunião já terminou; o convite não pode mais ser respondido. }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /reunioes/{id}:
@@ -1748,6 +1751,7 @@ paths:
           }
         '404': { description: Token inválido ou reunião excluída. }
         '409': { description: Reunião cancelada. }
+        '410': { description: A reunião já terminou; o link não aceita mais respostas. }
     post:
       tags: [Reuniões]
       summary: Confirma a resposta ao convite pelo botão da página
@@ -1769,3 +1773,4 @@ paths:
         '400': { description: Resposta inválida. }
         '404': { description: Token inválido ou reunião excluída. }
         '409': { description: Convite já respondido ou reunião cancelada. }
+        '410': { description: A reunião já terminou. }

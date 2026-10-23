@@ -17,6 +17,7 @@ import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -320,7 +321,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius.lg,
     padding: Spacing.md,
   },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: PressedOpacity },
   optionInfo: { flex: 1, minWidth: 0 },
   optionName: { ...Typography.body, fontFamily: FontFamily.semiBold },
   optionDetail: { ...Typography.bodySmall },

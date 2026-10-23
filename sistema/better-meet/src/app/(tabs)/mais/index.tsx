@@ -14,6 +14,7 @@ import SectionLabel from '@/components/ui/SectionLabel';
 import { statusScreenTitle } from '@/constants/status';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -157,7 +158,7 @@ export default function MaisScreen() {
 
 const styles = StyleSheet.create({
   title: { ...Typography.heading1 },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
   account: { flexDirection: 'row', alignItems: 'center' },
   accountName: { ...Typography.bodyLarge, fontFamily: FontFamily.bold },
   accountLink: { ...Typography.bodySmall, fontFamily: FontFamily.semiBold },

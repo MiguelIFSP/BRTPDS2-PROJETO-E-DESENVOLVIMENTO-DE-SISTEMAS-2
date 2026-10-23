@@ -112,18 +112,26 @@ describe('ReuniaoCheckIn', () => {
       <ReuniaoCheckIn {...props} status="REALIZADA" meuRegistro={registro} />,
     );
     expect(screen.getByText('Presença ativa')).toBeOnTheScreen();
-    expect(screen.getByRole('button', { name: 'Registrar saída' })).toBeOnTheScreen();
+    expect(
+      screen.getByRole('button', { name: 'Registrar saída' }),
+    ).toBeOnTheScreen();
     expect(checkIn).not.toHaveBeenCalled();
   });
 
   it('registra a saída e substitui a presença ativa pelo estado encerrado', async () => {
     await render(<ReuniaoCheckIn {...props} meuRegistro={registro} />);
-    await fireEvent.press(screen.getByRole('button', { name: 'Registrar saída' }));
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Registrar saída' }),
+    );
 
     expect(checkOut).toHaveBeenCalledWith('jwt-teste', 31);
     expect(await screen.findByText('Saída registrada')).toBeOnTheScreen();
-    expect(screen.queryByRole('button', { name: 'Registrar saída' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Entrar na Reunião' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Registrar saída' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
+    ).toBeNull();
   });
 
   it('mostra estado encerrado recebido do servidor sem permitir reentrada', async () => {
@@ -132,8 +140,12 @@ describe('ReuniaoCheckIn', () => {
     );
 
     expect(screen.getByText('Saída registrada')).toBeOnTheScreen();
-    expect(screen.queryByRole('button', { name: 'Registrar saída' })).toBeNull();
-    expect(screen.queryByRole('button', { name: 'Entrar na Reunião' })).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Registrar saída' }),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
+    ).toBeNull();
     expect(checkIn).not.toHaveBeenCalled();
     expect(checkOut).not.toHaveBeenCalled();
   });

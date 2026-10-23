@@ -9,6 +9,7 @@ import AvatarStack from '@/components/ui/AvatarStack';
 import Card from '@/components/ui/Card';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   Typography,
@@ -105,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: PressedOpacity },
   icon: {
     width: 48,
     height: 48,

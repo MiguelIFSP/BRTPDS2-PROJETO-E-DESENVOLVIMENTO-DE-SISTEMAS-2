@@ -48,8 +48,9 @@ export const monitoringService = {
   /**
    * Registra uma falha do app na monitoring. Nunca lança: o envio falhar (sem
    * internet, monitoring fora do ar) não pode gerar outro erro na tela.
-   * EXCEÇÃO TEMPORÁRIA ao EX-13: a monitoring só aceita o POST /status com a
-   * chave interna (x-api-key), então o app envia a chave do .env até a
+   * EXCEÇÃO TEMPORÁRIA ao EX-13: a monitoring só aceita o POST /status (e o
+   * POST /status/:subSystem/check, ver checkSubSystemNow) com a chave interna
+   * (x-api-key), então o app envia a chave do .env até a
    * monitoring ser refatorada.
    */
   async reportError(
@@ -102,7 +103,8 @@ export const monitoringService = {
   },
 
   // Pede pra monitoring checar UM subsistema agora (fora do cron de 6h) e
-  // devolve o status recém-gravado. Também exige a chave interna (ver reportError).
+  // devolve o status recém-gravado. Também exige a chave interna: mesma
+  // EXCEÇÃO TEMPORÁRIA ao EX-13 do reportError.
   checkSubSystemNow(subSystem: string) {
     return apiRequest<SubSystemStatus>(`/status/${subSystem}/check`, {
       method: 'POST',

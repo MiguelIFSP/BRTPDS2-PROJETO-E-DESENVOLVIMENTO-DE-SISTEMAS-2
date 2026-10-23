@@ -5,7 +5,7 @@ import {
   paginaResposta,
   type RespostaDoLink,
 } from '../services/email/paginaResposta.ts';
-import { reuniaoService } from '../services/reuniaoService.ts';
+import { conviteExpirado, reuniaoService } from '../services/reuniaoService.ts';
 
 const STATUS_DA_RESPOSTA = {
   aceitar: StatusConviteReuniao.ACEITO,
@@ -67,6 +67,18 @@ export const conviteRespostaController = {
         paginaResposta.mensagem(
           'Convite já respondido',
           `Sua resposta foi: ${convite.status === StatusConviteReuniao.ACEITO ? 'aceito' : 'recusado'}. Para mudar, fale com quem organizou a reunião.`,
+        ),
+      );
+      return;
+    }
+
+    if (conviteExpirado(convite.reuniao)) {
+      enviarPagina(
+        response,
+        410,
+        paginaResposta.mensagem(
+          'Reunião encerrada',
+          'Esta reunião já terminou, e o convite não pode mais ser respondido.',
         ),
       );
       return;

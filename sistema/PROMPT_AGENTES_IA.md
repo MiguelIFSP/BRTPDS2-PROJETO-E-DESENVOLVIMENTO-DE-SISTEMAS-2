@@ -27,7 +27,7 @@ Siga as regras abaixo em todo código que você criar ou alterar. Elas são obri
 2. **Nunca use `any`**, nem como `: any`, `<any>` ou `as any`.
    - Para valores desconhecidos, use `unknown` e estreite com `instanceof`, `typeof` ou validação.
    - Em `catch`, escreva `catch (error)` e use `error instanceof Error ? error.message : '<mensagem padrão em pt-BR>'`.
-   - Para props de componentes de bibliotecas, use o tipo exportado pela biblioteca (ex.: `DrawerContentComponentProps`).
+   - Para props de componentes de bibliotecas, use o tipo exportado pela biblioteca (ex.: `ScrollViewProps` do `react-native`).
    - Para rotas do Expo Router, use as rotas tipadas; nunca `as any`.
 
 3. **Importe tipos com `import type`.**
@@ -93,7 +93,7 @@ Siga as regras abaixo em todo código que você criar ou alterar. Elas são obri
 
 15. **Rotas do Expo Router (`src/app/`) ficam em kebab-case com palavras em português** (ex.: `excluir-conta.tsx`, `recuperar-senha.tsx`).
     - Exceções: os arquivos reservados `_layout.tsx`, `index.tsx` e `+not-found.tsx`.
-    - Ao criar ou renomear uma rota, atualize `router.push`/`router.replace`, `<Drawer.Screen name="…">` no `_layout.tsx` e a lista `publicRoutes` do `AppGate`.
+    - Ao criar ou renomear uma rota, atualize `router.push`/`router.replace`, `<NativeTabs.Trigger name="…">` no `(tabs)/_layout.tsx` (quando for uma aba) e a lista `PUBLIC_ROUTES` do `AppGate`.
 
 16. **Comentários explicam o porquê, não o quê.**
     - Comente decisões não óbvias, regras de negócio, restrições de ordem e armadilhas evitadas.
@@ -154,7 +154,7 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
     - Leia as variáveis apenas em `src/config/env.ts`, que lança erro no boot se faltar uma obrigatória. No resto do código use `env.X`, nunca `process.env.X`.
     - Nunca escreva senha, chave, segredo ou URL de conexão no código, nem como valor padrão. Nunca imprima segredos no log.
     - Ao criar uma variável, adicione-a ao `.env.example` com valor fictício e comentário.
-    - No app Expo, variáveis `EXPO_PUBLIC_*` são públicas: nunca coloque chaves ou segredos nelas.
+    - No app Expo, variáveis `EXPO_PUBLIC_*` são públicas: nunca coloque chaves ou segredos nelas. Única exceção temporária: `EXPO_PUBLIC_MONITORING_API_KEY`, que a monitoring ainda exige no `POST /status` e no `POST /status/:subSystem/check`; cada uso é marcado com o comentário `EXCEÇÃO TEMPORÁRIA ao EX-13`. Não use essa chave em nenhuma outra rota.
 
 31. **Autenticação e senhas pelo Better Auth.**
     - Cadastro, login, sessão, troca e recuperação de senha usam a biblioteca Better Auth (adaptador Prisma, montada em `/api/auth/*`). Consulte a documentação da versão instalada.
@@ -219,7 +219,10 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
 
 49. **Use a documentação do Expo SDK 57** (https://docs.expo.dev/versions/v57.0.0/) para qualquer API do Expo ou do Expo Router, não a versão mais recente nem exemplos antigos.
 
-50. **Telas são arquivos em `src/app/`** com `export default function <Rota em PascalCase>Screen` (`excluir-conta.tsx` → `ExcluirContaScreen`), registradas como `<Drawer.Screen>` no `_layout.tsx`. A tela coordena estado e layout; lógica vai para hooks, HTTP para services e pedaços de interface para componentes.
+50. **Telas são arquivos em `src/app/`** com `export default function <Rota em PascalCase>Screen` (`excluir-conta.tsx` → `ExcluirContaScreen`). A tela coordena estado e layout; lógica vai para hooks, HTTP para services e pedaços de interface para componentes.
+    - A tela fica no próprio arquivo da rota; não crie a tela em `src/components/` só para a rota reexportar.
+    - O app logado fica no grupo `src/app/(tabs)/`: barra inferior com `NativeTabs` no `(tabs)/_layout.tsx` e um `Stack` por aba (`_layout.tsx` com `unstable_settings = { anchor: 'index' }`). Aba nova é registrada como `<NativeTabs.Trigger name="…">`; tela nova de uma aba entra na pasta dela. Telas públicas ficam fora de `(tabs)`.
+    - `_layout.tsx` exporta uma função nomeada terminada em `Layout`.
 
 51. **Estilo de export.**
     - Telas (`src/app/`) e componentes (`src/components/`): `export default function NomeDoArquivo`, sempre com função nomeada, nunca anônima. Importe com o nome do arquivo: `import ConfirmDialog from '@/components/ConfirmDialog';`. Tipos do componente podem ser exportados como named no mesmo arquivo.
@@ -233,9 +236,9 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
     - Não repita `authHeaders`, `readError` ou `parseJson` em services.
     - `API_URL` já inclui `/api`. Para outra API (monitoring), passe `baseUrl`.
 
-54. **Telas que carregam dados usam `useFocusEffect(useCallback(() => { let cancelled = false; … return () => { cancelled = true; }; }, [deps]))`**, não `useEffect` de montagem: o Drawer mantém as telas montadas e os dados ficariam velhos.
+54. **Telas que carregam dados usam `useFocusEffect(useCallback(() => { let cancelled = false; … return () => { cancelled = true; }; }, [deps]))`**, não `useEffect` de montagem: as abas e as pilhas mantêm as telas montadas e os dados ficariam velhos. Se a carga está numa função reaproveitada (botão "Tentar novamente"), ela recebe `isActive: () => boolean` e o `useFocusEffect` passa `() => !cancelled`.
 
-55. **Use `Pressable`, nunca `TouchableOpacity`.** O efeito de toque vem do componente base `Button` ou de `style={({ pressed }) => [...]}`.
+55. **Use `Pressable`, nunca `TouchableOpacity`.** O efeito de toque vem do componente base `Button` ou de `style={({ pressed }) => [styles.x, pressed && styles.pressed]}` com `pressed: { opacity: PressedOpacity }` (constante do `theme.ts`); nunca escreva o valor da opacidade no arquivo.
 
 56. **Todo elemento clicável** tem `accessibilityRole` (`button`, `link`, `switch`…), `accessibilityLabel` em pt-BR e área de toque de pelo menos 44 × 44 px (use `hitSlop` se o visual for menor). Botões desabilitados têm `accessibilityState={{ disabled: true }}`.
 
@@ -245,7 +248,8 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
 
 59. **Feedback ao usuário:**
     - erro de validação: texto embaixo do campo (estado `errors`);
-    - resultado de ação: `<FeedbackBanner feedback={feedback} />` com `useState<Feedback | null>`, importando o tipo `Feedback` do componente. O sucesso some depois de `SUCCESS_FEEDBACK_MS` (4000); o erro fica até a próxima ação;
+    - resultado de ação: `<FeedbackBanner feedback={feedback} />` com `const [feedback, setFeedback] = useFeedback();` (`src/hooks/useFeedback.ts`), importando o tipo `Feedback` do componente. O sucesso some depois de `SUCCESS_FEEDBACK_MS` (4000); o erro fica até a próxima ação;
+    - sucesso que termina saindo da tela (login, cadastro, recuperação de senha, salvar o perfil): `<Screen toast={<Toast toast={toast} onFinish={…} />}>`, navegando só no `onFinish`. Nunca use `setTimeout` para navegar depois de uma mensagem;
     - confirmação: `ConfirmDialog`;
     - aviso que encerra um fluxo: variante de um botão do `ConfirmDialog`.
 
@@ -258,12 +262,13 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
     - Não use `ref.current` durante a renderização. Hooks só no nível de cima.
     - Não use `useMemo`, `useCallback` nem `React.memo` só para desempenho; a exceção é quando a API exige função estável (`useFocusEffect`).
 
-63. **Login é checado só no `AppGate`** do `_layout.tsx`, que espera `hasHydrated`. Rotas públicas ficam na lista `publicRoutes`. Restrição por papel pode redirecionar na tela com `router.replace`, mas a proteção real é a da API.
+63. **Login é checado só no `AppGate`** do `_layout.tsx`, que espera `hasHydrated`. Rotas públicas ficam na lista `PUBLIC_ROUTES`. Restrição por papel pode redirecionar na tela com `router.replace`, mas a proteção real é a da API.
 
 64. **Ícones só de `@react-native-vector-icons/ionicons`**: `import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';`.
     - Tipe nomes de ícone com `IoniconsIconName`, não com `ComponentProps<typeof Ionicons>['name']`.
     - Proibido: `@expo/vector-icons` (será descontinuado pelo Expo), `react-native-vector-icons` e outro pacote com a mesma fonte.
-    - Um só conjunto no app (Ionicons, de preferência a variante `-outline`). `expo-symbols` não é usado.
+    - Um só conjunto no app (Ionicons, de preferência a variante `-outline`).
+    - Exceção: os ícones da barra de abas (`<NativeTabs.Trigger.Icon>`) usam `expo-symbols` (`sf` para SF Symbols no iOS, `md` para Material Symbols no Android), porque o `NativeTabs` só aceita ícones do sistema. Fora da barra de abas, `expo-symbols` não é usado.
     - Emojis nunca substituem ícones (títulos, status, botões, mensagens).
 
 65. **Identidade visual do app instalado**: no `app.json`, `name` é `Better Meet`. Ícone, ícone adaptativo (fundo `primaryLight`), splash (fundo `background` claro e escuro) e favicon são gerados da arte oficial `assets/images/better-meet-icon.png`. Nenhum asset do template do Expo. O `app.json` é o único lugar fora do `theme.ts` com cores do tema em hex; mantenha os dois iguais.
@@ -298,9 +303,9 @@ Referência oficial: paleta do `documentos/entrega1_AP/design_system.md` e fonte
     - Nunca escreva `fontSize`, `fontWeight`, margens ou raios com números soltos.
     - A fonte é Plus Jakarta Sans: cada estilo de `Typography` define o `fontFamily` do peso (`PlusJakartaSans_700Bold`), não só o `fontWeight`.
 
-74. **Use os componentes base de `src/components/ui/`** (`Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `ConfirmDialog`) em vez de recriar botão, campo, card ou cabeçalho com estilos próprios. Um padrão visual repetido em duas telas vira componente base.
+74. **Use os componentes base de `src/components/ui/`** (`Screen`, `Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `Toast`, `ConfirmDialog`) em vez de recriar botão, campo, card ou cabeçalho com estilos próprios. Um padrão visual repetido em duas telas vira componente base.
 
-75. **Estrutura de tela**: `SafeAreaView` (de `react-native-safe-area-context`, com `colors.background`) → `<Header />` → `ScrollView` com conteúdo de largura máxima `MaxContentWidth`, centralizado, com padding `Spacing.lg`.
+75. **Estrutura de tela**: toda tela usa o componente `Screen` (`src/components/ui/Screen.tsx`), que monta `SafeAreaView` (com `colors.background`) → `Header` opcional → `ScrollView` com conteúdo de largura máxima `MaxContentWidth`, centralizado, com padding `Spacing.lg`. Props: `showHeader` (só na tela inicial e nas públicas), `hasForm` (telas com campo de texto), `toast`, `refreshing`/`onRefresh`. Não monte `SafeAreaView`/`ScrollView` à mão.
 
 76. **Ids internos nunca aparecem na interface** (texto, rótulo ou mensagem), e o usuário nunca digita um id. Pessoas aparecem por nome (e e-mail, quando precisa diferenciar). Para escolher alguém, mostre uma lista de opções (`Chip`, rádio); se a pessoa não está em nenhuma lista, peça o e-mail.
 
@@ -337,7 +342,7 @@ Confira cada item e corrija o que falhar antes de responder:
 - [ ] camelCase, PascalCase e UPPER_SNAKE_CASE usados nos lugares certos.
 - [ ] Arquivos de camada em `<dominio><Camada>.ts`, componentes em `PascalCase.tsx` e rotas em kebab-case pt-BR.
 - [ ] Comentários explicam o porquê; nenhum comentário de histórico novo, e nenhum existente removido.
-- [ ] Ícones só de `@react-native-vector-icons/ionicons`; nenhum emoji no lugar de ícone.
+- [ ] Ícones só de `@react-native-vector-icons/ionicons` (exceto os da barra de abas, com `expo-symbols`); nenhum emoji no lugar de ícone.
 - [ ] Nenhum id interno exibido na interface.
 - [ ] Login e identificação de pessoas pelo e-mail, nunca pelo nome.
 ```

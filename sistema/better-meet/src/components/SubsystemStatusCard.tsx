@@ -7,6 +7,7 @@ import {
   FontFamily,
   Radius,
   Spacing,
+  TouchTarget,
   Typography,
   type ThemeColors,
 } from '@/constants/theme';
@@ -227,11 +228,12 @@ const styles = StyleSheet.create({
   historyLabel: { ...Typography.caption, marginBottom: Spacing.xs },
   empty: { ...Typography.body },
   bars: { flexDirection: 'row', gap: Spacing.xs, paddingVertical: Spacing.xs },
-  // largura cabe a legenda "dd/mm" sem quebrar
-  barColumn: { width: 34, alignItems: 'center', gap: Spacing.xs },
+  // cada dia é clicável: a coluna tem a largura mínima de toque (RN-08), que
+  // também cabe a legenda "dd/mm" sem quebrar.
+  barColumn: { width: TouchTarget.min, alignItems: 'center', gap: Spacing.xs },
   bar: { width: 20, height: 40, borderRadius: Radius.sm, opacity: 0.8 },
   barSelected: { opacity: 1, transform: [{ scaleY: 1.15 }] },
-  barLegend: { ...Typography.caption, fontSize: 10, letterSpacing: 0 },
+  barLegend: { ...Typography.caption, letterSpacing: 0 },
   tooltip: { paddingTop: Spacing.sm, borderTopWidth: 1, gap: Spacing.xs },
   tooltipDate: { ...Typography.body, fontFamily: FontFamily.bold },
   tooltipMessage: { ...Typography.body },

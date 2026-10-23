@@ -2,6 +2,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -62,5 +63,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: { ...Typography.bodySmall, fontFamily: FontFamily.medium },
-  pressed: { opacity: 0.75 },
+  pressed: { opacity: PressedOpacity },
 });

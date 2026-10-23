@@ -71,12 +71,12 @@ response.status(400).json({ error: error.errors[0] ?? 'Dados inválidos.' });
 
 ```tsx
 // ❌ Errado
-export default function CustomDrawer(props: any) {
+export default function KeyboardAwareScrollView(props: any) {
 
 // ✅ Certo
-import type { DrawerContentComponentProps } from '@react-navigation/drawer';
+import type { ScrollViewProps } from 'react-native';
 
-export default function CustomDrawer(props: DrawerContentComponentProps) {
+export default function KeyboardAwareScrollView(props: ScrollViewProps) {
 ```
 
 **Tipos do próprio projeto**
@@ -506,7 +506,7 @@ No Expo Router, o nome do arquivo em `src/app/` vira o caminho da tela. Esses ar
 ```
 
 - Arquivos reservados do Expo Router mantêm o nome exigido pelo framework: `_layout.tsx`, `index.tsx`, `+not-found.tsx`.
-- Ao renomear uma rota, atualize também todas as referências a ela: `router.push`/`router.replace`, `<Drawer.Screen name="…">` no `_layout.tsx` e a lista `publicRoutes` do `AppGate`.
+- Ao renomear uma rota, atualize também todas as referências a ela: `router.push`/`router.replace`, `<NativeTabs.Trigger name="…">` no `(tabs)/_layout.tsx` (quando for uma aba) e a lista `PUBLIC_ROUTES` do `AppGate`.
 
 **Arquivos atuais que precisam de ajuste** (em `better-meet/src/app/`):
 
@@ -523,7 +523,7 @@ O código já mostra **o que** acontece. O comentário serve para o que o códig
 
 ```ts
 // ✅ Certo: explica uma decisão que não é óbvia
-// useFocusEffect (não useEffect) porque a navegação é por Drawer: a tela fica
+// useFocusEffect (não useEffect) porque a navegação é por abas: a tela fica
 // montada em segundo plano, então um useEffect de montagem só rodaria uma vez e
 // deixaria a lista desatualizada ao voltar pra cá.
 useFocusEffect(…);
@@ -998,7 +998,7 @@ export const env = {
 
 - Segredos nunca são impressos no log.
 - **No app Expo**, toda variável `EXPO_PUBLIC_*` é embutida no aplicativo e qualquer pessoa pode lê-la. Use apenas para valores públicos (URLs). Nunca coloque chave ou segredo em `EXPO_PUBLIC_*`.
-- **Divergências atuais:** admin padrão com e-mail e senha no código e senha impressa no log ao subir (`usuarioController.ts`/`server.ts`); URL do banco com usuário e senha como padrão em `api/src/config/database.ts`; leitura de `process.env` espalhada pelos arquivos; `api/.env.example` com um valor de `JWT_SECRET` que parece real; chave interna da monitoring exposta no app via `EXPO_PUBLIC_MONITORING_API_KEY` (mantida como exceção temporária no `better-meet`, porque a monitoring ainda exige essa chave no `POST /status`; sai quando a monitoring for refatorada).
+- **Divergências atuais:** admin padrão com e-mail e senha no código e senha impressa no log ao subir (`usuarioController.ts`/`server.ts`); URL do banco com usuário e senha como padrão em `api/src/config/database.ts`; leitura de `process.env` espalhada pelos arquivos; `api/.env.example` com um valor de `JWT_SECRET` que parece real; chave interna da monitoring exposta no app via `EXPO_PUBLIC_MONITORING_API_KEY` (mantida como exceção temporária no `better-meet`, porque a monitoring ainda exige essa chave no `POST /status`, usado pelo app para reportar os próprios erros, e no `POST /status/:subSystem/check`, usado pela tela de status para pedir uma checagem na hora; sai quando a monitoring for refatorada). Cada uso da chave no app é marcado no código com o comentário `EXCEÇÃO TEMPORÁRIA ao EX-13`.
 
 ---
 
@@ -1330,7 +1330,6 @@ const { nome } = await organizacaoSchema.validate(request.body, { stripUnknown: 
 ```
 
 - Use os valores **devolvidos** pelo `validate` (já com `trim` e conversões aplicados), nunca o `request.body` original.
-- **Divergências atuais:** schemas declarados no topo dos controllers da API e dentro das telas `login`, `usuario`, `forgot-password` e `organizacao` do app.
 
 ---
 
@@ -1454,8 +1453,10 @@ O projeto usa o **Expo SDK 57**. Antes de usar uma API do Expo ou do Expo Router
 - Cada arquivo em `src/app/` é uma rota do Expo Router (nome do arquivo segundo o NM-06).
 - A tela exporta como default uma função nomeada **`<Rota em PascalCase>Screen`**: `excluir-conta.tsx` → `ExcluirContaScreen`.
 - A tela monta a página e coordena o estado. Lógica reutilizável vai para hooks, chamadas HTTP para services (RN-04) e pedaços de interface para componentes.
-- Toda tela nova é registrada como `<Drawer.Screen name="…">` no `_layout.tsx`, e escondida do menu se não for item de navegação.
-- **Divergências atuais:** `index.tsx` exporta `App`, `organizacoes.tsx` exporta `OrganizacoesAdminScreen` e `explore.tsx` exporta `TabTwoScreen`.
+- A navegação do app logado fica no grupo `src/app/(tabs)/`: o `(tabs)/_layout.tsx` monta a barra inferior com `NativeTabs` (de `expo-router/unstable-native-tabs`), e cada aba é uma pasta com um `Stack` próprio (`_layout.tsx` com `unstable_settings = { anchor: 'index' }`), para o detalhe empilhar sobre a lista e o "Voltar" desempilhar. Uma aba nova é registrada como `<NativeTabs.Trigger name="…">`; uma tela nova dentro de uma aba entra na pasta dela, sem registro extra.
+- Telas públicas (login, cadastro, recuperação de senha) ficam fora do grupo `(tabs)`, direto em `src/app/`.
+- Arquivos `_layout.tsx` exportam como default uma função nomeada terminada em `Layout` (`RootLayout`, `TabsLayout`, `Layout`).
+- A tela fica no próprio arquivo da rota. Não crie a tela em `src/components/` só para a rota reexportar.
 
 ---
 
@@ -1502,7 +1503,7 @@ const organizacoes = await organizacaoService.listMine(token);
 const response = await fetch(`${API_URL}/usuarios/${user.id}/tema`, { method: 'PATCH', … });
 ```
 
-- **Divergências atuais:** `login`, `usuario`, `perfil`, `excluir-conta`, `forgot-password` e `CustomDrawer` no `better-meet`, e `login` no `management-better-meet/web`.
+- **Divergência atual:** `login` no `management-better-meet/web`.
 
 ---
 
@@ -1581,7 +1582,7 @@ export const organizacaoService = {
 
 ### 6.6 Recarregar dados com `useFocusEffect` (RN-06)
 
-A navegação é por **Drawer**, que mantém as telas montadas em segundo plano. Um `useEffect` de montagem roda **uma vez só**, e a tela mostra dados velhos ao voltar a ela. Telas que carregam dados usam `useFocusEffect`, que roda toda vez que a tela ganha foco, com uma flag para descartar respostas que chegam depois de a tela perder o foco:
+A navegação é por **abas** (`NativeTabs`) com uma **pilha** (`Stack`) em cada aba, e as duas mantêm as telas montadas em segundo plano. Um `useEffect` de montagem roda **uma vez só**, e a tela mostra dados velhos ao voltar a ela. Telas que carregam dados usam `useFocusEffect`, que roda toda vez que a tela ganha foco, com uma flag para descartar respostas que chegam depois de a tela perder o foco:
 
 ```tsx
 useFocusEffect(
@@ -1606,6 +1607,29 @@ useFocusEffect(
 
 O `useCallback` é exigido pelo `useFocusEffect` (ver 6.15).
 
+Quando a carga está numa função reaproveitada fora do foco (botão "Tentar novamente", recarga depois de uma ação), ela recebe a verificação como parâmetro, e o `useFocusEffect` passa a flag:
+
+```tsx
+const loadStatus = useCallback(
+  async (isActive: () => boolean = () => true) => {
+    const data = await monitoringService.getCurrentStatus(token);
+    if (!isActive()) return;
+    setStatusList(data);
+  },
+  [token],
+);
+
+useFocusEffect(
+  useCallback(() => {
+    let cancelled = false;
+    void loadStatus(() => !cancelled);
+    return () => {
+      cancelled = true;
+    };
+  }, [loadStatus]),
+);
+```
+
 ---
 
 ### 6.7 `Pressable` no lugar de `TouchableOpacity` (RN-07)
@@ -1625,8 +1649,8 @@ Elementos clicáveis usam **`Pressable`**. O `TouchableOpacity` **não está des
 >
 ```
 
-- O `Pressable` não tem a animação de transparência embutida do `TouchableOpacity`. O efeito de toque fica definido uma única vez no componente base `Button` (8.4), e não repetido em cada tela.
-- **Divergências atuais:** `comissao.tsx`, `status.tsx`, `CustomDrawer.tsx` e `Header.tsx` usam `TouchableOpacity`.
+- O `Pressable` não tem a animação de transparência embutida do `TouchableOpacity`. O efeito de toque usa sempre a constante `PressedOpacity` do `theme.ts` (`pressed: { opacity: PressedOpacity }`), e não um valor escrito em cada arquivo. Para botões, use o componente base `Button` (8.4), que já aplica o efeito.
+- **Divergências atuais:** `Header.tsx`, `(reunioes)/index.tsx`, `LocalReuniaoField.tsx`, `MembrosSelector.tsx` e `NotificacoesList.tsx` ainda escrevem a opacidade à mão (`0.7`).
 
 ---
 
@@ -1641,11 +1665,11 @@ Todo elemento que responde a toque tem:
 ```tsx
 <Pressable
   accessibilityRole="button"
-  accessibilityLabel="Abrir menu"
+  accessibilityLabel="Fechar"
   hitSlop={8}
-  onPress={() => navigation.openDrawer()}
+  onPress={onClose}
 >
-  <Ionicons name="menu" size={28} color={colors.text} />
+  <Ionicons name="close" size={28} color={colors.text} />
 </Pressable>
 ```
 
@@ -1684,8 +1708,6 @@ Toda confirmação antes de uma ação (excluir, remover, rebaixar, promover) us
 />
 ```
 
-- **Divergência atual:** `comissao.tsx` usa `Alert.alert` + `window.confirm`.
-
 ---
 
 ### 6.11 Feedback ao usuário: um mecanismo para cada situação (RN-11)
@@ -1694,6 +1716,7 @@ Toda confirmação antes de uma ação (excluir, remover, rebaixar, promover) us
 |---|---|
 | Erro de validação de um campo | Texto embaixo do campo (estado `errors`) |
 | Resultado de uma ação (salvar, adicionar, carregar) | **`FeedbackBanner`**: sucesso some depois de alguns segundos, erro fica até a próxima ação |
+| Sucesso que termina saindo da tela (login, cadastro, recuperação de senha, salvar o perfil) | **`Toast`**, passado no prop `toast` do `Screen`: mostra a mensagem com uma barra de tempo e só navega no `onFinish`, para a mensagem não sumir junto com a tela |
 | Confirmação antes de uma ação (excluir, remover, rebaixar) | **`ConfirmDialog`** (6.10) |
 | Aviso que encerra um fluxo e exige leitura (conta excluída) | Diálogo de um botão: variante reutilizável do `ConfirmDialog`, substituindo o `SuccessDialog` |
 | `Alert.alert`, `window.alert`, `window.confirm` | **Não usar** |
@@ -1719,15 +1742,22 @@ export default function FeedbackBanner({ feedback }: FeedbackBannerProps) {
 
 ```tsx
 // na tela
-const [feedback, setFeedback] = useState<Feedback | null>(null);
+const [feedback, setFeedback] = useFeedback();
 …
 <FeedbackBanner feedback={feedback} />
 ```
 
+```tsx
+// sucesso que leva para outra tela
+const [toast, setToast] = useState<Feedback | null>(null);
+…
+<Screen toast={<Toast toast={toast} onFinish={() => router.replace('/login')} />}>
+```
+
 - O tipo `Feedback` é importado do componente, e não redeclarado em cada tela.
-- O tempo para esconder o sucesso fica em uma constante única (`SUCCESS_FEEDBACK_MS = 4000`, valor já usado no `perfil.tsx`).
+- O estado do banner vem do hook `useFeedback` (`src/hooks/useFeedback.ts`), que esconde o sucesso depois de `SUCCESS_FEEDBACK_MS` (4000) e limpa a mensagem quando a tela perde o foco.
+- Não use `setTimeout` para navegar depois de uma mensagem de sucesso: use o `Toast` e navegue no `onFinish`.
 - As cores vêm dos tokens `success`, `danger` e `info` do tema (8.2).
-- **Divergências atuais:** tipo `{ type; message }` redeclarado em 6 telas, com cores escritas à mão; `organizacoes` e `relatorios` usam texto simples sem distinguir sucesso de erro; `comissao.tsx` e `CustomDrawer.tsx` usam `Alert.alert`/`window.alert`; `SuccessDialog` declarado dentro de `excluir-conta.tsx`.
 
 ---
 
@@ -1804,7 +1834,7 @@ O **React Compiler** está ligado nos dois apps (`"reactCompiler": true` no `app
 ### 6.16 Proteção de rotas centralizada no `AppGate` (RN-16)
 
 - A regra "não autenticado vai para o login" fica **apenas** no `AppGate` do `src/app/_layout.tsx`, que espera o `hasHydrated` do `authStore` (ZS-03) antes de decidir.
-- Rotas que não exigem login estão na lista `publicRoutes` do `AppGate`. Ao criar ou renomear uma rota pública, atualize a lista (ex.: `forgot-password` → `recuperar-senha`, NM-06).
+- Rotas que não exigem login estão na lista `PUBLIC_ROUTES` do `AppGate`. Ao criar ou renomear uma rota pública, atualize a lista (ex.: `forgot-password` → `recuperar-senha`, NM-06).
 - Telas não repetem a checagem de login.
 - Restrições por papel (ex.: tela só para `ADMIN`) podem redirecionar na própria tela com `router.replace`. **A proteção real é sempre a da API** (EX-09): esconder a tela não substitui a checagem no backend.
 
@@ -1828,7 +1858,7 @@ type ScreenHeaderProps = { icon: IoniconsIconName; title: string };
 - Use um único conjunto (Ionicons) no app inteiro, preferindo a variante `-outline`, para manter o mesmo traço. Trocar de conjunto é decisão da equipe e muda este guia.
 - **Emojis não substituem ícones.** Em títulos, status, botões e mensagens, use um `Ionicons` com cor do tema (UI-02), que segue o tema, o tamanho e o leitor de tela, coisa que o emoji não faz.
 - Ícone que só decora fica sem rótulo. Ícone que age sozinho (botão só com ícone) segue o RN-08, com `accessibilityRole` e `accessibilityLabel`.
-- `expo-symbols` (SF Symbols e Material Symbols) não é usado: está em beta e exige um nome diferente por plataforma.
+- **Exceção: ícones da barra de abas.** O `NativeTabs` desenha a barra com componentes nativos e só aceita ícones do sistema, então os ícones das abas usam `expo-symbols`: SF Symbols no iOS (`sf`) e Material Symbols no Android (`md`), em `<NativeTabs.Trigger.Icon>`. Fora da barra de abas, `expo-symbols` não é usado: está em beta e exige um nome diferente por plataforma. Na web a barra mostra só os rótulos.
 
 ---
 
@@ -2059,8 +2089,10 @@ Elementos que se repetem em várias telas são **componentes base**, em `src/com
 | `Button` | Variantes `primary`, `secondary` e `tertiary`; estados pressionado e desabilitado; carregando; altura mínima 48 px; efeito de toque do `Pressable` (6.7) | Design system 4.1 |
 | `TextField` | Rótulo, campo, mensagem de erro embaixo (5.4), bordas normal / foco / erro, altura 48 px | Design system 4.2 |
 | `Card` | Superfície com `backgroundElement`, raio 12 e padding 16 | Design system 4.3 |
+| `Screen` | Estrutura padrão de tela (8.5): área segura, `Header` opcional, rolagem com largura máxima, teclado (`hasForm`), puxar para atualizar e `Toast` | — |
 | `ScreenHeader` | Bloco "voltar + ícone + título + subtítulo" que se repete no topo das telas | — |
 | `FeedbackBanner` | Resultado de ações (6.11) | — |
+| `Toast` | Sucesso que termina saindo da tela (6.11) | — |
 | `ConfirmDialog` | Confirmações e avisos de um botão (6.10 e 6.11) | Design system 4.10 |
 
 - Antes de criar um elemento visual numa tela, verifique se um componente base já resolve. Se um padrão novo aparecer em duas telas, ele vira componente base.
@@ -2069,31 +2101,28 @@ Elementos que se repetem em várias telas são **componentes base**, em `src/com
 
 ### 8.5 Estrutura padrão de tela (UI-05)
 
-Toda tela segue a mesma estrutura:
+Toda tela usa o componente base **`Screen`** (`src/components/ui/Screen.tsx`), que monta a estrutura padrão: `SafeAreaView` (de `react-native-safe-area-context`, com `colors.background`) → `Header` (opcional) → `ScrollView` com conteúdo de largura máxima `MaxContentWidth`, centralizado, com padding `Spacing.lg`.
 
 ```tsx
-export default function OrganizacoesScreen() {
-  const { colors } = useTheme();
-
+export default function ComissaoScreen() {
   return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: colors.background }]}>
-      <Header />
-      <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader icon="business-outline" title="Organizações" subtitle="…" />
-        <FeedbackBanner feedback={feedback} />
-        {/* conteúdo */}
-      </ScrollView>
-    </SafeAreaView>
+    <Screen hasForm>
+      <ScreenHeader icon="people-outline" title="Comissões" subtitle="…" />
+      <FeedbackBanner feedback={feedback} />
+      {/* conteúdo */}
+    </Screen>
   );
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  content: { width: '100%', maxWidth: MaxContentWidth, alignSelf: 'center', padding: Spacing.lg, gap: Spacing.lg },
-});
 ```
 
-- `SafeAreaView` de `react-native-safe-area-context`.
+| Prop | Uso |
+|---|---|
+| `showHeader` | Mostra o `Header` com o logo. Só na tela inicial e nas telas públicas; nas abas, a navegação já fica na barra inferior |
+| `hasForm` | Telas com campo de texto: a rolagem mantém o campo em foco acima do teclado |
+| `toast` | O `<Toast />` da tela (6.11), posicionado por cima do conteúdo |
+| `refreshing` / `onRefresh` | Puxar para atualizar |
+
+- Telas não montam `SafeAreaView` e `ScrollView` à mão.
 - O conteúdo tem largura máxima `MaxContentWidth`, centralizado, para não esticar no web e em tablets.
 
 ---
@@ -2255,15 +2284,15 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Telas e componentes com default nomeado e import pelo nome do arquivo; o resto com named.
 - [ ] Nenhum `fetch` em tela ou componente; services usando `apiRequest`.
 - [ ] Telas que carregam dados usam `useFocusEffect` com flag de cancelamento.
-- [ ] `Pressable` no lugar de `TouchableOpacity`.
+- [ ] `Pressable` no lugar de `TouchableOpacity`, com o efeito de toque da constante `PressedOpacity`.
 - [ ] Todo clicável com `accessibilityRole`, `accessibilityLabel` em pt-BR e área de toque ≥ 44 px.
 - [ ] Estilos fixos no `StyleSheet.create` do fim do arquivo; cores do tema aplicadas na renderização.
 - [ ] Confirmações com `ConfirmDialog`; resultados com `FeedbackBanner`; nenhum `Alert`/`window.alert`/`window.confirm`.
 - [ ] Imports com `@/` (ou `./` na mesma pasta), nunca `../`, agrupados em externos / `@/` / `./`.
 - [ ] Nenhum arquivo novo herdado do template do Expo.
 - [ ] Sem `useMemo`/`useCallback`/`React.memo` só para desempenho; componentes puros.
-- [ ] Login checado só no `AppGate`; rotas públicas na lista `publicRoutes`.
-- [ ] Ícones só de `@react-native-vector-icons/ionicons`, tipados com `IoniconsIconName`; nenhum emoji no lugar de ícone.
+- [ ] Login checado só no `AppGate`; rotas públicas na lista `PUBLIC_ROUTES`.
+- [ ] Ícones só de `@react-native-vector-icons/ionicons`, tipados com `IoniconsIconName` (exceto os da barra de abas, com `expo-symbols`); nenhum emoji no lugar de ícone.
 - [ ] Nome, ícone, splash e favicon do `app.json` com a arte do Better Meet e as cores do tema.
 
 ## Checklist de revisão — Estado com Zustand
@@ -2279,8 +2308,8 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Tema e cores lidos só por `useTheme()`; nenhum `useColorScheme` do React Native.
 - [ ] Nenhuma cor em hex fora do `theme.ts`; tokens da paleta do `design_system.md`.
 - [ ] Texto com `Typography`, espaçamento com `Spacing`, cantos com `Radius`, fonte Plus Jakarta Sans.
-- [ ] Componentes base (`Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `ConfirmDialog`) usados no lugar de estilos próprios.
-- [ ] Tela na estrutura `SafeAreaView` → `Header` → `ScrollView` com `MaxContentWidth`.
+- [ ] Componentes base (`Screen`, `Button`, `TextField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `Toast`, `ConfirmDialog`) usados no lugar de estilos próprios.
+- [ ] Tela montada com o componente `Screen` (`Header` só na tela inicial e nas públicas).
 - [ ] Nenhum id interno exibido na tela; pessoas escolhidas em lista ou pelo e-mail, nunca digitando id.
 
 ## Checklist de revisão — Git, agentes de IA e testes

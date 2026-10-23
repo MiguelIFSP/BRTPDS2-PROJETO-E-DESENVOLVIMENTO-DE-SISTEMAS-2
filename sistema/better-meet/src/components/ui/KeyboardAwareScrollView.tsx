@@ -51,6 +51,8 @@ export default function KeyboardAwareScrollView({
   const keyboardTop = useRef<number | null>(null);
   const [keyboardOverlap, setKeyboardOverlap] = useState(0);
 
+  // useCallback por correção: é dependência do efeito abaixo, que reagenda os
+  // timers de rolagem a cada mudança dela.
   const revealFocusedInput = useCallback(() => {
     const scroll = scrollRef.current;
     const input = focusedInput.current?.current;
@@ -104,17 +106,14 @@ export default function KeyboardAwareScrollView({
     return () => timers.forEach(clearTimeout);
   }, [keyboard.top, revealFocusedInput]);
 
-  const notifyInputFocus = useCallback(
-    (input: InputRef) => {
-      focusedInput.current = input;
-      // teclado já aberto (troca de campo): rola agora; senão o efeito acima
-      // rola quando o teclado terminar de abrir.
-      if (keyboardTop.current != null) {
-        setTimeout(revealFocusedInput, LAYOUT_DELAY_MS);
-      }
-    },
-    [revealFocusedInput],
-  );
+  const notifyInputFocus = (input: InputRef) => {
+    focusedInput.current = input;
+    // teclado já aberto (troca de campo): rola agora; senão o efeito acima
+    // rola quando o teclado terminar de abrir.
+    if (keyboardTop.current != null) {
+      setTimeout(revealFocusedInput, LAYOUT_DELAY_MS);
+    }
+  };
 
   return (
     <FocusedInputContext.Provider value={notifyInputFocus}>

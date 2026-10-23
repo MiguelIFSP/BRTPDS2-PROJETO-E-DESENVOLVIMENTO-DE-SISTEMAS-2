@@ -149,7 +149,7 @@ export default function LoginScreen() {
         />
 
         <View style={styles.links}>
-          {/* NOVO: link "Esqueceu a senha?" (UC02) */}
+          {/* recuperação de conta (UC02) */}
           <Button
             variant="tertiary"
             label="Esqueceu a senha?"

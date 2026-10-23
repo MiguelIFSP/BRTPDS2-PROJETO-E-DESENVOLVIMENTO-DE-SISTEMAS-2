@@ -5,9 +5,11 @@ import {
   type Role,
 } from '@prisma/client';
 import prisma from '../config/database.ts';
+import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
 import { emailService, type Destinatario } from './email/emailService.ts';
 import type { ReuniaoEmail } from './email/templates.ts';
+import { instanteNoFuso } from '../utils/fusoHorario.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
 import { gerarTokenResposta } from '../utils/tokenResposta.ts';
 
@@ -115,6 +117,15 @@ const assertMembroDaComissao = async (comissaoId: number, userId: number) => {
   }
   return comissao;
 };
+
+/**
+ * Convite só pode ser respondido até o fim da reunião (no app e pelo link do
+ * e-mail). Depois disso, aceitar ou recusar não muda mais nada.
+ */
+export const conviteExpirado = (
+  reuniao: { data: string; horaFim: string },
+  agora = new Date(),
+) => agora >= instanteNoFuso(reuniao.data, reuniao.horaFim, env.TZ_REUNIOES);
 
 // Dados que alimentam o aviso de edição ou exclusão. Quem recusou o convite
 // não participa mais da reunião e não é avisado.
@@ -534,20 +545,23 @@ export const reuniaoService = {
       select: conviteSelect,
     });
 
-    return convites.map((convite) => ({
-      id: convite.id,
-      reuniaoId: convite.reuniaoId,
-      titulo: convite.reuniao.titulo,
-      data: convite.reuniao.data,
-      horaInicio: convite.reuniao.horaInicio,
-      horaFim: convite.reuniao.horaFim,
-      usuario: convite.reuniao.criadoPor.name,
-      status: convite.status,
-      pauta: convite.reuniao.pauta,
-      descricao: convite.reuniao.descricao,
-      local: convite.reuniao.local,
-      comissao: convite.reuniao.comissao.nome,
-    }));
+    // Convite de reunião que já terminou não pode mais ser respondido.
+    return convites
+      .filter((convite) => !conviteExpirado(convite.reuniao))
+      .map((convite) => ({
+        id: convite.id,
+        reuniaoId: convite.reuniaoId,
+        titulo: convite.reuniao.titulo,
+        data: convite.reuniao.data,
+        horaInicio: convite.reuniao.horaInicio,
+        horaFim: convite.reuniao.horaFim,
+        usuario: convite.reuniao.criadoPor.name,
+        status: convite.status,
+        pauta: convite.reuniao.pauta,
+        descricao: convite.reuniao.descricao,
+        local: convite.reuniao.local,
+        comissao: convite.reuniao.comissao.nome,
+      }));
   },
 
   async inviteMembers(
@@ -701,7 +715,7 @@ export const reuniaoService = {
       select: {
         userId: true,
         status: true,
-        reuniao: { select: { status: true } },
+        reuniao: { select: { status: true, data: true, horaFim: true } },
       },
     });
 
@@ -719,6 +733,12 @@ export const reuniaoService = {
     }
     if (convite.status !== StatusConviteReuniao.PENDENTE) {
       throw new AppError(409, 'Este convite já foi respondido.');
+    }
+    if (conviteExpirado(convite.reuniao)) {
+      throw new AppError(
+        410,
+        'Esta reunião já terminou; o convite não pode mais ser respondido.',
+      );
     }
 
     try {

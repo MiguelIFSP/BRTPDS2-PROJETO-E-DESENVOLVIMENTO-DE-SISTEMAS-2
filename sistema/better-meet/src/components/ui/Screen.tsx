@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
 import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
@@ -31,14 +31,14 @@ export default function Screen({
 }: ScreenProps) {
   const { colors } = useTheme();
   const [isRefreshingInternally, setIsRefreshingInternally] = useState(false);
-  const handleRefresh = useCallback(async () => {
+  const handleRefresh = async () => {
     setIsRefreshingInternally(true);
     try {
       await onRefresh?.();
     } finally {
       setIsRefreshingInternally(false);
     }
-  }, [onRefresh]);
+  };
   const refreshControl = (
     <RefreshControl
       refreshing={refreshing || isRefreshingInternally}
