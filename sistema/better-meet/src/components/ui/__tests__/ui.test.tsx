@@ -154,7 +154,28 @@ describe('BottomSheet', () => {
     await fireEvent.press(screen.getByTestId('bottom-sheet-fundo'));
 
     expect(onClose).not.toHaveBeenCalled();
-    expect(screen.getAllByRole('button')).toHaveLength(1);
+    // o fundo não é botão: só a alça e a seta fecham.
+    expect(
+      screen
+        .getAllByRole('button')
+        .map((button) => button.props.accessibilityLabel),
+    ).toEqual(['Fechar painel', 'Fechar']);
+  });
+
+  it('fecha ao tocar na alça do topo', async () => {
+    const onClose = jest.fn();
+    await render(
+      <BottomSheet visible title="Nova reunião" onClose={onClose}>
+        {null}
+      </BottomSheet>,
+      { wrapper: withSafeArea },
+    );
+
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Fechar painel' }),
+    );
+
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });
 

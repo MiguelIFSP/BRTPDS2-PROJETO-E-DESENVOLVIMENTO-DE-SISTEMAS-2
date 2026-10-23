@@ -29,9 +29,9 @@ type BottomSheetProps = {
   children: ReactNode;
 };
 
-// Abaixo disso o toque é tratado como toque, não como arrasto (o botão de
-// fechar fica dentro da área arrastável).
-const DRAG_START_DISTANCE = 4;
+// Abaixo disso o toque é tratado como toque, não como arrasto (a alça e o
+// botão de fechar ficam dentro da área arrastável e continuam tocáveis).
+const DRAG_START_DISTANCE = 6;
 // Distância (px) ou velocidade (px/ms) do arrasto que bastam para fechar.
 const CLOSE_DISTANCE = 120;
 const CLOSE_VELOCITY = 0.8;
@@ -106,21 +106,21 @@ export default function BottomSheet({
 
   // useMemo por correção, não por desempenho: o PanResponder guarda o estado do
   // gesto, e recriá-lo no meio de um arrasto faria o painel "pular".
+  // Usa a fase de captura: a alça e a seta são botões e assumem o toque ao
+  // encostar; sem a captura o arrasto que começa neles nunca chegaria aqui.
+  // Toque sem arrastar não passa do limite e continua sendo do botão.
   const panResponder = useMemo(
     () =>
       PanResponder.create({
-        onMoveShouldSetPanResponder: (_, { dy, dx }) =>
-          Math.abs(dy) > DRAG_START_DISTANCE && Math.abs(dy) > Math.abs(dx),
+        onMoveShouldSetPanResponderCapture: (_, { dy, dx }) =>
+          dy > DRAG_START_DISTANCE && Math.abs(dy) > Math.abs(dx),
+        onPanResponderTerminationRequest: () => false,
         onPanResponderMove: (_, { dy }) => {
           translateY.setValue(Math.max(0, dy));
         },
+        // só para baixo fecha; arrastar para cima volta o painel ao lugar.
         onPanResponderRelease: (_, { dy, vy }) => {
-          if (
-            dy > CLOSE_DISTANCE ||
-            vy > CLOSE_VELOCITY ||
-            dy < -CLOSE_DISTANCE ||
-            vy < -CLOSE_VELOCITY
-          ) {
+          if (dy > CLOSE_DISTANCE || vy > CLOSE_VELOCITY) {
             onClose();
           } else {
             Animated.spring(translateY, {
@@ -181,9 +181,14 @@ export default function BottomSheet({
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Fechar painel"
+                accessibilityHint="Toque ou arraste para baixo para fechar"
                 onPress={onClose}
-                style={[styles.handle, { backgroundColor: colors.border }]}
-              />
+                style={styles.handleArea}
+              >
+                <View
+                  style={[styles.handle, { backgroundColor: colors.border }]}
+                />
+              </Pressable>
               <View style={styles.titleRow}>
                 <Text
                   accessibilityRole="header"
@@ -231,10 +236,17 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderBottomWidth: 0,
   },
+  // topo do painel (alça + título): toda essa região aceita o arrasto.
   header: {
-    paddingTop: Spacing.md,
     paddingHorizontal: Spacing.xl,
-    gap: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
+  // área de toque da alça: a barrinha visível tem só 4px de altura.
+  handleArea: {
+    alignSelf: 'stretch',
+    alignItems: 'center',
+    justifyContent: 'center',
+    height: Spacing.xxl,
   },
   handle: {
     width: 40,
