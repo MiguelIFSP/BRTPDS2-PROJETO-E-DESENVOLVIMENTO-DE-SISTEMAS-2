@@ -156,6 +156,20 @@ components:
           description: Presença do próprio usuário, incluída em GET /reunioes/minhas.
           nullable: true
           allOf: [{ $ref: '#/components/schemas/ReuniaoRegistro' }]
+        participantes:
+          type: array
+          description: Criador e membros que aceitaram o convite, com o estado de presença de cada um.
+          items:
+            type: object
+            required: [userId, nome, email, papel, registro]
+            properties:
+              userId: { type: integer }
+              nome: { type: string }
+              email: { type: string, format: email }
+              papel: { $ref: '#/components/schemas/PapelComissao' }
+              registro:
+                nullable: true
+                allOf: [{ $ref: '#/components/schemas/ReuniaoRegistro' }]
     ReuniaoRegistro:
       type: object
       required: [id, reuniaoId, userId, entradaAt, saidaAt]
@@ -1300,7 +1314,10 @@ paths:
     get:
       tags: [Reuniões]
       summary: Lista as reuniões do usuário autenticado
-      description: Exige `requireAuth`. Lista reuniões das comissões das quais o usuário participa.
+      description: |
+        Exige `requireAuth`. Lista reuniões criadas pelo usuário ou para as quais
+        ele aceitou o convite. Membros da comissão com convite pendente ou recusado
+        não recebem a reunião nesta lista.
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -1336,7 +1353,9 @@ paths:
       summary: Cria uma reunião
       description: |
         Exige `requireAuth`. O usuário precisa participar da comissão.
-        A reunião e os convites para os demais membros são criados juntos.
+        A reunião e os convites pendentes para os demais membros são criados juntos.
+        Os convidados só passam a participar e visualizar a reunião depois de
+        aceitarem o convite.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -1347,7 +1366,12 @@ paths:
               required: [comissaoId, titulo, pauta, data, horaInicio, horaFim]
               properties:
                 comissaoId: { type: integer, minimum: 1 }
-                titulo: { type: string, maxLength: 120 }
+                convidados:
+                  type: array
+                  description: IDs dos membros da comissão que receberão convite.
+                  uniqueItems: true
+                  items: { type: integer, minimum: 1 }
+                titulo: { type: string, maxLength: 80 }
                 pauta: { type: string, maxLength: 1000 }
                 descricao: { type: string, nullable: true, maxLength: 2000 }
                 data: { type: string, format: date, example: '2026-10-20' }
@@ -1401,12 +1425,106 @@ paths:
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /reunioes/{id}:
+    patch:
+      tags: [Reuniões]
+      summary: Atualiza uma reunião
+      description: Apenas o criador da reunião ou um administrador do sistema pode editar seus dados.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [titulo, pauta, data, horaInicio, horaFim]
+              properties:
+                titulo: { type: string, maxLength: 80 }
+                pauta: { type: string, maxLength: 1000 }
+                descricao: { type: string, nullable: true, maxLength: 2000 }
+                data: { type: string, format: date }
+                horaInicio: { type: string, example: '14:00' }
+                horaFim: { type: string, example: '15:00' }
+      responses:
+        '200':
+          description: Reunião atualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reuniao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [Reuniões]
+      summary: Remove uma reunião
+      description: Apenas o criador da reunião ou um administrador do sistema pode removê-la.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Reunião removida.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/convites:
+    post:
+      tags: [Reuniões]
+      summary: Convida membros para uma reunião existente
+      description: Apenas o criador ou um administrador pode convidar membros da comissão. Convites já existentes são ignorados.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [convidados]
+              properties:
+                convidados:
+                  type: array
+                  minItems: 1
+                  uniqueItems: true
+                  items: { type: integer, minimum: 1 }
+      responses:
+        '201':
+          description: Convites enviados.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /reunioes/{id}/entrar:
     post:
       tags: [Reuniões]
       summary: Registra a primeira entrada do integrante na reunião
       description: |
-        Exige participação na comissão de uma organização aprovada.
+        Exige participação na comissão de uma organização aprovada e, para
+        convidados, aceite prévio do convite.
         A identidade vem exclusivamente do JWT; não aceita horário ou usuário do cliente.
         Novas entradas exigem reunião AGENDADA. Repetições devolvem o registro
         original, sem alterar entradaAt ou saidaAt, inclusive após o encerramento.

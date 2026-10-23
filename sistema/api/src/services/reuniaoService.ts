@@ -1,10 +1,11 @@
-import { StatusConviteReuniao, type Prisma } from '@prisma/client';
+import { StatusConviteReuniao, type Prisma, type Role } from '@prisma/client';
 import prisma from '../config/database.ts';
 import { AppError } from '../errors/AppError.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
 
 type CreateReuniaoData = {
   comissaoId: number;
+  convidados?: number[] | undefined;
   titulo: string;
   pauta: string;
   descricao?: string | undefined;
@@ -46,6 +47,37 @@ const conviteSelect = {
   },
 } satisfies Prisma.ConviteReuniaoSelect;
 
+const reuniaoListSelect = {
+  ...reuniaoSelect,
+  convites: {
+    select: {
+      userId: true,
+      status: true,
+    },
+  },
+  comissao: {
+    select: {
+      id: true,
+      nome: true,
+      equipe: {
+        select: {
+          userId: true,
+          papel: true,
+          user: { select: { name: true, email: true } },
+        },
+      },
+    },
+  },
+  registros: {
+    select: {
+      id: true,
+      userId: true,
+      entradaAt: true,
+      saidaAt: true,
+    },
+  },
+} satisfies Prisma.ReuniaoSelect;
+
 const assertMembroDaComissao = async (comissaoId: number, userId: number) => {
   const comissao = await prisma.comissao.findUnique({
     where: { id: comissaoId },
@@ -74,29 +106,138 @@ const assertMembroDaComissao = async (comissaoId: number, userId: number) => {
 export const reuniaoService = {
   async listMine(userId: number) {
     const reunioes = await prisma.reuniao.findMany({
-      where: { comissao: { equipe: { some: { userId } } } },
-      orderBy: [{ data: 'asc' }, { horaInicio: 'asc' }],
-      select: {
-        ...reuniaoSelect,
-        registros: { where: { userId } },
+      where: {
+        OR: [
+          { criadoPorUserId: userId },
+          {
+            convites: {
+              some: {
+                userId,
+                status: StatusConviteReuniao.ACEITO,
+              },
+            },
+          },
+        ],
       },
+      orderBy: [{ data: 'asc' }, { horaInicio: 'asc' }],
+      select: reuniaoListSelect,
     });
-    return reunioes.map(({ registros, ...reuniao }) => ({
+    return reunioes.map(({ registros, comissao, convites, ...reuniao }) => ({
       ...reuniao,
-      meuRegistro: registros[0] ?? null,
+      comissao: { id: comissao.id, nome: comissao.nome },
+      meuRegistro:
+        registros.find((registro) => registro.userId === userId) ?? null,
+      participantes: comissao.equipe
+        .filter(
+          (membro) =>
+            membro.userId === reuniao.criadoPorUserId ||
+            convites.some(
+              (convite) =>
+                convite.userId === membro.userId &&
+                convite.status === StatusConviteReuniao.ACEITO,
+            ),
+        )
+        .map((membro) => ({
+          userId: membro.userId,
+          nome: membro.user.name,
+          email: membro.user.email,
+          papel: membro.papel,
+          registro:
+            registros.find((registro) => registro.userId === membro.userId) ??
+            null,
+        })),
     }));
+  },
+
+  async update(
+    userId: number,
+    role: Role,
+    reuniaoId: number,
+    data: Omit<CreateReuniaoData, 'comissaoId'>,
+  ) {
+    const reuniao = await prisma.reuniao.findUnique({
+      where: { id: reuniaoId },
+      select: { criadoPorUserId: true },
+    });
+    if (!reuniao) {
+      throw new AppError(404, 'Reunião não encontrada.');
+    }
+    if (role !== 'ADMIN' && reuniao.criadoPorUserId !== userId) {
+      throw new AppError(403, 'Você não pode editar esta reunião.');
+    }
+
+    try {
+      return await prisma.reuniao.update({
+        where: { id: reuniaoId },
+        data: {
+          titulo: data.titulo,
+          pauta: data.pauta,
+          descricao: data.descricao || null,
+          data: data.data,
+          horaInicio: data.horaInicio,
+          horaFim: data.horaFim,
+        },
+        select: reuniaoSelect,
+      });
+    } catch (error) {
+      if (isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)) {
+        throw new AppError(404, 'Reunião não encontrada.');
+      }
+      throw error;
+    }
+  },
+
+  async delete(userId: number, role: Role, reuniaoId: number) {
+    const reuniao = await prisma.reuniao.findUnique({
+      where: { id: reuniaoId },
+      select: { criadoPorUserId: true },
+    });
+    if (!reuniao) {
+      throw new AppError(404, 'Reunião não encontrada.');
+    }
+    if (role !== 'ADMIN' && reuniao.criadoPorUserId !== userId) {
+      throw new AppError(403, 'Você não pode remover esta reunião.');
+    }
+
+    try {
+      await prisma.reuniao.delete({ where: { id: reuniaoId } });
+    } catch (error) {
+      if (isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)) {
+        throw new AppError(404, 'Reunião não encontrada.');
+      }
+      throw error;
+    }
   },
 
   async checkIn(userId: number, reuniaoId: number) {
     const reuniao = await prisma.reuniao.findUnique({
       where: { id: reuniaoId },
-      select: { comissaoId: true, status: true },
+      select: {
+        comissaoId: true,
+        status: true,
+        criadoPorUserId: true,
+        convites: { select: { userId: true, status: true } },
+      },
     });
     if (!reuniao) {
       throw new AppError(404, 'Reunião não encontrada.');
     }
 
     await assertMembroDaComissao(reuniao.comissaoId, userId);
+    if (
+      reuniao.criadoPorUserId !== userId &&
+      reuniao.convites !== undefined &&
+      !reuniao.convites.some(
+        (convite) =>
+          convite.userId === userId &&
+          convite.status === StatusConviteReuniao.ACEITO,
+      )
+    ) {
+      throw new AppError(
+        403,
+        'Aceite o convite antes de registrar sua entrada na reunião.',
+      );
+    }
 
     const where = { reuniaoId_userId: { reuniaoId, userId } };
     const existente = await prisma.reuniaoRegistro.findUnique({ where });
@@ -127,13 +268,31 @@ export const reuniaoService = {
   async checkOut(userId: number, reuniaoId: number) {
     const reuniao = await prisma.reuniao.findUnique({
       where: { id: reuniaoId },
-      select: { comissaoId: true },
+      select: {
+        comissaoId: true,
+        criadoPorUserId: true,
+        convites: { select: { userId: true, status: true } },
+      },
     });
     if (!reuniao) {
       throw new AppError(404, 'Reunião não encontrada.');
     }
 
     await assertMembroDaComissao(reuniao.comissaoId, userId);
+    if (
+      reuniao.criadoPorUserId !== userId &&
+      reuniao.convites !== undefined &&
+      !reuniao.convites.some(
+        (convite) =>
+          convite.userId === userId &&
+          convite.status === StatusConviteReuniao.ACEITO,
+      )
+    ) {
+      throw new AppError(
+        403,
+        'Aceite o convite antes de registrar sua saída na reunião.',
+      );
+    }
 
     const where = { reuniaoId_userId: { reuniaoId, userId } };
     const existente = await prisma.reuniaoRegistro.findUnique({ where });
@@ -178,11 +337,64 @@ export const reuniaoService = {
     }));
   },
 
+  async inviteMembers(
+    actorId: number,
+    role: Role,
+    reuniaoId: number,
+    convidados: number[],
+  ) {
+    const reuniao = await prisma.reuniao.findUnique({
+      where: { id: reuniaoId },
+      select: {
+        criadoPorUserId: true,
+        comissaoId: true,
+        comissao: { select: { equipe: { select: { userId: true } } } },
+      },
+    });
+    if (!reuniao) throw new AppError(404, 'Reunião não encontrada.');
+    if (role !== 'ADMIN' && reuniao.criadoPorUserId !== actorId) {
+      throw new AppError(
+        403,
+        'Você não pode convidar membros para esta reunião.',
+      );
+    }
+
+    const membros = new Set(
+      reuniao.comissao.equipe.map((membro) => membro.userId),
+    );
+    if (
+      convidados.some(
+        (userId) => userId === reuniao.criadoPorUserId || !membros.has(userId),
+      )
+    ) {
+      throw new AppError(
+        400,
+        'Convide apenas membros da comissão, sem incluir o criador.',
+      );
+    }
+
+    const resultado = await prisma.conviteReuniao.createMany({
+      data: convidados.map((userId) => ({ reuniaoId, userId })),
+      skipDuplicates: true,
+    });
+    return { message: `${resultado.count} convite(s) enviado(s).` };
+  },
+
   async create(userId: number, data: CreateReuniaoData) {
     const comissao = await assertMembroDaComissao(data.comissaoId, userId);
-    const userIds = comissao.equipe
-      .map((membro) => membro.userId)
-      .filter((membroId) => membroId !== userId);
+    const membrosDaComissao = new Set(
+      comissao.equipe.map((membro) => membro.userId),
+    );
+    const userIds = [...new Set(data.convidados ?? [])];
+    if (userIds.some((convidadoId) => convidadoId === userId)) {
+      throw new AppError(400, 'O criador não precisa receber convite.');
+    }
+    if (userIds.some((convidadoId) => !membrosDaComissao.has(convidadoId))) {
+      throw new AppError(
+        400,
+        'Todos os convidados precisam participar da comissão.',
+      );
+    }
 
     return prisma.$transaction(async (transaction) => {
       try {

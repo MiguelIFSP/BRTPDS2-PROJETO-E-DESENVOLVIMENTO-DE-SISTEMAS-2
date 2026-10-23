@@ -24,11 +24,20 @@ export const reuniaoSchema = yup
     comissaoId: idRule('A comissão informada é inválida.').required(
       'Informe a comissão.',
     ),
+    convidados: yup
+      .array()
+      .of(idRule('Um dos convidados é inválido.').defined())
+      .ensure()
+      .test(
+        'convidados-unicos',
+        'Não é possível repetir convidados.',
+        (value) => new Set(value ?? []).size === (value ?? []).length,
+      ),
     titulo: yup
       .string()
       .trim()
       .required('O título da reunião é obrigatório.')
-      .max(120, 'O título da reunião deve ter no máximo 120 caracteres.'),
+      .max(80, 'O título da reunião deve ter no máximo 80 caracteres.'),
     pauta: yup
       .string()
       .trim()
@@ -58,12 +67,19 @@ export const reuniaoSchema = yup
       .required('O horário final é obrigatório.')
       .matches(HORA_REGEX, 'Informe o horário final no formato HH:mm.'),
   })
-  .test(
-    'horario-final-posterior',
-    'O horário final deve ser posterior ao horário inicial.',
-    (value) =>
-      !value?.horaInicio || !value.horaFim || value.horaFim > value.horaInicio,
-  );
+  .test('horario-final-posterior', function (value) {
+    if (
+      !value?.horaInicio ||
+      !value.horaFim ||
+      value.horaFim > value.horaInicio
+    ) {
+      return true;
+    }
+    return this.createError({
+      path: 'horaFim',
+      message: 'O horário final deve ser posterior ao horário inicial.',
+    });
+  });
 
 export const responderConviteSchema = yup.object({
   status: yup
@@ -74,3 +90,18 @@ export const responderConviteSchema = yup.object({
     )
     .required('Informe a resposta do convite.'),
 });
+
+export const convidarMembrosReuniaoSchema = yup.object({
+  convidados: yup
+    .array()
+    .of(idRule('Um dos convidados é inválido.').defined())
+    .min(1, 'Selecione pelo menos um membro.')
+    .required('Selecione pelo menos um membro.')
+    .test(
+      'convidados-unicos',
+      'Não é possível repetir convidados.',
+      (value) => new Set(value ?? []).size === (value ?? []).length,
+    ),
+});
+
+export const atualizarReuniaoSchema = reuniaoSchema.omit(['comissaoId']);

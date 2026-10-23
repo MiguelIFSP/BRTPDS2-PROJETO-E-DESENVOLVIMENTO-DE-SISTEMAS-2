@@ -1,6 +1,8 @@
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/authMiddleware.ts';
 import {
+  atualizarReuniaoSchema,
+  convidarMembrosReuniaoSchema,
   reuniaoSchema,
   responderConviteSchema,
 } from '../schemas/reuniaoSchema.ts';
@@ -51,6 +53,39 @@ export const reuniaoController = {
     });
     const reuniao = await reuniaoService.create(userId, data);
     response.status(201).json(reuniao);
+  },
+
+  async update(request: Request, response: Response) {
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    const data = await atualizarReuniaoSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const reuniao = await reuniaoService.update(userId, role, reuniaoId, data);
+    response.status(200).json(reuniao);
+  },
+
+  async delete(request: Request, response: Response) {
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    await reuniaoService.delete(userId, role, reuniaoId);
+    response.status(200).json({ message: 'Reunião removida com sucesso.' });
+  },
+
+  async inviteMembers(request: Request, response: Response) {
+    const { id: actorId, role } = (request as AuthenticatedRequest).user;
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    const { convidados } = await convidarMembrosReuniaoSchema.validate(
+      request.body,
+      { stripUnknown: true },
+    );
+    const result = await reuniaoService.inviteMembers(
+      actorId,
+      role,
+      reuniaoId,
+      convidados,
+    );
+    response.status(201).json(result);
   },
 
   async respondInvite(request: Request, response: Response) {

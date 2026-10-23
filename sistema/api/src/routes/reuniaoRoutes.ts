@@ -11,6 +11,13 @@ routes.get(
   reuniaoController.listPendingInvites,
 );
 routes.post('/reunioes', requireAuth, reuniaoController.create);
+routes.patch('/reunioes/:id', requireAuth, reuniaoController.update);
+routes.delete('/reunioes/:id', requireAuth, reuniaoController.delete);
+routes.post(
+  '/reunioes/:id/convites',
+  requireAuth,
+  reuniaoController.inviteMembers,
+);
 routes.post('/reunioes/:id/entrar', requireAuth, reuniaoController.checkIn);
 routes.post('/reunioes/:id/sair', requireAuth, reuniaoController.checkOut);
 routes.patch(
