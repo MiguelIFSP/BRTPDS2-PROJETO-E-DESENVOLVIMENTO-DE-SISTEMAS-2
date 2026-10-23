@@ -10,10 +10,14 @@ const requireEnv = (name: string, value: string | undefined): string => {
   return value;
 };
 
-// URL base da API de Dados, já com o prefixo /api.
-export const API_URL = requireEnv(
-  'EXPO_PUBLIC_API_URL',
-  process.env.EXPO_PUBLIC_API_URL,
+const normalizeApiUrl = (value: string) =>
+  value.replace(/\/+$/, '').endsWith('/api')
+    ? value.replace(/\/+$/, '')
+    : `${value.replace(/\/+$/, '')}/api`;
+
+// Aceita URLs antigas sem /api para evitar que todas as telas retornem 404.
+export const API_URL = normalizeApiUrl(
+  requireEnv('EXPO_PUBLIC_API_URL', process.env.EXPO_PUBLIC_API_URL),
 );
 
 // URL base da API de Monitoramento, já com o prefixo das rotas dela.

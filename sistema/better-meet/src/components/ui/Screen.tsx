@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react';
-import { ScrollView, StyleSheet } from 'react-native';
+import { useCallback, useState, type ReactNode } from 'react';
+import { RefreshControl, ScrollView, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import Header from '@/components/Header';
@@ -15,6 +15,8 @@ type ScreenProps = {
   showHeader?: boolean;
   // <Toast /> da tela: fica por cima do conteúdo, no rodapé.
   toast?: ReactNode;
+  refreshing?: boolean;
+  onRefresh?: () => void;
 };
 
 // Estrutura padrão de tela (UI-05): SafeAreaView → Header (opcional) → ScrollView com
@@ -24,8 +26,27 @@ export default function Screen({
   hasForm = false,
   showHeader = false,
   toast,
+  refreshing = false,
+  onRefresh,
 }: ScreenProps) {
   const { colors } = useTheme();
+  const [isRefreshingInternally, setIsRefreshingInternally] = useState(false);
+  const handleRefresh = useCallback(async () => {
+    setIsRefreshingInternally(true);
+    try {
+      await onRefresh?.();
+    } finally {
+      setIsRefreshingInternally(false);
+    }
+  }, [onRefresh]);
+  const refreshControl = (
+    <RefreshControl
+      refreshing={refreshing || isRefreshingInternally}
+      onRefresh={() => void handleRefresh()}
+      tintColor={colors.primary}
+      colors={[colors.primary]}
+    />
+  );
 
   return (
     <SafeAreaView
@@ -33,13 +54,17 @@ export default function Screen({
     >
       {showHeader ? <Header /> : null}
       {hasForm ? (
-        <KeyboardAwareScrollView contentContainerStyle={styles.content}>
+        <KeyboardAwareScrollView
+          contentContainerStyle={styles.content}
+          refreshControl={refreshControl}
+        >
           {children}
         </KeyboardAwareScrollView>
       ) : (
         <ScrollView
           contentContainerStyle={styles.content}
           keyboardShouldPersistTaps="handled"
+          refreshControl={refreshControl}
         >
           {children}
         </ScrollView>

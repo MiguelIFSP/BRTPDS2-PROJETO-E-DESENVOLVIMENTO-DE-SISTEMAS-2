@@ -110,12 +110,17 @@ export default function BottomSheet({
     () =>
       PanResponder.create({
         onMoveShouldSetPanResponder: (_, { dy, dx }) =>
-          dy > DRAG_START_DISTANCE && Math.abs(dy) > Math.abs(dx),
+          Math.abs(dy) > DRAG_START_DISTANCE && Math.abs(dy) > Math.abs(dx),
         onPanResponderMove: (_, { dy }) => {
           translateY.setValue(Math.max(0, dy));
         },
         onPanResponderRelease: (_, { dy, vy }) => {
-          if (dy > CLOSE_DISTANCE || vy > CLOSE_VELOCITY) {
+          if (
+            dy > CLOSE_DISTANCE ||
+            vy > CLOSE_VELOCITY ||
+            dy < -CLOSE_DISTANCE ||
+            vy < -CLOSE_VELOCITY
+          ) {
             onClose();
           } else {
             Animated.spring(translateY, {
@@ -173,7 +178,10 @@ export default function BottomSheet({
             ]}
           >
             <View {...panResponder.panHandlers} style={styles.header}>
-              <View
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Fechar painel"
+                onPress={onClose}
                 style={[styles.handle, { backgroundColor: colors.border }]}
               />
               <View style={styles.titleRow}>

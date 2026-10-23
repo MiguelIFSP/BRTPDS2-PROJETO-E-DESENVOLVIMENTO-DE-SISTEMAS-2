@@ -18,6 +18,14 @@ export type ReuniaoRegistro = {
   saidaAt: string | null;
 };
 
+export type ReuniaoParticipante = {
+  userId: number;
+  nome: string;
+  email: string;
+  papel: string;
+  registro: ReuniaoRegistro | null;
+};
+
 export type EntradaReuniaoResponse = {
   message: string;
   registro: ReuniaoRegistro;
@@ -42,8 +50,13 @@ export type Reuniao = {
   status: StatusReuniao;
   criadoPorUserId: number;
   meuRegistro?: ReuniaoRegistro | null;
+  participantes?: ReuniaoParticipante[];
   comissao?: { id: number; nome: string };
-  convites?: { id: number; status: StatusConviteReuniao }[];
+  convites?: {
+    id: number;
+    userId: number;
+    status: StatusConviteReuniao;
+  }[];
 };
 
 export type ReuniaoItem = {
@@ -62,6 +75,7 @@ export type ReuniaoItem = {
 
 export type ReuniaoCreateInput = {
   comissaoId: number;
+  convidados?: number[];
   titulo: string;
   pauta: string;
   descricao?: string | null;
@@ -107,6 +121,32 @@ export const reuniaoService = {
       token,
       body: payload,
       fallbackError: 'Não foi possível criar a reunião.',
+    });
+  },
+
+  update(token: string, reuniaoId: number, payload: ReuniaoCreateInput) {
+    return apiRequest<Reuniao>(`/reunioes/${reuniaoId}`, {
+      method: 'PATCH',
+      token,
+      body: payload,
+      fallbackError: 'Não foi possível atualizar a reunião.',
+    });
+  },
+
+  delete(token: string, reuniaoId: number) {
+    return apiRequest<{ message: string }>(`/reunioes/${reuniaoId}`, {
+      method: 'DELETE',
+      token,
+      fallbackError: 'Não foi possível remover a reunião.',
+    });
+  },
+
+  inviteMembers(token: string, reuniaoId: number, convidados: number[]) {
+    return apiRequest<{ message: string }>(`/reunioes/${reuniaoId}/convites`, {
+      method: 'POST',
+      token,
+      body: { convidados },
+      fallbackError: 'Não foi possível enviar os convites.',
     });
   },
 
