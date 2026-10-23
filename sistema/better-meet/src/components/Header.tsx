@@ -68,7 +68,8 @@ export default function Header() {
             onPress={() => router.push('/mais/perfil')}
             hitSlop={2}
           >
-            <Avatar name={user?.name ?? ''} size="sm" />
+            {/* mesmo tamanho do botão do sino e do logo */}
+            <Avatar name={user?.name ?? ''} size="touch" />
           </Pressable>
         </View>
       ) : null}

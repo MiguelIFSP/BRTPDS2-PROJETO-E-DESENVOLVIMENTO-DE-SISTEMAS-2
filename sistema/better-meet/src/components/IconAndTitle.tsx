@@ -37,7 +37,7 @@ const styles = StyleSheet.create({
   logoImage: {
     width: 44,
     height: 44,
-    borderRadius: Radius.lg,
+    borderRadius: Radius.xl,
     overflow: 'hidden',
   },
   logoText: {

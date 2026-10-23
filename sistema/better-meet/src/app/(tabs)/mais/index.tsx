@@ -11,6 +11,7 @@ import Chip from '@/components/ui/Chip';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import SectionLabel from '@/components/ui/SectionLabel';
+import { statusScreenTitle } from '@/constants/status';
 import {
   FontFamily,
   Radius,
@@ -117,7 +118,7 @@ export default function MaisScreen() {
         <Card>
           <MenuRow
             icon="pulse-outline"
-            label="Status do sistema"
+            label={statusScreenTitle(user?.role === 'ADMIN')}
             description="Situação dos serviços do Better Meet"
             href="/mais/status"
           />

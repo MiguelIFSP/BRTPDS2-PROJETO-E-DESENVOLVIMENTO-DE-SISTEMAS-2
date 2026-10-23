@@ -3,6 +3,7 @@ import { recordStatusCheck, getLatestStatus, getDailyStatus } from "../services/
 import { getStatusHistoryBySubSystem } from "../services/statusCheck.service";
 import { runSingleCheck } from "../jobs/healthCheck.cron";
 import { StatusType } from "@prisma/client";
+import { isValidDateKey, localDateKey } from "../utils/timeZone";
 
 export async function createStatusCheck(req: Request, res: Response) {
   try {
@@ -33,13 +34,14 @@ export async function getCurrentStatus(_req: Request, res: Response) {
 export async function getDailyStatusReport(req: Request, res: Response) {
   try {
     const dateParam = req.query.date as string | undefined;
-    const date = dateParam ? new Date(dateParam) : new Date();
+    // Sem data = hoje no fuso de Brasília (não o dia em UTC nem o da máquina).
+    const dateKey = dateParam ?? localDateKey(new Date());
 
-    if (isNaN(date.getTime())) {
+    if (!isValidDateKey(dateKey)) {
       return res.status(400).json({ error: "Data inválida. Use YYYY-MM-DD" });
     }
 
-    return res.json(await getDailyStatus(date));
+    return res.json(await getDailyStatus(dateKey));
   } catch (error) {
     return res.status(500).json({ error: (error as Error).message });
   }

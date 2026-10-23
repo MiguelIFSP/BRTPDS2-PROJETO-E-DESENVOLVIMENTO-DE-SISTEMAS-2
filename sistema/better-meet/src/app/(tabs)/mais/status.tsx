@@ -11,6 +11,7 @@ import Button from '@/components/ui/Button';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import ScreenHeader from '@/components/ui/ScreenHeader';
+import { statusScreenTitle } from '@/constants/status';
 import { Spacing } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import {
@@ -37,29 +38,24 @@ type SubsystemEntry = {
   monitoringKey: string;
 };
 
-// Mesma lista do painel web da management.
 const SUBSYSTEMS: SubsystemEntry[] = [
-  { name: 'api', label: 'API de Dados', monitoringKey: 'data-api' },
-  {
-    name: 'database',
-    label: 'Banco de Dados (app)',
-    monitoringKey: 'database',
-  },
+  { name: null, label: 'App mobile', monitoringKey: 'mobile-app' },
+  { name: 'api', label: 'API de dados', monitoringKey: 'data-api' },
+  { name: 'database', label: 'Banco de dados', monitoringKey: 'database' },
   {
     name: 'monitoring',
-    label: 'API de Monitoramento',
+    label: 'API de monitoramento',
     monitoringKey: 'monitoring',
   },
   {
     name: 'monitoring-database',
-    label: 'Banco de Dados (monitoring)',
+    label: 'Banco de dados de monitoramento',
     monitoringKey: 'monitoring-database',
   },
-  { name: 'management', label: 'API de Gestão', monitoringKey: 'management' },
   {
-    name: null,
-    label: 'Aplicativo (Better Meet)',
-    monitoringKey: 'mobile-app',
+    name: 'management',
+    label: 'API de gestão de subsistemas',
+    monitoringKey: 'management',
   },
 ];
 
@@ -256,7 +252,7 @@ export default function StatusScreen() {
     <Screen>
       <ScreenHeader
         icon="pulse-outline"
-        title="Status do sistema"
+        title={statusScreenTitle(isAdmin)}
         subtitle={`Visão geral dos últimos ${HISTORY_DAYS} dias`}
       />
 

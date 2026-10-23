@@ -35,6 +35,22 @@ const ACTION_LABELS = {
   restart: 'Reiniciar',
 } satisfies Record<SubsystemAction, string>;
 
+// Ao parar, o próprio subsistema grava MAINTENANCE ("Parada solicitada"); o
+// health check grava DOWN quando ele não responde. Instabilidade (ERROR) ainda
+// é um processo rodando. UNKNOWN não diz nada, então libera as três ações.
+const STOPPED_STATUSES: readonly StatusSubsistema[] = ['DOWN', 'MAINTENANCE'];
+const RUNNING_STATUSES: readonly StatusSubsistema[] = ['OPERATIONAL', 'ERROR'];
+
+// Parado: só iniciar. Rodando: só parar e reiniciar.
+const isActionAvailable = (
+  action: SubsystemAction,
+  status: StatusSubsistema,
+) => {
+  if (STOPPED_STATUSES.includes(status)) return action === 'start';
+  if (RUNNING_STATUSES.includes(status)) return action !== 'start';
+  return true;
+};
+
 export const statusColor = (status: StatusSubsistema, colors: ThemeColors) =>
   ({
     OPERATIONAL: colors.success,
@@ -191,7 +207,7 @@ export default function SubsystemStatusCard({
               isLoading={actions.pendingAction === action}
               // spinner + rótulo inteiro não cabem nos três botões lado a lado
               loadingLabel="..."
-              disabled={actions.disabled}
+              disabled={actions.disabled || !isActionAvailable(action, status)}
               onPress={() => actions.onAction(action)}
               style={styles.actionButton}
             />
