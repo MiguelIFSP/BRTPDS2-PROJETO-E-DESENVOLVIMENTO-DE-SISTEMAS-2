@@ -14,7 +14,7 @@ const prisma = {
     update: jest.fn(),
   },
   comissao: { findUnique: jest.fn() },
-  user: { findMany: jest.fn() },
+  user: { findMany: jest.fn(), findUnique: jest.fn() },
   lembreteEnviado: {
     create: jest.fn(),
     createMany: jest.fn(),
@@ -71,6 +71,11 @@ const em = (iso) => new Date(iso);
 
 beforeEach(() => {
   jest.resetAllMocks();
+  // o requireAuth lê o perfil no banco, não no token.
+  prisma.user.findUnique.mockImplementation(async ({ where }) => ({
+    role: 'USER',
+    email: `usuario${where.id}@example.test`,
+  }));
   sendMail.mockResolvedValue({});
   prisma.$transaction.mockImplementation((callback) => callback(prisma));
   prisma.lembreteEnviado.create.mockResolvedValue({});

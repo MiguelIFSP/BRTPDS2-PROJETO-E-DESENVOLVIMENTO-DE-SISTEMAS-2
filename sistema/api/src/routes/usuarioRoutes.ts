@@ -57,6 +57,14 @@ routes.patch(
   usuarioController.updateTheme,
 );
 
+// Promover ou rebaixar outra pessoa (somente admin; o próprio perfil não muda)
+routes.patch(
+  '/usuarios/:id/role',
+  requireAuth,
+  requireAdmin,
+  usuarioController.updateRole,
+);
+
 // Comissões em que o usuário é administrador (usado pela tela de exclusão)
 routes.get(
   '/usuarios/:id/comissoes-administradas',

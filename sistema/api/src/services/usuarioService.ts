@@ -1,6 +1,7 @@
 import {
   Tema,
   type PapelComissao,
+  type Role,
   type PapelOrganizacao,
   type Prisma,
 } from '@prisma/client';
@@ -355,6 +356,47 @@ export const usuarioService = {
       }
       throw error;
     }
+  },
+
+  /**
+   * Promove ou rebaixa outra pessoa na plataforma (ação de administrador).
+   * Ninguém altera o próprio perfil por aqui, para não perder o acesso no meio
+   * do uso, e a plataforma nunca fica sem administrador (EX-18).
+   */
+  async updateRole(actorId: number, userId: number, role: Role) {
+    if (actorId === userId) {
+      throw new AppError(403, 'Você não pode alterar o seu próprio perfil.');
+    }
+
+    // a contagem de administradores fica na mesma transação da gravação,
+    // para dois rebaixamentos simultâneos não zerarem os administradores.
+    return prisma.$transaction(async (transaction) => {
+      const user = await transaction.user.findUnique({
+        where: { id: userId },
+        select: { role: true },
+      });
+      if (!user) {
+        throw new AppError(404, 'Usuário não encontrado.');
+      }
+
+      if (user.role === 'ADMIN' && role !== 'ADMIN') {
+        const outrosAdmins = await transaction.user.count({
+          where: { role: 'ADMIN', id: { not: userId } },
+        });
+        if (outrosAdmins === 0) {
+          throw new AppError(
+            409,
+            'Este é o único administrador da plataforma. Promova outra pessoa antes de rebaixá-lo.',
+          );
+        }
+      }
+
+      return transaction.user.update({
+        where: { id: userId },
+        data: { role },
+        select: userPublicSelect,
+      });
+    });
   },
 
   // busca por trecho do nome ou do e-mail. A collation padrão do MySQL já

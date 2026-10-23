@@ -30,9 +30,15 @@ export default function ScreenHeader({
 
   return (
     <View>
-      {showBack ? <BackButton /> : null}
+      {/* sobreposto no canto, na faixa do ícone, para não ocupar uma linha
+          inteira só com o Voltar. */}
+      {showBack ? (
+        <View style={styles.back}>
+          <BackButton />
+        </View>
+      ) : null}
 
-      <View style={styles.intro}>
+      <View style={[styles.intro, showBack && styles.introWithBack]}>
         <View
           style={[
             styles.iconContainer,
@@ -58,10 +64,12 @@ export default function ScreenHeader({
 }
 
 const styles = StyleSheet.create({
+  back: { position: 'absolute', top: 0, left: 0, zIndex: 1 },
   intro: {
     alignItems: 'center',
     paddingVertical: Spacing.xl,
   },
+  introWithBack: { paddingTop: 0, paddingBottom: Spacing.sm },
   iconContainer: {
     width: 64,
     height: 64,

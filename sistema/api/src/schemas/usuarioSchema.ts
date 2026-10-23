@@ -1,4 +1,4 @@
-import { Tema } from '@prisma/client';
+import { Role, Tema } from '@prisma/client';
 import * as yup from 'yup';
 import { emailRule, idRule, nomeRule, senhaForteRule } from './commonSchema.ts';
 
@@ -44,6 +44,14 @@ export const temaSchema = yup.object({
     .string<Tema>()
     .oneOf(Object.values(Tema), 'Tema inválido. Use: light, dark ou system.')
     .required('Informe o tema desejado.'),
+});
+
+// Promoção ou rebaixamento feito pelo administrador (updateRole)
+export const roleSchema = yup.object({
+  role: yup
+    .string<Role>()
+    .oneOf(Object.values(Role), 'Perfil inválido. Use: ADMIN ou USER.')
+    .required('Informe o perfil desejado.'),
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

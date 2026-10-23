@@ -121,6 +121,16 @@ export const usuarioService = {
     );
   },
 
+  // promover ou rebaixar outra pessoa (só administrador; a API recusa o próprio perfil).
+  updateRole(token: string, userId: number, role: Role) {
+    return apiRequest<{ id: number; role: Role }>(`/usuarios/${userId}/role`, {
+      method: 'PATCH',
+      token,
+      body: { role },
+      fallbackError: 'Não foi possível alterar o perfil do usuário.',
+    });
+  },
+
   getComissoesAdministradas(token: string, userId: number) {
     return apiRequest<ComissaoAdministrada[]>(
       `/usuarios/${userId}/comissoes-administradas`,

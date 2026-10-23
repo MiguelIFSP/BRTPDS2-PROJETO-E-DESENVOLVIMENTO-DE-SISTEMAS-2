@@ -1,9 +1,8 @@
-import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import DistributionBars from '@/components/relatorio/DistributionBars';
-import ExpandableRow from '@/components/relatorio/ExpandableRow';
 import MonthlyBars from '@/components/relatorio/MonthlyBars';
+import ReportLinkCard from '@/components/relatorio/ReportLinkCard';
 import ReportSection from '@/components/relatorio/ReportSection';
 import StatTile from '@/components/relatorio/StatTile';
 import { Spacing, Typography } from '@/constants/theme';
@@ -13,7 +12,6 @@ import {
   papelComissaoLabel,
   type ComissaoReport,
 } from '@/services/comissaoService';
-import { formatDate } from '@/utils/format';
 
 // quantas organizacoes aparecem no ranking "comissoes por organizacao".
 const TOP_ORGANIZACOES = 5;
@@ -24,7 +22,6 @@ export default function ComissaoReportView({
   report,
 }: ComissaoReportViewProps) {
   const { colors } = useTheme();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   if (!report) return null;
 
@@ -34,18 +31,18 @@ export default function ComissaoReportView({
     <>
       {/* comissão não tem status, então o recorte é por organização */}
       <View style={styles.statsRow}>
-        <StatTile label="Total" value={report.total} />
+        <StatTile label="Total" value={report.total} compact />
         <StatTile
           label="Organizações com comissões"
           value={report.totalOrganizacoes}
+          compact
+        />
+        <StatTile
+          label="Média de membros por comissão"
+          value={report.mediaMembrosPorComissao.toFixed(1)}
+          compact
         />
       </View>
-
-      <StatTile
-        label="Média de membros por comissão"
-        value={report.mediaMembrosPorComissao.toFixed(1)}
-        wide
-      />
 
       <ReportSection title="Crescimento por mês">
         <MonthlyBars
@@ -88,41 +85,18 @@ export default function ComissaoReportView({
         />
       </ReportSection>
 
-      <ReportSection title="Comissões">
-        {report.comissoes.length === 0 ? (
-          <Text style={[styles.empty, { color: colors.textSecondary }]}>
-            Nenhuma comissão encontrada.
-          </Text>
-        ) : (
-          report.comissoes.map((comissao) => (
-            <ExpandableRow
-              key={comissao.id}
-              title={comissao.nome}
-              subtitle={comissao.organizacao.nome}
-              expanded={selectedId === comissao.id}
-              onToggle={() =>
-                setSelectedId((current) =>
-                  current === comissao.id ? null : comissao.id,
-                )
-              }
-              details={[
-                `Organização: ${comissao.organizacao.nome}`,
-                `Membros: ${comissao.membros}`,
-                `Criada em: ${formatDate(comissao.createdAt)}`,
-                ...(comissao.descricao
-                  ? [`Descrição: ${comissao.descricao}`]
-                  : []),
-              ]}
-            />
-          ))
-        )}
-      </ReportSection>
+      <ReportLinkCard
+        icon="people-outline"
+        label="Ver comissões"
+        description="Abre a aba Comissões, com a lista e os detalhes de cada uma"
+        href="/comissao"
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  statsRow: { flexDirection: 'row', gap: Spacing.sm },
   empty: {
     ...Typography.body,
     textAlign: 'center',

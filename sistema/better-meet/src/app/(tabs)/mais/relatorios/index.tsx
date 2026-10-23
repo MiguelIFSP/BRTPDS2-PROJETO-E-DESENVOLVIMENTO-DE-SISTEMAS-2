@@ -17,7 +17,6 @@ import {
 } from '@/services/comissaoService';
 import {
   organizacaoService,
-  type Organizacao,
   type OrganizacaoReport,
 } from '@/services/organizacaoService';
 import { usuarioService, type UsuarioReport } from '@/services/usuarioService';
@@ -67,7 +66,6 @@ export default function RelatoriosScreen() {
   const [tab, setTab] = useState<Tab>('organizacoes');
   const [organizacaoReport, setOrganizacaoReport] =
     useState<OrganizacaoReport | null>(null);
-  const [organizacoes, setOrganizacoes] = useState<Organizacao[]>([]);
   const [comissaoReport, setComissaoReport] = useState<ComissaoReport | null>(
     null,
   );
@@ -92,17 +90,11 @@ export default function RelatoriosScreen() {
 
       const loadOrganizacoes = async () => {
         try {
-          const [reportData, organizacoesData] = await Promise.all([
-            isAdmin
-              ? organizacaoService.getReport(token)
-              : organizacaoService.getReportMine(token),
-            isAdmin
-              ? organizacaoService.listAll(token)
-              : organizacaoService.listMine(token),
-          ]);
+          const data = isAdmin
+            ? await organizacaoService.getReport(token)
+            : await organizacaoService.getReportMine(token);
           if (cancelled) return;
-          setOrganizacaoReport(reportData);
-          setOrganizacoes(organizacoesData);
+          setOrganizacaoReport(data);
           setTabError('organizacoes', undefined);
         } catch (error) {
           setTabError('organizacoes', errorFeedback(error));
@@ -174,10 +166,7 @@ export default function RelatoriosScreen() {
       ) : activeTab === 'comissoes' ? (
         <ComissaoReportView report={comissaoReport} />
       ) : (
-        <OrganizacaoReportView
-          report={organizacaoReport}
-          organizacoes={organizacoes}
-        />
+        <OrganizacaoReportView report={organizacaoReport} />
       )}
     </Screen>
   );

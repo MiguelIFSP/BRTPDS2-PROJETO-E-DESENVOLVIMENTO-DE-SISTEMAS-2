@@ -5,6 +5,7 @@ import request from 'supertest';
 
 const jwtSecret = 'segredo-ficticio-dos-testes-de-detalhe';
 const prisma = {
+  user: { findUnique: jest.fn() },
   organizacao: { findUnique: jest.fn(), update: jest.fn() },
   organizacaoMembro: { findUnique: jest.fn() },
   comissao: { findUnique: jest.fn(), update: jest.fn() },
@@ -85,6 +86,11 @@ const papelNaComissao = (papel) => ({
 
 beforeEach(() => {
   jest.resetAllMocks();
+  // o requireAuth lê o perfil no banco, não no token.
+  prisma.user.findUnique.mockImplementation(async ({ where }) => ({
+    role: where.id === ADMIN_ID ? 'ADMIN' : 'USER',
+    email: `usuario${where.id}@example.test`,
+  }));
   prisma.organizacao.findUnique.mockResolvedValue(organizacao);
   prisma.organizacao.update.mockImplementation(async ({ data }) => ({
     ...organizacao,

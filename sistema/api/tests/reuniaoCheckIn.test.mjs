@@ -15,6 +15,7 @@ const userId = 7;
 const reuniaoId = 31;
 const jwtSecret = 'segredo-ficticio-dos-testes-de-check-in';
 const prisma = {
+  user: { findUnique: jest.fn() },
   reuniao: { findUnique: jest.fn(), findMany: jest.fn() },
   comissao: { findUnique: jest.fn() },
   reuniaoRegistro: {
@@ -68,6 +69,11 @@ const duplicateError = () =>
 
 beforeEach(() => {
   jest.resetAllMocks();
+  // o requireAuth lê o perfil no banco, não no token.
+  prisma.user.findUnique.mockImplementation(async ({ where }) => ({
+    role: 'USER',
+    email: `usuario${where.id}@example.test`,
+  }));
   prisma.reuniao.findUnique.mockResolvedValue({
     comissaoId: 4,
     status: 'AGENDADA',

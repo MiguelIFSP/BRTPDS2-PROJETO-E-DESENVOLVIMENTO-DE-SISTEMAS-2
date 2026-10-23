@@ -7,6 +7,7 @@ const criadorId = 7;
 const reuniaoId = 31;
 const jwtSecret = 'segredo-ficticio-dos-testes-de-notificacao';
 const prisma = {
+  user: { findUnique: jest.fn() },
   reuniao: {
     findUnique: jest.fn(),
     findMany: jest.fn(),
@@ -78,6 +79,11 @@ const destinatarios = () =>
 
 beforeEach(() => {
   jest.resetAllMocks();
+  // o requireAuth lê o perfil no banco, não no token.
+  prisma.user.findUnique.mockImplementation(async ({ where }) => ({
+    role: where.id === 99 ? 'ADMIN' : 'USER',
+    email: `usuario${where.id}@example.test`,
+  }));
   prisma.$transaction.mockImplementation((callback) => callback(prisma));
   prisma.reuniao.findUnique.mockResolvedValue(reuniao);
   prisma.reuniao.update.mockResolvedValue({ id: reuniaoId });

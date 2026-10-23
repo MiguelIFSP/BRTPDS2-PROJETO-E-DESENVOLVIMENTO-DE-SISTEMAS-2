@@ -674,6 +674,48 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /usuarios/{id}/role:
+    patch:
+      tags: [Usuários]
+      summary: Promove ou rebaixa um usuário na plataforma
+      description: |
+        Exige `requireAuth` + `requireAdmin`. Usado pela listagem de usuários do
+        relatório. O administrador não pode alterar o próprio perfil (403), e a
+        plataforma nunca fica sem administrador: rebaixar o último `ADMIN`
+        responde 409. A mudança vale na próxima requisição da pessoa, porque o
+        `requireAuth` lê o perfil no banco, e não no token.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [role]
+              properties:
+                role: { $ref: '#/components/schemas/Role' }
+      responses:
+        '200':
+          description: Perfil atualizado. Devolve o usuário sem dados sensíveis.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Usuario' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403':
+          description: Quem pediu não é administrador, ou tentou alterar o próprio perfil.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: O usuário é o único administrador da plataforma.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /usuarios/{id}/comissoes-administradas:
     get:
       tags: [Usuários]

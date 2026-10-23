@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { FontFamily, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -37,44 +37,59 @@ export default function MonthlyBars({
 
   return (
     <>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.row}
-      >
-        {ordered.map((item) => (
-          <Pressable
-            key={item.mes}
-            accessibilityRole="button"
-            accessibilityLabel={`${formatMonthLabel(item.mes)}: ${item.quantidade} ${unitLabel}`}
-            onPress={() =>
-              setSelectedMonth((current) =>
-                current === item.mes ? null : item.mes,
-              )
-            }
-            style={styles.column}
-          >
-            <View
-              style={[
-                styles.bar,
-                {
-                  height:
-                    BAR_MIN_HEIGHT +
-                    (item.quantidade / maxMonthly) * BAR_MAX_EXTRA_HEIGHT,
-                  backgroundColor: colors.primary,
-                  opacity:
-                    selectedMonth === null || selectedMonth === item.mes
-                      ? 1
-                      : 0.4,
-                },
-              ]}
-            />
-            <Text style={[styles.label, { color: colors.textSecondary }]}>
-              {formatMonthLabel(item.mes)}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+      <View style={styles.row}>
+        {ordered.map((item, index) => {
+          const [month, year] = formatMonthLabel(item.mes).split('/');
+          // os 12 meses dividem a largura do card: "set/25" não cabe na coluna,
+          // então o ano aparece só em janeiro e no mês mais antigo.
+          const showYear =
+            item.mes.endsWith('-01') || index === ordered.length - 1;
+
+          return (
+            <Pressable
+              key={item.mes}
+              accessibilityRole="button"
+              accessibilityLabel={`${formatMonthLabel(item.mes)}: ${item.quantidade} ${unitLabel}`}
+              onPress={() =>
+                setSelectedMonth((current) =>
+                  current === item.mes ? null : item.mes,
+                )
+              }
+              style={styles.column}
+            >
+              <View
+                style={[
+                  styles.bar,
+                  {
+                    height:
+                      BAR_MIN_HEIGHT +
+                      (item.quantidade / maxMonthly) * BAR_MAX_EXTRA_HEIGHT,
+                    backgroundColor: colors.primary,
+                    opacity:
+                      selectedMonth === null || selectedMonth === item.mes
+                        ? 1
+                        : 0.4,
+                  },
+                ]}
+              />
+              <Text
+                numberOfLines={1}
+                style={[styles.label, { color: colors.textSecondary }]}
+              >
+                {month}
+              </Text>
+              {/* sempre renderizado (vazio quando não mostra) para todas as
+                  colunas terem a mesma altura e as barras ficarem alinhadas. */}
+              <Text
+                numberOfLines={1}
+                style={[styles.year, { color: colors.textSecondary }]}
+              >
+                {showYear ? year : ' '}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
       {selectedMonth ? (
         <Text style={[styles.tooltip, { color: colors.text }]}>
           {formatMonthLabel(selectedMonth)}:{' '}
@@ -95,16 +110,16 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    gap: Spacing.md,
-    paddingBottom: Spacing.xs,
   },
   column: {
+    flex: 1,
+    minWidth: 0,
     alignItems: 'center',
     gap: Spacing.xs,
-    minWidth: 44,
     minHeight: 44,
   },
-  bar: { width: 16, borderRadius: Radius.sm },
+  bar: { width: '60%', maxWidth: 16, borderRadius: Radius.sm },
   label: { ...Typography.caption },
+  year: { ...Typography.caption, fontFamily: FontFamily.semiBold },
   tooltip: { ...Typography.bodySmall, fontFamily: FontFamily.semiBold },
 });

@@ -1,54 +1,45 @@
-import { useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import DistributionBars from '@/components/relatorio/DistributionBars';
-import ExpandableRow from '@/components/relatorio/ExpandableRow';
 import MonthlyBars from '@/components/relatorio/MonthlyBars';
+import ReportLinkCard from '@/components/relatorio/ReportLinkCard';
 import ReportSection from '@/components/relatorio/ReportSection';
 import StatTile from '@/components/relatorio/StatTile';
-import { STATUS_ORGANIZACAO_UI } from '@/constants/status';
-import { Spacing, Typography } from '@/constants/theme';
-import { useTheme } from '@/hooks/useTheme';
+import { Spacing } from '@/constants/theme';
 import {
   PAPEIS_ORGANIZACAO,
   papelLabel,
-  type Organizacao,
   type OrganizacaoReport,
 } from '@/services/organizacaoService';
-import { formatDate } from '@/utils/format';
 
-type OrganizacaoReportViewProps = {
-  report: OrganizacaoReport | null;
-  organizacoes: Organizacao[];
-};
+type OrganizacaoReportViewProps = { report: OrganizacaoReport | null };
 
 export default function OrganizacaoReportView({
   report,
-  organizacoes,
 }: OrganizacaoReportViewProps) {
-  const { colors } = useTheme();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
-
   return (
     <>
       {report ? (
         <>
           <View style={styles.statsRow}>
-            <StatTile label="Total" value={report.total} />
+            <StatTile label="Total" value={report.total} compact />
             <StatTile
               label="Aceitas"
               value={report.porStatus.ACEITA}
               tone="success"
+              compact
             />
             <StatTile
               label="Pendentes"
               value={report.porStatus.PENDENTE}
               tone="warning"
+              compact
             />
             <StatTile
               label="Recusadas"
               value={report.porStatus.RECUSADA}
               tone="danger"
+              compact
             />
           </View>
 
@@ -79,40 +70,16 @@ export default function OrganizacaoReportView({
         </>
       ) : null}
 
-      <ReportSection title="Organizações">
-        {organizacoes.length === 0 ? (
-          <Text style={[styles.empty, { color: colors.textSecondary }]}>
-            Nenhuma organização encontrada.
-          </Text>
-        ) : (
-          organizacoes.map((organizacao) => (
-            <ExpandableRow
-              key={organizacao.id}
-              title={organizacao.nome}
-              badge={STATUS_ORGANIZACAO_UI[organizacao.status]}
-              expanded={selectedId === organizacao.id}
-              onToggle={() =>
-                setSelectedId((current) =>
-                  current === organizacao.id ? null : organizacao.id,
-                )
-              }
-              details={[
-                `Membros: ${organizacao.membros.length}`,
-                `Criada em: ${formatDate(organizacao.createdAt)}`,
-              ]}
-            />
-          ))
-        )}
-      </ReportSection>
+      <ReportLinkCard
+        icon="business-outline"
+        label="Ver organizações"
+        description="Abre a aba Organizações, com a lista e os detalhes de cada uma"
+        href="/organizacao"
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
-  empty: {
-    ...Typography.body,
-    textAlign: 'center',
-    paddingVertical: Spacing.md,
-  },
+  statsRow: { flexDirection: 'row', gap: Spacing.sm },
 });

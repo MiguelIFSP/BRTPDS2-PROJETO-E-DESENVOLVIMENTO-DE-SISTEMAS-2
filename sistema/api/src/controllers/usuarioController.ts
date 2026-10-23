@@ -8,11 +8,13 @@
 // =====================================================================
 
 import type { Request, Response } from 'express';
+import type { AuthenticatedRequest } from '../middlewares/authMiddleware.ts';
 import {
   buscaUsuarioSchema,
   cadastroUsuarioSchema,
   exclusaoContaSchema,
   perfilSchema,
+  roleSchema,
   temaSchema,
   trocaSenhaSchema,
 } from '../schemas/usuarioSchema.ts';
@@ -71,6 +73,16 @@ export const usuarioController = {
       stripUnknown: true,
     });
     const user = await usuarioService.updateTheme(userId, theme);
+    response.status(200).json(user);
+  },
+
+  async updateRole(request: Request, response: Response) {
+    const { id: actorId } = (request as AuthenticatedRequest).user;
+    const userId = parseId(request.params.id, 'do usuário');
+    const { role } = await roleSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const user = await usuarioService.updateRole(actorId, userId, role);
     response.status(200).json(user);
   },
 
