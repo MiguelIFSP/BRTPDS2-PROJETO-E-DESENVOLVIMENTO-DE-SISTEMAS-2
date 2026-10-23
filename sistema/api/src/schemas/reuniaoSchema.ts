@@ -48,6 +48,12 @@ export const reuniaoSchema = yup
       .trim()
       .max(2000, 'A descrição deve ter no máximo 2000 caracteres.')
       .optional(),
+    // Texto livre: endereço, link da chamada ou os dois (reunião híbrida).
+    local: yup
+      .string()
+      .trim()
+      .required('Informe o local ou o link da reunião.')
+      .max(500, 'O local deve ter no máximo 500 caracteres.'),
     data: yup
       .string()
       .trim()

@@ -1,0 +1,1 @@
+ALTER TABLE `Reuniao` ADD COLUMN `local` VARCHAR(500) NULL;

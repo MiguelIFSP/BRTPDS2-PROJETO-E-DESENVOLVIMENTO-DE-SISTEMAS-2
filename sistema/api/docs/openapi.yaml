@@ -12,6 +12,15 @@ info:
     **Erros:** toda resposta de erro tem o corpo `{ "error": "mensagem" }`.
     Ids de URL malformados devolvem 400 antes de qualquer checagem de
     permissão (ordem: 400 → 403 → 404).
+
+    **E-mails das reuniões** (só com GMAIL_USER e GMAIL_APP_PASSWORD no .env;
+    saem depois da resposta e uma falha de envio não altera o resultado da rota):
+    convite com .ics para quem é convidado (POST /reunioes e
+    POST /reunioes/{id}/convites); aviso com .ics atualizado quando a reunião
+    muda (PATCH /reunioes/{id}); aviso com .ics de cancelamento na exclusão
+    (DELETE /reunioes/{id}); e lembretes às 07h do dia (se a reunião começar
+    depois das 08h), 1 hora e 15 minutos antes, para o criador e quem aceitou.
+    Datas e horários são lidos no fuso TZ_REUNIOES (padrão America/Sao_Paulo).
 servers:
   - url: /api
 tags:
@@ -20,6 +29,7 @@ tags:
   - name: Organizações
   - name: Comissões
   - name: Reuniões
+  - name: Notificações
 
 components:
   securitySchemes:
@@ -135,6 +145,10 @@ components:
         titulo: { type: string }
         pauta: { type: string }
         descricao: { type: string, nullable: true }
+        local:
+          type: string
+          nullable: true
+          description: Endereço, link da chamada ou os dois. Nulo só em reuniões anteriores ao campo.
         data: { type: string, format: date }
         horaInicio: { type: string, example: '14:00' }
         horaFim: { type: string, example: '15:00' }
@@ -147,10 +161,15 @@ components:
             nome: { type: string }
         convites:
           type: array
+          description: |
+            Todos os convites da reunião, inclusive pendentes e recusados. Em
+            GET /reunioes/minhas também traz `userId` e `nome` do convidado.
           items:
             type: object
             properties:
               id: { type: integer }
+              userId: { type: integer }
+              nome: { type: string }
               status: { $ref: '#/components/schemas/StatusConviteReuniao' }
         meuRegistro:
           description: Presença do próprio usuário, incluída em GET /reunioes/minhas.
@@ -197,12 +216,33 @@ components:
         titulo: { type: string }
         pauta: { type: string }
         descricao: { type: string, nullable: true }
+        local:
+          type: string
+          nullable: true
+          description: Endereço, link da chamada ou os dois. Nulo só em reuniões anteriores ao campo.
         data: { type: string, format: date }
         horaInicio: { type: string, example: '14:00' }
         horaFim: { type: string, example: '15:00' }
         usuario: { type: string }
         status: { $ref: '#/components/schemas/StatusConviteReuniao' }
         comissao: { type: string }
+    TipoNotificacao:
+      type: string
+      enum: [REUNIAO_ATUALIZADA, REUNIAO_EXCLUIDA]
+    Notificacao:
+      type: object
+      required: [id, tipo, titulo, mensagem, reuniaoId, lidaAt, createdAt]
+      properties:
+        id: { type: integer }
+        tipo: { $ref: '#/components/schemas/TipoNotificacao' }
+        titulo: { type: string, example: Reunião remarcada }
+        mensagem: { type: string }
+        reuniaoId:
+          type: integer
+          nullable: true
+          description: Pode apontar para uma reunião que já foi excluída.
+        lidaAt: { type: string, format: date-time, nullable: true }
+        createdAt: { type: string, format: date-time }
     UsuarioResumo:
       type: object
       properties:
@@ -1363,7 +1403,8 @@ paths:
           application/json:
             schema:
               type: object
-              required: [comissaoId, titulo, pauta, data, horaInicio, horaFim]
+              required:
+                [comissaoId, titulo, pauta, local, data, horaInicio, horaFim]
               properties:
                 comissaoId: { type: integer, minimum: 1 }
                 convidados:
@@ -1374,6 +1415,10 @@ paths:
                 titulo: { type: string, maxLength: 80 }
                 pauta: { type: string, maxLength: 1000 }
                 descricao: { type: string, nullable: true, maxLength: 2000 }
+                local:
+                  type: string
+                  maxLength: 500
+                  description: Endereço, link da chamada ou os dois (reunião híbrida). Obrigatório.
                 data: { type: string, format: date, example: '2026-10-20' }
                 horaInicio: { type: string, example: '14:00' }
                 horaFim: { type: string, example: '15:00' }
@@ -1429,7 +1474,12 @@ paths:
     patch:
       tags: [Reuniões]
       summary: Atualiza uma reunião
-      description: Apenas o criador da reunião ou um administrador do sistema pode editar seus dados.
+      description: |
+        Apenas o criador da reunião ou um administrador do sistema pode editar seus dados.
+        Se a data ou o horário mudarem, o criador e os convidados que não recusaram
+        recebem a notificação "Reunião remarcada"; se só os detalhes mudarem,
+        "Reunião atualizada". Quem fez a edição não é notificado, e salvar sem
+        mudanças não gera notificação.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id
@@ -1442,11 +1492,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [titulo, pauta, data, horaInicio, horaFim]
+              required: [titulo, pauta, local, data, horaInicio, horaFim]
               properties:
                 titulo: { type: string, maxLength: 80 }
                 pauta: { type: string, maxLength: 1000 }
                 descricao: { type: string, nullable: true, maxLength: 2000 }
+                local:
+                  type: string
+                  maxLength: 500
+                  description: Endereço, link da chamada ou os dois (reunião híbrida). Obrigatório.
                 data: { type: string, format: date }
                 horaInicio: { type: string, example: '14:00' }
                 horaFim: { type: string, example: '15:00' }
@@ -1464,7 +1518,11 @@ paths:
     delete:
       tags: [Reuniões]
       summary: Remove uma reunião
-      description: Apenas o criador da reunião ou um administrador do sistema pode removê-la.
+      description: |
+        Apenas o criador da reunião ou um administrador do sistema pode removê-la.
+        Na mesma transação, antes de apagar, o criador e os convidados que não
+        recusaram recebem a notificação "Reunião excluída". A reunião, os convites
+        e os registros de presença são apagados; as notificações permanecem.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id
@@ -1551,3 +1609,163 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
         '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/sair:
+    post:
+      tags: [Reuniões]
+      summary: Registra a saída do integrante da reunião
+      description: |
+        Exige `requireAuth`, participação na comissão e, para convidados, aceite
+        prévio do convite. A identidade e o horário vêm do servidor; não aceita
+        horário ou usuário do cliente.
+        Exige entrada registrada antes (409 sem ela). Repetições devolvem o
+        registro original, sem alterar saidaAt.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Saída registrada, ou já registrada antes (`jaRegistrado` = true, horário original preservado).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/EntradaReuniao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Entrada ainda não registrada nesta reunião.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /notificacoes:
+    get:
+      tags: [Notificações]
+      summary: Lista as notificações do usuário autenticado
+      description: Exige `requireAuth`. Retorna as 50 mais recentes, da mais nova para a mais antiga.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Notificações encontradas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/Notificacao' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+    delete:
+      tags: [Notificações]
+      summary: Remove todas as notificações do usuário autenticado
+      description: Exige `requireAuth`. Não mexe em convites pendentes.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Quantidade de notificações removidas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [removidas]
+                properties:
+                  removidas: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /notificacoes/lidas:
+    patch:
+      tags: [Notificações]
+      summary: Marca como lidas todas as notificações do usuário autenticado
+      description: Exige `requireAuth`. Só altera as que ainda não foram lidas.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Quantidade de notificações marcadas como lidas.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [lidas]
+                properties:
+                  lidas: { type: integer }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /notificacoes/{id}:
+    delete:
+      tags: [Notificações]
+      summary: Remove uma notificação do usuário autenticado
+      description: |
+        Exige `requireAuth`. Notificação de outro usuário responde 404, como se
+        não existisse.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Notificação removida.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /convites/{token}:
+    parameters:
+      - name: token
+        in: path
+        required: true
+        description: Token secreto do convite, enviado só no e-mail ao convidado.
+        schema: { type: string }
+    get:
+      tags: [Reuniões]
+      summary: Página de resposta aberta pelos botões Aceitar/Recusar do e-mail
+      description: |
+        Pública: o token faz o papel do login. Devolve HTML. Só mostra o convite
+        e pede confirmação; nunca grava a resposta, porque leitores de e-mail
+        visitam os links antes do usuário clicar.
+      parameters:
+        - name: resposta
+          in: query
+          required: false
+          schema: { type: string, enum: [aceitar, recusar] }
+      responses:
+        '200':
+          {
+            description: Página de confirmação,
+            de escolha ou de convite já respondido.,
+          }
+        '404': { description: Token inválido ou reunião excluída. }
+        '409': { description: Reunião cancelada. }
+    post:
+      tags: [Reuniões]
+      summary: Confirma a resposta ao convite pelo botão da página
+      description: |
+        Pública: o token faz o papel do login. Recebe um formulário HTML e
+        devolve HTML. Aplica as mesmas regras de
+        PATCH /reunioes/convites/{inviteId}/responder (convite respondido não muda).
+      requestBody:
+        required: true
+        content:
+          application/x-www-form-urlencoded:
+            schema:
+              type: object
+              required: [resposta]
+              properties:
+                resposta: { type: string, enum: [aceitar, recusar] }
+      responses:
+        '200': { description: Resposta registrada. }
+        '400': { description: Resposta inválida. }
+        '404': { description: Token inválido ou reunião excluída. }
+        '409': { description: Convite já respondido ou reunião cancelada. }

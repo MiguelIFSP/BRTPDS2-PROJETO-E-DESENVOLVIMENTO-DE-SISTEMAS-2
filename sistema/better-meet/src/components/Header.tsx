@@ -1,13 +1,21 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useRouter } from 'expo-router';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import IconAndTitle from '@/components/IconAndTitle';
 import Avatar from '@/components/ui/Avatar';
-import { Radius, Spacing, TouchTarget, withAlpha } from '@/constants/theme';
+import {
+  FontFamily,
+  Radius,
+  Spacing,
+  TouchTarget,
+  Typography,
+  withAlpha,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
+import { useNotificacaoStore } from '@/store/notificacaoStore';
 
 // Topo com o logo: só na tela inicial (com convites e atalho para a conta) e
 // nas telas públicas (login, cadastro). As demais telas mostram só o próprio
@@ -20,6 +28,9 @@ export default function Header() {
       user: state.user,
       isAuthenticated: state.isAuthenticated,
     })),
+  );
+  const novidades = useNotificacaoStore(
+    (state) => state.convitesPendentes + state.naoLidas,
   );
 
   return (
@@ -39,7 +50,11 @@ export default function Header() {
         <View style={styles.rightActions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Ver convites pendentes"
+            accessibilityLabel={
+              novidades > 0
+                ? `Ver notificações, ${novidades} nova(s)`
+                : 'Ver notificações'
+            }
             onPress={() =>
               router.navigate({
                 pathname: '/',
@@ -60,6 +75,21 @@ export default function Header() {
               size={22}
               color={colors.primary}
             />
+            {novidades > 0 ? (
+              <View
+                style={[
+                  styles.counter,
+                  {
+                    backgroundColor: colors.danger,
+                    borderColor: colors.background,
+                  },
+                ]}
+              >
+                <Text style={[styles.counterText, { color: colors.onDanger }]}>
+                  {novidades > 9 ? '9+' : novidades}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
 
           <Pressable
@@ -103,5 +133,18 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  counter: {
+    position: 'absolute',
+    top: -Spacing.xs,
+    right: -Spacing.xs,
+    minWidth: 20,
+    height: 20,
+    borderRadius: Radius.full,
+    borderWidth: 2,
+    paddingHorizontal: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterText: { ...Typography.caption, fontFamily: FontFamily.semiBold },
   pressed: { opacity: 0.7 },
 });

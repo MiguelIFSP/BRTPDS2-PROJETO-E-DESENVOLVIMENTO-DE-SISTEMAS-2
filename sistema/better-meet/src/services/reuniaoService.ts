@@ -44,6 +44,7 @@ export type Reuniao = {
   titulo: string;
   pauta: string;
   descricao?: string | null;
+  local?: string | null;
   data: string;
   horaInicio: string;
   horaFim: string;
@@ -55,6 +56,7 @@ export type Reuniao = {
   convites?: {
     id: number;
     userId: number;
+    nome: string;
     status: StatusConviteReuniao;
   }[];
 };
@@ -70,6 +72,7 @@ export type ReuniaoItem = {
   status: StatusConviteReuniao;
   pauta?: string;
   descricao?: string | null;
+  local?: string | null;
   comissao?: string;
 };
 
@@ -79,6 +82,7 @@ export type ReuniaoCreateInput = {
   titulo: string;
   pauta: string;
   descricao?: string | null;
+  local: string;
   data: string;
   horaInicio: string;
   horaFim: string;

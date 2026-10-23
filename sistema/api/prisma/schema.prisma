@@ -50,6 +50,17 @@ enum StatusConviteReuniao {
   RECUSADO
 }
 
+enum TipoLembrete {
+  MANHA // às 07h do dia da reunião
+  UMA_HORA
+  QUINZE_MINUTOS
+}
+
+enum TipoNotificacao {
+  REUNIAO_ATUALIZADA
+  REUNIAO_EXCLUIDA
+}
+
 // Valores em minúsculas porque já trafegam assim pela API e pelo app (PR-08).
 enum Tema {
   light
@@ -85,6 +96,8 @@ model User {
   reunioesCriadas     Reuniao[]            @relation("ReuniaoCriador")
   convitesReuniao     ConviteReuniao[]
   registrosReuniao    ReuniaoRegistro[]
+  notificacoes        Notificacao[]
+  lembretes           LembreteEnviado[]
 }
 
 model Organizacao {
@@ -165,14 +178,18 @@ model Reuniao {
   data            String // Data no formato AAAA-MM-DD para o contrato do app.
   horaInicio      String // Horário no formato HH:mm.
   horaFim         String // Horário no formato HH:mm.
+  // Endereço, link da chamada ou os dois (reunião híbrida), em texto livre.
+  // Obrigatório na API; nulo só nas reuniões criadas antes do campo existir.
+  local           String?       @db.VarChar(500)
   status          StatusReuniao @default(AGENDADA)
   criadoPorUserId Int
   createdAt       DateTime      @default(now())
 
-  comissao  Comissao         @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
-  criadoPor User             @relation("ReuniaoCriador", fields: [criadoPorUserId], references: [id])
+  comissao  Comissao          @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
+  criadoPor User              @relation("ReuniaoCriador", fields: [criadoPorUserId], references: [id])
   convites  ConviteReuniao[]
   registros ReuniaoRegistro[]
+  lembretes LembreteEnviado[]
 
   @@index([comissaoId])
   @@index([criadoPorUserId])
@@ -180,12 +197,15 @@ model Reuniao {
 }
 
 model ConviteReuniao {
-  id           Int                  @id @default(autoincrement())
-  reuniaoId    Int
-  userId       Int
-  status       StatusConviteReuniao @default(PENDENTE)
-  createdAt    DateTime             @default(now())
-  respondidoAt DateTime?
+  id            Int                  @id @default(autoincrement())
+  reuniaoId     Int
+  userId        Int
+  status        StatusConviteReuniao @default(PENDENTE)
+  createdAt     DateTime             @default(now())
+  respondidoAt  DateTime?
+  // Segredo dos botões Aceitar/Recusar do e-mail: quem tem o link responde
+  // este convite sem login. Nulo nos convites criados antes do recurso.
+  tokenResposta String?              @unique @db.VarChar(64)
 
   reuniao Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -206,5 +226,42 @@ model ReuniaoRegistro {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([reuniaoId, userId])
+  @@index([userId])
+}
+
+// Aviso exibido no sino do app. Sem relação com Reuniao de propósito: o aviso
+// de exclusão precisa continuar existindo depois que a reunião é apagada.
+model Notificacao {
+  id        Int             @id @default(autoincrement())
+  userId    Int
+  tipo      TipoNotificacao
+  titulo    String
+  mensagem  String          @db.Text
+  reuniaoId Int?
+  lidaAt    DateTime?
+  createdAt DateTime        @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, lidaAt])
+}
+
+// Lembretes por e-mail já tratados, um por reunião, pessoa e tipo. A chave
+// única impede o envio duplicado. Remarcar a reunião apaga os registros dela,
+// para os lembretes valerem de novo no horário novo.
+model LembreteEnviado {
+  id        Int          @id @default(autoincrement())
+  reuniaoId Int
+  userId    Int
+  tipo      TipoLembrete
+  // false: o horário passou junto com o de um lembrete mais próximo da
+  // reunião, e só o mais próximo foi enviado.
+  enviado   Boolean      @default(true)
+  createdAt DateTime     @default(now())
+
+  reuniao Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reuniaoId, userId, tipo])
   @@index([userId])
 }

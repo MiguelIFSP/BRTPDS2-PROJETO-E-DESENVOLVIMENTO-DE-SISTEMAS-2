@@ -4,6 +4,7 @@ import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import ReunioesScreen from '@/app/(tabs)/(reunioes)';
 import { comissaoService } from '@/services/comissaoService';
+import { notificacaoService } from '@/services/notificacaoService';
 import { organizacaoService } from '@/services/organizacaoService';
 import { reuniaoService } from '@/services/reuniaoService';
 
@@ -68,6 +69,7 @@ jest.spyOn(organizacaoService, 'listMine').mockResolvedValue([]);
 jest.spyOn(comissaoService, 'listByOrganizacao');
 jest.spyOn(reuniaoService, 'listMine').mockResolvedValue([reuniao]);
 jest.spyOn(reuniaoService, 'listPendingInvites').mockResolvedValue([]);
+jest.spyOn(notificacaoService, 'listMine').mockResolvedValue([]);
 
 beforeEach(() => {
   create.mockReset().mockResolvedValue(reuniao);
@@ -109,6 +111,10 @@ it('mostra DD-MM-AAAA e envia a data selecionada no formato aceito pela API', as
     screen.getByLabelText('Pauta da reunião'),
     'Pauta',
   );
+  await fireEvent.changeText(
+    screen.getByLabelText('Local ou link da reunião'),
+    '  https://meet.example.test/abc  ',
+  );
   await fireEvent.press(screen.getByLabelText('Selecionar data da reunião'));
   const selectedDate = new Date(2028, 1, 29, 23, 30);
   await act(() => mockPickerChange({ type: 'set' }, selectedDate));
@@ -132,6 +138,7 @@ it('mostra DD-MM-AAAA e envia a data selecionada no formato aceito pela API', as
       data: '2028-02-29',
       horaInicio: '10:00',
       horaFim: '11:00',
+      local: 'https://meet.example.test/abc',
     }),
   );
   expect(
@@ -163,3 +170,23 @@ it.each([
     expect(create).not.toHaveBeenCalled();
   },
 );
+
+it('exige o local e mostra exemplos de preenchimento pelo ícone de ajuda', async () => {
+  await render(<ReunioesScreen />);
+  await screen.findByText('21-10-2026 · 10:00 às 11:00');
+  await fireEvent.press(screen.getByLabelText('Adicionar reunião'));
+
+  expect(screen.queryByText('Híbrida')).toBeNull();
+  await fireEvent.press(
+    screen.getByLabelText('Ver exemplos de como preencher o local'),
+  );
+  expect(screen.getByText('Presencial')).toBeOnTheScreen();
+  expect(screen.getByText('Online')).toBeOnTheScreen();
+  expect(screen.getByText('Híbrida')).toBeOnTheScreen();
+
+  await fireEvent.press(screen.getByRole('button', { name: 'Salvar reunião' }));
+  expect(
+    await screen.findByText('Informe o local ou o link da reunião.'),
+  ).toBeOnTheScreen();
+  expect(create).not.toHaveBeenCalled();
+});

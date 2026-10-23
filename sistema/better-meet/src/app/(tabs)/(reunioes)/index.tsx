@@ -5,6 +5,10 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import * as yup from 'yup';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import ConvitesSemAceite from '@/components/ConvitesSemAceite';
+import LocalReuniaoField from '@/components/LocalReuniaoField';
+import MembrosSelector from '@/components/MembrosSelector';
+import NotificacoesList from '@/components/NotificacoesList';
 import ReuniaoCheckIn from '@/components/ReuniaoCheckIn';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
@@ -25,12 +29,17 @@ import {
   comissaoService,
   type ComissaoDetalhe,
 } from '@/services/comissaoService';
+import {
+  notificacaoService,
+  type Notificacao,
+} from '@/services/notificacaoService';
 import { organizacaoService } from '@/services/organizacaoService';
 import {
   reuniaoService,
   type ReuniaoRegistro,
 } from '@/services/reuniaoService';
 import { useAuthStore } from '@/store/authStore';
+import { useNotificacaoStore } from '@/store/notificacaoStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
 import { reuniaoSchema } from '@/schemas/reuniaoSchema';
@@ -43,6 +52,7 @@ type ReuniaoItem = {
   horaFim: string;
   pauta: string;
   descricao?: string;
+  local?: string;
   comissaoId: number;
   criadoPorUserId: number;
   status: 'AGENDADA' | 'REALIZADA' | 'CANCELADA';
@@ -57,6 +67,7 @@ type ReuniaoItem = {
   convites?: {
     id: number;
     userId: number;
+    nome: string;
     status: 'PENDENTE' | 'ACEITO' | 'RECUSADO';
   }[];
   comissaoNome?: string;
@@ -71,6 +82,7 @@ type ConviteItem = {
   horaFim: string;
   usuario: string;
   status: 'PENDENTE' | 'ACEITO' | 'RECUSADO';
+  local?: string;
   comissaoNome?: string;
 };
 
@@ -88,7 +100,7 @@ const INITIAL_REUNIOES: ReuniaoItem[] = [];
 const INITIAL_CONVITES: ConviteItem[] = [];
 
 // Início do app e raiz da aba Reuniões: lista as reuniões, cria novas e
-// responde convites (o sino do Header abre os pendentes).
+// responde convites (o sino do Header abre os pendentes e os avisos).
 export default function ReunioesScreen() {
   const { colors } = useTheme();
   const router = useRouter();
@@ -113,6 +125,8 @@ export default function ReunioesScreen() {
 
   const [reunioes, setReunioes] = useState<ReuniaoItem[]>(INITIAL_REUNIOES);
   const [convites, setConvites] = useState<ConviteItem[]>(INITIAL_CONVITES);
+  const [notificacoes, setNotificacoes] = useState<Notificacao[]>([]);
+  const setContagem = useNotificacaoStore((state) => state.setContagem);
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [editingReuniao, setEditingReuniao] = useState<ReuniaoItem | null>(
     null,
@@ -129,6 +143,7 @@ export default function ReunioesScreen() {
       titulo: string;
       pauta: string;
       descricao?: string;
+      local: string;
       data: string;
       horaInicio: string;
       horaFim: string;
@@ -138,6 +153,7 @@ export default function ReunioesScreen() {
   const [titulo, setTitulo] = useState('');
   const [pauta, setPauta] = useState('');
   const [descricao, setDescricao] = useState('');
+  const [local, setLocal] = useState('');
   const [horaInicio, setHoraInicio] = useState('');
   const [horaFim, setHoraFim] = useState('');
   const [comissoes, setComissoes] = useState<ComissaoOption[]>([]);
@@ -163,6 +179,26 @@ export default function ReunioesScreen() {
     () => convites.filter((convite) => convite.status === 'PENDENTE'),
     [convites],
   );
+  const naoLidas = useMemo(
+    () => notificacoes.filter((notificacao) => !notificacao.lidaAt).length,
+    [notificacoes],
+  );
+
+  useEffect(() => {
+    setContagem({ convitesPendentes: pendingInvites.length, naoLidas });
+  }, [naoLidas, pendingInvites.length, setContagem]);
+
+  // Quem já tem convite (pendente, aceito ou recusado) não aparece de novo.
+  const membrosSemConvite = useMemo(
+    () =>
+      membrosDaComissao.filter(
+        (membro) =>
+          !inviteReuniao?.convites?.some(
+            (convite) => convite.userId === membro.id,
+          ),
+      ),
+    [inviteReuniao, membrosDaComissao],
+  );
 
   const canCreateMeeting = comissoes.length > 0 && Boolean(comissaoSelecionada);
   const canManageMeeting = (reuniao: ReuniaoItem) =>
@@ -172,6 +208,7 @@ export default function ReunioesScreen() {
     setTitulo('');
     setPauta('');
     setDescricao('');
+    setLocal('');
     setDatePickerValue(new Date());
     setHoraInicio('');
     setHoraFim('');
@@ -197,6 +234,7 @@ export default function ReunioesScreen() {
     setTitulo(reuniao.titulo);
     setPauta(reuniao.pauta);
     setDescricao(reuniao.descricao ?? '');
+    setLocal(reuniao.local ?? '');
     setComissaoSelecionada(reuniao.comissaoId);
     setDatePickerValue(new Date(year, (month ?? 1) - 1, day));
     setHoraInicioPickerValue(nextStart);
@@ -288,13 +326,15 @@ export default function ReunioesScreen() {
     if (!token) {
       setReunioes(INITIAL_REUNIOES);
       setConvites(INITIAL_CONVITES);
+      setNotificacoes([]);
       return;
     }
 
     try {
-      const [mine, pending] = await Promise.all([
+      const [mine, pending, avisos] = await Promise.all([
         reuniaoService.listMine(token),
         reuniaoService.listPendingInvites(token),
+        notificacaoService.listMine(token),
       ]);
 
       const mappedMine = mine.map((reuniao) => ({
@@ -305,6 +345,7 @@ export default function ReunioesScreen() {
         horaFim: reuniao.horaFim,
         pauta: reuniao.pauta,
         descricao: reuniao.descricao ?? undefined,
+        local: reuniao.local ?? undefined,
         comissaoId: reuniao.comissaoId,
         criadoPorUserId: reuniao.criadoPorUserId,
         status: reuniao.status,
@@ -325,9 +366,11 @@ export default function ReunioesScreen() {
           horaFim: convite.horaFim,
           usuario: convite.usuario,
           status: convite.status,
+          local: convite.local ?? undefined,
           comissaoNome: convite.comissao,
         })),
       );
+      setNotificacoes(avisos);
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -361,6 +404,28 @@ export default function ReunioesScreen() {
   const closeInvites = () =>
     router.setParams({ openPendingInvites: undefined });
 
+  // Abrir o sino conta como leitura dos avisos. Falha aqui não merece banner:
+  // os avisos continuam visíveis e voltam como não lidos na próxima carga.
+  useEffect(() => {
+    if (!isInvitesVisible || !token || naoLidas === 0) return;
+    let cancelled = false;
+    void notificacaoService
+      .markAllRead(token)
+      .then(() => {
+        if (cancelled) return;
+        const lidaAt = new Date().toISOString();
+        setNotificacoes((current) =>
+          current.map((notificacao) =>
+            notificacao.lidaAt ? notificacao : { ...notificacao, lidaAt },
+          ),
+        );
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [isInvitesVisible, naoLidas, token]);
+
   const handleSaveMeeting = async () => {
     if (!token) {
       setFeedback({
@@ -378,6 +443,7 @@ export default function ReunioesScreen() {
           titulo,
           pauta,
           descricao,
+          local,
           data,
           horaInicio,
           horaFim,
@@ -419,15 +485,15 @@ export default function ReunioesScreen() {
   const handleDeleteMeeting = async () => {
     if (!token || !reuniaoToDelete) return;
     try {
-      await reuniaoService.delete(token, reuniaoToDelete.id);
+      const { message } = await reuniaoService.delete(
+        token,
+        reuniaoToDelete.id,
+      );
       setReunioes((current) =>
         current.filter((item) => item.id !== reuniaoToDelete.id),
       );
       setReuniaoToDelete(null);
-      setFeedback({
-        type: 'success',
-        message: 'Reunião removida com sucesso.',
-      });
+      setFeedback({ type: 'success', message });
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -460,6 +526,45 @@ export default function ReunioesScreen() {
       setFeedback({
         type: 'error',
         message: getErrorMessage(error, 'Não foi possível enviar os convites.'),
+      });
+    }
+  };
+
+  // Remoção otimista: o aviso some na hora e volta se a API recusar.
+  const handleRemoveNotificacao = async (id: number) => {
+    if (!token) return;
+    const anteriores = notificacoes;
+    setNotificacoes((current) =>
+      current.filter((notificacao) => notificacao.id !== id),
+    );
+    try {
+      await notificacaoService.remove(token, id);
+    } catch (error) {
+      setNotificacoes(anteriores);
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(
+          error,
+          'Não foi possível remover a notificação.',
+        ),
+      });
+    }
+  };
+
+  const handleRemoveAllNotificacoes = async () => {
+    if (!token) return;
+    const anteriores = notificacoes;
+    setNotificacoes([]);
+    try {
+      await notificacaoService.removeAll(token);
+    } catch (error) {
+      setNotificacoes(anteriores);
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(
+          error,
+          'Não foi possível limpar as notificações.',
+        ),
       });
     }
   };
@@ -646,6 +751,23 @@ export default function ReunioesScreen() {
               </View>
             </View>
 
+            <View style={styles.localRow}>
+              <Ionicons
+                name="location-outline"
+                size={18}
+                color={colors.textSecondary}
+              />
+              <Text
+                selectable
+                style={[
+                  styles.localText,
+                  { color: reuniao.local ? colors.text : colors.textSecondary },
+                ]}
+              >
+                {reuniao.local ?? 'Local não informado'}
+              </Text>
+            </View>
+
             <Text style={[styles.pautaLabel, { color: colors.textSecondary }]}>
               Pauta
             </Text>
@@ -707,6 +829,10 @@ export default function ReunioesScreen() {
                   );
                 })}
               </View>
+            ) : null}
+
+            {canManageMeeting(reuniao) ? (
+              <ConvitesSemAceite convites={reuniao.convites} />
             ) : null}
 
             {token ? (
@@ -812,83 +938,16 @@ export default function ReunioesScreen() {
                 <Text
                   style={[styles.metaText, { color: colors.textSecondary }]}
                 >
-                  Selecione os membros que receberão o convite. Eles só
+                  Só membros desta comissão podem ser convidados. Eles só
                   participarão após aceitar.
                 </Text>
-                {isLoadingMembros ? (
-                  <Text
-                    style={[styles.metaText, { color: colors.textSecondary }]}
-                  >
-                    Carregando participantes...
-                  </Text>
-                ) : membrosDaComissao.length === 0 ? (
-                  <Text
-                    style={[styles.metaText, { color: colors.textSecondary }]}
-                  >
-                    Não há outros membros nesta comissão.
-                  </Text>
-                ) : (
-                  <View style={styles.memberSelector}>
-                    {membrosDaComissao.map((membro) => {
-                      const selecionado = convidados.includes(membro.id);
-                      return (
-                        <Pressable
-                          key={membro.id}
-                          accessibilityRole="checkbox"
-                          accessibilityState={{ checked: selecionado }}
-                          accessibilityLabel={`Convidar ${membro.name}`}
-                          onPress={() =>
-                            setConvidados((current) =>
-                              selecionado
-                                ? current.filter((id) => id !== membro.id)
-                                : [...current, membro.id],
-                            )
-                          }
-                          style={({ pressed }) => [
-                            styles.memberOption,
-                            {
-                              backgroundColor: selecionado
-                                ? withAlpha(colors.primary, 0.12)
-                                : colors.background,
-                              borderColor: selecionado
-                                ? colors.primary
-                                : colors.border,
-                            },
-                            pressed && styles.pressed,
-                          ]}
-                        >
-                          <Ionicons
-                            name={selecionado ? 'checkbox' : 'square-outline'}
-                            size={22}
-                            color={
-                              selecionado
-                                ? colors.primary
-                                : colors.textSecondary
-                            }
-                          />
-                          <View style={styles.memberInfo}>
-                            <Text
-                              style={[
-                                styles.memberName,
-                                { color: colors.text },
-                              ]}
-                            >
-                              {membro.name}
-                            </Text>
-                            <Text
-                              style={[
-                                styles.metaText,
-                                { color: colors.textSecondary },
-                              ]}
-                            >
-                              {membro.email}
-                            </Text>
-                          </View>
-                        </Pressable>
-                      );
-                    })}
-                  </View>
-                )}
+                <MembrosSelector
+                  membros={membrosDaComissao}
+                  selecionados={convidados}
+                  onChange={setConvidados}
+                  isLoading={isLoadingMembros}
+                  emptyText="Não há outros membros nesta comissão. Adicione-os na equipe da comissão para convidá-los."
+                />
               </View>
             ) : null}
 
@@ -1002,6 +1061,12 @@ export default function ReunioesScreen() {
               </Text>
             ) : null}
 
+            <LocalReuniaoField
+              value={local}
+              onChangeText={setLocal}
+              error={formErrors.local}
+            />
+
             <View style={styles.field}>
               <TextField
                 label="Pauta"
@@ -1045,83 +1110,13 @@ export default function ReunioesScreen() {
         <Text style={[styles.metaText, { color: colors.textSecondary }]}>
           Selecione os membros da comissão que receberão um convite.
         </Text>
-        {isLoadingMembros ? (
-          <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-            Carregando participantes...
-          </Text>
-        ) : (
-          <View style={styles.memberSelector}>
-            {membrosDaComissao
-              .filter(
-                (membro) =>
-                  !inviteReuniao?.convites?.some(
-                    (convite) => convite.userId === membro.id,
-                  ),
-              )
-              .map((membro) => {
-                const selecionado = inviteSelection.includes(membro.id);
-                return (
-                  <Pressable
-                    key={membro.id}
-                    accessibilityRole="checkbox"
-                    accessibilityState={{ checked: selecionado }}
-                    accessibilityLabel={`Convidar ${membro.name}`}
-                    onPress={() =>
-                      setInviteSelection((current) =>
-                        selecionado
-                          ? current.filter((id) => id !== membro.id)
-                          : [...current, membro.id],
-                      )
-                    }
-                    style={({ pressed }) => [
-                      styles.memberOption,
-                      {
-                        backgroundColor: selecionado
-                          ? withAlpha(colors.primary, 0.12)
-                          : colors.background,
-                        borderColor: selecionado
-                          ? colors.primary
-                          : colors.border,
-                      },
-                      pressed && styles.pressed,
-                    ]}
-                  >
-                    <Ionicons
-                      name={selecionado ? 'checkbox' : 'square-outline'}
-                      size={22}
-                      color={
-                        selecionado ? colors.primary : colors.textSecondary
-                      }
-                    />
-                    <View style={styles.memberInfo}>
-                      <Text style={[styles.memberName, { color: colors.text }]}>
-                        {membro.name}
-                      </Text>
-                      <Text
-                        style={[
-                          styles.metaText,
-                          { color: colors.textSecondary },
-                        ]}
-                      >
-                        {membro.email}
-                      </Text>
-                    </View>
-                  </Pressable>
-                );
-              })}
-          </View>
-        )}
-        {inviteReuniao &&
-        membrosDaComissao.filter(
-          (membro) =>
-            !inviteReuniao.convites?.some(
-              (convite) => convite.userId === membro.id,
-            ),
-        ).length === 0 ? (
-          <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-            Todos os membros da comissão já foram convidados.
-          </Text>
-        ) : null}
+        <MembrosSelector
+          membros={membrosSemConvite}
+          selecionados={inviteSelection}
+          onChange={setInviteSelection}
+          isLoading={isLoadingMembros}
+          emptyText="Todos os membros da comissão já foram convidados."
+        />
         <Button
           label="Enviar convites"
           onPress={() => void handleInviteMembers()}
@@ -1172,13 +1167,14 @@ export default function ReunioesScreen() {
 
       <BottomSheet
         visible={isInvitesVisible}
-        title="Convites pendentes"
+        title="Notificações"
         onClose={closeInvites}
       >
         <ScrollView
           style={styles.inviteList}
           contentContainerStyle={styles.inviteListContent}
         >
+          <SectionLabel label="Convites pendentes" />
           {pendingInvites.length === 0 ? (
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
               Nenhum convite pendente.
@@ -1210,6 +1206,14 @@ export default function ReunioesScreen() {
                     style={[styles.inviteMeta, { color: colors.textSecondary }]}
                   >
                     Comissão: {convite.comissaoNome}
+                  </Text>
+                ) : null}
+                {convite.local ? (
+                  <Text
+                    selectable
+                    style={[styles.inviteMeta, { color: colors.textSecondary }]}
+                  >
+                    Local: {convite.local}
                   </Text>
                 ) : null}
                 <View style={styles.inviteActions}>
@@ -1247,13 +1251,19 @@ export default function ReunioesScreen() {
               </View>
             ))
           )}
+
+          <NotificacoesList
+            notificacoes={notificacoes}
+            onRemove={(id) => void handleRemoveNotificacao(id)}
+            onRemoveAll={() => void handleRemoveAllNotificacoes()}
+          />
         </ScrollView>
       </BottomSheet>
 
       <ConfirmDialog
         visible={Boolean(reuniaoToDelete)}
         title="Remover reunião?"
-        message={`A reunião "${reuniaoToDelete?.titulo ?? ''}" será removida permanentemente.`}
+        message={`A reunião "${reuniaoToDelete?.titulo ?? ''}" será removida permanentemente. Os participantes serão avisados.`}
         confirmLabel="Remover"
         onCancel={() => setReuniaoToDelete(null)}
         onConfirm={() => void handleDeleteMeeting()}
@@ -1357,20 +1367,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
   statusText: { ...Typography.bodySmall },
+  localRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.xs,
+  },
+  localText: { ...Typography.bodySmall, flex: 1 },
   pautaLabel: { ...Typography.bodySmall },
   pautaText: { ...Typography.body },
   metaText: { ...Typography.bodySmall },
-  memberSelector: { gap: Spacing.sm },
-  memberOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    borderWidth: 1,
-    borderRadius: Radius.md,
-    padding: Spacing.md,
-  },
-  memberInfo: { flex: 1, gap: Spacing.xs },
-  memberName: { ...Typography.body, fontFamily: FontFamily.medium },
   participants: { gap: Spacing.xs, marginTop: Spacing.xs },
   participantRow: {
     flexDirection: 'row',

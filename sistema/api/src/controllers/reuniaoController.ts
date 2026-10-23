@@ -68,8 +68,13 @@ export const reuniaoController = {
   async delete(request: Request, response: Response) {
     const { id: userId, role } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');
-    await reuniaoService.delete(userId, role, reuniaoId);
-    response.status(200).json({ message: 'Reunião removida com sucesso.' });
+    const { avisados } = await reuniaoService.delete(userId, role, reuniaoId);
+    response.status(200).json({
+      message:
+        avisados > 0
+          ? `Reunião removida. ${avisados} participante(s) avisado(s).`
+          : 'Reunião removida com sucesso.',
+    });
   },
 
   async inviteMembers(request: Request, response: Response) {

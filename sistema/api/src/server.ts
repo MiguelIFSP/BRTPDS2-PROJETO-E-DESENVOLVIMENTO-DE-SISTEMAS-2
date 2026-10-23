@@ -22,12 +22,15 @@ import comissaoRoutes from './routes/comissaoRoutes.ts';
 import organizacaoRoutes from './routes/organizacaoRoutes.ts';
 import usuarioRoutes from './routes/usuarioRoutes.ts';
 import reuniaoRoutes from './routes/reuniaoRoutes.ts';
+import notificacaoRoutes from './routes/notificacaoRoutes.ts';
+import conviteRespostaRoutes from './routes/conviteRespostaRoutes.ts';
 
 // NOVO: rotas de recuperação de conta (UC02)
 import authRoutes from './routes/authRoutes.ts';
 
 import { authController } from './controllers/authController.ts';
 
+import { lembreteService } from './services/lembreteService.ts';
 import { monitoringService } from './services/monitoringService.ts';
 import { usuarioService } from './services/usuarioService.ts';
 
@@ -53,6 +56,8 @@ apiRouter.use(usuarioRoutes);
 apiRouter.use(organizacaoRoutes);
 apiRouter.use(comissaoRoutes);
 apiRouter.use(reuniaoRoutes);
+apiRouter.use(notificacaoRoutes);
+apiRouter.use(conviteRespostaRoutes);
 
 app.use('/api', apiRouter);
 
@@ -80,11 +85,13 @@ app.use(handleError);
 const server = app.listen(env.PORT, async () => {
   await usuarioService.ensureDefaultAdmin();
   console.log(`API Better Meet disponível em http://localhost:${env.PORT}/api`);
+  lembreteService.iniciar();
   await monitoringService.reportStatus('OPERATIONAL', 'Serviço iniciado');
 });
 
 // Reporta a própria parada antes de sair, pra monitoring não esperar o cron.
 const shutdown = async () => {
+  lembreteService.parar();
   await monitoringService.reportStatus('MAINTENANCE', 'Parada solicitada');
   server.close();
   await prisma.$disconnect();
