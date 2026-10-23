@@ -73,6 +73,15 @@ routes.get(
   usuarioController.getComissoesAdministradas,
 );
 
+// Se o usuário é o único administrador da plataforma (a tela de exclusão
+// pede quem assume no lugar dele)
+routes.get(
+  '/usuarios/:id/unico-administrador',
+  requireAuth,
+  requireSelf,
+  usuarioController.getSituacaoAdministrador,
+);
+
 // Excluir dados pessoais (bloqueado se ainda for responsável por alguma organização)
 routes.delete(
   '/usuarios/:id/dados-pessoais',

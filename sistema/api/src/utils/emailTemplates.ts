@@ -95,6 +95,21 @@ ${
   return { assunto, texto, html };
 };
 
+// Aviso sem reunião: título e parágrafos de texto.
+const buildAviso = (assunto: string, paragrafos: string[]): EmailMontado => {
+  const rodape =
+    'Acesse o app Better Meet para usar as funções de administrador. Este e-mail é automático.';
+  const texto = [...paragrafos, rodape].join('\n\n');
+  const html = `<!doctype html>
+<html lang="pt-BR"><body style="margin:0;padding:24px;background:#f4f6f6;font-family:Arial,Helvetica,sans-serif;color:#1b1f20">
+<div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dfe5e5;border-radius:12px;padding:24px">
+<h1 style="margin:0 0 16px;font-size:20px">${escapeHtml(assunto)}</h1>
+${paragrafos.map((paragrafo) => `<p style="margin:0 0 12px;font-size:15px">${escapeHtml(paragrafo)}</p>`).join('\n')}
+<p style="margin:24px 0 0;font-size:12px;color:#5b6566">${escapeHtml(rodape)}</p>
+</div></body></html>`;
+  return { assunto, texto, html };
+};
+
 const quando = (reuniao: ReuniaoEmail) =>
   `${formatDate(reuniao.data)} às ${reuniao.horaInicio}`;
 
@@ -140,4 +155,11 @@ export const emailTemplates = {
     const [assunto, introducao] = textos[tipo];
     return build(assunto, introducao, reuniao);
   },
+
+  novoAdministrador: (nome: string, anterior: string) =>
+    buildAviso('Você agora é administrador do Better Meet', [
+      `Olá, ${nome}.`,
+      `${anterior} excluiu a própria conta e escolheu você para assumir a administração da plataforma Better Meet.`,
+      'Como administrador, você aprova as organizações cadastradas, acompanha os relatórios gerais e pode promover outras pessoas a administrador.',
+    ]),
 };

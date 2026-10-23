@@ -8,6 +8,9 @@ import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
+import PersonPickerSheet, {
+  type Person,
+} from '@/components/ui/PersonPickerSheet';
 import Screen from '@/components/ui/Screen';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import { Spacing, Typography } from '@/constants/theme';
@@ -27,7 +30,7 @@ import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 
 type Acao = 'personal' | 'full';
-type Etapa = 'sucessores' | 'avisoComissoes' | 'confirmar';
+type Etapa = 'administrador' | 'sucessores' | 'avisoComissoes' | 'confirmar';
 
 // organizações em que o usuário é CRIADOR (só ele pode excluí-las — ver organizacaoService no backend).
 const getOrganizacoesCriadas = (organizacoes: Organizacao[], userId: number) =>
@@ -72,11 +75,17 @@ export default function ExcluirContaScreen() {
 
   const [organizacoes, setOrganizacoes] = useState<Organizacao[]>([]);
   const [comissoes, setComissoes] = useState<ComissaoAdministrada[]>([]);
+  // único ADMIN da plataforma: antes de sair, escolhe quem assume a administração.
+  const [unicoAdministrador, setUnicoAdministrador] = useState(false);
+  const [novoAdministrador, setNovoAdministrador] = useState<Person | null>(
+    null,
+  );
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useFeedback();
   const [sucessores, setSucessores] = useState<Sucessores>({});
   const [sucessoresComissao, setSucessoresComissao] = useState<Sucessores>({});
-  // passo atual da exclusão: escolher sucessores -> aviso das comissões apagadas -> confirmação final.
+  // passo atual da exclusão: novo administrador da plataforma -> sucessores ->
+  // aviso das comissões apagadas -> confirmação final.
   const [fluxo, setFluxo] = useState<{ acao: Acao; etapa: Etapa } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -92,13 +101,18 @@ export default function ExcluirContaScreen() {
       const load = async () => {
         setIsLoading(true);
         try {
-          const [organizacoesData, comissoesData] = await Promise.all([
-            organizacaoService.listMine(token),
-            usuarioService.getComissoesAdministradas(token, user.id),
-          ]);
+          const [organizacoesData, comissoesData, administracao] =
+            await Promise.all([
+              organizacaoService.listMine(token),
+              usuarioService.getComissoesAdministradas(token, user.id),
+              user.role === 'ADMIN'
+                ? usuarioService.isUnicoAdministrador(token, user.id)
+                : { unicoAdministrador: false },
+            ]);
           if (!cancelled) {
             setOrganizacoes(organizacoesData);
             setComissoes(comissoesData);
+            setUnicoAdministrador(administracao.unicoAdministrador);
           }
         } catch (error) {
           if (!cancelled) {
@@ -153,6 +167,7 @@ export default function ExcluirContaScreen() {
     acao === 'personal' ? orgsComSucessorPossivel : [];
 
   const getEtapas = (acao: Acao): Etapa[] => [
+    ...(unicoAdministrador ? (['administrador'] as const) : []),
     ...(getOrgsParaSucessor(acao).length > 0 ||
     comissoesPorAcao[acao].precisamSucessor.length > 0
       ? (['sucessores'] as const)
@@ -195,11 +210,13 @@ export default function ExcluirContaScreen() {
               user.id,
               sucessores,
               sucessoresComissao,
+              novoAdministrador?.id,
             )
           : await usuarioService.deleteFullAccount(
               token,
               user.id,
               sucessoresComissao,
+              novoAdministrador?.id,
             );
       setFluxo(null);
       setSuccessMessage(message);
@@ -235,6 +252,25 @@ export default function ExcluirContaScreen() {
   };
 
   const comissoesVaziasAtuais = comissoesPorAcao[acaoAtual].vazias;
+
+  // qualquer outro usuário da plataforma pode assumir a administração.
+  const searchNovoAdministrador = async (term: string) => {
+    if (!token) throw new Error('Sessão expirada. Entre novamente.');
+    const pessoas = await usuarioService.search(token, term);
+    return pessoas.filter((pessoa) => pessoa.id !== user.id);
+  };
+
+  const avisoAdministrador = unicoAdministrador ? (
+    <Text style={[styles.hint, { color: colors.textSecondary }]}>
+      Você é o único administrador da plataforma. Antes de excluir, escolha quem
+      assume a administração — essa pessoa recebe um e-mail avisando.
+    </Text>
+  ) : null;
+
+  const confirmacaoAdministrador =
+    unicoAdministrador && novoAdministrador
+      ? ` ${novoAdministrador.name} passará a administrar a plataforma e será avisado(a) por e-mail.`
+      : '';
 
   const renderComissoesHint = (acao: Acao) => {
     const { precisamSucessor, vazias } = comissoesPorAcao[acao];
@@ -287,6 +323,7 @@ export default function ExcluirContaScreen() {
             Sua conta, senha, tokens de recuperação e vínculos com organizações
             e comissões serão apagados.
           </Text>
+          {avisoAdministrador}
           {renderComissoesHint('personal')}
           <Button
             variant="danger"
@@ -329,6 +366,7 @@ export default function ExcluirContaScreen() {
               </Text>
             ) : null}
 
+            {avisoAdministrador}
             {renderComissoesHint('personal')}
 
             <Button
@@ -352,6 +390,7 @@ export default function ExcluirContaScreen() {
               comissão(ões) e o vínculo de {totalOutrosMembros} outro(s)
               membro(s) com elas.
             </Text>
+            {avisoAdministrador}
             {renderComissoesHint('full')}
             <Button
               variant="danger"
@@ -362,6 +401,28 @@ export default function ExcluirContaScreen() {
           </Card>
         </>
       )}
+
+      <PersonPickerSheet
+        visible={fluxo?.etapa === 'administrador'}
+        title="Quem assume a administração?"
+        searchPeople={searchNovoAdministrador}
+        hint="Você é o único administrador da plataforma. A pessoa escolhida passa a ser administradora e recebe um e-mail avisando."
+        submitLabel="Continuar"
+        submitIcon="shield-checkmark-outline"
+        submitLoadingLabel="Continuando..."
+        // ao confirmar o painel já avançou para a próxima etapa; só cancela
+        // se ainda estiver nesta.
+        onClose={() =>
+          setFluxo((current) =>
+            current?.etapa === 'administrador' ? null : current,
+          )
+        }
+        onSubmit={async ({ person }) => {
+          setNovoAdministrador(person);
+          advance(acaoAtual, 'administrador');
+          return null;
+        }}
+      />
 
       <SucessoresDialog
         visible={fluxo?.etapa === 'sucessores'}
@@ -405,13 +466,13 @@ export default function ExcluirContaScreen() {
             ? 'Excluir seus dados pessoais?'
             : 'Excluir dados pessoais e organizações?'
         }
-        message={
+        message={`${
           acaoAtual === 'full'
             ? `Sua conta, ${minhasOrgsCriador.length} organização(ões), ${totalComissoes} comissão(ões) e o vínculo de ${totalOutrosMembros} outro(s) membro(s) com elas serão removidos permanentemente, além do cache salvo neste dispositivo.`
             : minhasOrgsCriador.length === 0
               ? 'Sua conta e o cache salvo neste dispositivo serão removidos permanentemente. Você precisará criar uma conta nova para voltar a usar o sistema.'
               : 'Cada organização que você criou passará para quem você escolheu e, em seguida, sua conta e o cache salvo neste dispositivo serão removidos permanentemente.'
-        }
+        }${confirmacaoAdministrador}`}
         isLoading={isSubmitting}
         onCancel={() => setFluxo(null)}
         onConfirm={() => advance(acaoAtual, 'confirmar')}

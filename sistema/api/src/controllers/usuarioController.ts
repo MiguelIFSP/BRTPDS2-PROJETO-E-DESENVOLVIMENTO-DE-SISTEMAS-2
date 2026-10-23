@@ -92,9 +92,16 @@ export const usuarioController = {
     response.status(200).json(comissoes);
   },
 
+  async getSituacaoAdministrador(request: Request, response: Response) {
+    const userId = parseId(request.params.id, 'do usuário');
+    const unicoAdministrador =
+      await usuarioService.isUnicoAdministrador(userId);
+    response.status(200).json({ unicoAdministrador });
+  },
+
   async deletePersonalData(request: Request, response: Response) {
     const userId = parseId(request.params.id, 'do usuário');
-    const { sucessores, sucessoresComissao } =
+    const { sucessores, sucessoresComissao, novoAdministradorId } =
       await exclusaoContaSchema.validate(request.body ?? {}, {
         stripUnknown: true,
       });
@@ -102,6 +109,7 @@ export const usuarioController = {
       userId,
       sucessores,
       sucessoresComissao,
+      novoAdministradorId,
     );
     response
       .status(200)
@@ -110,11 +118,15 @@ export const usuarioController = {
 
   async deleteFullAccount(request: Request, response: Response) {
     const userId = parseId(request.params.id, 'do usuário');
-    const { sucessoresComissao } = await exclusaoContaSchema.validate(
-      request.body ?? {},
-      { stripUnknown: true },
+    const { sucessoresComissao, novoAdministradorId } =
+      await exclusaoContaSchema.validate(request.body ?? {}, {
+        stripUnknown: true,
+      });
+    await usuarioService.deleteFullAccount(
+      userId,
+      sucessoresComissao,
+      novoAdministradorId,
     );
-    await usuarioService.deleteFullAccount(userId, sucessoresComissao);
     response.status(200).json({
       message: 'Sua conta e suas organizações foram excluídas com sucesso.',
     });

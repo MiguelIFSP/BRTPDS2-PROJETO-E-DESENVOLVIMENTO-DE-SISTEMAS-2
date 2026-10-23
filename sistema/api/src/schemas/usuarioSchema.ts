@@ -79,4 +79,6 @@ export const exclusaoContaSchema = yup.object({
   sucessores: sucessoresRule(),
   // comissaoId -> novoAdministradorId
   sucessoresComissao: sucessoresRule(),
+  // quem passa a administrar a plataforma, quando quem sai é o único ADMIN.
+  novoAdministradorId: idRule('Novo administrador inválido.').optional(),
 });

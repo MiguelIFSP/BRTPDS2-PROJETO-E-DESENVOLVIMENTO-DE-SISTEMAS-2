@@ -153,6 +153,13 @@ export const emailService = {
     tipo: TipoLembrete,
   ) => send(destinatario, emailTemplates.lembrete(reuniao, tipo)),
 
+  // `anterior` = nome do administrador que excluiu a conta e escolheu o destinatário.
+  sendNovoAdministrador: (destinatario: Destinatario, anterior: string) =>
+    send(
+      destinatario,
+      emailTemplates.novoAdministrador(destinatario.nome, anterior),
+    ),
+
   /**
    * Dispara sem segurar a resposta HTTP: o e-mail sai depois que a operação no
    * banco já foi confirmada, e uma falha só vai para o log. Com o e-mail

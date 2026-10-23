@@ -1,5 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import {
   ActivityIndicator,
   Pressable,
@@ -44,6 +47,8 @@ type PersonPickerSheetProps<R extends string> = {
   // aviso embaixo da busca (ex.: "entra como Membro").
   hint?: string;
   submitLabel: string;
+  submitIcon?: IoniconsIconName;
+  submitLoadingLabel?: string;
   onClose: () => void;
   // resolve com a mensagem de erro, ou null quando deu certo (o painel fecha).
   onSubmit: (choice: PersonChoice<R>) => Promise<string | null>;
@@ -61,7 +66,8 @@ type SearchState =
   | { status: 'error'; message: string };
 
 // Busca de pessoa por nome ou e-mail, escolha na lista de resultados, papel e
-// confirmação, num painel que sobe do rodapé. Usado para adicionar membros.
+// confirmação, num painel que sobe do rodapé. Usado para adicionar membros e
+// para escolher o novo administrador na exclusão de conta.
 export default function PersonPickerSheet<R extends string>({
   visible,
   title,
@@ -70,6 +76,8 @@ export default function PersonPickerSheet<R extends string>({
   defaultRole,
   hint,
   submitLabel,
+  submitIcon = 'person-add-outline',
+  submitLoadingLabel = 'Adicionando...',
   onClose,
   onSubmit,
 }: PersonPickerSheetProps<R>) {
@@ -299,8 +307,8 @@ export default function PersonPickerSheet<R extends string>({
 
       <Button
         label={submitLabel}
-        loadingLabel="Adicionando..."
-        icon="person-add-outline"
+        loadingLabel={submitLoadingLabel}
+        icon={submitIcon}
         isLoading={isSubmitting}
         onPress={() => void submit()}
       />

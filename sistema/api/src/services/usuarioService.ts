@@ -8,6 +8,7 @@ import {
 import prisma from '../config/database.ts';
 import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
+import { emailService } from './emailService.ts';
 import { countByMonth } from '../utils/monthlyGrowth.ts';
 import { hashPassword, verifyPassword } from '../utils/passwordHash.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
@@ -238,6 +239,72 @@ const resolverOrganizacoesCriadas = async (
   return { organizacoesPendentes, transferencias };
 };
 
+// =====================================================================
+// Administração da plataforma na exclusão de conta
+//
+// A plataforma nunca fica sem administrador (EX-18). Se quem sai é o único
+// ADMIN, precisa vir em `novoAdministradorId` o usuário escolhido por ele,
+// que é promovido na mesma transação da exclusão. A contagem fica dentro da
+// transação pelo mesmo motivo do updateRole: duas saídas simultâneas não
+// podem zerar os administradores.
+// Devolve quem foi promovido (para o e-mail de aviso), ou null.
+// =====================================================================
+const ADMINISTRADOR_PENDENTE =
+  'Você é o único administrador da plataforma. Escolha quem vai assumir a administração antes de continuar.';
+
+const transferirAdministracao = async (
+  transaction: Prisma.TransactionClient,
+  userId: number,
+  novoAdministradorId: number | undefined,
+) => {
+  const user = await transaction.user.findUnique({
+    where: { id: userId },
+    select: { role: true, name: true },
+  });
+  if (!user) {
+    throw new AppError(404, 'Usuário não encontrado.');
+  }
+  if (user.role !== 'ADMIN') return null;
+
+  const outrosAdmins = await transaction.user.count({
+    where: { role: 'ADMIN', id: { not: userId } },
+  });
+  if (outrosAdmins > 0) return null;
+
+  const novoAdministrador =
+    novoAdministradorId !== undefined && novoAdministradorId !== userId
+      ? await transaction.user.findUnique({
+          where: { id: novoAdministradorId },
+          select: userResumoSelect,
+        })
+      : null;
+  if (!novoAdministrador) {
+    throw new AppError(409, ADMINISTRADOR_PENDENTE, {
+      administradorPendente: true,
+    });
+  }
+
+  await transaction.user.update({
+    where: { id: novoAdministrador.id },
+    data: { role: 'ADMIN' },
+  });
+  return { novoAdministrador, anterior: user.name };
+};
+
+// o e-mail só sai depois que a transação foi confirmada.
+const avisarNovoAdministrador = (
+  transferencia: Awaited<ReturnType<typeof transferirAdministracao>>,
+) => {
+  if (!transferencia) return;
+  const { novoAdministrador, anterior } = transferencia;
+  emailService.runInBackground(() =>
+    emailService.sendNovoAdministrador(
+      { nome: novoAdministrador.name, email: novoAdministrador.email },
+      anterior,
+    ),
+  );
+};
+
 const deleteUser = async (
   transaction: Prisma.TransactionClient,
   userId: number,
@@ -413,6 +480,19 @@ export const usuarioService = {
     });
   },
 
+  // se o usuário é o único ADMIN; a tela de exclusão pede quem assume no lugar dele.
+  async isUnicoAdministrador(userId: number) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { role: true },
+    });
+    if (user?.role !== 'ADMIN') return false;
+    const outrosAdmins = await prisma.user.count({
+      where: { role: 'ADMIN', id: { not: userId } },
+    });
+    return outrosAdmins === 0;
+  },
+
   // comissões em que o usuário é ADMINISTRADOR, com a equipe, pra tela de
   // exclusão decidir quem assume cada uma.
   async getComissoesAdministradas(userId: number) {
@@ -430,12 +510,14 @@ export const usuarioService = {
    * Exclui os dados pessoais do usuário, mantendo as organizações das quais
    * ele é criador (cada uma passa para o sucessor escolhido).
    * Se sobrar alguma organização ou comissão sem sucessor, lança 409 com a
-   * lista pra a tela mostrar o modal antes de tentar de novo.
+   * lista pra a tela mostrar o modal antes de tentar de novo. Se ele for o
+   * único administrador da plataforma, ver transferirAdministracao.
    */
   async deletePersonalData(
     userId: number,
     sucessores: Sucessores,
     sucessoresComissao: Sucessores,
+    novoAdministradorId?: number,
   ) {
     const organizacoes = await resolverOrganizacoesCriadas(userId, sucessores);
     // Comissões em que ele é ADMINISTRADOR: ver resolverComissoesAdministradas.
@@ -460,7 +542,12 @@ export const usuarioService = {
 
     // Transferências e exclusão juntas: se a exclusão falhar, ninguém vira
     // criador de uma organização que o usuário ainda tem.
-    await prisma.$transaction(async (transaction) => {
+    const transferencia = await prisma.$transaction(async (transaction) => {
+      const administracao = await transferirAdministracao(
+        transaction,
+        userId,
+        novoAdministradorId,
+      );
       for (const {
         organizacaoId,
         novoCriadorId,
@@ -475,15 +562,22 @@ export const usuarioService = {
       await aplicarComissoesAdministradas(transaction, comissoes);
       // o vínculo de criador do próprio usuário sai pelo onDelete: Cascade.
       await deleteUser(transaction, userId);
+      return administracao;
     });
+    avisarNovoAdministrador(transferencia);
   },
 
   /**
    * Exclui os dados pessoais + as organizações das quais o usuário é criador
    * e seus dados filhos. Comissões de outras organizações em que ele é
-   * administrador seguem resolverComissoesAdministradas.
+   * administrador seguem resolverComissoesAdministradas, e a administração da
+   * plataforma segue transferirAdministracao.
    */
-  async deleteFullAccount(userId: number, sucessoresComissao: Sucessores) {
+  async deleteFullAccount(
+    userId: number,
+    sucessoresComissao: Sucessores,
+    novoAdministradorId?: number,
+  ) {
     const organizacoesCriador = await prisma.organizacaoMembro.findMany({
       where: { userId, papel: 'CRIADOR' },
       select: { organizacaoId: true },
@@ -506,7 +600,12 @@ export const usuarioService = {
       );
     }
 
-    await prisma.$transaction(async (transaction) => {
+    const transferencia = await prisma.$transaction(async (transaction) => {
+      const administracao = await transferirAdministracao(
+        transaction,
+        userId,
+        novoAdministradorId,
+      );
       await aplicarComissoesAdministradas(transaction, comissoes);
       if (organizacaoIds.length > 0) {
         // membros, comissões e equipes saem juntos pelo onDelete: Cascade do schema.
@@ -515,7 +614,9 @@ export const usuarioService = {
         });
       }
       await deleteUser(transaction, userId);
+      return administracao;
     });
+    avisarNovoAdministrador(transferencia);
   },
 
   // relatorio do admin: agregados sobre todos os usuarios da plataforma.
