@@ -1,0 +1,60 @@
+@startuml DCU-Gestao-Setup-Reset
+' Diagrama de casos de uso (UML) — Reinicialização de Subsistemas, Setup Inicial e Reset (UC07–UC12)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Gestao-Setup-Reset.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+' Atores primários (à esquerda)
+actor "Administrador\n(Painel de Gestão\nou App Mobile)" as A1
+actor "Administrador\ndo Servidor" as A0
+
+rectangle "API de Gestão (management-better-meet) e Infraestrutura" {
+  usecase "UC07 - Autenticar\nadministrador" as UC07
+  usecase "UC08 - Iniciar, parar ou\nreiniciar um subsistema" as UC08
+  usecase "UC09 - Reiniciar a própria\nAPI de Gestão" as UC09
+  usecase "UC10 - Reportar o próprio\nstatus ao iniciar ou parar" as UC10
+  usecase "UC11 - Subir o ambiente\ncompleto (setup inicial)" as UC11
+  usecase "UC12 - Resetar o sistema\n--\nextension points\nencerrar os subsistemas" as UC12
+}
+
+' Atores secundários (à direita)
+actor "PM2" as A2
+actor "Docker Engine" as A3
+actor "API de\nMonitoramento" as A4
+
+A1 -- UC07
+A1 -- UC08
+A1 -- UC09
+A0 -- UC11
+A0 -- UC12
+
+' UC09 é um caso especial (especialização) do UC08
+UC09 -|> UC08
+
+' Parar pelo painel/app é opcional dentro do reset
+UC08 .> UC12 : <<extend>>
+note on link
+  condição: o administrador escolhe
+  parar os subsistemas pelo painel
+  ou pelo app (UC08/UC09)
+  ponto de extensão: encerrar os subsistemas
+end note
+' A reinicialização faz parte do fluxo principal do reset
+UC12 .> UC11 : <<include>>
+
+UC08 -- A2
+UC08 -- A3
+UC08 -- A4
+UC09 -- A2
+UC10 -- A2
+UC10 -- A4
+UC11 -- A2
+UC11 -- A3
+UC11 -- A4
+UC12 -- A2
+UC12 -- A3
+@enduml

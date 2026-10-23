@@ -1,0 +1,42 @@
+@startuml DCU-Relatorios
+' Diagrama de casos de uso (UML) — Relatórios de Usuários, Organizações e Comissões (UC13–UC16)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Relatorios.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "<i>Usuário Autenticado</i>" as AU
+actor "Usuário (membro)" as AUs
+actor "Administrador" as AAdm
+
+AUs --|> AU
+AAdm --|> AU
+
+rectangle "Relatórios (Data API + App Mobile)" {
+  usecase "UC13 - Consultar relatório\nde organizações" as UC13
+  usecase "UC14 - Consultar relatório\nde comissões" as UC14
+  usecase "UC15 - Consultar relatório\nde usuários\n--\nextension points\ndetalhes do usuário" as UC15
+  usecase "UC16 - Alterar o perfil\nde um usuário" as UC16
+}
+
+AU -- UC13
+AU -- UC14
+AAdm -- UC15
+AAdm -- UC16
+
+UC16 .> UC15 : <<extend>>
+note on link
+  condição: no painel de detalhes de
+  outro usuário, o administrador toca em
+  "Tornar administrador" ou "Tornar usuário comum"
+  ponto de extensão: detalhes do usuário
+end note
+
+note top of AU
+  Ator abstrato (nome em itálico):
+  qualquer usuário com JWT válido.
+end note
+@enduml

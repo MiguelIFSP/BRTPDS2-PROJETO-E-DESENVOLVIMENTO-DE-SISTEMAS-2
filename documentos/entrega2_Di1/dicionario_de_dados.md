@@ -97,7 +97,7 @@ Representa **uma checagem de status** de um `SubSystem`, em um instante específ
 | `status` | Enum (`StatusType`, `enum` no MySQL) | `OPERATIONAL`, `MAINTENANCE`, `ERROR`, `DOWN`, `UNKNOWN` | Sim | — | Resultado da checagem. Ver semântica abaixo |
 | `message` | String (`varchar(191)`) | até 191 caracteres | Não | — | Mensagem de contexto (ex.: mensagem de erro, motivo da manutenção) |
 | `isBlocking` | Boolean (`tinyint(1)`) | `true` / `false` | Sim (default `false`) | — | Diferencia um erro que impediu o usuário de completar uma ação essencial (`true`) de um erro genérico sem contexto (`false`) |
-| `checkedAt` | DateTime (`datetime(3)`) | timestamp com milissegundos | Sim (default `now()`) | — | Data/hora em que a checagem foi realizada/registrada |
+| `checkedAt` | DateTime (`datetime(3)`) | timestamp com milissegundos | Sim (default `now()`) | — | Data/hora em que a checagem foi realizada/registrada, gravada em UTC. Nos agrupamentos por dia (relatório diário e histórico), o dia é calculado no fuso `America/Sao_Paulo` (RNF38) |
 
 #### Domínio: `StatusType` (enum)
 
@@ -172,7 +172,7 @@ Os dados dos dois bancos não ficam dentro dos containers, e sim em **volumes Do
 
 | Volume (nome no compose) | Nome real no Docker¹ | Container | Serviço do compose | Ponto de montagem | Conteúdo |
 |---|---|---|---|---|---|
-| `db_better_meet_data` | `sistema_db_better_meet_data` | `mysql_better_meet_dev` | `db_better_meet` | `/var/lib/mysql` | Banco `bettermeet` da aplicação: usuários, organizações, membros, comissões, equipes, tokens de recuperação |
+| `db_better_meet_data` | `sistema_db_better_meet_data` | `mysql_better_meet_dev` | `db_better_meet` | `/var/lib/mysql` | Banco `bettermeet` da aplicação: usuários, organizações, membros, comissões, equipes, tokens de recuperação, reuniões, convites, registros de presença, notificações e lembretes enviados, além do histórico de migrations do Prisma (`_prisma_migrations`) |
 | `db_monitoring_better_meet_data` | `sistema_db_monitoring_better_meet_data` | `mysql_monitoring_better_meet_dev` | `db_monitoring` | `/var/lib/mysql` | Banco `monitoring`: subsistemas e todo o histórico de checagens de status |
 
 ¹ O Docker Compose prefixa o nome do volume com o nome do projeto, que por padrão é a pasta do `docker-compose.yml` (`sistema`). Conferir com `docker volume ls` antes de um backup ou remoção.
@@ -189,7 +189,9 @@ Os dados dos dois bancos não ficam dentro dos containers, e sim em **volumes Do
 
 ## Informações do Sistema — Relatórios de Usuários, Organizações e Comissões (Data API)
 
-Os relatórios **não possuem entidade nem tabela própria** — são calculados a cada requisição a partir das entidades da Data API (`User`, `Organizacao`, `OrganizacaoMembro`, `Comissao`, `ComissaoEquipe`, descritas na seção "Cadastro de Organização, Comissão e Usuário" abaixo). Por isso, **o diagrama relacional não se aplica** a esta parte; o que se documenta aqui é a estrutura das respostas.
+Os relatórios **não possuem entidade nem tabela própria** — são calculados a cada requisição a partir das entidades da Data API (`User`, `Organizacao`, `OrganizacaoMembro`, `Comissao`, `ComissaoEquipe`, descritas na seção "Cadastro de Organização, Comissão e Usuário" abaixo). Por isso, **o diagrama relacional não se aplica** a esta parte; o que se documenta aqui é a estrutura das respostas. Todas as rotas ficam sob o prefixo `/api` da Data API.
+
+A única gravação desta parte é a alteração de perfil (UC16), que atualiza a coluna `User.role` já existente — ver "Alteração de perfil" no fim desta seção.
 
 ### Diagrama de Classes (estrutura das respostas)
 
@@ -250,13 +252,13 @@ Não aplicável — relatórios calculados sob demanda, sem persistência própr
 
 ### Dicionário de Dados
 
-#### Relatório de organizações — `GET /organizacoes/relatorio` (admin) e `GET /organizacoes/relatorio/minhas` (membro)
+#### Relatório de organizações — `GET /api/organizacoes/relatorio` (admin) e `GET /api/organizacoes/relatorio/minhas` (membro)
 
 | Campo | Tipo | Domínio | Origem / Regra de cálculo |
 |---|---|---|---|
 | `total` | Int | ≥ 0 | Quantidade de organizações consideradas (todas, ou aquelas em que o usuário é membro) |
 | `porStatus` | Objeto | chaves `PENDENTE`, `ACEITA`, `RECUSADA` | Contagem de `Organizacao.status` |
-| `crescimentoPorMes` | Lista de `{ mes, quantidade }` | 12 itens, `mes` no formato `YYYY-MM` | Organizações por mês de `createdAt`, últimos 12 meses (UTC), meses sem registro com `0` |
+| `crescimentoPorMes` | Lista de `{ mes, quantidade }` | 12 itens, `mes` no formato `YYYY-MM` | Organizações por mês de `createdAt`, últimos 12 meses no fuso de Brasília (`America/Sao_Paulo`), meses sem registro com `0` |
 | `distribuicaoPapeis` | Objeto | chaves `CRIADOR`, `GERENTE`, `MODERADOR`, `MEMBRO` | Contagem de `OrganizacaoMembro.papel`, **só em organizações `ACEITA`** |
 | `mediaMembrosPorOrganizacao` | Float | ≥ 0 | Total de membros ÷ número de organizações `ACEITA` (0 se não houver nenhuma) |
 
@@ -267,18 +269,18 @@ Não aplicável — relatórios calculados sob demanda, sem persistência própr
 | `total` | Int | ≥ 0 | Quantidade de comissões consideradas (todas, ou aquelas em cuja equipe o usuário está) |
 | `totalOrganizacoes` | Int | ≥ 0 | Número de organizações distintas às quais essas comissões pertencem |
 | `porOrganizacao` | Lista de `{ organizacaoId, nome, quantidade }` | — | Comissões agrupadas por `Comissao.organizacaoId`, da maior para a menor quantidade |
-| `crescimentoPorMes` | Lista de `{ mes, quantidade }` | 12 itens, `YYYY-MM` | Comissões por mês de `createdAt`, últimos 12 meses |
+| `crescimentoPorMes` | Lista de `{ mes, quantidade }` | 12 itens, `YYYY-MM` | Comissões por mês de `createdAt`, últimos 12 meses no fuso de Brasília |
 | `distribuicaoPapeis` | Objeto | chaves `ADMINISTRADOR`, `FACILITADOR`, `SECRETARIO`, `MEMBRO` | Contagem de `ComissaoEquipe.papel` |
 | `mediaMembrosPorComissao` | Float | ≥ 0 | Total de membros de equipe ÷ número de comissões (0 se não houver nenhuma) |
-| `comissoes` | Lista de `{ id, nome, descricao, createdAt, organizacao { id, nome }, membros }` | — | Lista para detalhamento na tela, da mais recente para a mais antiga; `membros` = tamanho da equipe |
+| `comissoes` | Lista de `{ id, nome, descricao, createdAt, organizacao { id, nome }, membros }` | — | Da mais recente para a mais antiga; `membros` = tamanho da equipe. Continua na resposta, mas o app não a exibe mais no relatório: a lista fica na aba Comissões, aberta pelo atalho "Ver comissões" |
 
-#### Relatório de usuários — `GET /usuarios/relatorio` (somente admin)
+#### Relatório de usuários — `GET /api/usuarios/relatorio` (somente admin)
 
 | Campo | Tipo | Domínio | Origem / Regra de cálculo |
 |---|---|---|---|
 | `total` | Int | ≥ 0 | Quantidade de usuários cadastrados |
 | `porRole` | Objeto | chaves `ADMIN`, `USER` | Contagem de `User.role` |
-| `crescimentoPorMes` | Lista de `{ mes, quantidade }` | 12 itens, `YYYY-MM` | Cadastros por mês de `User.createdAt`, últimos 12 meses |
+| `crescimentoPorMes` | Lista de `{ mes, quantidade }` | 12 itens, `YYYY-MM` | Cadastros por mês de `User.createdAt`, últimos 12 meses no fuso de Brasília |
 | `engajamento.comOrganizacao` / `semOrganizacao` | Int | ≥ 0 | Usuários com / sem pelo menos um vínculo em `OrganizacaoMembro` |
 | `engajamento.comComissao` | Int | ≥ 0 | Usuários com pelo menos um vínculo em `ComissaoEquipe` |
 | `engajamento.mediaOrganizacoesPorUsuario` / `mediaComissoesPorUsuario` | Float | ≥ 0 | Total de vínculos ÷ total de usuários |
@@ -286,7 +288,29 @@ Não aplicável — relatórios calculados sob demanda, sem persistência própr
 | `usuariosPorPapelComissao` | Objeto | chaves `ADMINISTRADOR`, `FACILITADOR`, `SECRETARIO` | Idem, para papéis em comissões |
 | `maisAtivos` | Lista de `{ id, name, organizacoes, comissoes }` | até 5 itens | Usuários com pelo menos um vínculo, ordenados pela soma de organizações + comissões |
 | `porTema` | Objeto | chaves `light`, `dark`, `system` | Contagem de `User.themePreference`; nulo ou valor desconhecido conta como `system` |
-| `usuarios` | Lista de `{ id, name, email, role, createdAt, organizacoes[], comissoes[] }` | — | Todos os usuários (mais recentes primeiro), cada vínculo com `{ id, nome, papel }`. **Não inclui** o hash da senha |
+| `usuarios` | Lista de `{ id, name, email, role, createdAt, organizacoes[], comissoes[] }` | — | Todos os usuários (mais recentes primeiro), cada vínculo com `{ id, nome, papel }`. **Não inclui** o hash da senha. É a fonte da tela "Usuários" (atalho "Ver todos os usuários"), onde o administrador vê os detalhes de cada pessoa e altera o perfil (UC16) |
+
+#### Alteração de perfil — `PATCH /api/usuarios/:id/role` (somente admin)
+
+Não cria entidade nova: atualiza `User.role` (enum `Role`, descrito na seção "Cadastro de Organização, Comissão e Usuário").
+
+**Requisição**
+
+| Campo | Onde | Tipo | Domínio | Obrigatório | Regra |
+|---|---|---|---|---|---|
+| `id` | parâmetro da rota | Int | > 0 | Sim | Usuário que terá o perfil alterado. Não pode ser o próprio administrador que faz o pedido (`403`) |
+| `role` | corpo (JSON) | Enum `Role` | `ADMIN`, `USER` | Sim | Novo perfil. Valor fora do domínio → `400` "Perfil inválido. Use: ADMIN ou USER." |
+
+**Resposta `200`**: o usuário atualizado com os campos públicos (sem `password`).
+
+**Regras de integridade**
+
+| Regra | Resposta | Como é garantida |
+|---|---|---|
+| Ninguém altera o próprio perfil | `403` | Comparação entre o `id` do token e o `id` da rota, antes de abrir a transação |
+| Sempre existe pelo menos um `ADMIN` | `409` | Ao rebaixar um `ADMIN`, conta os outros `ADMIN` **na mesma transação** da gravação |
+| Usuário inexistente | `404` | Busca do usuário dentro da transação |
+| Perfil vale na próxima requisição | — | O `requireAuth` da Data API lê `User.role` no banco a cada requisição, e não o `role` gravado no token (RNF39) |
 
 ---
 

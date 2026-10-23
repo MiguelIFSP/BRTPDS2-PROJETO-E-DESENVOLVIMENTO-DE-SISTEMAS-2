@@ -1,0 +1,55 @@
+@startuml DCU-Status-do-Sistema
+' Diagrama de casos de uso (UML) — Status do Sistema e dos Subsistemas (UC01–UC06)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Status-do-Sistema.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "<i>Usuário Autenticado</i>" as AU
+actor "Usuário do\nApp Mobile" as A1
+actor "Administrador\n(Painel de Gestão\nou App Mobile)" as A2
+actor "Cron de\nMonitoramento\n(tempo)" as A3
+
+actor "<i>Sistema Externo</i>" as AS
+actor "App Mobile\n(Better Meet)" as A4
+actor "Painel de Gestão\n(web)" as A5
+actor "API de Gestão" as A6
+actor "Script de setup\n(start-all.ps1)" as A7
+
+A1 --|> AU
+A2 --|> AU
+A4 --|> AS
+A5 --|> AS
+A6 --|> AS
+
+rectangle "API de Monitoramento" {
+  usecase "UC01 - Consultar status\natual dos subsistemas" as UC1
+  usecase "UC02 - Consultar relatório\ndiário de status" as UC2
+  usecase "UC03 - Consultar histórico\nde um subsistema" as UC3
+  usecase "UC04 - Executar checagem\nperiódica dos subsistemas" as UC4
+  usecase "UC05 - Reportar status\nde um subsistema" as UC5
+  usecase "UC06 - Disparar checagem\nimediata de um subsistema" as UC6
+}
+
+AU -- UC1
+AU -- UC2
+AU -- UC3
+A3 -- UC4
+AS -- UC5
+A4 -- UC6
+A5 -- UC6
+A7 -- UC6
+
+note top of AU
+  Ator abstrato (nome em itálico):
+  qualquer usuário com JWT válido.
+end note
+
+note top of AS
+  Ator abstrato: qualquer sistema
+  com a chave de API interna.
+end note
+@enduml
