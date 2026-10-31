@@ -1,5 +1,4 @@
-import { MONITORING_API_URL } from '@/config/api';
-import { useAuthStore } from '@/store/authStore';
+import { MONITORING_API_KEY, MONITORING_API_URL } from '@/config/api';
 import { ApiError, apiRequest, getErrorMessage } from '@/utils/apiClient';
 
 // Mesmos valores do status gravado pela API de monitoramento.
@@ -49,8 +48,10 @@ export const monitoringService = {
   /**
    * Registra uma falha do app na monitoring. Nunca lança: o envio falhar (sem
    * internet, monitoring fora do ar) não pode gerar outro erro na tela.
-   * A identidade vai pelo token do usuário logado, quando houver; o app não
-   * carrega chave interna da monitoring (EXPO_PUBLIC_* é público, EX-13).
+   * EXCEÇÃO TEMPORÁRIA ao EX-13: a monitoring só aceita o POST /status (e o
+   * POST /status/:subSystem/check, ver checkSubSystemNow) com a chave interna
+   * (x-api-key), então o app envia a chave do .env até a
+   * monitoring ser refatorada.
    */
   async reportError(
     message: string,
@@ -64,7 +65,7 @@ export const monitoringService = {
       await apiRequest('/status', {
         method: 'POST',
         baseUrl: MONITORING_API_URL,
-        token: useAuthStore.getState().token,
+        headers: { 'x-api-key': MONITORING_API_KEY },
         body: {
           subSystem: 'mobile-app',
           status,
@@ -98,6 +99,18 @@ export const monitoringService = {
       baseUrl: MONITORING_API_URL,
       token,
       fallbackError: 'Não foi possível carregar o status atual.',
+    });
+  },
+
+  // Pede pra monitoring checar UM subsistema agora (fora do cron de 6h) e
+  // devolve o status recém-gravado. Também exige a chave interna: mesma
+  // EXCEÇÃO TEMPORÁRIA ao EX-13 do reportError.
+  checkSubSystemNow(subSystem: string) {
+    return apiRequest<SubSystemStatus>(`/status/${subSystem}/check`, {
+      method: 'POST',
+      baseUrl: MONITORING_API_URL,
+      headers: { 'x-api-key': MONITORING_API_KEY },
+      fallbackError: 'Não foi possível verificar o status agora.',
     });
   },
 

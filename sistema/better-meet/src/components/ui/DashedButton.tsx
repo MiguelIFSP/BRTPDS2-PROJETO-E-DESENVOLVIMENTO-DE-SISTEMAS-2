@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -49,5 +50,5 @@ const styles = StyleSheet.create({
     borderRadius: Radius.xl,
   },
   label: { ...Typography.body, fontFamily: FontFamily.semiBold },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
 });

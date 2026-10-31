@@ -10,14 +10,33 @@ const requireEnv = (name: string, value: string | undefined): string => {
   return value;
 };
 
-// URL base da API de Dados, já com o prefixo /api.
-export const API_URL = requireEnv(
-  'EXPO_PUBLIC_API_URL',
-  process.env.EXPO_PUBLIC_API_URL,
+const normalizeApiUrl = (value: string) =>
+  value.replace(/\/+$/, '').endsWith('/api')
+    ? value.replace(/\/+$/, '')
+    : `${value.replace(/\/+$/, '')}/api`;
+
+// Aceita URLs antigas sem /api para evitar que todas as telas retornem 404.
+export const API_URL = normalizeApiUrl(
+  requireEnv('EXPO_PUBLIC_API_URL', process.env.EXPO_PUBLIC_API_URL),
 );
 
 // URL base da API de Monitoramento, já com o prefixo das rotas dela.
 export const MONITORING_API_URL = requireEnv(
   'EXPO_PUBLIC_MONITORING_API_URL',
   process.env.EXPO_PUBLIC_MONITORING_API_URL,
+);
+
+// URL base da API de Gestão (start/stop/restart dos subsistemas, só ADMIN).
+export const MANAGEMENT_API_URL = requireEnv(
+  'EXPO_PUBLIC_MANAGEMENT_API_URL',
+  process.env.EXPO_PUBLIC_MANAGEMENT_API_URL,
+);
+
+// EXCEÇÃO TEMPORÁRIA ao EX-13: a monitoring ainda exige a chave interna
+// (x-api-key) no POST /status (o app reporta os próprios erros) e no
+// POST /status/:subSystem/check (a tela de status pede uma checagem na hora).
+// Fica embutida no app (é pública) até a monitoring ser refatorada.
+export const MONITORING_API_KEY = requireEnv(
+  'EXPO_PUBLIC_MONITORING_API_KEY',
+  process.env.EXPO_PUBLIC_MONITORING_API_KEY,
 );

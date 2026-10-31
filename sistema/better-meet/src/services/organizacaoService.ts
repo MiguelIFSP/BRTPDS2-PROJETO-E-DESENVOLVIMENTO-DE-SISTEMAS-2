@@ -106,6 +106,22 @@ export const organizacaoService = {
     });
   },
 
+  getById(token: string, id: number) {
+    return apiRequest<Organizacao>(`/organizacoes/${id}`, {
+      token,
+      fallbackError: 'Não foi possível carregar a organização.',
+    });
+  },
+
+  update(token: string, id: number, nome: string) {
+    return apiRequest<Organizacao>(`/organizacoes/${id}`, {
+      method: 'PATCH',
+      token,
+      body: { nome },
+      fallbackError: 'Não foi possível salvar a organização.',
+    });
+  },
+
   create(token: string, nome: string) {
     return apiRequest<Organizacao>('/organizacoes', {
       method: 'POST',

@@ -9,6 +9,7 @@ import AvatarStack from '@/components/ui/AvatarStack';
 import Card from '@/components/ui/Card';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   Typography,
@@ -16,7 +17,7 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
-type ExpandableCardProps = {
+type SummaryCardProps = {
   icon: IoniconsIconName;
   title: string;
   description?: string | null;
@@ -25,25 +26,24 @@ type ExpandableCardProps = {
   memberNames: string[];
   // elemento à direita dos avatares (ex.: badge de status).
   trailing?: ReactNode;
-  expanded: boolean;
-  onToggle: () => void;
-  // conteúdo mostrado com o card aberto (equipe, ações).
-  children: ReactNode;
+  // abre a tela de detalhes da entidade.
+  onPress: () => void;
+  // conteúdo fixo abaixo do resumo (ex.: aceitar/recusar do admin).
+  children?: ReactNode;
 };
 
-// Card no estilo dos cards de reunião do mockup: resumo sempre visível e
-// detalhes ao tocar.
-export default function ExpandableCard({
+// Card no estilo dos cards de reunião do mockup: só o resumo. Os detalhes,
+// a edição e a equipe ficam na tela da entidade, aberta pelo toque.
+export default function SummaryCard({
   icon,
   title,
   description,
   meta,
   memberNames,
   trailing,
-  expanded,
-  onToggle,
+  onPress,
   children,
-}: ExpandableCardProps) {
+}: SummaryCardProps) {
   const { colors } = useTheme();
   const line = withAlpha(colors.primary, 0.3);
 
@@ -51,9 +51,8 @@ export default function ExpandableCard({
     <Card tone="tinted">
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${expanded ? 'Recolher' : 'Abrir'} ${title}`}
-        accessibilityState={{ expanded }}
-        onPress={onToggle}
+        accessibilityLabel={`Abrir ${title}`}
+        onPress={onPress}
         style={({ pressed }) => [styles.summary, pressed && styles.pressed]}
       >
         <View
@@ -77,7 +76,7 @@ export default function ExpandableCard({
           {description ? (
             <Text
               style={[styles.description, { color: colors.textSecondary }]}
-              numberOfLines={expanded ? undefined : 2}
+              numberOfLines={2}
             >
               {description}
             </Text>
@@ -91,17 +90,11 @@ export default function ExpandableCard({
           </View>
         </View>
 
-        <Ionicons
-          name={expanded ? 'chevron-down' : 'chevron-forward'}
-          size={20}
-          color={colors.primary}
-        />
+        <Ionicons name="chevron-forward" size={20} color={colors.primary} />
       </Pressable>
 
-      {expanded ? (
-        <View style={[styles.details, { borderTopColor: line }]}>
-          {children}
-        </View>
+      {children ? (
+        <View style={[styles.extra, { borderTopColor: line }]}>{children}</View>
       ) : null}
     </Card>
   );
@@ -113,7 +106,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.md,
   },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: PressedOpacity },
   icon: {
     width: 48,
     height: 48,
@@ -134,9 +127,8 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
     marginTop: Spacing.xs,
   },
-  details: {
+  extra: {
     borderTopWidth: 1,
-    paddingTop: Spacing.lg,
-    gap: Spacing.lg,
+    paddingTop: Spacing.md,
   },
 });

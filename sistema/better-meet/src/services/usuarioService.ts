@@ -121,6 +121,16 @@ export const usuarioService = {
     );
   },
 
+  // promover ou rebaixar outra pessoa (só administrador; a API recusa o próprio perfil).
+  updateRole(token: string, userId: number, role: Role) {
+    return apiRequest<{ id: number; role: Role }>(`/usuarios/${userId}/role`, {
+      method: 'PATCH',
+      token,
+      body: { role },
+      fallbackError: 'Não foi possível alterar o perfil do usuário.',
+    });
+  },
+
   getComissoesAdministradas(token: string, userId: number) {
     return apiRequest<ComissaoAdministrada[]>(
       `/usuarios/${userId}/comissoes-administradas`,
@@ -131,16 +141,30 @@ export const usuarioService = {
     );
   },
 
+  // se o usuário é o único administrador da plataforma (aí a exclusão pede quem assume).
+  isUnicoAdministrador(token: string, userId: number) {
+    return apiRequest<{ unicoAdministrador: boolean }>(
+      `/usuarios/${userId}/unico-administrador`,
+      {
+        token,
+        fallbackError:
+          'Não foi possível verificar a administração da plataforma.',
+      },
+    );
+  },
+
+  // novoAdministradorId: obrigatório quando o usuário é o único administrador.
   deletePersonalData(
     token: string,
     userId: number,
     sucessores: Sucessores,
     sucessoresComissao: Sucessores,
+    novoAdministradorId?: number,
   ) {
     return apiRequest<MessageResponse>(`/usuarios/${userId}/dados-pessoais`, {
       method: 'DELETE',
       token,
-      body: { sucessores, sucessoresComissao },
+      body: { sucessores, sucessoresComissao, novoAdministradorId },
       fallbackError: 'Não foi possível excluir seus dados pessoais.',
     });
   },
@@ -149,11 +173,12 @@ export const usuarioService = {
     token: string,
     userId: number,
     sucessoresComissao: Sucessores,
+    novoAdministradorId?: number,
   ) {
     return apiRequest<MessageResponse>(`/usuarios/${userId}/dados-completos`, {
       method: 'DELETE',
       token,
-      body: { sucessoresComissao },
+      body: { sucessoresComissao, novoAdministradorId },
       fallbackError: 'Não foi possível excluir sua conta.',
     });
   },

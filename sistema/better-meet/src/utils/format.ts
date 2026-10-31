@@ -13,6 +13,14 @@ export const formatDate = (iso: string) => {
   return date.toLocaleDateString('pt-BR');
 };
 
+// "22/10/2026 às 14:05", no fuso do aparelho.
+export const formatDateTime = (iso: string) => {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return '—';
+  const pad = (value: number) => String(value).padStart(2, '0');
+  return `${pad(date.getDate())}/${pad(date.getMonth() + 1)}/${date.getFullYear()} às ${pad(date.getHours())}:${pad(date.getMinutes())}`;
+};
+
 const MESES_ABREVIADOS = [
   'jan',
   'fev',
@@ -46,3 +54,18 @@ export const normalizeSearch = (value: string) =>
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .trim();
+
+const pad2 = (value: number) => String(value).padStart(2, '0');
+
+// Data escolhida no seletor -> "AAAA-MM-DD", pelos campos locais: passar por
+// toISOString() trocaria o dia perto da meia-noite (UTC).
+export const toDateValue = (value: Date) =>
+  `${value.getFullYear()}-${pad2(value.getMonth() + 1)}-${pad2(value.getDate())}`;
+
+// Horário escolhido no seletor -> "HH:mm".
+export const toTimeValue = (value: Date) =>
+  `${pad2(value.getHours())}:${pad2(value.getMinutes())}`;
+
+// Data da reunião ("AAAA-MM-DD") como aparece nas telas: "DD-MM-AAAA".
+export const formatReuniaoDate = (data: string) =>
+  data.split('-').reverse().join('-');

@@ -1,22 +1,28 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useNavigation, useRouter } from 'expo-router';
-import type { DrawerNavigationProp } from 'expo-router/drawer';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { useRouter } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
 import IconAndTitle from '@/components/IconAndTitle';
 import Avatar from '@/components/ui/Avatar';
-import { Spacing, TouchTarget } from '@/constants/theme';
+import {
+  FontFamily,
+  PressedOpacity,
+  Radius,
+  Spacing,
+  TouchTarget,
+  Typography,
+  withAlpha,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
+import { useNotificacaoStore } from '@/store/notificacaoStore';
 
-type DrawerNavigation = DrawerNavigationProp<
-  Record<string, object | undefined>
->;
-
+// Topo com o logo: só na tela inicial (com convites e atalho para a conta) e
+// nas telas públicas (login, cadastro). As demais telas mostram só o próprio
+// título.
 export default function Header() {
   const { colors } = useTheme();
-  const navigation = useNavigation<DrawerNavigation>();
   const router = useRouter();
   const { user, isAuthenticated } = useAuthStore(
     useShallow((state) => ({
@@ -24,15 +30,8 @@ export default function Header() {
       isAuthenticated: state.isAuthenticated,
     })),
   );
-
-  const homeLink = (
-    <Pressable
-      accessibilityRole="link"
-      accessibilityLabel="Ir para a página inicial"
-      onPress={() => router.push('/')}
-    >
-      <IconAndTitle />
-    </Pressable>
+  const novidades = useNotificacaoStore(
+    (state) => state.convitesPendentes + state.naoLidas,
   );
 
   return (
@@ -46,33 +45,65 @@ export default function Header() {
         !isAuthenticated && styles.publicHeader,
       ]}
     >
+      <IconAndTitle />
+
       {isAuthenticated ? (
-        <>
+        <View style={styles.rightActions}>
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Abrir menu"
-            onPress={() => navigation.openDrawer()}
-            style={styles.iconButton}
+            accessibilityLabel={
+              novidades > 0
+                ? `Ver notificações, ${novidades} nova(s)`
+                : 'Ver notificações'
+            }
+            onPress={() =>
+              router.navigate({
+                pathname: '/',
+                params: { openPendingInvites: '1' },
+              })
+            }
+            style={({ pressed }) => [
+              styles.iconButton,
+              {
+                backgroundColor: withAlpha(colors.primary, 0.12),
+                borderColor: withAlpha(colors.primary, 0.35),
+              },
+              pressed && styles.pressed,
+            ]}
           >
-            <Ionicons name="menu" size={28} color={colors.text} />
+            <Ionicons
+              name="notifications-outline"
+              size={22}
+              color={colors.primary}
+            />
+            {novidades > 0 ? (
+              <View
+                style={[
+                  styles.counter,
+                  {
+                    backgroundColor: colors.danger,
+                    borderColor: colors.background,
+                  },
+                ]}
+              >
+                <Text style={[styles.counterText, { color: colors.onDanger }]}>
+                  {novidades > 9 ? '9+' : novidades}
+                </Text>
+              </View>
+            ) : null}
           </Pressable>
 
-          <View style={styles.logoSlot}>{homeLink}</View>
-
-          <View style={styles.rightActions}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Abrir perfil do usuário"
-              onPress={() => router.push('/perfil')}
-              hitSlop={2}
-            >
-              <Avatar name={user?.name ?? ''} size="sm" />
-            </Pressable>
-          </View>
-        </>
-      ) : (
-        homeLink
-      )}
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Abrir conta de usuário"
+            onPress={() => router.push('/mais/perfil')}
+            hitSlop={2}
+          >
+            {/* mesmo tamanho do botão do sino e do logo */}
+            <Avatar name={user?.name ?? ''} size="touch" />
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -90,19 +121,31 @@ const styles = StyleSheet.create({
   publicHeader: {
     justifyContent: 'center',
   },
-  logoSlot: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  iconButton: {
-    minWidth: TouchTarget.min,
-    minHeight: TouchTarget.min,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   rightActions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
   },
+  iconButton: {
+    minWidth: TouchTarget.min,
+    minHeight: TouchTarget.min,
+    borderWidth: 1,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counter: {
+    position: 'absolute',
+    top: -Spacing.xs,
+    right: -Spacing.xs,
+    minWidth: 20,
+    height: 20,
+    borderRadius: Radius.full,
+    borderWidth: 2,
+    paddingHorizontal: Spacing.xs,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  counterText: { ...Typography.caption, fontFamily: FontFamily.semiBold },
+  pressed: { opacity: PressedOpacity },
 });

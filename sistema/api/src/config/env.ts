@@ -44,4 +44,15 @@ export const env = {
   EMAIL_API_URL: getEmailApiUrl(),
   EMAIL_API_KEY: requireEnv('EMAIL_API_KEY'),
   EMAIL_FROM: requireEnv('EMAIL_FROM'),
+  // Conta do Gmail que envia convites e lembretes. Sem as duas, o envio de
+  // e-mail fica desligado e o resto da API funciona normalmente.
+  GMAIL_USER: optionalEnv('GMAIL_USER'),
+  GMAIL_APP_PASSWORD: optionalEnv('GMAIL_APP_PASSWORD'),
+  MAIL_FROM_NAME: optionalEnv('MAIL_FROM_NAME') ?? 'Better Meet',
+  // Endereço da API visto por quem abre o e-mail (ex.: http://192.168.0.110:3333),
+  // usado nos botões Aceitar/Recusar. Sem ele, o convite sai sem os botões.
+  API_PUBLIC_URL: optionalEnv('API_PUBLIC_URL')?.replace(/\/+$/, ''),
+  // Fuso em que data e horário das reuniões são interpretados (o banco guarda
+  // "AAAA-MM-DD" e "HH:mm" sem fuso).
+  TZ_REUNIOES: optionalEnv('TZ_REUNIOES') ?? 'America/Sao_Paulo',
 };

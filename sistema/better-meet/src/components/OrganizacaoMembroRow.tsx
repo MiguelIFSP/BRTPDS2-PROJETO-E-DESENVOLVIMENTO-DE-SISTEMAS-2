@@ -8,6 +8,7 @@ import Avatar from '@/components/ui/Avatar';
 import Badge, { type BadgeTone } from '@/components/ui/Badge';
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -199,6 +200,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pressed: { opacity: 0.7 },
+  pressed: { opacity: PressedOpacity },
   disabled: { opacity: 0.4 },
 });

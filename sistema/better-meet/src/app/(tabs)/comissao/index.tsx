@@ -1,16 +1,14 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 
 import ComissaoCard from '@/components/ComissaoCard';
-import BackButton from '@/components/ui/BackButton';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
 import Chip from '@/components/ui/Chip';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import DashedButton from '@/components/ui/DashedButton';
-import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
+import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import PageIntro from '@/components/ui/PageIntro';
 import Screen from '@/components/ui/Screen';
 import SectionLabel from '@/components/ui/SectionLabel';
@@ -19,11 +17,7 @@ import { Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
 import { comissaoSchema } from '@/schemas/comissaoSchema';
-import {
-  comissaoService,
-  type Comissao,
-  type PapelComissao,
-} from '@/services/comissaoService';
+import { comissaoService, type Comissao } from '@/services/comissaoService';
 import { monitoringService } from '@/services/monitoringService';
 import {
   organizacaoService,
@@ -38,11 +32,8 @@ type ComissaoForm = { nome: string; descricao: string };
 
 const EMPTY_FORM: ComissaoForm = { nome: '', descricao: '' };
 
-type PendingAction =
-  | { type: 'delete-comissao'; comissaoId: number; name: string }
-  | { type: 'remove-member'; comissaoId: number; userId: number; name: string };
-
 export default function ComissaoScreen() {
+  const router = useRouter();
   const { colors } = useTheme();
   const token = useAuthStore((state) => state.token);
   const [feedback, setFeedback] = useFeedback();
@@ -55,33 +46,19 @@ export default function ComissaoScreen() {
   );
   const [comissoes, setComissoes] = useState<Comissao[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [expandedId, setExpandedId] = useState<number | null>(null);
-  const [cardFeedback, setCardFeedback] = useState<Record<number, Feedback>>(
-    {},
-  );
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<ComissaoForm>(EMPTY_FORM);
   const [formErrors, setFormErrors] = useState<FieldErrors<ComissaoForm>>({});
   const [isCreating, setIsCreating] = useState(false);
 
-  const [pendingAction, setPendingAction] = useState<PendingAction | null>(
-    null,
-  );
-  const [isConfirming, setIsConfirming] = useState(false);
-
   const organizacaoAtual = organizacoes.find(
     (organizacao) => organizacao.id === organizacaoAtualId,
   );
 
-  const loadComissoes = async (organizacaoId: number) => {
-    if (!token) return;
-    setComissoes(await comissaoService.listByOrganizacao(token, organizacaoId));
-  };
-
-  // useFocusEffect (não useEffect): a navegação é por Drawer e a tela fica
-  // montada em segundo plano; sem recarregar no foco, uma organização aprovada
-  // ou uma comissão criada em outra tela não apareceria aqui.
+  // useFocusEffect (não useEffect): a lista fica montada por baixo da tela da
+  // comissão e nas outras abas; sem recarregar no foco, o que mudou no detalhe (ou
+  // uma organização aprovada em outra tela) não apareceria aqui.
   useFocusEffect(
     useCallback(() => {
       let cancelled = false;
@@ -123,15 +100,15 @@ export default function ComissaoScreen() {
       void load();
       return () => {
         cancelled = true;
-        setCardFeedback({});
       };
     }, [token, organizacaoAtualId, setFeedback]),
   );
 
-  const selectOrganizacao = (organizacaoId: number) => {
-    setExpandedId(null);
-    setOrganizacaoAtualId(organizacaoId);
-  };
+  const openComissao = (comissaoId: number) =>
+    router.push({
+      pathname: '/comissao/[id]',
+      params: { id: String(comissaoId) },
+    });
 
   const updateFormField = (field: keyof ComissaoForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -148,6 +125,7 @@ export default function ComissaoScreen() {
     setFormErrors({});
   };
 
+  // cria e já abre a tela da comissão, onde se monta a equipe.
   const handleCreate = async () => {
     if (!token || !organizacaoAtualId) return;
     setFormFeedback(null);
@@ -175,12 +153,7 @@ export default function ComissaoScreen() {
       });
       setForm(EMPTY_FORM);
       setIsFormOpen(false);
-      await loadComissoes(organizacaoAtualId);
-      setExpandedId(comissao.id);
-      setFeedback({
-        type: 'success',
-        message: `Comissão ${comissao.nome} criada.`,
-      });
+      openComissao(comissao.id);
     } catch (error) {
       monitoringService.reportRequestFailure(
         error,
@@ -192,67 +165,6 @@ export default function ComissaoScreen() {
       });
     } finally {
       setIsCreating(false);
-    }
-  };
-
-  const showCardFeedback = (comissaoId: number, value: Feedback) =>
-    setCardFeedback((current) => ({ ...current, [comissaoId]: value }));
-
-  // o erro volta para o painel de adição; o sucesso aparece no card.
-  const handleAddMember = async (
-    comissaoId: number,
-    userId: number,
-    papel: PapelComissao,
-  ) => {
-    if (!token || !organizacaoAtualId) {
-      return 'Sessão expirada. Entre novamente.';
-    }
-    try {
-      await comissaoService.addMember(token, comissaoId, userId, papel);
-      await loadComissoes(organizacaoAtualId);
-      showCardFeedback(comissaoId, {
-        type: 'success',
-        message: 'Membro adicionado.',
-      });
-      return null;
-    } catch (error) {
-      return getErrorMessage(error, 'Não foi possível adicionar o membro.');
-    }
-  };
-
-  const confirmPendingAction = async () => {
-    if (!token || !organizacaoAtualId || !pendingAction) return;
-    const action = pendingAction;
-    setIsConfirming(true);
-    try {
-      if (action.type === 'delete-comissao') {
-        const { message } = await comissaoService.delete(
-          token,
-          action.comissaoId,
-        );
-        setExpandedId(null);
-        setFeedback({ type: 'success', message });
-      } else {
-        await comissaoService.removeMember(
-          token,
-          action.comissaoId,
-          action.userId,
-        );
-        showCardFeedback(action.comissaoId, {
-          type: 'success',
-          message: `${action.name} foi removido da comissão.`,
-        });
-      }
-      await loadComissoes(organizacaoAtualId);
-    } catch (error) {
-      const message = getErrorMessage(
-        error,
-        'Não foi possível concluir a ação.',
-      );
-      showCardFeedback(action.comissaoId, { type: 'error', message });
-    } finally {
-      setPendingAction(null);
-      setIsConfirming(false);
     }
   };
 
@@ -286,39 +198,13 @@ export default function ComissaoScreen() {
         key={comissao.id}
         comissao={comissao}
         membrosOrganizacao={organizacaoAtual.membros}
-        expanded={expandedId === comissao.id}
-        feedback={cardFeedback[comissao.id] ?? null}
-        onToggle={() =>
-          setExpandedId((current) =>
-            current === comissao.id ? null : comissao.id,
-          )
-        }
-        onAddMember={(userId, papel) =>
-          handleAddMember(comissao.id, userId, papel)
-        }
-        onRequestRemoveMember={(userId, name) =>
-          setPendingAction({
-            type: 'remove-member',
-            comissaoId: comissao.id,
-            userId,
-            name,
-          })
-        }
-        onRequestDelete={() =>
-          setPendingAction({
-            type: 'delete-comissao',
-            comissaoId: comissao.id,
-            name: comissao.nome,
-          })
-        }
+        onPress={() => openComissao(comissao.id)}
       />
     ));
   };
 
   return (
     <Screen hasForm>
-      <BackButton />
-
       <PageIntro
         title="Suas comissões"
         onAdd={organizacaoAtual ? openCreate : undefined}
@@ -334,7 +220,7 @@ export default function ComissaoScreen() {
                 key={organizacao.id}
                 label={organizacao.nome}
                 selected={organizacaoAtualId === organizacao.id}
-                onPress={() => selectOrganizacao(organizacao.id)}
+                onPress={() => setOrganizacaoAtualId(organizacao.id)}
               />
             ))}
           </View>
@@ -396,27 +282,6 @@ export default function ComissaoScreen() {
           onPress={() => void handleCreate()}
         />
       </BottomSheet>
-
-      <ConfirmDialog
-        visible={pendingAction !== null}
-        variant="danger"
-        title={
-          pendingAction?.type === 'delete-comissao'
-            ? 'Excluir comissão?'
-            : 'Remover membro?'
-        }
-        message={
-          pendingAction?.type === 'delete-comissao'
-            ? `A comissão "${pendingAction.name}" e sua equipe serão removidas permanentemente. Apenas o administrador da comissão pode excluí-la.`
-            : `${pendingAction?.name ?? ''} será removido desta comissão.`
-        }
-        confirmLabel={
-          pendingAction?.type === 'delete-comissao' ? 'Excluir' : 'Remover'
-        }
-        isLoading={isConfirming}
-        onCancel={() => setPendingAction(null)}
-        onConfirm={() => void confirmPendingAction()}
-      />
     </Screen>
   );
 }

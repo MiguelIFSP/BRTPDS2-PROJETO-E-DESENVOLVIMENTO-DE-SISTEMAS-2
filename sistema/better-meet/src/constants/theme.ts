@@ -173,4 +173,8 @@ export const TouchTarget = {
   min: 44,
 } as const;
 
+// Efeito de toque de todo Pressable (RN-07): o Pressable não tem o esmaecimento
+// embutido do TouchableOpacity, então todos usam o mesmo valor daqui.
+export const PressedOpacity = 0.7;
+
 export const MaxContentWidth = 800;

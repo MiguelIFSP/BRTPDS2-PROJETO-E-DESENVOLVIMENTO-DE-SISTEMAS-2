@@ -10,7 +10,7 @@ export const SUCCESS_FEEDBACK_MS = 4000;
  * Estado do FeedbackBanner de uma tela. O sucesso some sozinho depois de
  * SUCCESS_FEEDBACK_MS; o erro fica até a próxima ação, para dar tempo de ler.
  *
- * As telas ficam montadas em segundo plano no Drawer: sem limpar ao perder o
+ * As telas ficam montadas em segundo plano nas abas e pilhas: sem limpar ao perder o
  * foco, a mensagem de uma visita anterior reapareceria ao voltar para a tela.
  */
 export function useFeedback() {

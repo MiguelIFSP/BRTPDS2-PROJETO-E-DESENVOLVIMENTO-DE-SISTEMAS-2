@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import {
   Pressable,
@@ -11,6 +11,7 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { useNotifyInputFocus } from '@/components/ui/KeyboardAwareScrollView';
 import {
   FontFamily,
   Radius,
@@ -47,6 +48,9 @@ export default function TextField({
   const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isSecretVisible, setIsSecretVisible] = useState(false);
+  const inputRef = useRef<TextInput>(null);
+  // avisa a rolagem da tela/painel para manter este campo acima do teclado.
+  const notifyInputFocus = useNotifyInputFocus();
 
   const borderColor = error
     ? colors.danger
@@ -68,12 +72,14 @@ export default function TextField({
       >
         <TextInput
           {...inputProps}
+          ref={inputRef}
           accessibilityLabel={accessibilityLabel ?? label}
           multiline={multiline}
           secureTextEntry={isPassword && !isSecretVisible}
           placeholderTextColor={colors.textSecondary}
           onFocus={(event) => {
             setIsFocused(true);
+            notifyInputFocus(inputRef);
             onFocus?.(event);
           }}
           onBlur={(event) => {

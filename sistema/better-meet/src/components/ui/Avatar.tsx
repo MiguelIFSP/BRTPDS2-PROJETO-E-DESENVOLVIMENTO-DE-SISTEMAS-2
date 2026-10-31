@@ -1,11 +1,18 @@
 import { StyleSheet, Text, View } from 'react-native';
 
-import { FontFamily, Radius } from '@/constants/theme';
+import { FontFamily, Radius, TouchTarget } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { getInitials } from '@/utils/format';
 
-// Tamanhos da seção 4.5 do design system.
-const SIZES = { sm: 32, md: 48, lg: 64, xl: 80 } as const;
+// Tamanhos da seção 4.5 do design system. "touch" tem o tamanho dos botões
+// de ícone (alvo de toque mínimo), para o avatar alinhar com eles no Header.
+const SIZES = {
+  sm: 32,
+  touch: TouchTarget.min,
+  md: 48,
+  lg: 64,
+  xl: 80,
+} as const;
 
 type AvatarProps = {
   name: string;

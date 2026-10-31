@@ -4,6 +4,7 @@ import { Pressable, StyleSheet, Text } from 'react-native';
 
 import {
   FontFamily,
+  PressedOpacity,
   Spacing,
   TouchTarget,
   Typography,
@@ -36,5 +37,5 @@ const styles = StyleSheet.create({
     minHeight: TouchTarget.min,
   },
   text: { ...Typography.body, fontFamily: FontFamily.semiBold },
-  pressed: { opacity: 0.65 },
+  pressed: { opacity: PressedOpacity },
 });

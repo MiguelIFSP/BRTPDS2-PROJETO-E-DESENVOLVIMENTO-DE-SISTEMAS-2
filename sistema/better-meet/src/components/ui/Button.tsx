@@ -13,6 +13,7 @@ import {
 
 import {
   FontFamily,
+  PressedOpacity,
   Radius,
   Spacing,
   TouchTarget,
@@ -150,6 +151,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     flexShrink: 1,
   },
-  pressed: { opacity: 0.8 },
+  pressed: { opacity: PressedOpacity },
   disabled: { opacity: 0.5 },
 });

@@ -1,12 +1,17 @@
-import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
 import DistributionBars from '@/components/relatorio/DistributionBars';
-import ExpandableRow from '@/components/relatorio/ExpandableRow';
 import MonthlyBars from '@/components/relatorio/MonthlyBars';
+import ReportLinkCard from '@/components/relatorio/ReportLinkCard';
 import ReportSection from '@/components/relatorio/ReportSection';
+import StackedBar from '@/components/relatorio/StackedBar';
 import StatTile from '@/components/relatorio/StatTile';
-import { FontFamily, Spacing, Typography } from '@/constants/theme';
+import {
+  FontFamily,
+  Spacing,
+  Typography,
+  type ColorToken,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import {
   papelComissaoLabel,
@@ -18,7 +23,7 @@ import {
 } from '@/services/organizacaoService';
 import type { UsuarioReport } from '@/services/usuarioService';
 import type { Tema } from '@/store/themeStore';
-import { formatDate } from '@/utils/format';
+import { countLabel } from '@/utils/format';
 
 // papeis "de responsabilidade" que o relatorio destaca.
 const PAPEL_ORG_DESTAQUE = [
@@ -32,17 +37,16 @@ const PAPEL_COMISSAO_DESTAQUE = [
   'SECRETARIO',
 ] as const satisfies readonly PapelComissao[];
 
-const TEMA_LABELS = {
-  light: 'Claro',
-  dark: 'Escuro',
-  system: 'Sistema',
-} satisfies Record<Tema, string>;
+const TEMA_LEGENDA = {
+  light: { label: 'Claro', color: 'warning' },
+  dark: { label: 'Escuro', color: 'info' },
+  system: { label: 'Sistema', color: 'primary' },
+} satisfies Record<Tema, { label: string; color: ColorToken }>;
 
 type UsuarioReportViewProps = { report: UsuarioReport | null };
 
 export default function UsuarioReportView({ report }: UsuarioReportViewProps) {
   const { colors } = useTheme();
-  const [selectedId, setSelectedId] = useState<number | null>(null);
 
   if (!report) return null;
 
@@ -50,11 +54,24 @@ export default function UsuarioReportView({ report }: UsuarioReportViewProps) {
 
   return (
     <>
-      <View style={styles.statsRow}>
-        <StatTile label="Total" value={report.total} />
-        <StatTile label="Administradores" value={report.porRole.ADMIN} />
-        <StatTile label="Usuários comuns" value={report.porRole.USER} />
-      </View>
+      <ReportSection title="Usuários por perfil">
+        <StackedBar
+          items={[
+            {
+              key: 'USER',
+              label: 'Usuários comuns',
+              value: report.porRole.USER,
+              color: 'primary',
+            },
+            {
+              key: 'ADMIN',
+              label: 'Administradores',
+              value: report.porRole.ADMIN,
+              color: 'info',
+            },
+          ]}
+        />
+      </ReportSection>
 
       <ReportSection title="Novos cadastros por mês">
         <MonthlyBars
@@ -64,22 +81,40 @@ export default function UsuarioReportView({ report }: UsuarioReportViewProps) {
         />
       </ReportSection>
 
-      <View style={styles.statsRow}>
-        <StatTile
-          label="Em alguma organização"
-          value={engajamento.comOrganizacao}
+      <ReportSection title="Participação em organizações">
+        <StackedBar
+          items={[
+            {
+              key: 'com',
+              label: 'Em alguma organização',
+              value: engajamento.comOrganizacao,
+              color: 'primary',
+            },
+            {
+              key: 'sem',
+              label: 'Sem organização',
+              value: engajamento.semOrganizacao,
+              color: 'textSecondary',
+            },
+          ]}
         />
-        <StatTile label="Sem organização" value={engajamento.semOrganizacao} />
-        <StatTile label="Em alguma comissão" value={engajamento.comComissao} />
-      </View>
-      <View style={styles.statsRow}>
+      </ReportSection>
+
+      <View style={styles.compactRow}>
+        <StatTile
+          label="Em alguma comissão"
+          value={engajamento.comComissao}
+          compact
+        />
         <StatTile
           label="Média de organizações por usuário"
           value={engajamento.mediaOrganizacoesPorUsuario.toFixed(1)}
+          compact
         />
         <StatTile
           label="Média de comissões por usuário"
           value={engajamento.mediaComissoesPorUsuario.toFixed(1)}
+          compact
         />
       </View>
 
@@ -134,63 +169,27 @@ export default function UsuarioReportView({ report }: UsuarioReportViewProps) {
       </ReportSection>
 
       <ReportSection title="Preferência de tema">
-        <DistributionBars
-          items={(Object.keys(TEMA_LABELS) as Tema[]).map((tema) => ({
+        <StackedBar
+          items={(Object.keys(TEMA_LEGENDA) as Tema[]).map((tema) => ({
             key: tema,
-            label: TEMA_LABELS[tema],
+            ...TEMA_LEGENDA[tema],
             value: report.porTema[tema] ?? 0,
           }))}
         />
       </ReportSection>
 
-      <ReportSection title="Usuários">
-        {report.usuarios.length === 0 ? (
-          <Text style={[styles.empty, { color: colors.textSecondary }]}>
-            Nenhum usuário encontrado.
-          </Text>
-        ) : (
-          report.usuarios.map((usuario) => (
-            <ExpandableRow
-              key={usuario.id}
-              title={usuario.name}
-              subtitle={usuario.email}
-              badge={
-                usuario.role === 'ADMIN'
-                  ? { label: 'Administrador', tone: 'primary' }
-                  : undefined
-              }
-              expanded={selectedId === usuario.id}
-              onToggle={() =>
-                setSelectedId((current) =>
-                  current === usuario.id ? null : usuario.id,
-                )
-              }
-              details={[
-                `Cadastrado em: ${formatDate(usuario.createdAt)}`,
-                usuario.organizacoes.length === 0
-                  ? 'Organizações: nenhuma'
-                  : `Organizações: ${usuario.organizacoes
-                      .map((org) => `${org.nome} (${papelLabel(org.papel)})`)
-                      .join(', ')}`,
-                usuario.comissoes.length === 0
-                  ? 'Comissões: nenhuma'
-                  : `Comissões: ${usuario.comissoes
-                      .map(
-                        (comissao) =>
-                          `${comissao.nome} (${papelComissaoLabel(comissao.papel)})`,
-                      )
-                      .join(', ')}`,
-              ]}
-            />
-          ))
-        )}
-      </ReportSection>
+      <ReportLinkCard
+        icon="person-outline"
+        label="Ver todos os usuários"
+        description={countLabel(report.usuarios.length, 'usuário', 'usuários')}
+        href="/mais/relatorios/usuarios"
+      />
     </>
   );
 }
 
 const styles = StyleSheet.create({
-  statsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
+  compactRow: { flexDirection: 'row', gap: Spacing.sm },
   empty: {
     ...Typography.body,
     textAlign: 'center',
