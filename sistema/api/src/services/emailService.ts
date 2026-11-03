@@ -1,6 +1,8 @@
 import type { TipoLembrete } from '@prisma/client';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../config/env.ts';
+import { AppError } from '../errors/AppError.ts';
+import { codigoRecuperacaoEmailSchema } from '../schemas/emailSchema.ts';
 import { instanteNoFuso } from '../utils/fusoHorario.ts';
 import { buildIcs, type MetodoIcs } from '../utils/ics.ts';
 import {
@@ -8,6 +10,20 @@ import {
   type EmailMontado,
   type ReuniaoEmail,
 } from '../utils/emailTemplates.ts';
+
+const EMAIL_ERROR_MESSAGE =
+  'Não foi possível enviar o código de recuperação. Tente novamente mais tarde.';
+
+const buildCodigoRecuperacaoEmail = (codigo: string) => ({
+  subject: 'Código de recuperação de senha — Better Meet',
+  html: `<html lang="pt-BR"><body>
+      <h1>Recuperação de senha</h1>
+      <p>Seu código de recuperação do Better Meet é:</p>
+      <p><strong>${codigo}</strong></p>
+      <p>Não compartilhe este código. Se você não solicitou a recuperação, ignore este e-mail.</p>
+    </body></html>`,
+  text: `Seu código de recuperação do Better Meet é: ${codigo}. Não compartilhe este código. Se você não solicitou a recuperação, ignore este e-mail.`,
+});
 
 export type Destinatario = {
   nome: string;
@@ -120,6 +136,32 @@ const sendToEach = async (
 };
 
 export const emailService = {
+  /** Envia um código já gerado; a validade e o consumo pertencem à recuperação. */
+  async enviarCodigoRecuperacao(
+    emailDestinatario: string,
+    codigo: string,
+  ): Promise<void> {
+    const values = await codigoRecuperacaoEmailSchema.validate(
+      { emailDestinatario, codigo },
+      { stripUnknown: true },
+    );
+
+    // Mesma conta do Gmail dos convites; sem ela o código não tem como sair.
+    const transporte = getTransporter();
+    if (!transporte) throw new AppError(500, EMAIL_ERROR_MESSAGE);
+
+    try {
+      await transporte.sendMail({
+        from: { name: env.MAIL_FROM_NAME, address: env.GMAIL_USER! },
+        to: values.emailDestinatario,
+        ...buildCodigoRecuperacaoEmail(values.codigo),
+      });
+    } catch {
+      // Erros do provedor podem conter dados pessoais ou credenciais.
+      throw new AppError(500, EMAIL_ERROR_MESSAGE);
+    }
+  },
+
   isEnabled: () => Boolean(env.GMAIL_USER && env.GMAIL_APP_PASSWORD),
 
   sendConvite: (reuniao: ReuniaoEmail, destinatarios: Destinatario[]) =>

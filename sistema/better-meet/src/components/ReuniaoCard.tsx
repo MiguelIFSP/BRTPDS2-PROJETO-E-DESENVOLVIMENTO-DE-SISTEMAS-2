@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import ConvitesSemAceite from '@/components/ConvitesSemAceite';
 import ReuniaoCheckIn from '@/components/ReuniaoCheckIn';
+import ListaPresencaButton from '@/components/presenca/ListaPresencaButton';
 import {
   FontFamily,
   PressedOpacity,
@@ -12,12 +13,14 @@ import {
   withAlpha,
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { PAPEIS_COMISSAO } from '@/services/comissaoService';
 import type {
   ReuniaoParticipante,
   ReuniaoRegistro,
   StatusConviteReuniao,
   StatusReuniao,
 } from '@/services/reuniaoService';
+import { useAuthStore } from '@/store/authStore';
 import { formatReuniaoDate } from '@/utils/format';
 
 export type ReuniaoCardData = {
@@ -67,6 +70,13 @@ export default function ReuniaoCard({
   onDelete,
 }: ReuniaoCardProps) {
   const { colors } = useTheme();
+  const userId = useAuthStore((state) => state.user?.id);
+  const papelDoUsuario = reuniao.participantes?.find(
+    (participante) => participante.userId === userId,
+  )?.papel;
+  const papelNaComissao = PAPEIS_COMISSAO.find(
+    (papel) => papel === papelDoUsuario,
+  );
 
   return (
     <View
@@ -188,6 +198,11 @@ export default function ReuniaoCard({
           {reuniao.descricao}
         </Text>
       ) : null}
+
+      <ListaPresencaButton
+        reuniaoId={reuniao.id}
+        papelNaComissao={papelNaComissao}
+      />
 
       {reuniao.participantes?.length ? (
         <View style={styles.participants}>
