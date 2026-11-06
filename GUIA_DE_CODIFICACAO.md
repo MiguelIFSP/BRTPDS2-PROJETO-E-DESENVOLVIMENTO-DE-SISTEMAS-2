@@ -11,7 +11,7 @@ Este guia define o padrão de código de todos os subsistemas em `sistema/`:
 
 Toda alteração nova ou refatorada deve seguir estas regras. Código antigo que ainda não segue o guia é ajustado quando o arquivo for alterado.
 
-Quem usa IA generativa para escrever código deve anexar ao agente o arquivo [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md), que resume estas mesmas regras.
+Quem usa IA generativa para escrever código deve anexar ao agente o arquivo [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md), que resume estas mesmas regras. A documentação de requisitos, diagramas, dados e testes segue o [GUIA_DE_DOCUMENTACAO.md](GUIA_DE_DOCUMENTACAO.md).
 
 > **Seções do guia:** 1. TypeScript · 2. Nomenclatura e idioma · 3. Node.js + Express 5 · 4. Prisma 7 + MySQL · 5. Validação com Yup · 6. React Native + Expo · 7. Estado com Zustand · 8. Interface e design system · 9. Git, agentes de IA e testes. Ao final, um checklist de revisão por seção.
 
@@ -1053,7 +1053,7 @@ Todo endpoint novo ou alterado é documentado no **mesmo Pull Request** em que �
 - Cada serviço Node mantém o arquivo `docs/openapi.yaml` (OpenAPI 3), servido pelo próprio serviço em `/api/docs` com o Swagger UI.
 - Para cada endpoint, documente o que pede o [padroes_interface_e_nomenclatura.md](documentos/entrega1_AP/padroes_interface_e_nomenclatura.md) (seção 3.2): método e caminho, parâmetros de URL e de query, headers, corpo da requisição, respostas de sucesso, respostas de erro com seus status e regra de autenticação/permissão (`requireAuth`, `requireAdmin`, `requireSelf`, papel exigido).
 - Textos da documentação em pt-BR (NM-02).
-- **Situação atual:** nenhum serviço tem documentação OpenAPI. Os endpoints existentes devem ser documentados durante a refatoração.
+- **Situação atual:** só a `api` tem documentação OpenAPI (`sistema/api/docs/openapi.yaml`). Os endpoints dos demais serviços devem ser documentados durante a refatoração.
 
 ---
 
@@ -2212,7 +2212,7 @@ Segundo o [plano_de_testes.md](documentos/entrega1_AP/plano_de_testes.md):
 - Os testes de rota rodam contra um banco de teste, nunca contra o banco de desenvolvimento.
 - Nos serviços Node, que usam ESM e `.ts` direto (TS-09), o Jest precisa de configuração para ESM e TypeScript. Essa configuração é feita uma vez, junto com o primeiro teste de cada serviço.
 - **Os testes realizados são documentados em toda entrega**, na pasta da entrega em `documentos/`. O registro informa:
-  - o que foi testado, ligado aos casos de uso e requisitos;
+  - o que foi testado, com IDs `CT-…` ligados aos casos de uso e requisitos (modelo na seção 12 do [GUIA_DE_DOCUMENTACAO.md](GUIA_DE_DOCUMENTACAO.md));
   - como rodar (`npm test` de cada subsistema e testes manuais com o passo a passo);
   - o resultado da execução, com data, quantidade de testes, falhas e os defeitos encontrados.
 
@@ -2330,4 +2330,4 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Trabalho em `feature/<nome>`, com PR revisado para a `development`; nada direto na `main`.
 - [ ] Mudança no guia acompanhada da atualização do `PROMPT_AGENTES_IA.md`.
 - [ ] Regra de negócio nova ou alterada com teste; `npm test` passando.
-- [ ] Testes realizados na entrega registrados em `documentos/` (o que, como rodar, resultado).
+- [ ] Testes realizados na entrega registrados em `documentos/` (o que, com IDs `CT-…`, como rodar, resultado).

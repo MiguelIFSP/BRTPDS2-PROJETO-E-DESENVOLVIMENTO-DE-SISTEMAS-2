@@ -33,6 +33,15 @@ O sistema foi arquitetado para garantir facilidade de uso na ponta do cliente e 
 
 ---
 
+### 📐 Guias do Projeto
+
+*   [Guia de Codificação](./GUIA_DE_CODIFICACAO.md) e [prompt para agentes de IA](./PROMPT_AGENTES_IA.md)
+*   [Guia de Documentação](./GUIA_DE_DOCUMENTACAO.md) e [prompt para agentes de IA](./PROMPT_DOCUMENTACAO_IA.md)
+
+A documentação de cada entrega fica em `documentos/entregaN_<sigla>/` e é publicada na Wiki.
+
+---
+
 ### 📂 Estrutura de Documentação (Entrega 1)
 A documentação inicial de requisitos e decisões arquiteturais pode ser encontrada na pasta `/documentos/entrega1_AP/`. 
 Consulte os arquivos abaixo para o detalhamento da proposta, também disponíveis na guia Wiki:

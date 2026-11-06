@@ -323,7 +323,7 @@ Referência oficial: paleta do `documentos/entrega1_AP/design_system.md` e fonte
     - Serviços Node usam Jest (unitário) e Supertest (rotas); apps usam Jest (`jest-expo`) com React Native Testing Library.
     - Todo defeito corrigido ganha um teste que falharia antes da correção.
     - Testes nunca rodam contra o banco de desenvolvimento.
-    - Os testes realizados em cada entrega são registrados na pasta da entrega em `documentos/`: o que foi testado (ligado a casos de uso e requisitos), como rodar e o resultado (data, quantidade, falhas, defeitos encontrados).
+    - Os testes realizados em cada entrega são registrados na pasta da entrega em `documentos/`, conforme o `GUIA_DE_DOCUMENTACAO.md`: o que foi testado (com IDs `CT-…` ligados a casos de uso e requisitos), como rodar e o resultado (data, quantidade, falhas, defeitos encontrados).
 
 ## Antes de entregar
 
