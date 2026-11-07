@@ -84,10 +84,14 @@ export default function SummaryCard({
           <Text style={[styles.meta, { color: colors.textSecondary }]}>
             {meta}
           </Text>
-          <View style={styles.footer}>
-            <AvatarStack names={memberNames} />
-            {trailing}
-          </View>
+          {memberNames.length > 0 || trailing ? (
+            <View style={styles.footer}>
+              {memberNames.length > 0 ? (
+                <AvatarStack names={memberNames} />
+              ) : null}
+              {trailing}
+            </View>
+          ) : null}
         </View>
 
         <Ionicons name="chevron-forward" size={20} color={colors.primary} />

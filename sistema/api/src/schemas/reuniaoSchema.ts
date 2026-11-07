@@ -19,6 +19,47 @@ const isValidDate = (value: string) => {
   );
 };
 
+// O minuto atual ainda vale: só um horário anterior a ele é passado.
+const isDateTimeInPast = (data: string, hora: string) => {
+  const [year, month, day] = data.split('-').map(Number);
+  const [hour, minute] = hora.split(':').map(Number);
+  if (
+    year === undefined ||
+    month === undefined ||
+    day === undefined ||
+    hour === undefined ||
+    minute === undefined ||
+    Number.isNaN(year) ||
+    Number.isNaN(month) ||
+    Number.isNaN(day) ||
+    Number.isNaN(hour) ||
+    Number.isNaN(minute)
+  ) {
+    return false;
+  }
+  const chosen = new Date(year, month - 1, day, hour, minute, 0, 0);
+  const now = new Date();
+  const currentMinute = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate(),
+    now.getHours(),
+    now.getMinutes(),
+    0,
+    0,
+  );
+  return chosen.getTime() < currentMinute.getTime();
+};
+
+const canCompareDateTime = (data?: string, hora?: string) =>
+  Boolean(
+    data &&
+    hora &&
+    DATA_REGEX.test(data) &&
+    HORA_REGEX.test(hora) &&
+    isValidDate(data),
+  );
+
 export const reuniaoSchema = yup
   .object({
     comissaoId: idRule('A comissão informada é inválida.').required(
@@ -84,6 +125,28 @@ export const reuniaoSchema = yup
     return this.createError({
       path: 'horaFim',
       message: 'O horário final deve ser posterior ao horário inicial.',
+    });
+  })
+  .test('inicio-nao-passado', function (value) {
+    const data = value?.data;
+    const horaInicio = value?.horaInicio;
+    if (!data || !horaInicio || !canCompareDateTime(data, horaInicio)) {
+      return true;
+    }
+    if (!isDateTimeInPast(data, horaInicio)) return true;
+    return this.createError({
+      path: 'horaInicio',
+      message: 'O início da reunião não pode ser no passado.',
+    });
+  })
+  .test('fim-nao-passado', function (value) {
+    const data = value?.data;
+    const horaFim = value?.horaFim;
+    if (!data || !horaFim || !canCompareDateTime(data, horaFim)) return true;
+    if (!isDateTimeInPast(data, horaFim)) return true;
+    return this.createError({
+      path: 'horaFim',
+      message: 'O término da reunião não pode ser no passado.',
     });
   });
 

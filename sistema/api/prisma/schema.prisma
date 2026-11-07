@@ -94,6 +94,8 @@ model User {
   // -------------------------------------------------------------------
   passwordResetTokens PasswordResetToken[]
   reunioesCriadas     Reuniao[]            @relation("ReuniaoCriador")
+  votacoesCriadas     Votacao[]            @relation("VotacaoCriador")
+  votos               VotacaoVoto[]
   convitesReuniao     ConviteReuniao[]
   registrosReuniao    ReuniaoRegistro[]
   notificacoes        Notificacao[]
@@ -190,6 +192,7 @@ model Reuniao {
   convites  ConviteReuniao[]
   registros ReuniaoRegistro[]
   lembretes LembreteEnviado[]
+  votacoes  Votacao[]
 
   @@index([comissaoId])
   @@index([criadoPorUserId])
@@ -263,5 +266,53 @@ model LembreteEnviado {
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([reuniaoId, userId, tipo])
+  @@index([userId])
+}
+
+// Uma reunião tem várias votações. Opções e votos ficam em tabelas próprias:
+// um campo na reunião não guarda o voto de cada pessoa nem a troca de opção.
+model Votacao {
+  id              Int      @id @default(autoincrement())
+  reuniaoId       Int
+  titulo          String   @db.VarChar(120)
+  criadoPorUserId Int
+  encerrada       Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  reuniao   Reuniao         @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  criadoPor User            @relation("VotacaoCriador", fields: [criadoPorUserId], references: [id])
+  opcoes    VotacaoOpcao[]
+  votos     VotacaoVoto[]
+
+  @@index([reuniaoId])
+  @@index([criadoPorUserId])
+}
+
+model VotacaoOpcao {
+  id        Int    @id @default(autoincrement())
+  votacaoId Int
+  texto     String @db.VarChar(80)
+  ordem     Int    @default(0)
+
+  votacao Votacao       @relation(fields: [votacaoId], references: [id], onDelete: Cascade)
+  votos   VotacaoVoto[]
+
+  @@index([votacaoId])
+}
+
+// Um voto por pessoa na votação. Trocar a opção atualiza opcaoId.
+model VotacaoVoto {
+  id        Int      @id @default(autoincrement())
+  votacaoId Int
+  opcaoId   Int
+  userId    Int
+  createdAt DateTime @default(now())
+
+  votacao Votacao      @relation(fields: [votacaoId], references: [id], onDelete: Cascade)
+  opcao   VotacaoOpcao @relation(fields: [opcaoId], references: [id], onDelete: Cascade)
+  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([votacaoId, userId])
+  @@index([opcaoId])
   @@index([userId])
 }

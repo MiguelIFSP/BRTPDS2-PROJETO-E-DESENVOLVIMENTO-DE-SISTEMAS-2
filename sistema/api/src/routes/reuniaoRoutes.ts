@@ -10,6 +10,7 @@ routes.get(
   requireAuth,
   reuniaoController.listPendingInvites,
 );
+routes.get('/reunioes/:id', requireAuth, reuniaoController.getById);
 routes.post('/reunioes', requireAuth, reuniaoController.create);
 routes.patch('/reunioes/:id', requireAuth, reuniaoController.update);
 routes.delete('/reunioes/:id', requireAuth, reuniaoController.delete);

@@ -27,6 +27,8 @@ type BottomSheetProps = {
   title: string;
   onClose: () => void;
   children: ReactNode;
+  // Quando muda, a rolagem do painel volta ao topo (troca de etapa).
+  scrollKey?: string | number;
 };
 
 // Abaixo disso o toque é tratado como toque, não como arrasto (a alça e o
@@ -46,6 +48,7 @@ export default function BottomSheet({
   title,
   onClose,
   children,
+  scrollKey,
 }: BottomSheetProps) {
   const { colors } = useTheme();
   const { height: screenHeight } = useWindowDimensions();
@@ -214,7 +217,10 @@ export default function BottomSheet({
                 </Pressable>
               </View>
             </View>
-            <KeyboardAwareScrollView contentContainerStyle={styles.content}>
+            <KeyboardAwareScrollView
+              contentContainerStyle={styles.content}
+              scrollToTopKey={scrollKey}
+            >
               {children}
             </KeyboardAwareScrollView>
           </Animated.View>

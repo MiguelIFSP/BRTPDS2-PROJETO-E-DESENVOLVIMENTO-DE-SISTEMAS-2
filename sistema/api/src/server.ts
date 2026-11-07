@@ -23,6 +23,7 @@ import comissaoRoutes from './routes/comissaoRoutes.ts';
 import organizacaoRoutes from './routes/organizacaoRoutes.ts';
 import usuarioRoutes from './routes/usuarioRoutes.ts';
 import reuniaoRoutes from './routes/reuniaoRoutes.ts';
+import votacaoRoutes from './routes/votacaoRoutes.ts';
 import notificacaoRoutes from './routes/notificacaoRoutes.ts';
 import conviteRespostaRoutes from './routes/conviteRespostaRoutes.ts';
 
@@ -56,6 +57,7 @@ apiRouter.use(usuarioRoutes);
 apiRouter.use(organizacaoRoutes);
 apiRouter.use(comissaoRoutes);
 apiRouter.use(reuniaoRoutes);
+apiRouter.use(votacaoRoutes);
 apiRouter.use(notificacaoRoutes);
 apiRouter.use(conviteRespostaRoutes);
 
