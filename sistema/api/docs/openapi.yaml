@@ -1370,6 +1370,37 @@ paths:
         '500': { $ref: '#/components/responses/InternalError' }
 
   /comissoes/{comissaoId}/membros/{userId}:
+    patch:
+      tags: [Comissões]
+      summary: Promove ou rebaixa um membro da equipe (UC03)
+      description: |
+        Exige `requireAuth`. Só ADMINISTRADOR ou FACILITADOR da comissão;
+        facilitador não altera administrador nem promove alguém a
+        administrador; a comissão nunca fica sem administrador.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - $ref: '#/components/parameters/ComissaoId'
+        - $ref: '#/components/parameters/MembroUserId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [papel]
+              properties:
+                papel: { $ref: '#/components/schemas/PapelComissao' }
+      responses:
+        '200':
+          description: Papel atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ComissaoEquipe' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
     delete:
       tags: [Comissões]
       summary: Remove um membro da equipe (UC03)

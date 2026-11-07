@@ -26,5 +26,13 @@ export const membroComissaoSchema = yup.object({
     .default(PapelComissao.MEMBRO),
 });
 
+// promover/rebaixar: só o papel muda.
+export const papelMembroComissaoSchema = yup.object({
+  papel: yup
+    .string<PapelComissao>()
+    .oneOf(Object.values(PapelComissao), 'Papel inválido.')
+    .required('Informe o papel.'),
+});
+
 // edição: mesmos campos, mas a comissão não muda de organização.
 export const comissaoUpdateSchema = comissaoSchema.omit(['organizacaoId']);

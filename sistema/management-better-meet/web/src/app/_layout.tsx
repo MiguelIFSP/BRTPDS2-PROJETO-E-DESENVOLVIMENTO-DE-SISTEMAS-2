@@ -4,7 +4,7 @@ import React, { useEffect } from 'react';
 
 import { Colors } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
-import { useThemeStore } from '../store/themeStore';
+import { rehydrateTheme, useThemeStore } from '../store/themeStore';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,6 +36,7 @@ export default function RootLayout() {
 
   useEffect(() => {
     SplashScreen.hideAsync();
+    rehydrateTheme();
   }, []);
 
   const CustomDarkTheme = { ...DarkTheme, colors: { ...DarkTheme.colors, background: Colors.dark.background } };

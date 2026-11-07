@@ -4,6 +4,7 @@ import {
   comissaoSchema,
   comissaoUpdateSchema,
   membroComissaoSchema,
+  papelMembroComissaoSchema,
 } from '../schemas/comissaoSchema.ts';
 import { comissaoService } from '../services/comissaoService.ts';
 import { parseId } from '../utils/parseId.ts';
@@ -73,6 +74,22 @@ export const comissaoController = {
       papel,
     );
     response.status(201).json(membro);
+  },
+
+  async updateMemberRole(request: Request, response: Response) {
+    const { id: requesterId } = (request as AuthenticatedRequest).user;
+    const comissaoId = parseId(request.params.comissaoId, 'da comissão');
+    const userId = parseId(request.params.userId, 'do membro');
+    const { papel } = await papelMembroComissaoSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const membro = await comissaoService.updateMemberRole(
+      comissaoId,
+      requesterId,
+      userId,
+      papel,
+    );
+    response.status(200).json(membro);
   },
 
   async removeMember(request: Request, response: Response) {

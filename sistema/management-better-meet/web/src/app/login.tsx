@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
+import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import * as yup from 'yup';
@@ -42,7 +42,7 @@ const initialValues: LoginForm = {
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { theme: colorScheme } = useThemeStore();
+  const { theme: colorScheme, applyAccountTheme } = useThemeStore();
   const themeColors = Colors[colorScheme];
   const { isAuthenticated, login } = useAuthStore();
 
@@ -143,6 +143,7 @@ export default function LoginScreen() {
         },
         data.token
       );
+      applyAccountTheme(data.themePreference);
 
       setFeedback({ type: 'success', message: `Login realizado. Bem-vindo(a), ${data.name ?? 'admin'}!` });
       setForm(initialValues);

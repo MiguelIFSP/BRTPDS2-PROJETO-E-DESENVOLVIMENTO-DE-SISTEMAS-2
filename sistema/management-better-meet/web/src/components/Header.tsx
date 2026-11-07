@@ -3,14 +3,28 @@ import { View, Text, TouchableOpacity, StyleSheet, Switch, Modal, Pressable } fr
 import { Colors } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
+import { usuarioService } from '@/services/usuarioService';
 
 export default function Header() {
   const { theme, toggleTheme } = useThemeStore();
   const themeColors = Colors[theme];
-  const { user, isAuthenticated, logout } = useAuthStore();
+  const { user, token, isAuthenticated, logout } = useAuthStore();
   const [isProfileVisible, setIsProfileVisible] = useState(false);
 
   const isDarkMode = theme === 'dark';
+
+  // O tema muda na hora; o salvamento na conta (só logado) roda em segundo plano, e uma
+  // falha dele não desfaz a troca nem trava o painel: o tema continua salvo no navegador.
+  const handleToggleTheme = () => {
+    const nextTheme = isDarkMode ? 'light' : 'dark';
+    toggleTheme();
+
+    if (!token || !user) return;
+
+    usuarioService.updateTheme(token, user.id, nextTheme).catch((error: unknown) => {
+      console.error('Não foi possível salvar o tema na conta:', error);
+    });
+  };
 
   const initials = user
     ? user.name
@@ -37,7 +51,7 @@ export default function Header() {
           <Switch
             trackColor={{ false: '#767577', true: Colors.light.backgroundSelected }}
             thumbColor={isDarkMode ? '#ffffff' : '#f4f3f4'}
-            onValueChange={toggleTheme}
+            onValueChange={handleToggleTheme}
             value={isDarkMode}
           />
         </View>

@@ -118,7 +118,7 @@ export default function StatusScreen() {
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
 
   const handleUnauthorized = useCallback(() => {
-    // logout antes do redirect: sem isso o AppGate ainda vê isAuthenticated=true
+    // logout antes do redirect: sem isso a rota protegida ainda vê isAuthenticated=true
     // e devolve o usuário do /login pra / (parecia que a tela "abria na home").
     logout();
     router.replace('/login');

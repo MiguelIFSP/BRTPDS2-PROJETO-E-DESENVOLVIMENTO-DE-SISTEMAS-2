@@ -1,7 +1,13 @@
 import { useCallback, useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import * as yup from 'yup';
 import { useShallow } from 'zustand/react/shallow';
 
@@ -19,7 +25,12 @@ import Screen from '@/components/ui/Screen';
 import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
 import { STATUS_ORGANIZACAO_UI } from '@/constants/status';
-import { FontFamily, Spacing, Typography } from '@/constants/theme';
+import {
+  FontFamily,
+  PressedOpacity,
+  Spacing,
+  Typography,
+} from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useOrganizacaoActions } from '@/hooks/useOrganizacaoActions';
 import { useTheme } from '@/hooks/useTheme';
@@ -335,7 +346,21 @@ export default function OrganizacaoDetalheScreen() {
             </Text>
           ) : (
             organizacao.comissoes.map((comissao) => (
-              <View key={comissao.id} style={styles.comissaoRow}>
+              <Pressable
+                key={comissao.id}
+                accessibilityRole="button"
+                accessibilityLabel={`Abrir comissão ${comissao.nome}`}
+                onPress={() =>
+                  router.push({
+                    pathname: '/comissao/[id]',
+                    params: { id: String(comissao.id) },
+                  })
+                }
+                style={({ pressed }) => [
+                  styles.comissaoRow,
+                  pressed && { opacity: PressedOpacity },
+                ]}
+              >
                 <Ionicons
                   name="people-outline"
                   size={18}
@@ -347,7 +372,12 @@ export default function OrganizacaoDetalheScreen() {
                 >
                   {comissao.nome}
                 </Text>
-              </View>
+                <Ionicons
+                  name="chevron-forward"
+                  size={18}
+                  color={colors.textSecondary}
+                />
+              </Pressable>
             ))
           )}
         </Card>

@@ -1,5 +1,8 @@
 import { useState } from 'react';
-import { Ionicons } from '@react-native-vector-icons/ionicons';
+import {
+  Ionicons,
+  type IoniconsIconName,
+} from '@react-native-vector-icons/ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 
@@ -21,7 +24,9 @@ import { useTheme } from '@/hooks/useTheme';
 import { membroComissaoSchema } from '@/schemas/comissaoSchema';
 import {
   PAPEIS_COMISSAO,
+  nextPapelComissao,
   papelComissaoLabel,
+  previousPapelComissao,
   type ComissaoDetalhe,
   type PapelComissao,
 } from '@/services/comissaoService';
@@ -45,7 +50,53 @@ type ComissaoEquipeProps = {
   // resolve com a mensagem de erro, ou null quando o membro foi adicionado.
   onAddMember: (userId: number, papel: PapelComissao) => Promise<string | null>;
   onRequestRemoveMember: (userId: number, name: string) => void;
+  onRequestChangeRole: (
+    userId: number,
+    name: string,
+    papel: PapelComissao,
+    direction: 'promote' | 'demote',
+  ) => void;
 };
+
+type ActionButtonProps = {
+  icon: IoniconsIconName;
+  color: string;
+  accessibilityLabel: string;
+  disabled?: boolean;
+  onPress: () => void;
+};
+
+function ActionButton({
+  icon,
+  color,
+  accessibilityLabel,
+  disabled = false,
+  onPress,
+}: ActionButtonProps) {
+  const { colors } = useTheme();
+
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+      disabled={disabled}
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.iconButton,
+        { backgroundColor: colors.backgroundElement },
+        pressed && styles.pressed,
+        disabled && styles.disabled,
+      ]}
+    >
+      <Ionicons
+        name={icon}
+        size={18}
+        color={disabled ? colors.textSecondary : color}
+      />
+    </Pressable>
+  );
+}
 
 // Equipe de uma comissão: lista com o papel de cada um e, para administrador
 // e facilitador, adicionar e remover (mesmas regras do comissaoService da API).
@@ -55,6 +106,7 @@ export default function ComissaoEquipe({
   myPapel,
   onAddMember,
   onRequestRemoveMember,
+  onRequestChangeRole,
 }: ComissaoEquipeProps) {
   const { colors } = useTheme();
   const [isPickerOpen, setIsPickerOpen] = useState(false);
@@ -103,6 +155,9 @@ export default function ComissaoEquipe({
   };
 
   const total = comissao.equipe.length;
+  const administradores = comissao.equipe.filter(
+    (membro) => membro.papel === 'ADMINISTRADOR',
+  ).length;
 
   return (
     <View style={styles.container}>
@@ -115,6 +170,16 @@ export default function ComissaoEquipe({
         {comissao.equipe.map((membro) => {
           const canRemove =
             canManage && (isAdministrador || membro.papel !== 'ADMINISTRADOR');
+          // facilitador não mexe em administrador nem cria um.
+          const promoted = nextPapelComissao(membro.papel);
+          const demoted = previousPapelComissao(membro.papel);
+          const canChangeRole =
+            canManage && (isAdministrador || membro.papel !== 'ADMINISTRADOR');
+          const promoteBlocked =
+            !isAdministrador && promoted === 'ADMINISTRADOR';
+          // a comissão não pode ficar sem administrador.
+          const demoteBlocked =
+            membro.papel === 'ADMINISTRADOR' && administradores <= 1;
           return (
             <View
               key={membro.userId}
@@ -145,26 +210,50 @@ export default function ComissaoEquipe({
                   tone={PAPEL_TONE[membro.papel]}
                 />
               </View>
-              {canRemove ? (
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={`Remover ${membro.user.name} da comissão`}
-                  onPress={() =>
-                    onRequestRemoveMember(membro.userId, membro.user.name)
-                  }
-                  style={({ pressed }) => [
-                    styles.iconButton,
-                    { backgroundColor: colors.backgroundElement },
-                    pressed && styles.pressed,
-                  ]}
-                >
-                  <Ionicons
-                    name="person-remove-outline"
-                    size={18}
-                    color={colors.danger}
+              <View style={styles.actions}>
+                {canChangeRole && promoted ? (
+                  <ActionButton
+                    icon="arrow-up"
+                    color={colors.success}
+                    accessibilityLabel={`Promover para ${papelComissaoLabel(promoted)}`}
+                    disabled={promoteBlocked}
+                    onPress={() =>
+                      onRequestChangeRole(
+                        membro.userId,
+                        membro.user.name,
+                        promoted,
+                        'promote',
+                      )
+                    }
                   />
-                </Pressable>
-              ) : null}
+                ) : null}
+                {canChangeRole && demoted ? (
+                  <ActionButton
+                    icon="arrow-down"
+                    color={colors.warning}
+                    accessibilityLabel={`Rebaixar para ${papelComissaoLabel(demoted)}`}
+                    disabled={demoteBlocked}
+                    onPress={() =>
+                      onRequestChangeRole(
+                        membro.userId,
+                        membro.user.name,
+                        demoted,
+                        'demote',
+                      )
+                    }
+                  />
+                ) : null}
+                {canRemove ? (
+                  <ActionButton
+                    icon="person-remove-outline"
+                    color={colors.danger}
+                    accessibilityLabel={`Remover ${membro.user.name} da comissão`}
+                    onPress={() =>
+                      onRequestRemoveMember(membro.userId, membro.user.name)
+                    }
+                  />
+                ) : null}
+              </View>
             </View>
           );
         })}
@@ -216,6 +305,8 @@ const styles = StyleSheet.create({
   memberInfo: { flex: 1, minWidth: 0, gap: Spacing.xs },
   memberName: { ...Typography.body, fontFamily: FontFamily.semiBold },
   memberEmail: { ...Typography.bodySmall },
+  actions: { flexDirection: 'row', alignItems: 'center', gap: Spacing.xs },
+  disabled: { opacity: 0.4 },
   iconButton: {
     width: TouchTarget.min,
     height: TouchTarget.min,

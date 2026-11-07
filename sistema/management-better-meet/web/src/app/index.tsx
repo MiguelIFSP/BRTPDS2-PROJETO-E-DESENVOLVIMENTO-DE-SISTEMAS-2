@@ -54,6 +54,19 @@ const ACTION_LABELS: Record<SubsystemAction, string> = {
   restart: 'Reiniciar',
 };
 
+// Ao parar, o próprio subsistema grava MAINTENANCE ("Parada solicitada"); o health
+// check grava DOWN quando ele não responde. Instabilidade (ERROR) ainda é um
+// processo rodando. UNKNOWN não diz nada, então libera as três ações.
+const STOPPED_STATUSES: readonly SubSystemStatus['status'][] = ['DOWN', 'MAINTENANCE'];
+const RUNNING_STATUSES: readonly SubSystemStatus['status'][] = ['OPERATIONAL', 'ERROR'];
+
+// Parado: só iniciar. Rodando: só parar e reiniciar. Mesma regra do better-meet.
+function isActionAvailable(action: SubsystemAction, status: SubSystemStatus['status']): boolean {
+  if (STOPPED_STATUSES.includes(status)) return action === 'start';
+  if (RUNNING_STATUSES.includes(status)) return action !== 'start';
+  return true;
+}
+
 // Mesma lógica do status.tsx do better-meet — só que trabalhando direto com os
 // status em maiúsculas da API (OPERATIONAL/...), sem precisar de um segundo enum.
 function resolveDayStatus(day: SubSystemHistoryDay): { status: string; message: string } {
@@ -320,7 +333,7 @@ export default function DashboardScreen() {
                   <View style={styles.actionsRow}>
                     {(['start', 'stop', 'restart'] as const).map((action) => {
                       const isPending = pending === `${name}:${action}`;
-                      const isDisabled = pending !== null || actionsDisabled;
+                      const isDisabled = pending !== null || actionsDisabled || !isActionAvailable(action, status);
 
                       return (
                         <TouchableOpacity

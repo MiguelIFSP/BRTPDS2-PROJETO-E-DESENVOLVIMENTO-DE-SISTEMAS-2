@@ -41,7 +41,13 @@ type ComissaoForm = { nome: string; descricao: string };
 
 type PendingAction =
   | { type: 'delete-comissao' }
-  | { type: 'remove-member'; userId: number; name: string };
+  | { type: 'remove-member'; userId: number; name: string }
+  | {
+      type: 'promote-member' | 'demote-member';
+      userId: number;
+      name: string;
+      papel: PapelComissao;
+    };
 
 // Tela de uma comissão: dados (com edição) e equipe.
 export default function ComissaoDetalheScreen() {
@@ -215,11 +221,25 @@ export default function ComissaoDetalheScreen() {
         router.back();
         return;
       }
-      await comissaoService.removeMember(token, comissaoId, action.userId);
+      if (action.type === 'remove-member') {
+        await comissaoService.removeMember(token, comissaoId, action.userId);
+        await reload();
+        setEquipeFeedback({
+          type: 'success',
+          message: `${action.name} foi removido da comissão.`,
+        });
+        return;
+      }
+      await comissaoService.updateMemberRole(
+        token,
+        comissaoId,
+        action.userId,
+        action.papel,
+      );
       await reload();
       setEquipeFeedback({
         type: 'success',
-        message: `${action.name} foi removido da comissão.`,
+        message: `${action.name} agora é ${papelComissaoLabel(action.papel).toLowerCase()}.`,
       });
     } catch (error) {
       const message = getErrorMessage(
@@ -285,6 +305,14 @@ export default function ComissaoDetalheScreen() {
           onRequestRemoveMember={(memberId, name) =>
             setPendingAction({ type: 'remove-member', userId: memberId, name })
           }
+          onRequestChangeRole={(memberId, name, papel, direction) =>
+            setPendingAction({
+              type: direction === 'promote' ? 'promote-member' : 'demote-member',
+              userId: memberId,
+              name,
+              papel,
+            })
+          }
         />
         <FeedbackBanner feedback={equipeFeedback} />
       </Card>
@@ -340,19 +368,38 @@ export default function ComissaoDetalheScreen() {
 
       <ConfirmDialog
         visible={pendingAction !== null}
-        variant="danger"
+        variant={
+          pendingAction?.type === 'promote-member'
+            ? 'success'
+            : pendingAction?.type === 'demote-member'
+              ? 'warning'
+              : 'danger'
+        }
         title={
           pendingAction?.type === 'delete-comissao'
             ? 'Excluir comissão?'
-            : 'Remover membro?'
+            : pendingAction?.type === 'promote-member'
+              ? 'Promover membro?'
+              : pendingAction?.type === 'demote-member'
+                ? 'Rebaixar membro?'
+                : 'Remover membro?'
         }
         message={
           pendingAction?.type === 'remove-member'
             ? `${pendingAction.name} será removido desta comissão.`
-            : `A comissão "${comissao.nome}" e sua equipe serão removidas permanentemente.`
+            : pendingAction?.type === 'promote-member' ||
+                pendingAction?.type === 'demote-member'
+              ? `${pendingAction.name} passará a ser ${papelComissaoLabel(pendingAction.papel).toLowerCase()}.`
+              : `A comissão "${comissao.nome}" e sua equipe serão removidas permanentemente.`
         }
         confirmLabel={
-          pendingAction?.type === 'delete-comissao' ? 'Excluir' : 'Remover'
+          pendingAction?.type === 'delete-comissao'
+            ? 'Excluir'
+            : pendingAction?.type === 'promote-member'
+              ? 'Promover'
+              : pendingAction?.type === 'demote-member'
+                ? 'Rebaixar'
+                : 'Remover'
         }
         isLoading={isConfirming}
         onCancel={() => setPendingAction(null)}

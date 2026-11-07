@@ -42,7 +42,7 @@ export default function LoginScreen() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useFeedback();
   const [toast, setToast] = useState<Feedback | null>(null);
-  // A sessão só é gravada quando o toast termina: ao logar, o AppGate já
+  // A sessão só é gravada quando o toast termina: ao logar, o Stack.Protected já
   // manda para o início e o toast nem apareceria.
   const [session, setSession] = useState<LoginResponse | null>(null);
 

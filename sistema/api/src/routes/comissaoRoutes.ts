@@ -32,6 +32,11 @@ routes.post(
   requireAuth,
   comissaoController.addMember,
 );
+routes.patch(
+  '/comissoes/:comissaoId/membros/:userId',
+  requireAuth,
+  comissaoController.updateMemberRole,
+);
 routes.delete(
   '/comissoes/:comissaoId/membros/:userId',
   requireAuth,

@@ -8,6 +8,7 @@ export function useColorScheme() {
   const [hasHydrated, setHasHydrated] = useState(false);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- o estado só vira true depois da hidratação, para o HTML estático e o primeiro render do cliente coincidirem
     setHasHydrated(true);
   }, []);
 

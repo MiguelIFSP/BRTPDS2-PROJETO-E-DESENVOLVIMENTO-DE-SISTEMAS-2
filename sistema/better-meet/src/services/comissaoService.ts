@@ -19,6 +19,20 @@ const PAPEL_COMISSAO_LABELS = {
 export const papelComissaoLabel = (papel: PapelComissao) =>
   PAPEL_COMISSAO_LABELS[papel];
 
+// próximo papel na hierarquia (null no topo).
+export const nextPapelComissao = (papel: PapelComissao) => {
+  const index = PAPEIS_COMISSAO.indexOf(papel);
+  return index > 0 ? PAPEIS_COMISSAO[index - 1]! : null;
+};
+
+// papel abaixo na hierarquia (null na base).
+export const previousPapelComissao = (papel: PapelComissao) => {
+  const index = PAPEIS_COMISSAO.indexOf(papel);
+  return index < PAPEIS_COMISSAO.length - 1
+    ? PAPEIS_COMISSAO[index + 1]!
+    : null;
+};
+
 export type ComissaoEquipe = {
   comissaoId: number;
   userId: number;
@@ -139,6 +153,23 @@ export const comissaoService = {
       body: { userId, papel },
       fallbackError: 'Não foi possível adicionar o membro.',
     });
+  },
+
+  updateMemberRole(
+    token: string,
+    comissaoId: number,
+    userId: number,
+    papel: PapelComissao,
+  ) {
+    return apiRequest<ComissaoEquipe>(
+      `/comissoes/${comissaoId}/membros/${userId}`,
+      {
+        method: 'PATCH',
+        token,
+        body: { papel },
+        fallbackError: 'Não foi possível atualizar o papel do membro.',
+      },
+    );
   },
 
   removeMember(token: string, comissaoId: number, userId: number) {

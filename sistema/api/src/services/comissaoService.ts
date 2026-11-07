@@ -316,6 +316,67 @@ export const comissaoService = {
   },
 
   /**
+   * UC03: Promove ou rebaixa um membro (ADMINISTRADOR ou FACILITADOR).
+   */
+  async updateMemberRole(
+    comissaoId: number,
+    actorId: number,
+    userId: number,
+    papel: PapelComissao,
+  ) {
+    const { papel: papelRequester } = await getPapelNaComissao(
+      comissaoId,
+      actorId,
+    );
+
+    if (!podeGerenciarEquipe(papelRequester)) {
+      throw new AppError(
+        403,
+        'Acesso negado. Você não tem permissão para alterar papéis.',
+      );
+    }
+
+    const alvo = await prisma.comissaoEquipe.findUnique({
+      where: { comissaoId_userId: { comissaoId, userId } },
+    });
+    if (!alvo) {
+      throw new AppError(404, 'Membro não encontrado na comissão.');
+    }
+    if (alvo.papel === papel) {
+      return alvo;
+    }
+
+    // facilitador nao mexe em administrador nem cria um.
+    if (
+      papelRequester !== 'ADMINISTRADOR' &&
+      (alvo.papel === 'ADMINISTRADOR' || papel === 'ADMINISTRADOR')
+    ) {
+      throw new AppError(
+        403,
+        'Apenas o administrador pode alterar o papel de administrador.',
+      );
+    }
+
+    // sem administrador ninguem mais consegue excluir a comissao.
+    if (alvo.papel === 'ADMINISTRADOR') {
+      const administradores = await prisma.comissaoEquipe.count({
+        where: { comissaoId, papel: 'ADMINISTRADOR' },
+      });
+      if (administradores <= 1) {
+        throw new AppError(
+          400,
+          'A comissão precisa de pelo menos um administrador.',
+        );
+      }
+    }
+
+    return prisma.comissaoEquipe.update({
+      where: { comissaoId_userId: { comissaoId, userId } },
+      data: { papel },
+    });
+  },
+
+  /**
    * UC03: Remove um membro da comissão (ADMINISTRADOR ou FACILITADOR).
    */
   async removeMember(comissaoId: number, actorId: number, userId: number) {
