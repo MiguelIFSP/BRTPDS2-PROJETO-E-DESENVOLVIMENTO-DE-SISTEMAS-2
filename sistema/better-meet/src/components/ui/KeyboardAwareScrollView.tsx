@@ -39,12 +39,18 @@ export const useNotifyInputFocus = () => useContext(FocusedInputContext);
  * Só reage a campos de dentro dela (via contexto), para a tela por trás de um
  * BottomSheet não rolar por causa do campo do painel.
  */
+type KeyboardAwareScrollViewProps = ScrollViewProps & {
+  // Muda a cada etapa de um formulário para a próxima tela abrir no topo.
+  scrollToTopKey?: string | number;
+};
+
 export default function KeyboardAwareScrollView({
   children,
   contentContainerStyle,
   onScroll,
+  scrollToTopKey,
   ...scrollProps
-}: ScrollViewProps) {
+}: KeyboardAwareScrollViewProps) {
   const scrollRef = useRef<ScrollViewInstance>(null);
   const scrollY = useRef(0);
   const focusedInput = useRef<InputRef | null>(null);
@@ -83,6 +89,12 @@ export default function KeyboardAwareScrollView({
         });
       });
   }, []);
+
+  useEffect(() => {
+    if (scrollToTopKey === undefined) return;
+    scrollRef.current?.scrollTo({ y: 0, animated: false });
+    scrollY.current = 0;
+  }, [scrollToTopKey]);
 
   useEffect(() => {
     keyboardTop.current = keyboard.top;
