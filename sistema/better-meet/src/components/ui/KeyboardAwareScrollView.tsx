@@ -10,8 +10,9 @@ import {
 import {
   ScrollView,
   View,
+  type ScrollViewInstance,
   type ScrollViewProps,
-  type TextInput,
+  type TextInputInstance,
 } from 'react-native';
 
 import { Spacing } from '@/constants/theme';
@@ -23,7 +24,7 @@ const FOCUS_MARGIN = Spacing.lg;
 // antes de medir onde o campo ficou.
 const LAYOUT_DELAY_MS = 100;
 
-type InputRef = RefObject<TextInput | null>;
+type InputRef = RefObject<TextInputInstance | null>;
 
 const FocusedInputContext = createContext<(input: InputRef) => void>(() => {});
 
@@ -44,7 +45,7 @@ export default function KeyboardAwareScrollView({
   onScroll,
   ...scrollProps
 }: ScrollViewProps) {
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null);
   const scrollY = useRef(0);
   const focusedInput = useRef<InputRef | null>(null);
   const keyboard = useKeyboard();

@@ -1,8 +1,8 @@
 # Better Meet — App
 
-Aplicativo mobile/web do Better Meet (Expo SDK 57 + React Native + Expo Router + Zustand). Consome a API de Dados (`sistema/api`) e a API de Monitoramento (`sistema/monitoring-better-meet`).
+Aplicativo mobile/web do Better Meet (Expo SDK 58 + React Native + Expo Router + Zustand). Consome a API de Dados (`sistema/api`) e a API de Monitoramento (`sistema/monitoring-better-meet`).
 
-O código segue o [Guia de Codificação](../../GUIA_DE_CODIFICACAO.md). Para APIs do Expo, use a documentação da versão instalada: https://docs.expo.dev/versions/v57.0.0/.
+O código segue o [Guia de Codificação](../../GUIA_DE_CODIFICACAO.md). Para APIs do Expo, use a documentação da versão instalada: https://docs.expo.dev/versions/v58.0.0/.
 
 ## Como rodar
 

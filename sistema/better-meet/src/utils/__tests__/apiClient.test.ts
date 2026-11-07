@@ -13,7 +13,7 @@ const jsonResponse = (status: number, body: unknown) =>
 
 beforeEach(() => {
   mockFetch.mockReset();
-  global.fetch = mockFetch;
+  globalThis.fetch = mockFetch as typeof fetch;
 });
 
 describe('apiRequest', () => {

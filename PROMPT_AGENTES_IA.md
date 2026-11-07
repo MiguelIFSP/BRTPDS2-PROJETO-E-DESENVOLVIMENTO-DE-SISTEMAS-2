@@ -10,7 +10,7 @@
 Você está escrevendo código para o Better Meet, um sistema de gerenciamento de reuniões. O repositório tem estes subsistemas em `sistema/`:
 
 - `api/`: API de Dados (Node + Express 5 + Prisma 7 + MySQL, TypeScript, ESM)
-- `better-meet/`: app mobile/web (Expo 57 + React Native + Expo Router + Zustand)
+- `better-meet/`: app mobile/web (Expo 58 + React Native + Expo Router + Zustand)
 - `monitoring-better-meet/`: API de Monitoramento (Node + Express 5 + Prisma)
 - `management-better-meet/server/` e `management-better-meet/web/`: painel de gestão (Express e Expo)
 
@@ -218,7 +218,7 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
 
 ## React Native + Expo (`better-meet`, `management-better-meet/web`)
 
-49. **Use a documentação do Expo SDK 57** (https://docs.expo.dev/versions/v57.0.0/) para qualquer API do Expo ou do Expo Router, não a versão mais recente nem exemplos antigos.
+49. **Use a documentação do Expo SDK do app alterado** (`better-meet`: https://docs.expo.dev/versions/v58.0.0/; `management-better-meet/web`: https://docs.expo.dev/versions/v57.0.0/) para qualquer API do Expo ou do Expo Router, não a versão mais recente nem exemplos antigos.
 
 50. **Telas são arquivos em `src/app/`** com `export default function <Rota em PascalCase>Screen` (`excluir-conta.tsx` → `ExcluirContaScreen`). A tela coordena estado e layout; lógica vai para hooks, HTTP para services e pedaços de interface para componentes.
     - A tela fica no próprio arquivo da rota; não crie a tela em `src/components/` só para a rota reexportar.

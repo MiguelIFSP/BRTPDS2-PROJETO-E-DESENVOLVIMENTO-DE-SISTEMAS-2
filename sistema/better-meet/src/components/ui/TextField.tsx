@@ -7,6 +7,7 @@ import {
   TextInput,
   View,
   type StyleProp,
+  type TextInputInstance,
   type TextInputProps,
   type ViewStyle,
 } from 'react-native';
@@ -48,7 +49,7 @@ export default function TextField({
   const { colors } = useTheme();
   const [isFocused, setIsFocused] = useState(false);
   const [isSecretVisible, setIsSecretVisible] = useState(false);
-  const inputRef = useRef<TextInput>(null);
+  const inputRef = useRef<TextInputInstance>(null);
   // avisa a rolagem da tela/painel para manter este campo acima do teclado.
   const notifyInputFocus = useNotifyInputFocus();
 

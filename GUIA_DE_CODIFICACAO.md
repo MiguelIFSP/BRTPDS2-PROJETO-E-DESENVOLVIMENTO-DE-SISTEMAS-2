@@ -1455,7 +1455,7 @@ Vale para `better-meet` e `management-better-meet/web`.
 
 ### 6.1 Documentação versionada do Expo (RN-01)
 
-O projeto usa o **Expo SDK 57**. Antes de usar uma API do Expo ou do Expo Router, consulte a documentação **dessa versão** em https://docs.expo.dev/versions/v57.0.0/, e não a mais recente nem exemplos antigos da internet. É o que diz o `AGENTS.md` de cada app.
+Cada app tem a sua versão do **Expo SDK**: o `better-meet` usa o **SDK 58** e o `management-better-meet/web` usa o **SDK 57**. Antes de usar uma API do Expo ou do Expo Router, consulte a documentação **da versão do app que você está alterando** (https://docs.expo.dev/versions/v58.0.0/ para o `better-meet`, https://docs.expo.dev/versions/v57.0.0/ para o `management-better-meet/web`), e não a mais recente nem exemplos antigos da internet. É o que diz o `AGENTS.md` de cada app.
 
 ---
 
@@ -1464,7 +1464,7 @@ O projeto usa o **Expo SDK 57**. Antes de usar uma API do Expo ou do Expo Router
 - Cada arquivo em `src/app/` é uma rota do Expo Router (nome do arquivo segundo o NM-06).
 - A tela exporta como default uma função nomeada **`<Rota em PascalCase>Screen`**: `excluir-conta.tsx` → `ExcluirContaScreen`.
 - A tela monta a página e coordena o estado. Lógica reutilizável vai para hooks, chamadas HTTP para services (RN-04) e pedaços de interface para componentes.
-- A navegação do app logado fica no grupo `src/app/(tabs)/`: o `(tabs)/_layout.tsx` monta a barra inferior com `NativeTabs` (de `expo-router/unstable-native-tabs`), e cada aba é uma pasta com um `Stack` próprio (`_layout.tsx` com `unstable_settings = { anchor: 'index' }`), para o detalhe empilhar sobre a lista e o "Voltar" desempilhar. Uma aba nova é registrada como `<NativeTabs.Trigger name="…">`; uma tela nova dentro de uma aba entra na pasta dela, sem registro extra.
+- A navegação do app logado fica no grupo `src/app/(tabs)/`: o `(tabs)/_layout.tsx` monta a barra inferior com `NativeTabs` (de `expo-router/native-tabs`, no `better-meet` com SDK 58), e cada aba é uma pasta com um `Stack` próprio (`_layout.tsx` com `unstable_settings = { anchor: 'index' }`), para o detalhe empilhar sobre a lista e o "Voltar" desempilhar. Uma aba nova é registrada como `<NativeTabs.Trigger name="…">`; uma tela nova dentro de uma aba entra na pasta dela, sem registro extra.
 - Telas públicas (login, cadastro, recuperação de senha) ficam fora do grupo `(tabs)`, direto em `src/app/`.
 - Arquivos `_layout.tsx` exportam como default uma função nomeada terminada em `Layout` (`RootLayout`, `TabsLayout`, `Layout`).
 - A tela fica no próprio arquivo da rota. Não crie a tela em `src/components/` só para a rota reexportar.
@@ -2191,7 +2191,7 @@ feature/<nome-em-kebab-case>  ──PR──▶  development  ──PR na entreg
 ### 9.3 Instruções para agentes de IA em um único lugar (GT-03)
 
 - A fonte única das instruções para agentes é o [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md). O arquivo `sistema/AGENTS.md` contém esse prompt, e o `sistema/CLAUDE.md` só aponta para ele (`@AGENTS.md`).
-- O `AGENTS.md` de um subprojeto guarda **apenas** o que é específico dele (ex.: a regra da documentação do Expo SDK 57 em `better-meet/AGENTS.md`), sem repetir o geral.
+- O `AGENTS.md` de um subprojeto guarda **apenas** o que é específico dele (ex.: a regra da documentação do Expo SDK 58 em `better-meet/AGENTS.md`), sem repetir o geral.
 - Skills e regras não são copiadas e editadas separadamente por ferramenta. Hoje a skill `prisma-composer` existe em quatro cópias na `api` (`.agents/`, `.claude/`, `.cursor/`, `.devin/`). A versão de referência fica em `.agents/skills/`; as cópias das outras ferramentas são atualizadas junto com ela, ou removidas se a equipe não usa aquela ferramenta.
 - Ao mudar este guia, atualize o `PROMPT_AGENTES_IA.md` no mesmo PR.
 
@@ -2291,7 +2291,7 @@ Use antes de abrir ou aprovar um Pull Request:
 
 ## Checklist de revisão — React Native + Expo
 
-- [ ] APIs do Expo conferidas na documentação do SDK 57.
+- [ ] APIs do Expo conferidas na documentação do SDK do app alterado (`better-meet`: 58; `management-better-meet/web`: 57).
 - [ ] Tela em `src/app/` com `export default function <Rota>Screen`, registrada no `_layout.tsx`.
 - [ ] Telas e componentes com default nomeado e import pelo nome do arquivo; o resto com named.
 - [ ] Nenhum `fetch` em tela ou componente; services usando `apiRequest`.
