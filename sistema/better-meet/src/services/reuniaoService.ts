@@ -112,6 +112,13 @@ export const reuniaoService = {
     });
   },
 
+  getById(token: string, reuniaoId: number) {
+    return apiRequest<Reuniao>(`/reunioes/${reuniaoId}`, {
+      token,
+      fallbackError: 'Não foi possível carregar a reunião.',
+    });
+  },
+
   listPendingInvites(token: string) {
     return apiRequest<ReuniaoItem[]>('/reunioes/convites', {
       token,

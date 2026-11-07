@@ -18,6 +18,8 @@ type ReuniaoCheckInProps = {
   token: string;
   status: StatusReuniao;
   meuRegistro?: ReuniaoRegistro | null;
+  // a página da reunião recarrega participantes depois da entrada ou da saída.
+  onRegistered?: () => void;
 };
 
 export default function ReuniaoCheckIn({
@@ -25,6 +27,7 @@ export default function ReuniaoCheckIn({
   token,
   status,
   meuRegistro,
+  onRegistered,
 }: ReuniaoCheckInProps) {
   const [registroConfirmado, setRegistroConfirmado] =
     useState<ReuniaoRegistro | null>(null);
@@ -42,6 +45,7 @@ export default function ReuniaoCheckIn({
     try {
       const result = await reuniaoService.checkIn(token, reuniaoId);
       setRegistroConfirmado(result.registro);
+      onRegistered?.();
     } catch (error) {
       monitoringService.reportRequestFailure(
         error,
@@ -69,6 +73,7 @@ export default function ReuniaoCheckIn({
     try {
       const result = await reuniaoService.checkOut(token, reuniaoId);
       setRegistroConfirmado(result.registro);
+      onRegistered?.();
     } catch (error) {
       monitoringService.reportRequestFailure(
         error,

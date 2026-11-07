@@ -44,13 +44,26 @@ const tokenDe = (userId, role = 'USER') =>
     subject: String(userId),
     expiresIn: '1h',
   });
+const isoLocal = (date) => {
+  const pad = (value) => String(value).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+const daquiA = (dias) => {
+  const data = new Date();
+  data.setHours(12, 0, 0, 0);
+  data.setDate(data.getDate() + dias);
+  return data;
+};
+const dataFutura = isoLocal(daquiA(30));
+const dataSeguinte = isoLocal(daquiA(31));
+const dataBr = (iso) => iso.split('-').reverse().join('/');
 const reuniao = {
   criadoPorUserId: criadorId,
   titulo: 'Planejamento',
   pauta: 'Pauta',
   descricao: null,
   local: 'Sala 3',
-  data: '2026-10-21',
+  data: dataFutura,
   horaInicio: '10:00',
   horaFim: '11:00',
   convites: [{ userId: 8 }, { userId: 9 }],
@@ -59,7 +72,7 @@ const corpo = {
   titulo: 'Planejamento',
   pauta: 'Pauta',
   local: 'Sala 3',
-  data: '2026-10-21',
+  data: dataFutura,
   horaInicio: '10:00',
   horaFim: '11:00',
 };
@@ -109,7 +122,7 @@ describe('PATCH /api/reunioes/:id', () => {
       tipo: 'REUNIAO_ATUALIZADA',
       reuniaoId,
       titulo: 'Reunião remarcada',
-      mensagem: '"Planejamento" agora será em 21/10/2026, das 10:30 às 11:00.',
+      mensagem: `"Planejamento" agora será em ${dataBr(dataFutura)}, das 10:30 às 11:00.`,
     });
   });
 
@@ -149,7 +162,7 @@ describe('PATCH /api/reunioes/:id', () => {
   });
 
   test('admin que não criou a reunião também avisa o criador', async () => {
-    await patch({ ...corpo, data: '2026-10-22' }, tokenDe(99, 'ADMIN'));
+    await patch({ ...corpo, data: dataSeguinte }, tokenDe(99, 'ADMIN'));
     expect(destinatarios()).toEqual([criadorId, 8, 9]);
   });
 });
@@ -178,8 +191,7 @@ describe('DELETE /api/reunioes/:id', () => {
       tipo: 'REUNIAO_EXCLUIDA',
       reuniaoId,
       titulo: 'Reunião excluída',
-      mensagem:
-        '"Planejamento", marcada para 21/10/2026 às 10:00, foi excluída.',
+      mensagem: `"Planejamento", marcada para ${dataBr(dataFutura)} às 10:00, foi excluída.`,
     });
   });
 

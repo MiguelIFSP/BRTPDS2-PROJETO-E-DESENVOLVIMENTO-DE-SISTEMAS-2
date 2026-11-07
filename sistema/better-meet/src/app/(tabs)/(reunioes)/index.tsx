@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -14,7 +14,6 @@ import NotificacoesList from '@/components/NotificacoesList';
 import ReuniaoCard, { type ReuniaoCardData } from '@/components/ReuniaoCard';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
-import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import PickerField from '@/components/ui/PickerField';
 import Screen from '@/components/ui/Screen';
@@ -60,6 +59,48 @@ type ComissaoOption = {
 
 type ComissaoMembro = ComissaoDetalhe['equipe'][number]['user'];
 
+type ReuniaoFormFields = {
+  titulo: string;
+  pauta: string;
+  descricao?: string;
+  local: string;
+  data: string;
+  horaInicio: string;
+  horaFim: string;
+  comissaoId: number;
+};
+
+const REUNIAO_STEPS: {
+  title: string;
+  fields: (keyof ReuniaoFormFields)[];
+}[] = [
+  { title: 'Título e comissão', fields: ['titulo', 'comissaoId'] },
+  {
+    title: 'Data, hora e local',
+    fields: ['data', 'horaInicio', 'horaFim', 'local'],
+  },
+  { title: 'Pauta e descrição', fields: ['pauta', 'descricao'] },
+];
+
+const errorsForStep = (
+  errors: FieldErrors<ReuniaoFormFields>,
+  step: number,
+): FieldErrors<ReuniaoFormFields> => {
+  const next: FieldErrors<ReuniaoFormFields> = {};
+  for (const field of REUNIAO_STEPS[step]?.fields ?? []) {
+    if (errors[field]) next[field] = errors[field];
+  }
+  return next;
+};
+
+const hasFieldError = (errors: FieldErrors<ReuniaoFormFields>) =>
+  Object.values(errors).some((message) => Boolean(message));
+
+const firstStepWithError = (errors: FieldErrors<ReuniaoFormFields>) =>
+  REUNIAO_STEPS.findIndex((item) =>
+    item.fields.some((field) => Boolean(errors[field])),
+  );
+
 const INITIAL_REUNIOES: ReuniaoItem[] = [];
 
 const INITIAL_CONVITES: ConviteItem[] = [];
@@ -71,8 +112,9 @@ export default function ReunioesScreen() {
   const router = useRouter();
   const user = useAuthStore((state) => state.user);
   const token = useAuthStore((state) => state.token);
-  const { openPendingInvites } = useLocalSearchParams<{
+  const { openPendingInvites, editar } = useLocalSearchParams<{
     openPendingInvites?: string;
+    editar?: string;
   }>();
 
   const [reunioes, setReunioes] = useState<ReuniaoItem[]>(INITIAL_REUNIOES);
@@ -83,24 +125,12 @@ export default function ReunioesScreen() {
   const [editingReuniao, setEditingReuniao] = useState<ReuniaoItem | null>(
     null,
   );
-  const [reuniaoToDelete, setReuniaoToDelete] = useState<ReuniaoItem | null>(
-    null,
-  );
-  const [inviteReuniao, setInviteReuniao] = useState<ReuniaoItem | null>(null);
-  const [inviteSelection, setInviteSelection] = useState<number[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedback, setFeedback] = useFeedback();
-  const [formErrors, setFormErrors] = useState<
-    FieldErrors<{
-      titulo: string;
-      pauta: string;
-      descricao?: string;
-      local: string;
-      data: string;
-      horaInicio: string;
-      horaFim: string;
-    }>
-  >({});
+  const [step, setStep] = useState(0);
+  const [formErrors, setFormErrors] = useState<FieldErrors<ReuniaoFormFields>>(
+    {},
+  );
 
   const [titulo, setTitulo] = useState('');
   const [pauta, setPauta] = useState('');
@@ -141,15 +171,7 @@ export default function ReunioesScreen() {
     setContagem({ convitesPendentes: pendingInvites.length, naoLidas });
   }, [naoLidas, pendingInvites.length, setContagem]);
 
-  // Quem já tem convite (pendente, aceito ou recusado) não aparece de novo.
-  const membrosSemConvite = membrosDaComissao.filter(
-    (membro) =>
-      !inviteReuniao?.convites?.some((convite) => convite.userId === membro.id),
-  );
-
   const canCreateMeeting = comissoes.length > 0 && Boolean(comissaoSelecionada);
-  const canManageMeeting = (reuniao: ReuniaoItem) =>
-    user?.role === 'ADMIN' || user?.id === reuniao.criadoPorUserId;
 
   const resetForm = () => {
     setTitulo('');
@@ -162,6 +184,10 @@ export default function ReunioesScreen() {
     setFormErrors({});
     setEditingReuniao(null);
     setConvidados([]);
+    setStep(0);
+    setShowDatePicker(false);
+    setShowHoraInicioPicker(false);
+    setShowHoraFimPicker(false);
   };
 
   const openCreateMeeting = () => {
@@ -189,16 +215,52 @@ export default function ReunioesScreen() {
     setHoraInicio(reuniao.horaInicio);
     setHoraFim(reuniao.horaFim);
     setFormErrors({});
+    setStep(0);
     setIsCreateOpen(true);
   };
 
-  const targetComissaoId = inviteReuniao?.comissaoId ?? comissaoSelecionada;
+  // A página da reunião pede a edição voltando para cá com ?editar=<id>,
+  // onde o formulário em etapas já está.
+  const editarAberto = useRef<string | null>(null);
+  useEffect(() => {
+    if (!editar) {
+      editarAberto.current = null;
+      return;
+    }
+    if (editarAberto.current === editar) return;
+    const reuniao = reunioes.find((item) => item.id === Number(editar));
+    if (!reuniao) return;
+    editarAberto.current = editar;
+    const podeEditar =
+      user?.role === 'ADMIN' || user?.id === reuniao.criadoPorUserId;
+    queueMicrotask(() => {
+      if (podeEditar) openEditMeeting(reuniao);
+      router.setParams({ editar: undefined });
+    });
+  }, [editar, reunioes, router, user?.id, user?.role]);
+
+  const clearFieldError = (...fields: (keyof ReuniaoFormFields)[]) => {
+    setFormErrors((current) => {
+      if (!fields.some((field) => current[field])) return current;
+      const next = { ...current };
+      for (const field of fields) next[field] = undefined;
+      return next;
+    });
+  };
+
+  const inicioDeHoje = new Date();
+  inicioDeHoje.setHours(0, 0, 0, 0);
+  const dataDoSeletor =
+    datePickerValue.getTime() < inicioDeHoje.getTime()
+      ? inicioDeHoje
+      : datePickerValue;
+
+  const targetComissaoId = comissaoSelecionada;
   const isLoadingMembros =
     targetComissaoId !== null && membrosComissaoId !== targetComissaoId;
 
   useEffect(() => {
-    if (!token || !targetComissaoId || (!isCreateOpen && !inviteReuniao))
-      return;
+    if (!token || !targetComissaoId || !isCreateOpen) return;
     let cancelled = false;
     void comissaoService
       .getById(token, targetComissaoId)
@@ -228,14 +290,7 @@ export default function ReunioesScreen() {
     return () => {
       cancelled = true;
     };
-  }, [
-    inviteReuniao,
-    isCreateOpen,
-    setFeedback,
-    targetComissaoId,
-    token,
-    user?.id,
-  ]);
+  }, [isCreateOpen, setFeedback, targetComissaoId, token, user?.id]);
 
   // isActive: false quando a tela perdeu o foco antes da resposta chegar.
   const loadComissoes = useCallback(
@@ -396,6 +451,50 @@ export default function ReunioesScreen() {
     };
   }, [isInvitesVisible, naoLidas, token]);
 
+  const formValues = {
+    comissaoId: comissaoSelecionada,
+    convidados,
+    titulo,
+    pauta,
+    descricao,
+    local,
+    data,
+    horaInicio,
+    horaFim,
+  };
+
+  const handleNextStep = async () => {
+    try {
+      await reuniaoSchema.validate(formValues, {
+        abortEarly: false,
+        stripUnknown: true,
+      });
+      setFormErrors({});
+      setStep((current) => Math.min(current + 1, REUNIAO_STEPS.length - 1));
+    } catch (error) {
+      if (!(error instanceof yup.ValidationError)) {
+        setFeedback({
+          type: 'error',
+          message: getErrorMessage(
+            error,
+            'Não foi possível validar a reunião.',
+          ),
+        });
+        return;
+      }
+      const stepErrors = errorsForStep(
+        toFieldErrors<ReuniaoFormFields>(error),
+        step,
+      );
+      if (hasFieldError(stepErrors)) {
+        setFormErrors(stepErrors);
+        return;
+      }
+      setFormErrors({});
+      setStep((current) => Math.min(current + 1, REUNIAO_STEPS.length - 1));
+    }
+  };
+
   const handleSaveMeeting = async () => {
     if (!token) {
       setFeedback({
@@ -406,20 +505,10 @@ export default function ReunioesScreen() {
     }
 
     try {
-      const payload = await reuniaoSchema.validate(
-        {
-          comissaoId: comissaoSelecionada,
-          convidados,
-          titulo,
-          pauta,
-          descricao,
-          local,
-          data,
-          horaInicio,
-          horaFim,
-        },
-        { abortEarly: false, stripUnknown: true },
-      );
+      const payload = await reuniaoSchema.validate(formValues, {
+        abortEarly: false,
+        stripUnknown: true,
+      });
       if (editingReuniao) {
         await reuniaoService.update(token, editingReuniao.id, payload);
       } else {
@@ -437,7 +526,10 @@ export default function ReunioesScreen() {
       resetForm();
     } catch (error) {
       if (error instanceof yup.ValidationError) {
-        setFormErrors(toFieldErrors(error));
+        const errors = toFieldErrors<ReuniaoFormFields>(error);
+        setFormErrors(errors);
+        const stepWithError = firstStepWithError(errors);
+        if (stepWithError >= 0) setStep(stepWithError);
         return;
       }
       setFeedback({
@@ -448,54 +540,6 @@ export default function ReunioesScreen() {
             ? 'Não foi possível atualizar a reunião.'
             : 'Não foi possível criar a reunião.',
         ),
-      });
-    }
-  };
-
-  const handleDeleteMeeting = async () => {
-    if (!token || !reuniaoToDelete) return;
-    try {
-      const { message } = await reuniaoService.delete(
-        token,
-        reuniaoToDelete.id,
-      );
-      setReunioes((current) =>
-        current.filter((item) => item.id !== reuniaoToDelete.id),
-      );
-      setReuniaoToDelete(null);
-      setFeedback({ type: 'success', message });
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: getErrorMessage(error, 'Não foi possível remover a reunião.'),
-      });
-    }
-  };
-
-  const openInviteMembers = (reuniao: ReuniaoItem) => {
-    setInviteSelection([]);
-    setInviteReuniao(reuniao);
-  };
-
-  const handleInviteMembers = async () => {
-    if (!token || !inviteReuniao || inviteSelection.length === 0) return;
-    try {
-      await reuniaoService.inviteMembers(
-        token,
-        inviteReuniao.id,
-        inviteSelection,
-      );
-      setInviteReuniao(null);
-      setInviteSelection([]);
-      await loadReunioes();
-      setFeedback({
-        type: 'success',
-        message: 'Convites enviados com sucesso.',
-      });
-    } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: getErrorMessage(error, 'Não foi possível enviar os convites.'),
       });
     }
   };
@@ -633,11 +677,12 @@ export default function ReunioesScreen() {
           <ReuniaoCard
             key={reuniao.id}
             reuniao={reuniao}
-            canManage={canManageMeeting(reuniao)}
-            token={token}
-            onInvite={() => openInviteMembers(reuniao)}
-            onEdit={() => openEditMeeting(reuniao)}
-            onDelete={() => setReuniaoToDelete(reuniao)}
+            onPress={() =>
+              router.push({
+                pathname: '/reuniao/[id]',
+                params: { id: String(reuniao.id) },
+              })
+            }
           />
         ))
       )}
@@ -645,6 +690,7 @@ export default function ReunioesScreen() {
       <BottomSheet
         visible={isCreateOpen}
         title={editingReuniao ? 'Editar reunião' : 'Nova reunião'}
+        scrollKey={step}
         onClose={() => {
           setIsCreateOpen(false);
           resetForm();
@@ -658,201 +704,267 @@ export default function ReunioesScreen() {
           </View>
         ) : (
           <>
-            <View style={styles.field}>
-              <TextField
-                label="Título"
-                accessibilityLabel="Título da reunião"
-                placeholder="Ex.: Reunião do comitê"
-                value={titulo}
-                onChangeText={setTitulo}
-                maxLength={80}
-                error={formErrors.titulo}
-              />
+            <View
+              accessibilityLabel={`Etapa ${step + 1} de ${REUNIAO_STEPS.length}: ${REUNIAO_STEPS[step]?.title ?? ''}`}
+              style={styles.stepHeader}
+            >
+              <Text style={[styles.stepMeta, { color: colors.textSecondary }]}>
+                Etapa {step + 1} de {REUNIAO_STEPS.length}
+              </Text>
+              <Text style={[styles.stepTitle, { color: colors.text }]}>
+                {REUNIAO_STEPS[step]?.title}
+              </Text>
+              <View style={styles.stepTrack}>
+                {REUNIAO_STEPS.map((item, index) => (
+                  <View
+                    key={item.title}
+                    style={[
+                      styles.stepSegment,
+                      {
+                        backgroundColor:
+                          index <= step ? colors.primary : colors.border,
+                      },
+                    ]}
+                  />
+                ))}
+              </View>
             </View>
 
-            <View style={styles.field}>
-              <Text style={[styles.fieldLabel, { color: colors.text }]}>
-                Comissão
-              </Text>
-              <View
-                style={[
-                  styles.selector,
-                  {
-                    backgroundColor: colors.background,
-                    borderColor: colors.border,
-                  },
-                ]}
-              >
-                {comissoes.map((comissao) => {
-                  const isSelected = comissao.id === comissaoSelecionada;
+            {step === 0 ? (
+              <>
+                <View style={styles.field}>
+                  <TextField
+                    label="Título"
+                    accessibilityLabel="Título da reunião"
+                    placeholder="Ex.: Reunião do comitê"
+                    value={titulo}
+                    onChangeText={(value) => {
+                      setTitulo(value);
+                      clearFieldError('titulo');
+                    }}
+                    maxLength={80}
+                    error={formErrors.titulo}
+                  />
+                </View>
 
-                  return (
-                    <Pressable
-                      key={comissao.id}
-                      accessibilityRole="button"
-                      accessibilityLabel={`Selecionar comissão ${comissao.nome}`}
-                      onPress={() => {
-                        setComissaoSelecionada(comissao.id);
-                        setConvidados([]);
-                      }}
-                      style={({ pressed }) => [
-                        styles.optionChip,
-                        {
-                          backgroundColor: isSelected
-                            ? colors.primary
-                            : colors.background,
-                          borderColor: isSelected
-                            ? colors.primary
-                            : colors.border,
-                        },
-                        pressed && styles.pressed,
-                      ]}
+                <View style={styles.field}>
+                  <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                    Comissão
+                  </Text>
+                  <View
+                    style={[
+                      styles.selector,
+                      {
+                        backgroundColor: colors.background,
+                        borderColor: formErrors.comissaoId
+                          ? colors.danger
+                          : colors.border,
+                      },
+                    ]}
+                  >
+                    {comissoes.map((comissao) => {
+                      const isSelected = comissao.id === comissaoSelecionada;
+
+                      return (
+                        <Pressable
+                          key={comissao.id}
+                          accessibilityRole="button"
+                          accessibilityLabel={`Selecionar comissão ${comissao.nome}`}
+                          onPress={() => {
+                            setComissaoSelecionada(comissao.id);
+                            setConvidados([]);
+                            clearFieldError('comissaoId');
+                          }}
+                          style={({ pressed }) => [
+                            styles.optionChip,
+                            {
+                              backgroundColor: isSelected
+                                ? colors.primary
+                                : colors.background,
+                              borderColor: isSelected
+                                ? colors.primary
+                                : colors.border,
+                            },
+                            pressed && styles.pressed,
+                          ]}
+                        >
+                          <Text
+                            style={[
+                              styles.optionChipText,
+                              {
+                                color: isSelected
+                                  ? colors.onPrimary
+                                  : colors.text,
+                              },
+                            ]}
+                          >
+                            {comissao.nome}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                  {formErrors.comissaoId ? (
+                    <Text style={[styles.errorText, { color: colors.danger }]}>
+                      {formErrors.comissaoId}
+                    </Text>
+                  ) : null}
+                </View>
+
+                {!editingReuniao ? (
+                  <View style={styles.field}>
+                    <Text style={[styles.fieldLabel, { color: colors.text }]}>
+                      Convidar participantes
+                    </Text>
+                    <Text
+                      style={[styles.metaText, { color: colors.textSecondary }]}
                     >
-                      <Text
-                        style={[
-                          styles.optionChipText,
-                          {
-                            color: isSelected ? colors.onPrimary : colors.text,
-                          },
-                        ]}
-                      >
-                        {comissao.nome}
-                      </Text>
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+                      Só membros desta comissão podem ser convidados. Eles só
+                      participarão após aceitar.
+                    </Text>
+                    <MembrosSelector
+                      membros={membrosDaComissao}
+                      selecionados={convidados}
+                      onChange={setConvidados}
+                      isLoading={isLoadingMembros}
+                      emptyText="Não há outros membros nesta comissão. Adicione-os na equipe da comissão para convidá-los."
+                    />
+                  </View>
+                ) : null}
+              </>
+            ) : null}
 
-            {!editingReuniao ? (
-              <View style={styles.field}>
-                <Text style={[styles.fieldLabel, { color: colors.text }]}>
-                  Convidar participantes
-                </Text>
-                <Text
-                  style={[styles.metaText, { color: colors.textSecondary }]}
-                >
-                  Só membros desta comissão podem ser convidados. Eles só
-                  participarão após aceitar.
-                </Text>
-                <MembrosSelector
-                  membros={membrosDaComissao}
-                  selecionados={convidados}
-                  onChange={setConvidados}
-                  isLoading={isLoadingMembros}
-                  emptyText="Não há outros membros nesta comissão. Adicione-os na equipe da comissão para convidá-los."
+            {step === 1 ? (
+              <>
+                <View style={styles.field}>
+                  <PickerField
+                    label="Data"
+                    accessibilityLabel="Selecionar data da reunião"
+                    value={formatReuniaoDate(data)}
+                    icon="calendar-outline"
+                    onPress={() => setShowDatePicker(true)}
+                  />
+                  {formErrors.data ? (
+                    <Text style={[styles.errorText, { color: colors.danger }]}>
+                      {formErrors.data}
+                    </Text>
+                  ) : null}
+                </View>
+
+                <View style={styles.twoColumns}>
+                  <PickerField
+                    label="Início"
+                    accessibilityLabel="Selecionar hora de início da reunião"
+                    value={horaInicio}
+                    icon="time-outline"
+                    onPress={() => setShowHoraInicioPicker(true)}
+                    style={styles.halfField}
+                  />
+                  <PickerField
+                    label="Término"
+                    accessibilityLabel="Selecionar hora de término da reunião"
+                    value={horaFim}
+                    icon="time-outline"
+                    onPress={() => setShowHoraFimPicker(true)}
+                    style={styles.halfField}
+                  />
+                </View>
+                {formErrors.horaInicio ? (
+                  <Text style={[styles.errorText, { color: colors.danger }]}>
+                    {formErrors.horaInicio}
+                  </Text>
+                ) : null}
+                {formErrors.horaFim ? (
+                  <Text style={[styles.errorText, { color: colors.danger }]}>
+                    {formErrors.horaFim}
+                  </Text>
+                ) : null}
+
+                <LocalReuniaoField
+                  value={local}
+                  onChangeText={(value) => {
+                    setLocal(value);
+                    clearFieldError('local');
+                  }}
+                  error={formErrors.local}
                 />
-              </View>
+              </>
             ) : null}
 
-            <PickerField
-              label="Data"
-              accessibilityLabel="Selecionar data da reunião"
-              value={formatReuniaoDate(data)}
-              icon="calendar-outline"
-              onPress={() => setShowDatePicker(true)}
-            />
-            {formErrors.data ? (
-              <Text style={[styles.errorText, { color: colors.danger }]}>
-                {formErrors.data}
-              </Text>
+            {step === 2 ? (
+              <>
+                <View style={styles.field}>
+                  <TextField
+                    label="Pauta"
+                    accessibilityLabel="Pauta da reunião"
+                    placeholder="Descreva a pauta da reunião"
+                    multiline
+                    value={pauta}
+                    onChangeText={(value) => {
+                      setPauta(value);
+                      clearFieldError('pauta');
+                    }}
+                    error={formErrors.pauta}
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <TextField
+                    label="Descrição"
+                    accessibilityLabel="Descrição da reunião"
+                    placeholder="Observações adicionais"
+                    multiline
+                    value={descricao}
+                    onChangeText={(value) => {
+                      setDescricao(value);
+                      clearFieldError('descricao');
+                    }}
+                    error={formErrors.descricao}
+                  />
+                </View>
+              </>
             ) : null}
 
-            <View style={styles.twoColumns}>
-              <PickerField
-                label="Início"
-                accessibilityLabel="Selecionar hora de início da reunião"
-                value={horaInicio}
-                icon="time-outline"
-                onPress={() => setShowHoraInicioPicker(true)}
-                style={styles.halfField}
-              />
-              <PickerField
-                label="Término"
-                accessibilityLabel="Selecionar hora de término da reunião"
-                value={horaFim}
-                icon="time-outline"
-                onPress={() => setShowHoraFimPicker(true)}
-                style={styles.halfField}
-              />
+            <View style={styles.stepActions}>
+              {step > 0 ? (
+                <Button
+                  label="Voltar"
+                  variant="secondary"
+                  onPress={() => setStep((current) => current - 1)}
+                  style={styles.stepButton}
+                />
+              ) : null}
+              {step < REUNIAO_STEPS.length - 1 ? (
+                <Button
+                  label="Continuar"
+                  onPress={() => void handleNextStep()}
+                  style={styles.stepButton}
+                />
+              ) : (
+                <Button
+                  label={
+                    editingReuniao ? 'Atualizar reunião' : 'Salvar reunião'
+                  }
+                  onPress={() => void handleSaveMeeting()}
+                  style={styles.stepButton}
+                />
+              )}
             </View>
-            {formErrors.horaInicio || formErrors.horaFim ? (
-              <Text style={[styles.errorText, { color: colors.danger }]}>
-                {formErrors.horaInicio ?? formErrors.horaFim}
-              </Text>
-            ) : null}
-
-            <LocalReuniaoField
-              value={local}
-              onChangeText={setLocal}
-              error={formErrors.local}
-            />
-
-            <View style={styles.field}>
-              <TextField
-                label="Pauta"
-                accessibilityLabel="Pauta da reunião"
-                placeholder="Descreva a pauta da reunião"
-                multiline
-                value={pauta}
-                onChangeText={setPauta}
-                error={formErrors.pauta}
-              />
-            </View>
-
-            <View style={styles.field}>
-              <TextField
-                label="Descrição"
-                accessibilityLabel="Descrição da reunião"
-                placeholder="Observações adicionais"
-                multiline
-                value={descricao}
-                onChangeText={setDescricao}
-                error={formErrors.descricao}
-              />
-            </View>
-
-            <Button
-              label={editingReuniao ? 'Atualizar reunião' : 'Salvar reunião'}
-              onPress={handleSaveMeeting}
-            />
           </>
         )}
       </BottomSheet>
 
-      <BottomSheet
-        visible={Boolean(inviteReuniao)}
-        title="Convidar participantes"
-        onClose={() => {
-          setInviteReuniao(null);
-          setInviteSelection([]);
-        }}
-      >
-        <Text style={[styles.metaText, { color: colors.textSecondary }]}>
-          Selecione os membros da comissão que receberão um convite.
-        </Text>
-        <MembrosSelector
-          membros={membrosSemConvite}
-          selecionados={inviteSelection}
-          onChange={setInviteSelection}
-          isLoading={isLoadingMembros}
-          emptyText="Todos os membros da comissão já foram convidados."
-        />
-        <Button
-          label="Enviar convites"
-          onPress={() => void handleInviteMembers()}
-          disabled={inviteSelection.length === 0}
-        />
-      </BottomSheet>
-
       {showDatePicker ? (
         <DateTimePicker
-          value={datePickerValue}
+          value={dataDoSeletor}
+          minimumDate={inicioDeHoje}
           mode="date"
           display="default"
           onValueChange={(_, selectedDate) => {
             setShowDatePicker(false);
+            if (!selectedDate) return;
             setDatePickerValue(selectedDate);
+            clearFieldError('data', 'horaInicio', 'horaFim');
           }}
           onDismiss={() => setShowDatePicker(false)}
         />
@@ -865,8 +977,10 @@ export default function ReunioesScreen() {
           display="default"
           onValueChange={(_, selectedDate) => {
             setShowHoraInicioPicker(false);
+            if (!selectedDate) return;
             setHoraInicioPickerValue(selectedDate);
             setHoraInicio(toTimeValue(selectedDate));
+            clearFieldError('horaInicio', 'horaFim');
           }}
           onDismiss={() => setShowHoraInicioPicker(false)}
         />
@@ -879,8 +993,10 @@ export default function ReunioesScreen() {
           display="default"
           onValueChange={(_, selectedDate) => {
             setShowHoraFimPicker(false);
+            if (!selectedDate) return;
             setHoraFimPickerValue(selectedDate);
             setHoraFim(toTimeValue(selectedDate));
+            clearFieldError('horaInicio', 'horaFim');
           }}
           onDismiss={() => setShowHoraFimPicker(false)}
         />
@@ -919,15 +1035,6 @@ export default function ReunioesScreen() {
           />
         </ScrollView>
       </BottomSheet>
-
-      <ConfirmDialog
-        visible={Boolean(reuniaoToDelete)}
-        title="Remover reunião?"
-        message={`A reunião "${reuniaoToDelete?.titulo ?? ''}" será removida permanentemente. Os participantes serão avisados.`}
-        confirmLabel="Remover"
-        onCancel={() => setReuniaoToDelete(null)}
-        onConfirm={() => void handleDeleteMeeting()}
-      />
     </Screen>
   );
 }
@@ -973,10 +1080,26 @@ const styles = StyleSheet.create({
   optionChipText: { ...Typography.bodySmall, fontFamily: FontFamily.medium },
   fieldLabel: { ...Typography.body, fontFamily: FontFamily.medium },
   errorText: { ...Typography.bodySmall },
+  stepHeader: { gap: Spacing.sm },
+  stepMeta: { ...Typography.bodySmall },
+  stepTitle: { ...Typography.heading3 },
+  stepTrack: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+  stepSegment: {
+    flex: 1,
+    height: 4,
+    borderRadius: Radius.full,
+  },
+  stepActions: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
+  stepButton: { flex: 1 },
   twoColumns: {
     flexDirection: 'row',
     gap: Spacing.md,
-    marginTop: Spacing.sm,
   },
   halfField: {
     flex: 1,

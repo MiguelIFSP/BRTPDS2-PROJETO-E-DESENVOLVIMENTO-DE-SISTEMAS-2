@@ -46,6 +46,13 @@ export const reuniaoController = {
     response.status(200).json(convites);
   },
 
+  async getById(request: Request, response: Response) {
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    const reuniao = await reuniaoService.getById(userId, role, reuniaoId);
+    response.status(200).json(reuniao);
+  },
+
   async create(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const data = await reuniaoSchema.validate(request.body, {

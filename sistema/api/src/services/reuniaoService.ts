@@ -150,6 +150,45 @@ type ReuniaoAviso = Prisma.ReuniaoGetPayload<{
   select: typeof reuniaoAvisoSelect;
 }>;
 
+type ReuniaoLista = Prisma.ReuniaoGetPayload<{
+  select: typeof reuniaoListSelect;
+}>;
+
+// Mesma forma da lista e da página da reunião: comissão, convites,
+// presença de quem está vendo e participantes que aceitaram.
+const apresentarReuniao = (reuniao: ReuniaoLista, userId: number) => {
+  const { registros, comissao, convites, ...dados } = reuniao;
+  return {
+    ...dados,
+    comissao: { id: comissao.id, nome: comissao.nome },
+    convites: convites.map(({ user, ...convite }) => ({
+      ...convite,
+      nome: user.name,
+    })),
+    meuRegistro:
+      registros.find((registro) => registro.userId === userId) ?? null,
+    participantes: comissao.equipe
+      .filter(
+        (membro) =>
+          membro.userId === reuniao.criadoPorUserId ||
+          convites.some(
+            (convite) =>
+              convite.userId === membro.userId &&
+              convite.status === StatusConviteReuniao.ACEITO,
+          ),
+      )
+      .map((membro) => ({
+        userId: membro.userId,
+        nome: membro.user.name,
+        email: membro.user.email,
+        papel: membro.papel,
+        registro:
+          registros.find((registro) => registro.userId === membro.userId) ??
+          null,
+      })),
+  };
+};
+
 // Criador e convidados, menos quem fez a alteração (um ADMIN que não criou
 // a reunião também avisa o criador).
 const destinatariosDoAviso = (reuniao: ReuniaoAviso, actorId: number) =>
@@ -274,37 +313,28 @@ export const reuniaoService = {
       orderBy: [{ data: 'asc' }, { horaInicio: 'asc' }],
       select: reuniaoListSelect,
     });
-    return reunioes.map(({ registros, comissao, convites, ...reuniao }) => ({
-      ...reuniao,
-      comissao: { id: comissao.id, nome: comissao.nome },
-      // Todos os convites, inclusive pendentes e recusados: o organizador
-      // acompanha as respostas e a tela de convidar esconde quem já tem convite.
-      convites: convites.map(({ user, ...convite }) => ({
-        ...convite,
-        nome: user.name,
-      })),
-      meuRegistro:
-        registros.find((registro) => registro.userId === userId) ?? null,
-      participantes: comissao.equipe
-        .filter(
-          (membro) =>
-            membro.userId === reuniao.criadoPorUserId ||
-            convites.some(
-              (convite) =>
-                convite.userId === membro.userId &&
-                convite.status === StatusConviteReuniao.ACEITO,
-            ),
-        )
-        .map((membro) => ({
-          userId: membro.userId,
-          nome: membro.user.name,
-          email: membro.user.email,
-          papel: membro.papel,
-          registro:
-            registros.find((registro) => registro.userId === membro.userId) ??
-            null,
-        })),
-    }));
+    return reunioes.map((reuniao) => apresentarReuniao(reuniao, userId));
+  },
+
+  async getById(userId: number, role: Role, reuniaoId: number) {
+    const reuniao = await prisma.reuniao.findUnique({
+      where: { id: reuniaoId },
+      select: reuniaoListSelect,
+    });
+    if (!reuniao) {
+      throw new AppError(404, 'Reunião não encontrada.');
+    }
+    const participa =
+      reuniao.criadoPorUserId === userId ||
+      reuniao.convites.some(
+        (convite) =>
+          convite.userId === userId &&
+          convite.status === StatusConviteReuniao.ACEITO,
+      );
+    if (role !== 'ADMIN' && !participa) {
+      throw new AppError(403, 'Você não pode ver esta reunião.');
+    }
+    return apresentarReuniao(reuniao, userId);
   },
 
   async update(

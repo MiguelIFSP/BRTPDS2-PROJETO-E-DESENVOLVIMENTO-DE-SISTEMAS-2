@@ -97,20 +97,31 @@ beforeEach(() => {
   ]);
 });
 
-it('mostra DD-MM-AAAA e envia a data selecionada no formato aceito pela API', async () => {
+const openCreate = async () => {
   await render(<ReunioesScreen />);
   expect(
     await screen.findByText('21-10-2026 · 10:00 às 11:00'),
   ).toBeOnTheScreen();
   await fireEvent.press(screen.getByLabelText('Adicionar reunião'));
+};
+
+const continueFromTitle = async () => {
   await fireEvent.changeText(
     screen.getByLabelText('Título da reunião'),
     'Planejamento',
   );
-  await fireEvent.changeText(
-    screen.getByLabelText('Pauta da reunião'),
-    'Pauta',
-  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }));
+  expect(
+    await screen.findByLabelText('Selecionar data da reunião'),
+  ).toBeOnTheScreen();
+};
+
+it('mostra DD-MM-AAAA e envia a data selecionada no formato aceito pela API', async () => {
+  await openCreate();
+  expect(screen.getByText('Título e comissão')).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Pauta da reunião')).toBeNull();
+  await continueFromTitle();
+  expect(screen.getByText('Data, hora e local')).toBeOnTheScreen();
   await fireEvent.changeText(
     screen.getByLabelText('Local ou link da reunião'),
     '  https://meet.example.test/abc  ',
@@ -130,6 +141,12 @@ it('mostra DD-MM-AAAA e envia a data selecionada no formato aceito pela API', as
   );
   await act(() =>
     mockPickerChange({ type: 'set' }, new Date(2028, 1, 29, 11, 0)),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }));
+  expect(await screen.findByText('Pauta e descrição')).toBeOnTheScreen();
+  await fireEvent.changeText(
+    screen.getByLabelText('Pauta da reunião'),
+    'Pauta',
   );
   await fireEvent.press(screen.getByRole('button', { name: 'Salvar reunião' }));
   expect(create).toHaveBeenCalledWith(
@@ -153,9 +170,8 @@ it.each([
 ])(
   'cancela e reabre %s sem alterar o valor e sem usar onChange',
   async (label) => {
-    await render(<ReunioesScreen />);
-    await screen.findByText('21-10-2026 · 10:00 às 11:00');
-    await fireEvent.press(screen.getByLabelText('Adicionar reunião'));
+    await openCreate();
+    await continueFromTitle();
     await fireEvent.press(screen.getByLabelText(label));
     const props = mockPickerRender.mock.lastCall?.[0];
     expect(props?.onChange).toBeUndefined();
@@ -172,9 +188,11 @@ it.each([
 );
 
 it('exige o local e mostra exemplos de preenchimento pelo ícone de ajuda', async () => {
-  await render(<ReunioesScreen />);
-  await screen.findByText('21-10-2026 · 10:00 às 11:00');
-  await fireEvent.press(screen.getByLabelText('Adicionar reunião'));
+  await openCreate();
+  expect(
+    screen.queryByLabelText('Ver exemplos de como preencher o local'),
+  ).toBeNull();
+  await continueFromTitle();
 
   expect(screen.queryByText('Híbrida')).toBeNull();
   await fireEvent.press(
@@ -184,9 +202,78 @@ it('exige o local e mostra exemplos de preenchimento pelo ícone de ajuda', asyn
   expect(screen.getByText('Online')).toBeOnTheScreen();
   expect(screen.getByText('Híbrida')).toBeOnTheScreen();
 
-  await fireEvent.press(screen.getByRole('button', { name: 'Salvar reunião' }));
+  await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }));
   expect(
     await screen.findByText('Informe o local ou o link da reunião.'),
   ).toBeOnTheScreen();
+  expect(screen.queryByLabelText('Pauta da reunião')).toBeNull();
+  await fireEvent.changeText(
+    screen.getByLabelText('Local ou link da reunião'),
+    'Sala 1',
+  );
+  expect(
+    screen.queryByText('Informe o local ou o link da reunião.'),
+  ).toBeNull();
   expect(create).not.toHaveBeenCalled();
+});
+
+it('limpa o erro do título depois que ele é preenchido', async () => {
+  await openCreate();
+  await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }));
+  expect(
+    await screen.findByText('O título da reunião é obrigatório.'),
+  ).toBeOnTheScreen();
+  await fireEvent.changeText(
+    screen.getByLabelText('Título da reunião'),
+    'Planejamento',
+  );
+  expect(screen.queryByText('O título da reunião é obrigatório.')).toBeNull();
+});
+
+it('não avança com início e término no passado e limpa o erro ao corrigir', async () => {
+  await openCreate();
+  await continueFromTitle();
+  await fireEvent.changeText(
+    screen.getByLabelText('Local ou link da reunião'),
+    'Sala 1',
+  );
+  await fireEvent.press(screen.getByLabelText('Selecionar data da reunião'));
+  await act(() => mockPickerChange({ type: 'set' }, new Date(2020, 0, 10)));
+  await fireEvent.press(
+    screen.getByLabelText('Selecionar hora de início da reunião'),
+  );
+  await act(() =>
+    mockPickerChange({ type: 'set' }, new Date(2020, 0, 10, 8, 0)),
+  );
+  await fireEvent.press(
+    screen.getByLabelText('Selecionar hora de término da reunião'),
+  );
+  await act(() =>
+    mockPickerChange({ type: 'set' }, new Date(2020, 0, 10, 9, 0)),
+  );
+  await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }));
+  expect(
+    await screen.findByText('O início da reunião não pode ser no passado.'),
+  ).toBeOnTheScreen();
+  expect(
+    screen.getByText('O término da reunião não pode ser no passado.'),
+  ).toBeOnTheScreen();
+  expect(create).not.toHaveBeenCalled();
+
+  await fireEvent.press(screen.getByLabelText('Selecionar data da reunião'));
+  await act(() =>
+    mockPickerChange({ type: 'set' }, new Date(2028, 1, 29, 10, 0)),
+  );
+  await fireEvent.press(
+    screen.getByLabelText('Selecionar hora de início da reunião'),
+  );
+  await act(() =>
+    mockPickerChange({ type: 'set' }, new Date(2028, 1, 29, 10, 0)),
+  );
+  expect(
+    screen.queryByText('O início da reunião não pode ser no passado.'),
+  ).toBeNull();
+  expect(
+    screen.queryByText('O término da reunião não pode ser no passado.'),
+  ).toBeNull();
 });
