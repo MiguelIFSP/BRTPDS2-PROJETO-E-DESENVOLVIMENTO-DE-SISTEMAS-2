@@ -29,8 +29,9 @@ Use estas fontes, em ordem de prioridade:
 | 1 | Implementação: rotas, controllers, services, telas, `schema.prisma`, migrations, configuração e testes | Prova do que existe |
 | 2 | `docs/openapi.yaml` (hoje só em `sistema/api`) | Contrato dos endpoints, a ser conferido com o código |
 | 3 | `documentos/entregaN_<sigla>/` e Wiki | Propósito e regras de negócio, sujeitos a verificação |
-| 4 | Observações do professor (seção 14) | Critério de qualidade e correção de notação |
-| 5 | Propostas anteriores | Inspiração de formato, nunca prova de implementação |
+| 4 | `aidlc-docs/` de cada app (engenharia reversa, requisitos, notas de migração) | Ponto de partida e histórico do trabalho feito com IA (DOC-25); são resumos escritos por IA, sujeitos a verificação, e nunca provam que algo existe |
+| 5 | Observações do professor (seção 14) | Critério de qualidade e correção de notação |
+| 6 | Propostas anteriores | Inspiração de formato, nunca prova de implementação |
 
 A nomenclatura segue o [GUIA_DE_CODIFICACAO.md](GUIA_DE_CODIFICACAO.md). Os padrões da 1ª entrega valem apenas onde esse guia não os substituiu. Por exemplo, o snake_case da seção 1.6 do `padroes_interface_e_nomenclatura.md` não vale mais (seção 4.8 do guia de codificação).
 
@@ -66,8 +67,9 @@ Escreva em português do Brasil. Mantenha classes, métodos, rotas, campos e enu
 | Documentação da entrega (fonte oficial) | `documentos/entregaN_<sigla>/` (ex.: `entrega3_Di2/`) |
 | Diagramas da entrega | `documentos/entregaN_<sigla>/Diagramas/` |
 | Publicação | Wiki do GitHub, gerada a partir da fonte |
+| Artefatos de trabalho do AI-DLC (não são a documentação oficial) | `sistema/better-meet/aidlc-docs/` e `sistema/management-better-meet/web/aidlc-docs/` (ver DOC-25) |
 
-Altere primeiro o arquivo em `documentos/`. A Wiki nunca recebe conteúdo que não exista na fonte.
+Altere primeiro o arquivo em `documentos/`. A Wiki nunca recebe conteúdo que não exista na fonte. O `aidlc-docs/` não é fonte da Wiki nem substitui a documentação da entrega.
 
 ### 2.2 Nomes de arquivos (DOC-07)
 
@@ -93,6 +95,30 @@ Não use espaços em nomes novos. Ao alterar um arquivo com espaços, avalie o i
 5. Confira a renderização dos diagramas na página publicada.
 
 Em `documentos/`, use link relativo: `![Diagrama de casos de uso — Relatórios](Diagramas/DCU-Relatorios.svg)`.
+
+### 2.4 Documentar com IA: AI-DLC v1 (DOC-25)
+
+Documentação feita com ajuda de um agente de IA segue o mesmo fluxo **AI-DLC v1** do código (seção 9.5 do [GUIA_DE_CODIFICACAO.md](GUIA_DE_CODIFICACAO.md) e regras 83 a 90 do [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md)). O pedido começa com **"Using AI-DLC, ..."**, e o agente lê as regras em `sistema/better-meet/.aidlc-rule-details/`. Este guia define o **conteúdo** da documentação; o AI-DLC define o **processo**. Se houver conflito sobre o conteúdo, vale este guia.
+
+Como o AI-DLC se aplica a uma tarefa de documentação:
+
+| Etapa do AI-DLC | Na documentação |
+|---|---|
+| Workspace Detection e Reverse Engineering | Conferir branch e commit (DOC-01) e inspecionar o código (DOC-02). Reaproveite os arquivos de `aidlc-docs/inception/reverse-engineering/` do app **como ponto de partida**, conferindo cada afirmação no código |
+| Requirements Analysis | Definir o assunto (RF, RNF, UC), a pasta da entrega e as lacunas. Perguntas ao responsável ficam em arquivo, nunca no chat |
+| User Stories, Application Design, Units Generation e as etapas de Design | Normalmente dispensadas; o Workflow Planning registra por quê |
+| Code Generation | Escrever os documentos. O plano lista os arquivos a criar ou alterar em `documentos/entregaN_<sigla>/` (caixas `[ ]`), e a execução marca cada passo |
+| Build and Test | Verificar o documento: checklist da seção 15, links, renderização de Mermaid e SVG, e `Não executado` onde não houve teste |
+
+Regras:
+
+- **Onde fica o quê.** A documentação oficial é gravada em `documentos/entregaN_<sigla>/` (DOC-06). Em `aidlc-docs/` ficam só o plano, o resumo da execução, o `aidlc-state.md` e o `audit.md`. Nunca grave o documento da entrega só em `aidlc-docs/`.
+- **O `aidlc-docs/` não é evidência.** Resumos de engenharia reversa e notas de migração podem estar desatualizados. Todo fato citado na documentação é conferido no código da branch e do commit informados no cabeçalho (DOC-12).
+- **O responsável não é a IA.** O campo "Responsável(eis)" é de quem revisa e assina (seção 5.1). O `audit.md` registra o que o agente fez, mas não substitui essa assinatura.
+- **Aprovação humana em cada etapa**, inclusive a do plano de documentação, antes de o agente escrever.
+- **Reinício automático.** Se o `aidlc-state.md` for de outra alteração (por exemplo, a migração do Expo) ou o fluxo anterior estiver concluído, o agente reinicia o AI-DLC com uma nova unidade (ex.: `documentacao-<assunto>`), sem aproveitar planos nem aprovações antigos e sem apagar os documentos anteriores.
+- **Idioma:** tudo em pt-BR, como em todo o guia (DOC-05).
+- **Versões:** ao citar versões de ferramentas, copie dos manifestos e lockfiles do commit consultado (DOC-22). Em 2026-11-08, os dois apps Expo usam o SDK 58 e o Jest 30; as versões de commits anteriores continuam valendo para os documentos que se referem a eles.
 
 ---
 
@@ -927,7 +953,7 @@ Execução de [AAAA-MM-DD]:
 
 ##### Como rodar
 
-Ambiente: Node 24.14.0, Jest 29.7 e `jest-expo` 57 (faixas `~` do `package.json`). O teste chama o store diretamente, com o `AsyncStorage` simulado em `jest.setup.ts`, e não acessa a API nem o banco. Em `sistema/better-meet`:
+Ambiente: Node 24.14.0, Jest 29.7 e `jest-expo` 57 (faixas `~` do `package.json` no commit `9e48774`; depois da migração para o Expo 58, o app usa Jest 30 e `jest-expo` 58, e um registro novo cita as versões do commit que testou). O teste chama o store diretamente, com o `AsyncStorage` simulado em `jest.setup.ts`, e não acessa a API nem o banco. Em `sistema/better-meet`:
 
 ```bash
 npm test -- stores -t applyUserPreference
@@ -1004,3 +1030,4 @@ Estas são as regras para não repetir as críticas já recebidas.
 - [ ] Mermaid e SVG conferidos no GitHub e na Wiki.
 - [ ] Nenhum segredo, credencial ou dado pessoal desnecessário.
 - [ ] Pendências e limitações registradas.
+- [ ] Trabalho com IA conduzido pelo AI-DLC v1: documento oficial em `documentos/`, `aidlc-state.md` e `audit.md` do app atualizados, etapas aprovadas e nenhum fato tirado só do `aidlc-docs/` (DOC-25).
