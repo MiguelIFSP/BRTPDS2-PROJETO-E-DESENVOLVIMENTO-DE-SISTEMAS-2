@@ -11,9 +11,9 @@ Este guia define o padrão de código de todos os subsistemas em `sistema/`:
 
 Toda alteração nova ou refatorada deve seguir estas regras. Código antigo que ainda não segue o guia é ajustado quando o arquivo for alterado.
 
-Quem usa IA generativa para escrever código deve anexar ao agente o arquivo [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md), que resume estas mesmas regras. A documentação de requisitos, diagramas, dados e testes segue o [GUIA_DE_DOCUMENTACAO.md](GUIA_DE_DOCUMENTACAO.md).
+Quem usa IA generativa para escrever código deve anexar ao agente o arquivo [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md), que resume estas mesmas regras. A documentação de requisitos, diagramas, dados e testes segue o [GUIA_DE_DOCUMENTACAO.md](GUIA_DE_DOCUMENTACAO.md). Mudanças feitas com ajuda de IA seguem o fluxo **AI-DLC v1** descrito na seção 9.5.
 
-> **Seções do guia:** 1. TypeScript · 2. Nomenclatura e idioma · 3. Node.js + Express 5 · 4. Prisma 7 + MySQL · 5. Validação com Yup · 6. React Native + Expo · 7. Estado com Zustand · 8. Interface e design system · 9. Git, agentes de IA e testes. Ao final, um checklist de revisão por seção.
+> **Seções do guia:** 1. TypeScript · 2. Nomenclatura e idioma · 3. Node.js + Express 5 · 4. Prisma 7 + MySQL · 5. Validação com Yup · 6. React Native + Expo (inclui atualização de SDK) · 7. Estado com Zustand · 8. Interface e design system · 9. Git, agentes de IA, AI-DLC e testes. Ao final, um checklist de revisão por seção.
 
 ---
 
@@ -1455,7 +1455,12 @@ Vale para `better-meet` e `management-better-meet/web`.
 
 ### 6.1 Documentação versionada do Expo (RN-01)
 
-Cada app tem a sua versão do **Expo SDK**: o `better-meet` usa o **SDK 58** e o `management-better-meet/web` usa o **SDK 57**. Antes de usar uma API do Expo ou do Expo Router, consulte a documentação **da versão do app que você está alterando** (https://docs.expo.dev/versions/v58.0.0/ para o `better-meet`, https://docs.expo.dev/versions/v57.0.0/ para o `management-better-meet/web`), e não a mais recente nem exemplos antigos da internet. É o que diz o `AGENTS.md` de cada app.
+Os dois apps (`better-meet` e `management-better-meet/web`) usam o **Expo SDK 58** (React 19.3, React Native 0.88). Antes de usar uma API do Expo ou do Expo Router, consulte a documentação do SDK 58 (https://docs.expo.dev/versions/v58.0.0/), e não a mais recente nem exemplos antigos da internet (SDK 57 ou anteriores). É o que diz o `AGENTS.md` de cada app.
+
+- **Atenção:** o `AGENTS.md` do `management-better-meet/web` ainda aponta para a documentação `v57.0.0`. Vale o SDK 58 desta regra; ajuste o `AGENTS.md` do `web` no próximo PR que mexer nele.
+- Se um app voltar a ter versão diferente do outro, este guia e o `PROMPT_AGENTES_IA.md` passam a citar a versão de cada app, no mesmo PR.
+- O `NativeTabs` vem de `expo-router/native-tabs`. O caminho antigo `expo-router/unstable-native-tabs` não deve ser usado.
+- Para atualizar o SDK de um app, siga a RN-19 (seção 6.19).
 
 ---
 
@@ -1464,7 +1469,7 @@ Cada app tem a sua versão do **Expo SDK**: o `better-meet` usa o **SDK 58** e o
 - Cada arquivo em `src/app/` é uma rota do Expo Router (nome do arquivo segundo o NM-06).
 - A tela exporta como default uma função nomeada **`<Rota em PascalCase>Screen`**: `excluir-conta.tsx` → `ExcluirContaScreen`.
 - A tela monta a página e coordena o estado. Lógica reutilizável vai para hooks, chamadas HTTP para services (RN-04) e pedaços de interface para componentes.
-- A navegação do app logado fica no grupo `src/app/(tabs)/`: o `(tabs)/_layout.tsx` monta a barra inferior com `NativeTabs` (de `expo-router/native-tabs`, no `better-meet` com SDK 58), e cada aba é uma pasta com um `Stack` próprio (`_layout.tsx` com `unstable_settings = { anchor: 'index' }`), para o detalhe empilhar sobre a lista e o "Voltar" desempilhar. Uma aba nova é registrada como `<NativeTabs.Trigger name="…">`; uma tela nova dentro de uma aba entra na pasta dela, sem registro extra.
+- A navegação do app logado fica no grupo `src/app/(tabs)/`: o `(tabs)/_layout.tsx` monta a barra inferior com `NativeTabs` (de `expo-router/native-tabs`), e cada aba é uma pasta com um `Stack` próprio (`_layout.tsx` com `unstable_settings = { anchor: 'index' }`), para o detalhe empilhar sobre a lista e o "Voltar" desempilhar. Uma aba nova é registrada como `<NativeTabs.Trigger name="…">`; uma tela nova dentro de uma aba entra na pasta dela, sem registro extra.
 - Telas públicas (login, cadastro, recuperação de senha) ficam fora do grupo `(tabs)`, direto em `src/app/`.
 - Arquivos `_layout.tsx` exportam como default uma função nomeada terminada em `Layout` (`RootLayout`, `TabsLayout`, `Layout`).
 - A tela fica no próprio arquivo da rota. Não crie a tela em `src/components/` só para a rota reexportar.
@@ -1822,7 +1827,7 @@ Arquivos criados pelo template do Expo e que não fazem parte do Better Meet dev
 | App | Arquivos |
 |---|---|
 | `better-meet` | `src/app/explore.tsx`; `src/components/app-tabs.tsx`, `app-tabs.web.tsx`, `hint-row.tsx`, `web-badge.tsx`, `animated-icon.tsx`, `animated-icon.web.tsx`, `animated-icon.module.css`, `external-link.tsx`; `src/hooks/use-color-scheme.ts` e `use-color-scheme.web.ts` (ver 8.1); `scripts/reset-project.js` |
-| `management-better-meet/web` | Os equivalentes que existirem (`use-color-scheme*.ts`, `scripts/reset-project.js`) |
+| `management-better-meet/web` | Os equivalentes que existirem: `src/hooks/use-theme.ts`, `use-color-scheme.ts` e `use-color-scheme.web.ts`, `scripts/reset-project.js`, e as dependências sem uso (`@expo/ui`, `expo-device`, `expo-glass-effect`, `expo-image`, `expo-symbols`, `expo-web-browser`, `expo-status-bar`) |
 
 - `themed-text.tsx`, `themed-view.tsx` e `ui/collapsible.tsx` só ficam se forem usados fora do `explore.tsx`; se ficarem, são renomeados (NM-05) e passam a usar o novo `useTheme` (8.1).
 - O `README.md` de cada app deve descrever o Better Meet, e não o texto padrão do template.
@@ -1888,6 +1893,23 @@ O que o usuário vê fora das telas também é do Better Meet: nome, ícone, spl
 - O `app.json` não lê o `theme.ts`, por isso é o único lugar fora dele onde a cor do tema aparece em hex (exceção ao UI-02). Ao mudar a paleta, atualize os dois.
 - Nenhum asset do template do Expo (logo do Expo, fundo azul `#208AEF`, `expo.icon`) pode continuar no app (RN-14).
 - Imagens novas de ícone e splash são geradas a partir da arte oficial; não desenhe variações à mão.
+
+---
+
+### 6.19 Atualização de SDK do Expo (RN-19)
+
+Atualizar o SDK de um app (ex.: 57 → 58) é uma mudança própria, feita em uma branch `feature/migracao-expo-<versao>` e conduzida pelo fluxo AI-DLC (seção 9.5). Não misture com funcionalidade nova. O que a migração para o SDK 58 ensinou:
+
+- **Leia a documentação da versão nova antes de mexer**: changelog do SDK, guia de migração do Expo Router e a página `versions/v<N>.0.0/`. Registre o que afeta o app e o que foi conferido em `aidlc-docs/construction/<unidade>/code/migration-notes.md`.
+- **As versões do SDK vêm do `npx expo install --fix`.** Se o `npm install` interno falhar com `ERESOLVE` (peer opcional de `expo-router`, `datetimepicker` etc.), não use `--force` nem `--legacy-peer-deps`: grave à mão as versões que o Expo indicou, apague `node_modules` e o `package-lock.json` e rode `npm install`. Depois, confira se bibliotecas fora da migração (ex.: `zustand`) mudaram de versão no lock; se mudaram, fixe-as de volta.
+- **Quatro portões antes de entregar**, em cada app: `npm run lint`, `npm run typecheck`, `npm test` e `npx expo-doctor` (todas as checagens passando). Confira também o bundle com `npx expo export` para Android e iOS, sem avisos de depreciação.
+- **Tipos estritos do React Native 0.87+**: refs de `ScrollView` e `TextInput` usam `ScrollViewInstance` e `TextInputInstance` (não `useRef<ScrollView>` nem `RefObject<TextInput>`). O `useColorScheme` do React Native não devolve mais `'unspecified'`; compare com `=== 'dark'`.
+- **Jest 30 e `jest-expo` 58**: a configuração `jest` do `package.json` leva `"resolver": "react-native-reanimated/jest/resolver"`; sem ele, importar o Reanimated 4.7 falha no teste. Nos testes, use `globalThis.fetch = mockFetch as typeof fetch`, e não `global.fetch`.
+- **`app.json`**: mantenha `web.output: "static"` explícito (o padrão do SDK 58 passou a ser `server`), porque o `management-better-meet/server` serve o `web/dist` como arquivos estáticos.
+- **`expo-env.d.ts`** é gerado pelo `expo start` e fica fora do Git. Quem clonar o repositório e rodar `tsc` antes de qualquer `expo start` verá erro de tipo (ex.: `@/global.css`); suba o servidor do Expo uma vez.
+- **Testes automáticos não bastam para dar a migração como pronta.** Gestos, abas nativas e navegação não são cobertos (os componentes são simulados nos testes). Entregue a lista de verificação manual em `aidlc-docs/construction/build-and-test/manual-verification-checklist.md` e registre quem a executou, em qual aparelho e com qual resultado. Enquanto isso não acontecer, o commit deve dizer (ex.: `sem testes práticos`).
+- **Vulnerabilidades do `npm audit`** que apareçam na regeneração do lock são avaliadas à parte, em outra branch.
+- **ESLint do `web`**: o `management-better-meet/web` usa hoje só a base `eslint-config-expo`. As regras do `better-meet` (`no-explicit-any`, `consistent-type-imports`, `no-restricted-imports` de `../*`) ainda não foram ligadas, porque o código atual as viola. O guia vale mesmo assim: código novo ou alterado no `web` segue as regras, e o ESLint será endurecido quando o código antigo for ajustado.
 
 ---
 
@@ -2190,8 +2212,8 @@ feature/<nome-em-kebab-case>  ──PR──▶  development  ──PR na entreg
 
 ### 9.3 Instruções para agentes de IA em um único lugar (GT-03)
 
-- A fonte única das instruções para agentes é o [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md). O arquivo `sistema/AGENTS.md` contém esse prompt, e o `sistema/CLAUDE.md` só aponta para ele (`@AGENTS.md`).
-- O `AGENTS.md` de um subprojeto guarda **apenas** o que é específico dele (ex.: a regra da documentação do Expo SDK 58 em `better-meet/AGENTS.md`), sem repetir o geral.
+- A fonte única das instruções para agentes é o [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md). A ideia é que o `sistema/AGENTS.md` contenha esse prompt e o `sistema/CLAUDE.md` só aponte para ele (`@AGENTS.md`). **Divergência atual:** esses dois arquivos ainda não existem em `sistema/`; enquanto não forem criados, cada pessoa anexa o prompt ao seu agente, como diz o início do `PROMPT_AGENTES_IA.md`.
+- O `AGENTS.md` de um subprojeto guarda **apenas** o que é específico dele (hoje, a regra de ler a documentação do Expo SDK 58 em `better-meet/AGENTS.md` e `management-better-meet/web/AGENTS.md`), sem repetir o geral. O `CLAUDE.md` do subprojeto só aponta para o `AGENTS.md` (`@AGENTS.md`).
 - Skills e regras não são copiadas e editadas separadamente por ferramenta. Hoje a skill `prisma-composer` existe em quatro cópias na `api` (`.agents/`, `.claude/`, `.cursor/`, `.devin/`). A versão de referência fica em `.agents/skills/`; as cópias das outras ferramentas são atualizadas junto com ela, ou removidas se a equipe não usa aquela ferramenta.
 - Ao mudar este guia, atualize o `PROMPT_AGENTES_IA.md` no mesmo PR.
 
@@ -2204,9 +2226,9 @@ Segundo o [plano_de_testes.md](documentos/entrega1_AP/plano_de_testes.md):
 | Onde | Ferramenta | O que testar |
 |---|---|---|
 | Serviços Node | **Jest** (unitários) e **Supertest** (rotas) | Regras de negócio dos services (permissões por papel, limites, transferências) e respostas das rotas (status e corpo, incluindo erros) |
-| Apps Expo | **Jest** (preset `jest-expo`) com **React Native Testing Library** | Componentes base, hooks, stores e fluxos de formulário |
+| Apps Expo | **Jest 30** (preset `jest-expo` 58, com o resolver do Reanimated, ver RN-19) com **React Native Testing Library** | Componentes base, hooks, stores e fluxos de formulário |
 
-- `npm test` funciona em todos os subsistemas. Hoje ele só exibe um erro.
+- `npm test` funciona em todos os subsistemas. **Divergência atual:** o `monitoring-better-meet`, o `management-better-meet/server` e o `management-better-meet/web` ainda não têm testes (nos dois servidores o `npm test` só exibe um erro; no `web` o script não existe).
 - Toda regra de negócio nova ou alterada em um service vem com teste no mesmo PR.
 - Todo defeito corrigido ganha um teste que falharia antes da correção.
 - Os testes de rota rodam contra um banco de teste, nunca contra o banco de desenvolvimento.
@@ -2217,6 +2239,48 @@ Segundo o [plano_de_testes.md](documentos/entrega1_AP/plano_de_testes.md):
   - o resultado da execução, com data, quantidade de testes, falhas e os defeitos encontrados.
 
   Código de teste no repositório não substitui esse registro.
+
+---
+
+### 9.5 Fluxo de trabalho com IA: AI-DLC v1 (GT-05)
+
+Mudanças feitas com um agente de IA (migrações, funcionalidades, refatorações) seguem o **AI-DLC v1** (https://github.com/awslabs/aidlc-workflows/tree/v1). Ele organiza o trabalho em fases, cada uma com aprovação humana: o agente propõe, a pessoa aprova. O AI-DLC define o **processo**; este guia define o **código**. Se houver conflito, vale este guia.
+
+**Como iniciar.** Abra o agente na pasta do app (`sistema/better-meet` ou `sistema/management-better-meet/web`) e comece o pedido com **"Using AI-DLC, ..."**. O agente lê as regras em `sistema/better-meet/.aidlc-rule-details/` (`core-workflow.md` e as pastas `common/`, `inception/`, `construction/`), versão 1.0.1, que é **commitada**. Não copie essa pasta para outros apps nem a edite sem combinar com a equipe. Se já existir um `aidlc-state.md` no app, vale a regra de retomar ou reiniciar descrita abaixo.
+
+| Fase | Etapa | Quando roda |
+|---|---|---|
+| Inception (o quê e por quê) | Workspace Detection | Sempre (automática) |
+| | Reverse Engineering | Só em código existente, se ainda não houver artefatos |
+| | Requirements Analysis | Sempre; profundidade mínima, padrão ou abrangente |
+| | User Stories | Funcionalidade nova visível ao usuário; dispensada em migração, refatoração e correção simples |
+| | Workflow Planning | Sempre; decide o que roda e o que é pulado |
+| | Application Design, Units Generation | Só com componentes novos ou várias unidades |
+| Construction (como) | Functional Design, NFR Requirements, NFR Design, Infrastructure Design | Só com lógica, requisito não funcional ou infraestrutura novos |
+| | Code Generation | Sempre: plano com caixas de seleção (Parte 1), depois execução (Parte 2) |
+| | Build and Test | Sempre, ao final: instruções de build, testes e verificação manual |
+| Operations | (reservada no AI-DLC v1) | Não usada |
+
+**Regras do dia a dia.**
+
+- **Retomar ou reiniciar.** O agente compara o pedido atual com o campo `Request` e a unidade registrados no `aidlc-state.md` do app:
+  - **mesma alteração, fluxo incompleto:** retoma da última etapa registrada;
+  - **outra alteração, ou fluxo anterior já concluído** (ex.: o estado é da migração do Expo e o pedido agora é uma funcionalidade nova): o agente **reinicia o AI-DLC por conta própria**, sem esperar que a pessoa peça. Começa pelo Workspace Detection, cria uma nova unidade em `aidlc-docs/construction/` e reescreve o `aidlc-state.md` para o novo pedido. Não aproveita etapas, planos, respostas nem aprovações de outra alteração;
+  - **documentos antigos:** as pastas das unidades anteriores não são apagadas nem editadas, e o `audit.md` continua só recebendo acréscimos, com o motivo do reinício e o pedido que foi encerrado;
+  - **dúvida:** se não der para saber se é a mesma alteração, o agente pergunta em arquivo (veja "Perguntas ficam em arquivo") e não decide sozinho.
+- **Aprovação em cada etapa.** O agente só segue depois de uma aprovação explícita ("Continue to Next Stage") ou de um pedido de mudança. Quem aprova revisa os arquivos indicados, não só o resumo do chat.
+- **Perguntas ficam em arquivo**, não no chat (ex.: `aidlc-docs/inception/requirements/requirement-verification-questions.md`). Cada pergunta tem alternativas `A)`, `B)`… e a última é sempre `X) Other`. A pessoa responde com a letra depois de `[Answer]:` e avisa que terminou.
+- **Documentação em `aidlc-docs/`, código na raiz do app.** Nunca coloque código dentro de `aidlc-docs/`. Estrutura: `inception/` (planos, requisitos, engenharia reversa), `construction/` (`plans/`, `<unidade>/code/` com resumos em markdown, `build-and-test/`), `aidlc-state.md` (progresso) e `audit.md` (registro).
+- **`audit.md` só recebe acréscimos**, com o pedido completo (sem resumir), data e hora em ISO 8601 e a etapa. Nunca reescreva o arquivo inteiro.
+- **`aidlc-state.md` é a fonte do progresso.** Marque `[x]` assim que a etapa termina. Se a conversa for interrompida, o agente retoma por ele.
+- **O plano de código é a fonte da verdade.** O agente executa só o que está em `aidlc-docs/construction/plans/<unidade>-code-generation-plan.md` e marca cada passo ao concluir. Para mudar o escopo, mude o plano e peça nova aprovação.
+- **Alterar no lugar.** Em código existente, edite o arquivo; nunca crie `Arquivo_novo.ts` ou `Arquivo_modified.ts` ao lado.
+- **Os padrões do projeto entram no `aidlc-state.md`**, na seção "Project Standards": este guia, o `AGENTS.md` do app e a versão do SDK. Todo código gerado passa pelos checklists de revisão deste guia.
+- **Idioma:** os artefatos de `aidlc-docs/` são escritos em pt-BR (NM-02).
+- **Extensões opcionais** (Security Baseline, Resiliency Baseline, Property-Based Testing) são perguntadas na etapa de requisitos e registradas no `aidlc-state.md`. Hoje estão **desligadas** nos dois apps; ligue-as só por decisão da equipe.
+- **Um `aidlc-docs/` por app** (`sistema/better-meet/aidlc-docs/`, `sistema/management-better-meet/web/aidlc-docs/`). Cada unidade de trabalho ganha a sua pasta em `construction/` (ex.: `migracao-expo-58`, `migracao-expo-58-web`). Documentos de trabalhos anteriores não são apagados.
+- **O que o AI-DLC não substitui:** o Pull Request revisado por outra pessoa (GT-02), os commits no padrão GT-01 e o registro dos testes da entrega em `documentos/` (GT-04). Os artefatos de `aidlc-docs/` são apoio e não valem como esse registro.
+- **Diagramas em `aidlc-docs/`:** Mermaid (sempre com alternativa em texto) ou ASCII só com `+ - | ^ v < >`. Os diagramas das entregas seguem o [GUIA_DE_DOCUMENTACAO.md](GUIA_DE_DOCUMENTACAO.md).
 
 ---
 
@@ -2291,7 +2355,8 @@ Use antes de abrir ou aprovar um Pull Request:
 
 ## Checklist de revisão — React Native + Expo
 
-- [ ] APIs do Expo conferidas na documentação do SDK do app alterado (`better-meet`: 58; `management-better-meet/web`: 57).
+- [ ] APIs do Expo conferidas na documentação do SDK 58 (`docs.expo.dev/versions/v58.0.0/`); `NativeTabs` importado de `expo-router/native-tabs`.
+- [ ] Atualização de SDK: lint, typecheck, testes, `expo-doctor` e `expo export` passando, lock sem versões alteradas por acaso e lista de verificação manual entregue (RN-19).
 - [ ] Tela em `src/app/` com `export default function <Rota>Screen`, registrada no `_layout.tsx`.
 - [ ] Telas e componentes com default nomeado e import pelo nome do arquivo; o resto com named.
 - [ ] Nenhum `fetch` em tela ou componente; services usando `apiRequest`.
@@ -2329,5 +2394,6 @@ Use antes de abrir ou aprovar um Pull Request:
 - [ ] Commits no formato `<tipo>(<escopo>): <descrição em pt-BR>`.
 - [ ] Trabalho em `feature/<nome>`, com PR revisado para a `development`; nada direto na `main`.
 - [ ] Mudança no guia acompanhada da atualização do `PROMPT_AGENTES_IA.md`.
+- [ ] Trabalho com IA conduzido pelo AI-DLC v1: `aidlc-state.md` e `audit.md` do app atualizados, etapas aprovadas e nenhum código dentro de `aidlc-docs/` (GT-05).
 - [ ] Regra de negócio nova ou alterada com teste; `npm test` passando.
 - [ ] Testes realizados na entrega registrados em `documentos/` (o que, com IDs `CT-…`, como rodar, resultado).
