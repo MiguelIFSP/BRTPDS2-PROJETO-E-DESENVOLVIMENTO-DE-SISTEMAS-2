@@ -360,6 +360,20 @@ export default function ReuniaoDetalheScreen() {
         </Card>
       ) : null}
 
+      {reuniao.meuRegistro && papelNaComissao ? (
+        <Button
+          label="Ata de reunião"
+          icon="document-text-outline"
+          variant="secondary"
+          onPress={() =>
+            router.push({
+              pathname: '/ata/[id]',
+              params: { id: String(reuniao.id) },
+            })
+          }
+        />
+      ) : null}
+
       <VotacoesDaReuniao reuniaoId={reuniao.id} canManage={canManage} />
 
       {canManage ? (

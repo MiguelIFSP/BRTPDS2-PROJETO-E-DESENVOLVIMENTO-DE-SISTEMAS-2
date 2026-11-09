@@ -50,6 +50,11 @@ enum StatusConviteReuniao {
   RECUSADO
 }
 
+enum StatusAtaVoto {
+  APROVADO // participante concorda com o conteúdo salvo
+  REPROVADO // participante solicita revisão do conteúdo salvo
+}
+
 enum TipoLembrete {
   MANHA // às 07h do dia da reunião
   UMA_HORA
@@ -96,6 +101,7 @@ model User {
   reunioesCriadas     Reuniao[]            @relation("ReuniaoCriador")
   votacoesCriadas     Votacao[]            @relation("VotacaoCriador")
   votos               VotacaoVoto[]
+  votosAta            AtaVoto[]
   convitesReuniao     ConviteReuniao[]
   registrosReuniao    ReuniaoRegistro[]
   notificacoes        Notificacao[]
@@ -186,6 +192,9 @@ model Reuniao {
   status          StatusReuniao @default(AGENDADA)
   criadoPorUserId Int
   createdAt       DateTime      @default(now())
+  conteudoAta     String?       @db.LongText
+  // Impede sobrescritas e votos sobre um texto que foi alterado por outra pessoa.
+  versaoAta       Int           @default(0)
 
   comissao  Comissao          @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
   criadoPor User              @relation("ReuniaoCriador", fields: [criadoPorUserId], references: [id])
@@ -193,10 +202,27 @@ model Reuniao {
   registros ReuniaoRegistro[]
   lembretes LembreteEnviado[]
   votacoes  Votacao[]
+  votosAta  AtaVoto[]
 
   @@index([comissaoId])
   @@index([criadoPorUserId])
   @@index([data])
+}
+
+// Presença e cargo são conferidos na API. Alterar o texto invalida os votos.
+model AtaVoto {
+  id        Int           @id @default(autoincrement())
+  reuniaoId Int
+  userId    Int
+  status    StatusAtaVoto
+  versaoAta Int
+  updatedAt DateTime      @updatedAt
+
+  reuniao Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([reuniaoId, userId])
+  @@index([userId])
 }
 
 model ConviteReuniao {

@@ -103,6 +103,35 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
 
   schemas:
+    Ata:
+      type: object
+      required: [reuniaoId, titulo, conteudoAta, versaoAta, papelNaComissao, podeEditar, podeVotar, meuVoto, votos]
+      properties:
+        reuniaoId: { type: integer }
+        titulo: { type: string }
+        conteudoAta:
+          type: string
+          nullable: true
+          description: HTML sanitizado; nulo enquanto a ata não foi redigida.
+        versaoAta:
+          type: integer
+          minimum: 0
+          description: Enviar esta versão na edição e no voto. Zero antes da primeira gravação.
+        papelNaComissao:
+          type: string
+          enum: [ADMINISTRADOR, FACILITADOR, SECRETARIO, MEMBRO]
+        podeEditar: { type: boolean }
+        podeVotar: { type: boolean }
+        meuVoto:
+          type: string
+          nullable: true
+          enum: [APROVADO, REPROVADO, null]
+        votos:
+          type: object
+          required: [aprovados, reprovados]
+          properties:
+            aprovados: { type: integer, minimum: 0 }
+            reprovados: { type: integer, minimum: 0 }
     Error:
       type: object
       required: [error]
@@ -1714,6 +1743,112 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
           description: Entrada ainda não registrada nesta reunião.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/ata:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [Reuniões]
+      summary: Consulta a ata e os totais da votação
+      description: |
+        Exige JWT e vínculo atual com a comissão, com entrada registrada nesta reunião.
+        A saída registrada não revoga o acesso. Os quatro cargos podem ler.
+        ADMIN da plataforma não ignora as restrições. A resposta informa o cargo,
+        permissões e o voto do solicitante, sem expor os votos individuais de terceiros.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Ata, permissões e votação atual. conteudoAta nulo se ainda não redigida.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ata' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    put:
+      tags: [Reuniões]
+      summary: Redige ou edita a ata da reunião
+      description: |
+        requireAuth e requireAtaEditor conferem a identidade do JWT, o cargo atual
+        ADMINISTRADOR ou SECRETARIO na comissão e o registro de entrada na reunião.
+        FACILITADOR e MEMBRO recebem 403, inclusive quando o perfil global é ADMIN.
+        HTML é sanitizado antes de salvar; texto vazio após sanitização recebe 400.
+        Somente formatação textual é preservada, sem atributos, scripts ou recursos externos.
+        Alterar o texto incrementa versaoAta e remove os votos na mesma transação.
+        Salvar conteúdo idêntico preserva a versão e os votos. Versão desatualizada recebe 409.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [conteudoAta, versaoAta]
+              properties:
+                conteudoAta: { type: string, minLength: 1, maxLength: 50000 }
+                versaoAta: { type: integer, minimum: 0 }
+            example: { conteudoAta: '<p><strong>Decisão:</strong> aprovar o cronograma.</p>', versaoAta: 0 }
+      responses:
+        '200':
+          description: Ata salva e votação atualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ata' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/ata/votar:
+    post:
+      tags: [Reuniões]
+      summary: Aprova ou reprova a versão salva da ata
+      description: |
+        Exige JWT, vínculo atual com a comissão e entrada registrada na reunião,
+        independentemente da saída. Os quatro cargos podem votar, incluindo quem redige.
+        A ata precisa estar salva. Identidade vem do JWT, nunca do corpo.
+        Há um voto por usuário e reunião; repetir ou trocar o voto atualiza esse registro.
+        A versão enviada precisa ser a atual, inclusive sob edição concorrente.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status, versaoAta]
+              properties:
+                status: { type: string, enum: [APROVADO, REPROVADO] }
+                versaoAta: { type: integer, minimum: 0 }
+            example: { status: APROVADO, versaoAta: 1 }
+      responses:
+        '200':
+          description: Voto registrado ou atualizado, com os totais atuais.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ata' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Ata ainda não redigida ou versão desatualizada; consultar novamente antes de votar.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
