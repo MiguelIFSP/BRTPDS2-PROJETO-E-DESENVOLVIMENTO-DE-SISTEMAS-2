@@ -1,7 +1,22 @@
 import sanitizeHtml from 'sanitize-html';
 import { AppError } from '../errors/AppError.ts';
 
-// Sem atributos, recursos externos ou elementos executáveis no conteúdo salvo.
+const TABLE_BORDERS = new Set([
+  'all',
+  'outer',
+  'inner',
+  'horizontal',
+  'vertical',
+  'top',
+  'bottom',
+  'left',
+  'right',
+  'none',
+]);
+const FONT_SIZES = [10, 13, 16, 18, 24, 32, 48];
+
+// Apenas estilos textuais enumerados. URLs, recursos externos, eventos e CSS
+// de posicionamento não podem fazer parte do documento salvo.
 export const sanitizeAtaHtml = (html: string) =>
   sanitizeHtml(html, {
     allowedTags: [
@@ -24,8 +39,51 @@ export const sanitizeAtaHtml = (html: string) =>
       'blockquote',
       'pre',
       'code',
+      'span',
+      'table',
+      'thead',
+      'tbody',
+      'tfoot',
+      'tr',
+      'td',
+      'th',
     ],
-    allowedAttributes: {},
+    allowedAttributes: {
+      '*': ['style'],
+      table: ['data-ata-border'],
+      td: ['colspan', 'rowspan'],
+      th: ['colspan', 'rowspan'],
+    },
+    allowedStyles: {
+      '*': {
+        'text-align': [/^(left|center|right|justify)$/],
+        'font-size': [/^(10|13|16|18|24|32|48)px$/],
+      },
+    },
+    transformTags: {
+      '*': (tagName, attributes) => {
+        const attribs = { ...attributes };
+        if (tagName === 'font') {
+          const size = FONT_SIZES[Number(attribs.size) - 1];
+          if (size)
+            attribs.style = `${attribs.style ?? ''};font-size:${size}px`;
+          tagName = 'span';
+        }
+        if (/^(left|center|right|justify)$/.test(attribs.align ?? ''))
+          attribs.style = `${attribs.style ?? ''};text-align:${attribs.align}`;
+        if (tagName === 'table')
+          attribs['data-ata-border'] = TABLE_BORDERS.has(
+            attribs['data-ata-border'] ?? '',
+          )
+            ? attribs['data-ata-border']!
+            : 'all';
+        for (const name of ['colspan', 'rowspan']) {
+          if (attribs[name] && !/^(?:[1-9]|10)$/.test(attribs[name]))
+            delete attribs[name];
+        }
+        return { tagName, attribs };
+      },
+    },
     nonTextTags: [
       'script',
       'style',

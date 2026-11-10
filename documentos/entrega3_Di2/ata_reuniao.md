@@ -2,15 +2,18 @@
 
 Implementado em 09/11/2026. Migração aplicada ao banco configurado, com histórico atualizado.
 
+Editor ampliado em 10/11/2026. Esta ampliação não exige migração adicional.
+
 ## Requisitos e casos de uso
 
 | ID | Requisito | Caso de uso |
 |---|---|---|
-| RF-ATA-01 | Redigir e editar uma ata com negrito, itálico e listas | UC-ATA-01 — Redigir ata |
+| RF-ATA-01 | Redigir e editar uma ata com formatação textual, parágrafos e tabelas | UC-ATA-01 — Redigir ata |
 | RF-ATA-02 | Ler a ata salva, sem controles de edição para facilitador/membro | UC-ATA-02 — Consultar ata |
 | RF-ATA-03 | Aprovar ou reprovar a ata, com um voto por integrante e possibilidade de troca | UC-ATA-03 — Votar na ata |
 | RF-ATA-04 | Exigir vínculo atual com a comissão e registro de entrada na reunião | Todos |
 | RF-ATA-05 | Sanitizar HTML, detectar edições concorrentes e invalidar votos ao alterar o texto | UC-ATA-01 e UC-ATA-03 |
+| RF-ATA-06 | Oferecer barra horizontal com ícones, histórico e menu de tabelas no celular e na web | UC-ATA-01 — Redigir ata |
 
 ### Permissões
 
@@ -84,10 +87,30 @@ Contrato completo: `sistema/api/docs/openapi.yaml`, disponível em `/api/docs`.
 - Conteúdo da tela: `better-meet/src/components/AtaReuniao.tsx`.
 - Android/iOS: `react-native-pell-rich-editor` e WebView 14.0.1, versão indicada pelo Expo 58. A leitura usa WebView sem JavaScript, com CSP e bloqueio de navegação externa.
 - Web: Tiptap para edição e DOMPurify para leitura. Os módulos web não entram no bundle nativo.
-- API: `sanitize-html` 2.18.1 preserva apenas elementos de formatação textual, sem atributos, scripts, imagens ou conteúdo externo. A leitura também sanitiza conteúdo legado.
+- API: `sanitize-html` 2.18.1 preserva elementos de formatação textual e tabelas. Atributos são limitados a alinhamento, fonte da escala permitida, estilo de borda enumerado e dimensões de células entre 1 e 10. Scripts, imagens, eventos, CSS arbitrário e conteúdo externo são removidos. A leitura também sanitiza conteúdo legado.
 - O botão da ata aparece nos detalhes somente para quem tem registro de entrada e cargo na comissão; o servidor valida independentemente da interface.
 
 Referências consultadas: [Expo 58 — WebView](https://docs.expo.dev/versions/v58.0.0/sdk/webview/), [Pell Rich Editor](https://github.com/wxik/react-native-rich-editor), [Tiptap para React](https://tiptap.dev/docs/editor/getting-started/install/react), [DOMPurify](https://github.com/cure53/DOMPurify).
+
+### Controles do editor
+
+| Grupo | Controles |
+|---|---|
+| Histórico | Desfazer e refazer, desabilitados quando indisponíveis |
+| Texto | Negrito, itálico, sublinhado e rasurado |
+| Fonte | Diminuir e aumentar entre 10, 13, 16, 18, 24, 32 e 48 pixels; indicador do tamanho na seleção |
+| Títulos | H1, H2 e H3; tocar novamente retorna ao parágrafo |
+| Parágrafo | Esquerda, centro, direita e justificado |
+| Listas e recuo | Marcadores, numeração, aumentar e diminuir recuo |
+| Tabela | Menu com 1–10 linhas, 1–6 colunas e cabeçalho opcional |
+
+A barra usa `ScrollView` horizontal, alvos de toque de pelo menos 44 pixels, nomes acessíveis em português e ícones do Pell/Ionicons. Seu fundo usa `Colors.dark.backgroundElement`, com seleção e ações em `Colors.dark.primary`. Os demais componentes seguem o tema escolhido no app.
+
+O menu de tabelas oferece todas as bordas, externas, internas, horizontais, verticais, somente superior, inferior, esquerda, direita e sem bordas. Ao selecionar uma célula de uma tabela existente, o mesmo menu permite trocar suas bordas, adicionar linha abaixo/coluna à direita, excluir linha/coluna ou excluir a tabela. Não há mesclagem de células nem edição de bordas individuais de cada célula.
+
+`data-ata-border` registra a opção escolhida. A folha de estilos compartilhada entre editores e leitores converte esse valor em bordas, mantendo o HTML salvo sem CSS arbitrário. Fontes `<font size="1..7">` produzidas pelo editor nativo são convertidas em `<span style="font-size:...px">`. O recuo de parágrafos usa `blockquote` sem decoração de citação; em listas, os comandos alteram o nível do item.
+
+Na web foram adicionadas as extensões [TextAlign](https://tiptap.dev/docs/editor/extensions/functionality/textalign), [FontSize/TextStyle](https://tiptap.dev/docs/editor/extensions/functionality/fontsize) e [Table](https://tiptap.dev/docs/editor/extensions/nodes/table), versão 3.33.0. No celular, a ponte do Pell preserva a seleção ao abrir o painel de tabelas e usa comandos do navegador para conservar o histórico. A normalização de input do Pell é suspensa apenas durante esses comandos, evitando que uma alteração adicional apague o histórico de refazer. Alternar o estado editável do Tiptap durante o salvamento não emite alterações de conteúdo.
 
 ## Instalação e migração
 
@@ -163,3 +186,18 @@ O teste em navegador utilizou a exportação temporária e respostas HTTP simula
 Usar quatro integrantes com os cargos diferentes: registrar entrada, redigir no celular, aplicar negrito/itálico/listas, salvar e ler com cada papel. Testar teclado, seleção e rolagem em Android/iOS; votar, trocar voto, editar a ata após votos e verificar a reinicialização. Com duas sessões, editar simultaneamente e conferir o conflito. Confirmar acesso após saída e bloqueio sem entrada.
 
 Essa validação com dispositivo e banco real ainda não foi executada. Exportar bundles comprova compilação e resolução de dependências, não a interação nativa com teclado e seleção de texto.
+
+### Validação da ampliação — 10/11/2026
+
+| IDs | Requisito/caso de uso | Cobertura adicionada |
+|---|---|---|
+| CT-ATA-07 | RF-ATA-01/05, UC-ATA-01/02 | Salvar/reler títulos, sublinhado, rasurado, recuo, fonte e os dez estilos de borda; normalizar fonte nativa; rejeitar CSS/atributos inválidos e tabela sem texto |
+| CT-ATA-08 | RF-ATA-01/06, UC-ATA-01 | Comandos reais do Tiptap: alinhamentos, títulos, fonte, recuo, histórico e edição de tabela, com sanitização e reabertura |
+| CT-ATA-09 | RF-ATA-06, UC-ATA-01 | Barra horizontal, nomes acessíveis, estados ativo/desabilitado e escolha de tamanho/bordas |
+| CT-ATA-10 | RF-ATA-03/06, UC-ATA-01/03 | Alternar salvamento não cria alterações pendentes; ponte nativa preserva histórico e filtra mensagens |
+
+Resultados: API com 261 testes aprovados (13 suítes), app com 177 testes aprovados (22 suítes) e web com 29 testes aprovados (4 suítes). Typecheck e lint aprovados na API e no app. Exportação Expo aprovada para Android, iOS e web.
+
+Chrome/Playwright em largura de 390 pixels: aplicação real com Tiptap, formatação, recuo, fonte, desfazer/refazer, inserir tabela, trocar bordas, adicionar linha, salvar, reabrir, votar, ler sem editor e bloquear acesso 403. As respostas HTTP foram simuladas com o sanitizador real da API na gravação. Não houve escrita no banco. Sem erros JavaScript ou transbordamento horizontal da página.
+
+O HTML real do Pell e sua ponte foram executados em Chrome para validar formatação, H1–H3, recuo, fonte, histórico, seleção após perda de foco, inserção de tabela, linhas/colunas e bordas. Isso não substitui a validação física em Android/iOS: conferir teclado, seleção de trechos, rolagem horizontal da barra, abertura/fechamento do painel e edição nas células, especialmente após desfazer/refazer. Repetir os fluxos de gravação/leitura entre celular e web.

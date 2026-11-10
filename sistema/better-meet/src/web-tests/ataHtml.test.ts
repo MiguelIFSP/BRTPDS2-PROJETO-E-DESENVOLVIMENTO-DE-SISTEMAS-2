@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import { sanitizeAtaHtml } from '@/utils/ataHtml.web';
+import { ATA_TABLE_BORDERS, createAtaTableHtml } from '@/utils/ataFormat';
 
 describe('HTML da ata no navegador', () => {
   it('preserva a formatação textual permitida', () => {
@@ -22,5 +23,45 @@ describe('HTML da ata no navegador', () => {
       container.querySelector('script,svg,img,iframe,textarea'),
     ).toBeNull();
     expect(container.textContent).toContain('Texto');
+  });
+  it('preserva somente estilos permitidos e normaliza a fonte nativa', () => {
+    const container = document.createElement('div');
+    container.innerHTML = sanitizeAtaHtml(
+      '<h2>Tópico</h2><blockquote><p align="justify" style="position:fixed;background:url(https://example.test);color:red"><u>Atual</u><s>Antigo</s><font size="5">Grande</font><span style="font-size:999px">Ata</span></p></blockquote>',
+    );
+    expect(container.querySelector('p')?.getAttribute('style')).toBe(
+      'text-align: justify;',
+    );
+    expect(container.querySelector('span')?.getAttribute('style')).toBe(
+      'font-size: 24px;',
+    );
+    expect(container.innerHTML).not.toMatch(/fixed|url\(|color:|999|<font/);
+    expect(container.querySelectorAll('h2,blockquote,u,s')).toHaveLength(4);
+  });
+  it.each(ATA_TABLE_BORDERS)('preserva tabela e borda $value', ({ value }) => {
+    const container = document.createElement('div');
+    container.innerHTML = sanitizeAtaHtml(
+      createAtaTableHtml({ rows: 3, cols: 2, header: true, border: value }),
+    );
+    expect(
+      container.querySelector('table')?.getAttribute('data-ata-border'),
+    ).toBe(value);
+    expect(container.querySelectorAll('tr')).toHaveLength(3);
+    expect(container.querySelectorAll('th')).toHaveLength(2);
+    expect(container.querySelectorAll('td')).toHaveLength(4);
+  });
+  it('rejeita atributos de tabela e tamanhos inválidos', () => {
+    const html = sanitizeAtaHtml(
+      '<table data-ata-border="javascript:x()"><tr><td colspan="999" rowspan="-1" onclick="x()">Texto</td></tr></table>',
+    );
+    expect(html).toBe(
+      '<table data-ata-border="all"><tbody><tr><td>Texto</td></tr></tbody></table>',
+    );
+    expect(() =>
+      createAtaTableHtml({ rows: 0, cols: 3, header: false, border: 'all' }),
+    ).toThrow();
+    expect(() =>
+      createAtaTableHtml({ rows: 11, cols: 3, header: false, border: 'all' }),
+    ).toThrow();
   });
 });

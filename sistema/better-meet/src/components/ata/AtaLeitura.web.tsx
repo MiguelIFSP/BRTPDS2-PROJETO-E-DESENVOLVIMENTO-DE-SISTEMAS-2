@@ -1,23 +1,28 @@
 import { FontFamily, Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { sanitizeAtaHtml } from '@/utils/ataHtml.web';
+import { getAtaDocumentCss } from '@/utils/ataFormat';
 
 export default function AtaLeitura({ html }: { html: string }) {
   const { colors } = useTheme();
   return (
-    <div
-      role="document"
-      aria-label="Ata em modo de leitura"
-      style={{
-        ...readerStyle,
-        color: colors.text,
-        borderColor: colors.border,
-        backgroundColor: colors.backgroundElement,
-      }}
-      dangerouslySetInnerHTML={{
-        __html: typeof window === 'undefined' ? '' : sanitizeAtaHtml(html),
-      }}
-    />
+    <>
+      <style>{getAtaDocumentCss('.ata-leitura')}</style>
+      <div
+        className="ata-leitura"
+        role="document"
+        aria-label="Ata em modo de leitura"
+        style={{
+          ...readerStyle,
+          color: colors.text,
+          borderColor: colors.border,
+          backgroundColor: colors.backgroundElement,
+        }}
+        dangerouslySetInnerHTML={{
+          __html: typeof window === 'undefined' ? '' : sanitizeAtaHtml(html),
+        }}
+      />
+    </>
   );
 }
 const readerStyle = {

@@ -3,6 +3,7 @@ import { WebView } from 'react-native-webview';
 
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { getAtaDocumentCss } from '@/utils/ataFormat';
 
 export default function AtaLeitura({ html }: { html: string }) {
   const { colors } = useTheme();
@@ -10,7 +11,7 @@ export default function AtaLeitura({ html }: { html: string }) {
   const document = `<!doctype html><html lang="pt-BR"><head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
-    <style>body{background:${colors.backgroundElement};color:${colors.text};font-family:sans-serif;font-size:${Typography.bodyLarge.fontSize}px;line-height:1.5;padding:${Spacing.md}px;overflow-wrap:anywhere}pre{white-space:pre-wrap}</style>
+    <style>body{background:${colors.backgroundElement};color:${colors.text};font-family:sans-serif;font-size:${Typography.bodyLarge.fontSize}px;line-height:1.5;padding:${Spacing.md}px;overflow-wrap:anywhere}${getAtaDocumentCss('body')}</style>
     </head><body>${html}</body></html>`;
   return (
     <View style={[styles.container, { borderColor: colors.border }]}>

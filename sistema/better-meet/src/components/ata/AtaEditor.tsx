@@ -1,21 +1,18 @@
 import { useImperativeHandle, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
-import { actions, RichEditor } from 'react-native-pell-rich-editor';
+import { RichEditor } from 'react-native-pell-rich-editor';
 
-import type {
-  AtaEditorProps,
-  AtaFormat,
-} from '@/components/ata/AtaEditor.types';
+import type { AtaEditorProps } from '@/components/ata/AtaEditor.types';
 import AtaToolbar from '@/components/ata/AtaToolbar';
 import { Radius, Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
-const ACTIONS = {
-  bold: actions.setBold,
-  italic: actions.setItalic,
-  bulletList: actions.insertBulletsList,
-  orderedList: actions.insertOrderedList,
-} satisfies Record<AtaFormat, string>;
+import { createAtaTableHtml, getAtaDocumentCss } from '@/utils/ataFormat';
+import {
+  ATA_NATIVE_BRIDGE,
+  parseAtaNativeSelection,
+  type AtaNativeSelection,
+} from '@/utils/ataNativeBridge';
 
 export default function AtaEditor({
   initialHtml,
@@ -26,7 +23,17 @@ export default function AtaEditor({
   const { colors } = useTheme();
   const editor = useRef<RichEditor>(null);
   const [ready, setReady] = useState(false);
-  const [active, setActive] = useState<AtaFormat[]>([]);
+  const [selection, setSelection] = useState<AtaNativeSelection>({
+    active: [],
+    unavailable: ['undo', 'redo'],
+    fontSize: 16,
+    inTable: false,
+    tableBorder: 'all',
+  });
+  const command = (script: string) => {
+    if (disabled || !ready) return;
+    editor.current?.commandDOM(script);
+  };
   useImperativeHandle(
     ref,
     () => ({
@@ -44,9 +51,23 @@ export default function AtaEditor({
     <View style={styles.container}>
       <AtaToolbar
         disabled={disabled || !ready}
-        active={active}
+        {...selection}
         onFormat={(action) =>
-          editor.current?.sendAction(ACTIONS[action], 'result')
+          command(`window.__ataEditor?.format(${JSON.stringify(action)})`)
+        }
+        onPrepareTable={() => command('window.__ataEditor?.capture()')}
+        onInsertTable={(options) =>
+          command(
+            `window.__ataEditor?.insert(${JSON.stringify(createAtaTableHtml(options))})`,
+          )
+        }
+        onTableBorder={(border) =>
+          command(
+            `window.__ataEditor?.table('border', ${JSON.stringify(border)})`,
+          )
+        }
+        onTableAction={(action) =>
+          command(`window.__ataEditor?.table(${JSON.stringify(action)})`)
         }
       />
       <View style={[styles.editor, { borderColor: colors.border }]}>
@@ -58,6 +79,10 @@ export default function AtaEditor({
           initialHeight={320}
           disabled={disabled}
           onChange={onChange}
+          onMessage={(message) => {
+            const next = parseAtaNativeSelection(message);
+            if (next) setSelection(next);
+          }}
           pasteAsPlainText
           styleWithCSS={false}
           defaultParagraphSeparator="p"
@@ -70,16 +95,11 @@ export default function AtaEditor({
             color: colors.text,
             placeholderColor: colors.textSecondary,
             contentCSSText: `font-size:${Typography.bodyLarge.fontSize}px;line-height:1.5;padding:${Spacing.md}px;`,
+            cssText: getAtaDocumentCss('.content'),
           }}
           editorInitializedCallback={() => {
             setReady(true);
-            editor.current?.registerToolbar((items) => {
-              setActive(
-                (Object.keys(ACTIONS) as AtaFormat[]).filter((key) =>
-                  items.includes(ACTIONS[key]),
-                ),
-              );
-            });
+            editor.current?.commandDOM(ATA_NATIVE_BRIDGE);
           }}
         />
       </View>

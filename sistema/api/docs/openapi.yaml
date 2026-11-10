@@ -1782,7 +1782,12 @@ paths:
         ADMINISTRADOR ou SECRETARIO na comissão e o registro de entrada na reunião.
         FACILITADOR e MEMBRO recebem 403, inclusive quando o perfil global é ADMIN.
         HTML é sanitizado antes de salvar; texto vazio após sanitização recebe 400.
-        Somente formatação textual é preservada, sem atributos, scripts ou recursos externos.
+        Preserva formatação textual e tabelas simples. Atributos permitidos:
+        style com text-align (left, center, right, justify) e font-size
+        (10, 13, 16, 18, 24, 32 ou 48px), data-ata-border
+        (all, outer, inner, horizontal, vertical, top, bottom, left, right, none)
+        e colspan/rowspan de 1 a 10. Fontes legadas do editor móvel são normalizadas.
+        Scripts, outros estilos, eventos e recursos externos são removidos.
         Alterar o texto incrementa versaoAta e remove os votos na mesma transação.
         Salvar conteúdo idêntico preserva a versão e os votos. Versão desatualizada recebe 409.
       security: [{ bearerAuth: [] }]

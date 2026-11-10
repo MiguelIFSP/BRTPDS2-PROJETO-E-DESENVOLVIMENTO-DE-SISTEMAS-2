@@ -216,6 +216,59 @@ describe('conteúdo e votação', () => {
     reuniao.conteudoAta = '<p onmouseover="x()">Texto</p><script>x()</script>';
     expect((await call('get')).body.conteudoAta).toBe('<p>Texto</p>');
   });
+  test('salva e relê títulos, sublinhado, rasurado, recuo, fonte e alinhamento', async () => {
+    const html =
+      '<h1>Título</h1><h2>Tópico</h2><h3>Decisão</h3><blockquote><p style="text-align:justify"><u>Texto</u> <s>antigo</s> <span style="font-size:24px">novo</span></p></blockquote>';
+    const response = await save({ conteudoAta: html });
+    expect(response.status).toBe(200);
+    expect(response.body.conteudoAta).toBe(html);
+    expect((await call('get')).body.conteudoAta).toBe(html);
+  });
+  test.each([
+    'all',
+    'outer',
+    'inner',
+    'horizontal',
+    'vertical',
+    'top',
+    'bottom',
+    'left',
+    'right',
+    'none',
+  ])('preserva tabela com borda %s na gravação e leitura', async (border) => {
+    const html = `<table data-ata-border="${border}"><tbody><tr><th><p>Responsável</p></th><th><p>Prazo</p></th></tr><tr><td><p>Ana</p></td><td><p>Sexta</p></td></tr></tbody></table>`;
+    expect((await save({ conteudoAta: html })).body.conteudoAta).toBe(html);
+    expect((await call('get')).body.conteudoAta).toBe(html);
+  });
+  test('normaliza fonte e alinhamento nativos sem aceitar atributos legados externos', async () => {
+    const response = await save({
+      conteudoAta:
+        '<div align="center"><font size="5" face="externa" color="red">Texto</font></div>',
+    });
+    expect(response.body.conteudoAta).toBe(
+      '<div style="text-align:center"><span style="font-size:24px">Texto</span></div>',
+    );
+  });
+  test('remove CSS perigoso, fontes fora da escala e atributos inválidos de tabela', async () => {
+    const response = await save({
+      conteudoAta:
+        '<p style="position:fixed;background-image:url(https://example.test/x);font-size:999px;text-align:center" onclick="x()">Ata</p><table data-ata-border="url(javascript:x())" style="background:url(x)"><tr><td colspan="999" rowspan="-1" onmouseover="x()"><span style="font-size:18px;color:red">Decisão</span></td></tr></table>',
+    });
+    expect(response.body.conteudoAta).toBe(
+      '<p style="text-align:center">Ata</p><table data-ata-border="all"><tr><td><span style="font-size:18px">Decisão</span></td></tr></table>',
+    );
+  });
+  test('tabela vazia não disponibiliza ata para votação', async () => {
+    expect(
+      (
+        await save({
+          conteudoAta:
+            '<table><tbody><tr><td><p><br></p></td></tr></tbody></table>',
+        })
+      ).status,
+    ).toBe(400);
+    expect(prisma.reuniao.updateMany).not.toHaveBeenCalled();
+  });
   test.each([
     '',
     '<p><br></p>',
