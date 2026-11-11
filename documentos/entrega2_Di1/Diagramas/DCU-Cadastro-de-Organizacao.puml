@@ -1,0 +1,33 @@
+@startuml DCU-Cadastro-de-Organizacao
+' Diagrama de casos de uso (UML) — Cadastro de Organização (UC01 a UC03)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Cadastro-de-Organizacao.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Usuário comum" as AUsu
+actor "Administrador" as AAdm
+actor "Criador da organização" as ACri
+actor "Gerente da organização" as AGer
+
+rectangle "Cadastro de Organização (Data API + App Mobile)" {
+  usecase "UC01 - Solicitar criação\nde organização" as UC01
+  usecase "UC02 - Autorizar ou revogar\norganização" as UC02
+  usecase "UC03 - Gerenciar\norganizações" as UC03
+}
+
+AUsu -- UC01
+AAdm -- UC02
+AAdm -- UC03
+ACri -- UC03
+AGer -- UC03
+
+note bottom of UC03
+  Consultar (Administrador: todas; membro: as suas),
+  renomear (Criador, Gerente, Administrador) e
+  excluir (Criador, Administrador).
+end note
+@enduml

@@ -1,5 +1,5 @@
 @startuml DCU-Gestao-Setup-Reset
-' Diagrama de casos de uso (UML) — Reinicialização de Subsistemas, Setup Inicial e Reset (UC07–UC12)
+' Diagrama de casos de uso (UML) — Reinicialização de Subsistemas, Setup Inicial e Reset (UC22 a UC27)
 ' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Gestao-Setup-Reset.puml"
 !pragma layout smetana
 left to right direction
@@ -8,53 +8,51 @@ skinparam monochrome true
 skinparam defaultFontName Arial
 skinparam packageStyle rectangle
 
-' Atores primários (à esquerda)
-actor "Administrador\n(Painel de Gestão\nou App Mobile)" as A1
+actor "Administrador" as A1
 actor "Administrador\ndo Servidor" as A0
 
 rectangle "API de Gestão (management-better-meet) e Infraestrutura" {
-  usecase "UC07 - Autenticar\nadministrador" as UC07
-  usecase "UC08 - Iniciar, parar ou\nreiniciar um subsistema" as UC08
-  usecase "UC09 - Reiniciar a própria\nAPI de Gestão" as UC09
-  usecase "UC10 - Reportar o próprio\nstatus ao iniciar ou parar" as UC10
-  usecase "UC11 - Subir o ambiente\ncompleto (setup inicial)" as UC11
-  usecase "UC12 - Resetar o sistema\n--\nextension points\nencerrar os subsistemas" as UC12
+  usecase "UC22 - Autenticar\nadministrador" as UC22
+  usecase "UC23 - Iniciar, parar ou\nreiniciar um subsistema" as UC23
+  usecase "UC24 - Reiniciar a própria\nAPI de Gestão" as UC24
+  usecase "UC25 - Reportar o próprio\nstatus ao iniciar ou parar" as UC25
+  usecase "UC26 - Subir o ambiente\ncompleto (setup inicial)" as UC26
+  usecase "UC27 - Resetar o sistema\n--\nextension points\nencerrar os subsistemas" as UC27
 }
 
-' Atores secundários (à direita)
 actor "PM2" as A2
 actor "Docker Engine" as A3
 actor "API de\nMonitoramento" as A4
 
-A1 -- UC07
-A1 -- UC08
-A1 -- UC09
-A0 -- UC11
-A0 -- UC12
+A1 -- UC22
+A1 -- UC23
+A1 -- UC24
+A0 -- UC26
+A0 -- UC27
 
-' UC09 é um caso especial (especialização) do UC08
-UC09 -|> UC08
+' UC24 é um caso especial (especialização) do UC23
+UC24 -|> UC23
 
 ' Parar pelo painel/app é opcional dentro do reset
-UC08 .> UC12 : <<extend>>
+UC23 .> UC27 : <<extend>>
 note on link
   condição: o administrador escolhe
   parar os subsistemas pelo painel
-  ou pelo app (UC08/UC09)
+  ou pelo app (UC23/UC24)
   ponto de extensão: encerrar os subsistemas
 end note
 ' A reinicialização faz parte do fluxo principal do reset
-UC12 .> UC11 : <<include>>
+UC27 .> UC26 : <<include>>
 
-UC08 -- A2
-UC08 -- A3
-UC08 -- A4
-UC09 -- A2
-UC10 -- A2
-UC10 -- A4
-UC11 -- A2
-UC11 -- A3
-UC11 -- A4
-UC12 -- A2
-UC12 -- A3
+UC23 -- A2
+UC23 -- A3
+UC23 -- A4
+UC24 -- A2
+UC25 -- A2
+UC25 -- A4
+UC26 -- A2
+UC26 -- A3
+UC26 -- A4
+UC27 -- A2
+UC27 -- A3
 @enduml

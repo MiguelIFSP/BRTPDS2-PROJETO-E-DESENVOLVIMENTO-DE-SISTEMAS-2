@@ -1,5 +1,5 @@
 @startuml DCU-Status-do-Sistema
-' Diagrama de casos de uso (UML) — Status do Sistema e dos Subsistemas (UC01–UC06)
+' Diagrama de casos de uso (UML) — Status do Sistema e dos Subsistemas (UC16 a UC21)
 ' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Status-do-Sistema.puml"
 !pragma layout smetana
 left to right direction
@@ -8,48 +8,39 @@ skinparam monochrome true
 skinparam defaultFontName Arial
 skinparam packageStyle rectangle
 
-actor "<i>Usuário Autenticado</i>" as AU
-actor "Usuário do\nApp Mobile" as A1
-actor "Administrador\n(Painel de Gestão\nou App Mobile)" as A2
-actor "Cron de\nMonitoramento\n(tempo)" as A3
-
-actor "<i>Sistema Externo</i>" as AS
-actor "App Mobile\n(Better Meet)" as A4
-actor "Painel de Gestão\n(web)" as A5
-actor "API de Gestão" as A6
-actor "Script de setup\n(start-all.ps1)" as A7
-
-A1 --|> AU
-A2 --|> AU
-A4 --|> AS
-A5 --|> AS
-A6 --|> AS
+actor "Usuário comum" as AUsu
+actor "Administrador" as AAdm
+actor "Cron de\nMonitoramento\n(tempo)" as ACron
+actor "App Mobile\n(Better Meet)" as AApp
+actor "Painel de Gestão\n(web)" as APai
+actor "API de Gestão" as AGes
+actor "Script de setup\n(start-all.ps1)" as AScr
 
 rectangle "API de Monitoramento" {
-  usecase "UC01 - Consultar status\natual dos subsistemas" as UC1
-  usecase "UC02 - Consultar relatório\ndiário de status" as UC2
-  usecase "UC03 - Consultar histórico\nde um subsistema" as UC3
-  usecase "UC04 - Executar checagem\nperiódica dos subsistemas" as UC4
-  usecase "UC05 - Reportar status\nde um subsistema" as UC5
-  usecase "UC06 - Disparar checagem\nimediata de um subsistema" as UC6
+  usecase "UC16 - Consultar status\natual dos subsistemas" as UC16
+  usecase "UC17 - Consultar relatório\ndiário de status" as UC17
+  usecase "UC18 - Consultar histórico\nde um subsistema" as UC18
+  usecase "UC19 - Executar checagem\nperiódica dos subsistemas" as UC19
+  usecase "UC20 - Reportar status\nde um subsistema" as UC20
+  usecase "UC21 - Disparar checagem\nimediata de um subsistema" as UC21
 }
 
-AU -- UC1
-AU -- UC2
-AU -- UC3
-A3 -- UC4
-AS -- UC5
-A4 -- UC6
-A5 -- UC6
-A7 -- UC6
+AUsu -- UC16
+AUsu -- UC17
+AUsu -- UC18
+AAdm -- UC16
+AAdm -- UC17
+AAdm -- UC18
+ACron -- UC19
+AApp -- UC20
+APai -- UC20
+AGes -- UC20
+AApp -- UC21
+APai -- UC21
+AScr -- UC21
 
-note top of AU
-  Ator abstrato (nome em itálico):
-  qualquer usuário com JWT válido.
-end note
-
-note top of AS
-  Ator abstrato: qualquer sistema
-  com a chave de API interna.
+note bottom of UC17
+  Implementado, mas nenhuma tela
+  usa este endpoint hoje.
 end note
 @enduml

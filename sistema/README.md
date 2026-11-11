@@ -12,11 +12,22 @@ Repositório do projeto de um aplicativo mobile para Android e iOS, desenvolvido
 │   │   ├── arquitetura_tecnologias.md
 │   │   ├── padroes_interface_e_nomenclatura.md
 │   │   └── plano_de_testes.md
+│   ├── numeracao_uc_rf.md
+│   ├── requisitos.md
 │   ├── entrega2_Di1/
-│   │   ├── requisitos_e_casos_de_uso.md
+│   │   ├── atores.md
+│   │   ├── diagrama_de_classes.md
+│   │   ├── diagrama_relacional.md
 │   │   ├── dicionario_de_dados.md
-│   │   └── diagramas/
+│   │   ├── requisitos/            (RF01 a RF31 e RNF13 a RNF41)
+│   │   ├── Diagramas/             (DCU-*.puml e .svg; legado/)
+│   │   └── testes_*.md
 │   ├── entrega3_Di2/
+│   │   ├── diagrama_de_classes.md
+│   │   ├── diagrama_relacional.md
+│   │   ├── dicionario_de_dados.md
+│   │   ├── requisitos/            (RF32 a RF40 e RNF42 a RNF53)
+│   │   └── Diagramas/
 │   ├── entrega4_Di3/
 │   └── entrega5_AF/
 │       ├── manual_do_usuario.pdf
@@ -49,7 +60,7 @@ As pastas [`entrega2_Di1`](documentos/entrega2_Di1/), [`entrega3_Di2`](documento
 - dicionário e modelagem de dados;
 - evolução das funcionalidades do aplicativo.
 
-Na Entrega 2, a documentação inicial está disponível em [`requisitos_e_casos_de_uso.md`](documentos/entrega2_Di1/requisitos_e_casos_de_uso.md) e [`dicionario_de_dados.md`](documentos/entrega2_Di1/dicionario_de_dados.md).
+A documentação dos requisitos está em [`requisitos.md`](../documentos/requisitos.md) (índice de RF e RNF), com a numeração de casos de uso e requisitos em [`numeracao_uc_rf.md`](../documentos/numeracao_uc_rf.md). Cada requisito tem o seu arquivo em `requisitos/` da pasta da entrega (por exemplo, [`entrega2_Di1/requisitos/`](../documentos/entrega2_Di1/requisitos/)); os diagramas de classes e relacional e o dicionário de dados são unificados por entrega ([`entrega3_Di2/dicionario_de_dados.md`](../documentos/entrega3_Di2/dicionario_de_dados.md) traz o acumulado até o incremento 2).
 
 #### Regra de branches
 

@@ -1,0 +1,30 @@
+@startuml DCU-Cadastro-de-Comissao
+' Diagrama de casos de uso (UML) — Cadastro de Comissão (UC04 a UC08)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Cadastro-de-Comissao.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Membro da organização" as AMem
+actor "Administrador da comissão" as AAdc
+actor "Facilitador da comissão" as AFac
+
+rectangle "Cadastro de Comissão (Data API + App Mobile)" {
+  usecase "UC04 - Criar comissão" as UC04
+  usecase "UC05 - Listar comissões" as UC05
+  usecase "UC06 - Excluir comissão" as UC06
+  usecase "UC07 - Adicionar membro\nà equipe da comissão" as UC07
+  usecase "UC08 - Remover membro\nda equipe da comissão" as UC08
+}
+
+AMem -- UC04
+AMem -- UC05
+AAdc -- UC06
+AAdc -- UC07
+AAdc -- UC08
+AFac -- UC07
+AFac -- UC08
+@enduml

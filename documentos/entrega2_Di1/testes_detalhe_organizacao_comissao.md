@@ -4,7 +4,7 @@ Data: 23-10-2026.
 
 ## O que foi testado
 
-Regras de permissão das rotas de detalhe e edição, ligadas ao UC02 (gerenciar comissões) e à manutenção de organizações:
+Regras de permissão das rotas de detalhe e edição, ligadas ao RF03 e UC03 (gerenciar organizações) e ao RF05 e UC05 (listar e consultar comissões, inclusive a edição):
 
 | Rota | Regra verificada |
 |---|---|

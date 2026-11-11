@@ -1,0 +1,38 @@
+@startuml DCU-Lista-de-Presenca
+' Diagrama de casos de uso (UML) — Lista de presença: prévia atual e integração futura (UC36 a UC40)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Lista-de-Presenca.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Usuário comum" as AUsu
+actor "Administrador\nda comissão" as AAdc
+actor "Administrador" as AAdm
+
+rectangle "Lista de presença (mockup atual e integração futura)" {
+  usecase "UC36 - Visualizar demonstração\nda lista de presença" as UC36
+  usecase "UC37 - Gerar versão local\nda lista de presença" as UC37
+  usecase "UC38 - Consultar e compartilhar\nversão da lista" as UC38
+  usecase "UC39 - Marcar presença e\nrevisar adesão" as UC39
+  usecase "UC40 - Gerar lista de presença\nreal (planejado)" as UC40
+  usecase "Validar autenticação e\npermissão (planejado)" as UCV
+}
+
+AUsu -- UC36
+AUsu -- UC37
+AUsu -- UC38
+AUsu -- UC39
+AAdc -- UC40
+AAdm -- UC40
+
+UC39 .> UC37 : <<include>>
+UC40 .> UCV : <<include>>
+
+note bottom of UC39
+  A prévia simula o Administrador da comissão;
+  o salvamento reaproveita o UC37.
+end note
+@enduml

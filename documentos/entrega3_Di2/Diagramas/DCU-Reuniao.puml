@@ -1,0 +1,31 @@
+@startuml DCU-Reuniao
+' Diagrama de casos de uso (UML) — Reunião: agendar, convidar, responder, entrada e saída (UC32 a UC35)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Reuniao.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Membro da comissão" as AMem
+actor "Administrador" as AAdm
+
+rectangle "Reunião (Data API + App Mobile)" {
+  usecase "UC32 - Agendar reunião e\nconvidar integrantes" as UC32
+  usecase "UC33 - Responder convite\n(aceitar ou recusar)" as UC33
+  usecase "UC34 - Registrar entrada\nna reunião" as UC34
+  usecase "UC35 - Registrar saída\nda reunião" as UC35
+}
+
+AMem -- UC32
+AMem -- UC33
+AMem -- UC34
+AMem -- UC35
+AAdm -- UC32
+
+note bottom of UC33
+  Também pelo botão do e-mail (rota pública
+  com o token do convite, sem login).
+end note
+@enduml

@@ -1,0 +1,33 @@
+@startuml DCU-Cadastro-de-Usuario
+' Diagrama de casos de uso (UML) — Cadastro de Usuário (UC09 a UC11)
+' Gerar o SVG: java -jar plantuml.jar -tsvg "DCU-Cadastro-de-Usuario.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Visitante sem conta" as AVis
+actor "Usuário comum" as AUsu
+actor "Criador da organização" as ACri
+actor "Gerente da organização" as AGer
+actor "Moderador da organização" as AMod
+
+rectangle "Cadastro de Usuário (Data API + App Mobile)" {
+  usecase "UC09 - Cadastrar-se\nna plataforma" as UC09
+  usecase "UC10 - Solicitar acesso\na uma organização\n(planejado)" as UC10
+  usecase "UC11 - Gerenciar usuários\nda organização" as UC11
+}
+
+AVis -- UC09
+AUsu -- UC10
+ACri -- UC11
+AGer -- UC11
+AMod -- UC11
+
+note bottom of UC10
+  Planejado: previsto no slide do incremento 1,
+  sem código no repositório.
+end note
+@enduml

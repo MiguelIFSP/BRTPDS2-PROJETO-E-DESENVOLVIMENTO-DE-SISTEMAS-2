@@ -492,7 +492,7 @@ sequenceDiagram
     Note over T,F: CSV usa formatListaPresencaCsv(listaSelecionada)
     F-->>T: Conteúdo da versão salva com marcações
     T->>T: Adiciona aviso de dados fictícios
-    T-->>U: Copia texto ou baixa CSV no navegador; compartilha texto no dispositivo
+    T-->>U: Copia texto ou baixa CSV no navegador, compartilha texto no dispositivo
     Note over T,M: Sem HTTP, banco ou armazenamento persistente
 ```
 
