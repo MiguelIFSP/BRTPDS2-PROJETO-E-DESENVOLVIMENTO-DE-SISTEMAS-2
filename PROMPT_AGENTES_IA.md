@@ -10,9 +10,9 @@
 Você está escrevendo código para o Better Meet, um sistema de gerenciamento de reuniões. O repositório tem estes subsistemas em `sistema/`:
 
 - `api/`: API de Dados (Node + Express 5 + Prisma 7 + MySQL, TypeScript, ESM)
-- `better-meet/`: app mobile/web (Expo 58 + React Native + Expo Router + Zustand)
+- `better-meet/`: app mobile/web (Expo 58 + React Native 0.88 + Expo Router + Zustand)
 - `monitoring-better-meet/`: API de Monitoramento (Node + Express 5 + Prisma)
-- `management-better-meet/server/` e `management-better-meet/web/`: painel de gestão (Express e Expo)
+- `management-better-meet/server/` e `management-better-meet/web/`: painel de gestão (Express e Expo 58)
 
 Siga as regras abaixo em todo código que você criar ou alterar. Elas são obrigatórias. Se uma regra impedir o que foi pedido, pare e explique o conflito em vez de quebrá-la.
 
@@ -218,7 +218,11 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
 
 ## React Native + Expo (`better-meet`, `management-better-meet/web`)
 
-49. **Use a documentação do Expo SDK do app alterado** (`better-meet`: https://docs.expo.dev/versions/v58.0.0/; `management-better-meet/web`: https://docs.expo.dev/versions/v57.0.0/) para qualquer API do Expo ou do Expo Router, não a versão mais recente nem exemplos antigos.
+49. **Use a documentação do Expo SDK 58** (https://docs.expo.dev/versions/v58.0.0/), versão dos dois apps (`better-meet` e `management-better-meet/web`), para qualquer API do Expo ou do Expo Router. Não use a versão mais recente nem exemplos antigos (SDK 57 ou anteriores). O `AGENTS.md` do `web` ainda cita a `v57.0.0`; vale o SDK 58 e você deve avisar sobre isso na resposta.
+    - `NativeTabs` vem de `expo-router/native-tabs`, nunca de `expo-router/unstable-native-tabs`.
+    - Refs de `ScrollView` e `TextInput` usam `ScrollViewInstance` e `TextInputInstance` (React Native 0.88). `useColorScheme` não devolve mais `'unspecified'`.
+    - Nos testes dos apps (Jest 30 + `jest-expo` 58), use `globalThis.fetch = mockFetch as typeof fetch`, e não `global.fetch`. O `package.json` mantém o `resolver` `react-native-reanimated/jest/resolver`.
+    - Mantenha `web.output: "static"` no `app.json`.
 
 50. **Telas são arquivos em `src/app/`** com `export default function <Rota em PascalCase>Screen` (`excluir-conta.tsx` → `ExcluirContaScreen`). A tela coordena estado e layout; lógica vai para hooks, HTTP para services e pedaços de interface para componentes.
     - A tela fica no próprio arquivo da rota; não crie a tela em `src/components/` só para a rota reexportar.
@@ -310,6 +314,32 @@ Referência oficial: paleta do `documentos/entrega1_AP/design_system.md` e fonte
 
 76. **Ids internos nunca aparecem na interface** (texto, rótulo ou mensagem), e o usuário nunca digita um id. Pessoas aparecem por nome (e e-mail, quando precisa diferenciar). Para escolher alguém, mostre uma lista de opções (`Chip`, rádio); se a pessoa não está em nenhuma lista, peça o e-mail.
 
+## Atualização de SDK do Expo
+
+81. **Atualizar o SDK é uma mudança própria**, em `feature/migracao-expo-<versao>`, conduzida pelo AI-DLC (regras 83 a 90). Não misture com funcionalidade nova.
+    - Leia o changelog do SDK, o guia de migração do Expo Router e `versions/v<N>.0.0/` antes de alterar. Registre em `aidlc-docs/construction/<unidade>/code/migration-notes.md` o que afeta o app.
+    - Use `npx expo install --fix`. Se o `npm install` interno falhar com `ERESOLVE`, **não use `--force` nem `--legacy-peer-deps`**: grave à mão as versões indicadas, apague `node_modules` e o `package-lock.json` e rode `npm install`. Depois, devolva à versão anterior as bibliotecas fora da migração que mudaram no lock (ex.: `zustand`).
+    - Antes de entregar, rode e informe o resultado de `npm run lint`, `npm run typecheck`, `npm test`, `npx expo-doctor` e `npx expo export` (Android e iOS). Nunca diga que a migração está pronta sem dizer o que não foi testado em aparelho (gestos, abas nativas, navegação) e entregue a lista de verificação manual.
+    - Vulnerabilidades do `npm audit` ficam para outra branch.
+82. **O ESLint do `management-better-meet/web` ainda não aplica as regras do guia** (só a base `eslint-config-expo`). Mesmo assim, o código novo ou alterado no `web` segue todas as regras deste prompt. Não ligue regras novas nem refatore código antigo do `web` sem o pedido.
+
+## Fluxo de trabalho com AI-DLC v1
+
+O AI-DLC v1 (https://github.com/awslabs/aidlc-workflows/tree/v1) define o **processo**; este prompt define o **código**. Se houver conflito, valem as regras deste prompt. Quando o pedido começar com **"Using AI-DLC, ..."**, ou quando uma mudança for grande (migração, funcionalidade nova, refatoração), siga o fluxo abaixo. Para correção pequena e isolada, não abra um fluxo: faça a correção seguindo as regras anteriores.
+
+83. **Leia as regras do AI-DLC antes de agir**: `sistema/better-meet/.aidlc-rule-details/core-workflow.md` e os arquivos de etapa que ele indicar (`common/`, `inception/`, `construction/`). Não copie nem edite essa pasta. Se existir `aidlc-docs/aidlc-state.md` no app, compare o pedido atual com o campo `Request` e com a unidade de trabalho registrados nele:
+    - Se for a **mesma alteração** e o fluxo estiver incompleto, retome a partir da última etapa registrada.
+    - Se o estado for de **outra alteração** (ex.: o fluxo anterior é a migração do Expo e o pedido agora é uma funcionalidade nova), ou se o fluxo anterior já estiver concluído, **reinicie o AI-DLC por conta própria**, sem esperar que a pessoa mande: comece pelo Workspace Detection, crie uma nova unidade em `aidlc-docs/construction/` e reescreva o `aidlc-state.md` para o novo pedido. Não aproveite etapas, planos, respostas de perguntas nem aprovações de outra alteração.
+    - Preserve os documentos antigos: não apague nem edite as pastas das unidades anteriores, e continue **acrescentando** ao `audit.md`, registrando ali o motivo do reinício e o pedido anterior que foi encerrado.
+    - Se não der para saber se o pedido é a mesma alteração ou outra, pergunte à pessoa em um arquivo de perguntas (regra 87), e não decida sozinho.
+84. **Trabalhe na pasta do app** (`sistema/better-meet` ou `sistema/management-better-meet/web`). Código fica na raiz do app e **nunca** dentro de `aidlc-docs/`. Documentação fica **só** em `aidlc-docs/` do app, em pt-BR.
+85. **Etapas, em ordem.** Inception: Workspace Detection → Reverse Engineering (só em código existente, se ainda não houver) → Requirements Analysis → User Stories (só para funcionalidade nova visível ao usuário) → Workflow Planning → Application Design e Units Generation (só se necessário). Construction, por unidade: Functional Design, NFR Requirements, NFR Design e Infrastructure Design (só se necessário) → Code Generation → Build and Test. Operations não é usada. Ajuste a profundidade ao tamanho do pedido (mínima, padrão, abrangente) e registre no Workflow Planning o que será pulado e por quê.
+86. **Pare e espere a aprovação explícita** ao fim de cada etapa (exceto Workspace Detection). Apresente os arquivos para revisão e as opções "Request Changes" e "Continue to Next Stage". Não avance, não invente um terceiro menu e não presuma aprovação.
+87. **Perguntas só em arquivo**, nunca no chat: `aidlc-docs/inception/requirements/requirement-verification-questions.md` (ou `<fase>-questions.md`). Formato: `## Question N`, texto, alternativas `A)`, `B)`… (de 2 a 5 com sentido de verdade) e a última sempre `X) Other (please describe after [Answer]: tag below)`, depois `[Answer]:` em branco. Espere a pessoa dizer que terminou. Se houver respostas ausentes, inválidas ou contraditórias, crie um arquivo `<fase>-clarification-questions.md` e não prossiga até resolver.
+88. **`aidlc-docs/audit.md`**: a cada interação, **acrescente** (nunca reescreva o arquivo) o pedido completo da pessoa, sem resumir, com data e hora ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`), a resposta ou ação e o contexto da etapa. **`aidlc-docs/aidlc-state.md`** guarda o progresso: marque `[x]` assim que cada etapa termina. Registre ali, em "Project Standards", o `GUIA_DE_CODIFICACAO.md` e o `AGENTS.md` do app, e, em "Extension Configuration", as extensões opcionais (Security Baseline, Resiliency Baseline, Property-Based Testing), que hoje estão desligadas.
+89. **Code Generation em duas partes.** Parte 1: crie `aidlc-docs/construction/plans/<unidade>-code-generation-plan.md`, com passos numerados e caixas `[ ]`, e peça aprovação. Parte 2: execute **só** o que está no plano, marque cada passo `[x]` assim que o concluir e escreva o resumo em `aidlc-docs/construction/<unidade>/code/code-summary.md`. Se o escopo mudar, atualize o plano e peça nova aprovação. Em código existente, **altere o arquivo no lugar**: nunca crie `Arquivo_novo.ts` ou `Arquivo_modified.ts`.
+90. **Build and Test no fim**: gere as instruções em `aidlc-docs/construction/build-and-test/` (build, testes unitários, integração, desempenho, segurança quando couber, resumo e lista de verificação manual) e informe o resultado real de cada comando. Diagramas em `aidlc-docs/` usam Mermaid (com alternativa em texto) ou ASCII só com `+ - | ^ v < >`. O AI-DLC não substitui o Pull Request revisado, os commits da regra 77 nem o registro de testes da entrega em `documentos/` (regra 80).
+
 ## Git, agentes de IA e testes
 
 77. **Mensagens de commit** no formato `<tipo>(<escopo opcional>): <descrição>`, em pt-BR, minúscula, verbo no presente e sem ponto final (`feat(api): adiciona cadastro de reuniões`). Tipos: `feat`, `fix`, `refactor`, `docs`, `test`, `style`, `chore`. Um assunto por commit.
@@ -346,4 +376,7 @@ Confira cada item e corrija o que falhar antes de responder:
 - [ ] Ícones só de `@react-native-vector-icons/ionicons` (exceto os da barra de abas, com `expo-symbols`); nenhum emoji no lugar de ícone.
 - [ ] Nenhum id interno exibido na interface.
 - [ ] Login e identificação de pessoas pelo e-mail, nunca pelo nome.
+- [ ] APIs do Expo conferidas no SDK 58; `NativeTabs` de `expo-router/native-tabs`.
+- [ ] Em atualização de SDK: lint, typecheck, testes, `expo-doctor` e `expo export` executados e informados; lock sem versões alteradas por acaso; o que ficou sem teste em aparelho informado.
+- [ ] Em fluxo AI-DLC: `aidlc-state.md` e `audit.md` atualizados (acréscimo, sem reescrever), etapa aprovada pela pessoa, perguntas em arquivo, nenhum código dentro de `aidlc-docs/`.
 ```

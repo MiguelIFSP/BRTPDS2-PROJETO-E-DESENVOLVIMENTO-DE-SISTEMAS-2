@@ -18,6 +18,7 @@ Wiki: https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMA
 - Branch e commit a inspecionar: [BRANCH E COMMIT]
 - Arquivos relevantes: [CAMINHOS OU LINKS]
 - Incremento e pasta de destino: [EX.: entrega3_Di2]
+- App do `aidlc-docs/` (se usar o AI-DLC): [better-meet OU management-better-meet/web]
 
 Leia também o `GUIA_DE_DOCUMENTACAO.md`, que está no repositório. Se não tiver acesso a ele, peça que seja anexado. Nas seções 4 a 13, o guia traz exemplos preenchidos com o RF06 e o RNF06: use-os como referência do nível de detalhe esperado, sem copiar os dados deles para outro requisito. Os exemplos não provam o estado atual do código. As regras abaixo são obrigatórias. Se uma regra impedir o que foi pedido, pare e explique o conflito em vez de quebrá-la. Não pergunte o que já está especificado aqui.
 
@@ -95,6 +96,22 @@ Leia também o `GUIA_DE_DOCUMENTACAO.md`, que está no repositório. Se não tiv
 
 19. **Matriz de rastreabilidade** entre RF/RNF, UC, tela, endpoint ou service, classe ou model, tabela, diagrama, teste e status. Nenhum RF fica sem vínculo ou justificativa.
 
+## Fluxo de trabalho com AI-DLC v1
+
+O AI-DLC v1 (https://github.com/awslabs/aidlc-workflows/tree/v1) define o **processo**; este prompt define o **conteúdo** da documentação. Se houver conflito sobre o conteúdo, valem as regras deste prompt. O processo detalhado está nas regras 83 a 90 do `PROMPT_AGENTES_IA.md`; leia-as junto.
+
+20. **Siga o AI-DLC quando o pedido começar com "Using AI-DLC, ..."** ou quando a tarefa cobrir mais de um documento. Leia `sistema/better-meet/.aidlc-rule-details/core-workflow.md` e os arquivos de etapa que ele indicar. Não copie nem edite essa pasta. Trabalhe na pasta do app a que o assunto se refere (`sistema/better-meet` ou `sistema/management-better-meet/web`).
+
+21. **Retomar ou reiniciar.** Compare o pedido com o `Request` e a unidade registrados em `aidlc-docs/aidlc-state.md`. Se for a mesma alteração e o fluxo estiver incompleto, retome. Se o estado for de **outra alteração** (por exemplo, a migração do Expo) ou o fluxo anterior estiver concluído, **reinicie o AI-DLC por conta própria**: comece pelo Workspace Detection, crie uma nova unidade (ex.: `documentacao-<assunto>`) em `aidlc-docs/construction/` e reescreva o `aidlc-state.md`. Não aproveite planos, respostas nem aprovações antigos, não apague as pastas anteriores e registre o motivo no `audit.md` (só com acréscimos). Em caso de dúvida, pergunte em arquivo.
+
+22. **Etapas aplicadas à documentação.** Workspace Detection e Reverse Engineering (conferir branch e commit, inspecionar o código) → Requirements Analysis (assunto, pasta da entrega, lacunas) → Workflow Planning (o que roda e o que é pulado; User Stories, Application Design, Units Generation e as etapas de Design normalmente são dispensadas, com o motivo) → Code Generation (plano com caixas `[ ]` listando os arquivos de `documentos/` a criar ou alterar; só depois de aprovado, escreva) → Build and Test (verificação pelo checklist abaixo). **Pare e espere a aprovação** ao fim de cada etapa. As perguntas vão em arquivo (regra 87 do `PROMPT_AGENTES_IA.md`), nunca no chat.
+
+23. **A documentação oficial vai em `documentos/entregaN_<sigla>/`** (regra 6). Em `aidlc-docs/` ficam só o plano, o resumo da execução, o `aidlc-state.md` e o `audit.md`. Nunca grave o documento da entrega só em `aidlc-docs/`.
+
+24. **O `aidlc-docs/` não é evidência.** Os resumos de engenharia reversa e as notas de migração servem de ponto de partida. Todo fato é conferido no código da branch e do commit do cabeçalho (regras 1 a 3), e o que não for conferido leva `[A CONFIRMAR NO CÓDIGO]`.
+
+25. **O responsável não é a IA.** Não preencha "Responsável(eis)" (regra 7) com o nome do agente nem do autor do commit. O `audit.md` registra o que o agente fez, e a assinatura é de quem revisa.
+
 ## Entrega
 
 Entregue, nesta ordem:
@@ -124,4 +141,5 @@ Faça uma auditoria crítica. Não diga que está perfeito se houver lacunas.
 - [ ] Matriz de rastreabilidade completa.
 - [ ] Nenhum segredo ou dado pessoal desnecessário.
 - [ ] Pendências, divergências e limitações registradas.
+- [ ] Em fluxo AI-DLC: documento oficial em `documentos/`; `aidlc-state.md` e `audit.md` atualizados (acréscimo, sem reescrever); etapas aprovadas; perguntas em arquivo; nenhum fato tirado só do `aidlc-docs/`.
 ```
