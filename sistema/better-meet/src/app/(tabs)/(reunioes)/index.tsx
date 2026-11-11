@@ -26,6 +26,7 @@ import {
   Spacing,
   TouchTarget,
   Typography,
+  withAlpha,
 } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
@@ -637,31 +638,49 @@ export default function ReunioesScreen() {
           </Text>
         </View>
 
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Adicionar reunião"
-          onPress={() => {
-            if (!canCreateMeeting) {
-              setFeedback({
-                type: 'error',
-                message:
-                  'Você precisa participar de uma comissão para criar reuniões.',
-              });
-              return;
-            }
+        <View style={styles.headerActions}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Histórico de reuniões"
+            onPress={() => router.push('/(tabs)/(reunioes)/historico')}
+            style={({ pressed }) => [
+              styles.historyButton,
+              {
+                backgroundColor: withAlpha(colors.primary, 0.12),
+                borderColor: withAlpha(colors.primary, 0.3),
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons name="time-outline" size={22} color={colors.primary} />
+          </Pressable>
 
-            openCreateMeeting();
-          }}
-          style={({ pressed }) => [
-            styles.createButton,
-            {
-              backgroundColor: colors.primary,
-            },
-            pressed && styles.pressed,
-          ]}
-        >
-          <Ionicons name="add" size={26} color={colors.onPrimary} />
-        </Pressable>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Adicionar reunião"
+            onPress={() => {
+              if (!canCreateMeeting) {
+                setFeedback({
+                  type: 'error',
+                  message:
+                    'Você precisa participar de uma comissão para criar reuniões.',
+                });
+                return;
+              }
+
+              openCreateMeeting();
+            }}
+            style={({ pressed }) => [
+              styles.createButton,
+              {
+                backgroundColor: colors.primary,
+              },
+              pressed && styles.pressed,
+            ]}
+          >
+            <Ionicons name="add" size={26} color={colors.onPrimary} />
+          </Pressable>
+        </View>
       </View>
 
       <FeedbackBanner feedback={feedback} />
@@ -1049,6 +1068,20 @@ const styles = StyleSheet.create({
   titleBlock: { flex: 1, gap: Spacing.sm },
   greetingText: { ...Typography.bodyLarge },
   screenTitle: { ...Typography.heading1 },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  historyButton: {
+    width: TouchTarget.button,
+    height: TouchTarget.button,
+    borderRadius: Radius.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: Spacing.xs,
+  },
   createButton: {
     width: TouchTarget.button,
     height: TouchTarget.button,

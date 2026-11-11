@@ -143,8 +143,14 @@ export default function ReuniaoDetalheScreen() {
     };
   }, [isInviteOpen, reuniao, setFeedback, token, user?.id]);
 
+  const isHistorical =
+    reuniao?.status !== 'AGENDADA' ||
+    (reuniao?.data && reuniao?.horaFim
+      ? new Date(`${reuniao.data}T${reuniao.horaFim}:00`) < new Date()
+      : false);
   const canManage =
-    user?.role === 'ADMIN' || user?.id === reuniao?.criadoPorUserId;
+    !isHistorical &&
+    (user?.role === 'ADMIN' || user?.id === reuniao?.criadoPorUserId);
   const papelDoUsuario = reuniao?.participantes?.find(
     (participante) => participante.userId === user?.id,
   )?.papel;
@@ -242,7 +248,7 @@ export default function ReuniaoDetalheScreen() {
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Dados da reunião
           </Text>
-          {canManage ? (
+          {!isHistorical && canManage ? (
             <Button
               variant="tertiary"
               icon="create-outline"
@@ -322,8 +328,10 @@ export default function ReuniaoDetalheScreen() {
             Nenhum participante confirmado.
           </Text>
         )}
-        {canManage ? <ConvitesSemAceite convites={reuniao.convites} /> : null}
-        {canManage ? (
+        {!isHistorical && canManage ? (
+          <ConvitesSemAceite convites={reuniao.convites} />
+        ) : null}
+        {!isHistorical && canManage ? (
           <Button
             variant="secondary"
             icon="person-add-outline"
@@ -338,7 +346,8 @@ export default function ReuniaoDetalheScreen() {
         ) : null}
       </Card>
 
-      {token &&
+      {!isHistorical &&
+      token &&
       (reuniao.status === 'AGENDADA' ||
         reuniao.meuRegistro ||
         user?.role === 'ADMIN' ||
@@ -362,7 +371,7 @@ export default function ReuniaoDetalheScreen() {
 
       <VotacoesDaReuniao reuniaoId={reuniao.id} canManage={canManage} />
 
-      {canManage ? (
+      {!isHistorical && canManage ? (
         <Button
           variant="tertiaryDanger"
           icon="trash-outline"
