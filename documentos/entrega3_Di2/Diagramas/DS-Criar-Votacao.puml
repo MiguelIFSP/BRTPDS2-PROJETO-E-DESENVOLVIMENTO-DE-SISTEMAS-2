@@ -1,0 +1,40 @@
+@startuml DS-Criar-Votacao
+' UC18. A validação do app usa votacaoSchema antes do POST.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Usuário comum\nou Administrador" as Ator
+participant "VotacoesDaReuniao" as Lista
+participant "votacaoService\n(app)" as App
+participant "requireAuth" as Auth
+participant "votacaoController" as Ctrl
+participant "votacaoService\n(API)" as Svc
+database "prisma" as Db
+
+Ator -> Lista : toca em Nova votação\ne preenche título e opções
+Lista -> Lista : votacaoSchema.validateSync\n({ titulo, opcoes }, abortEarly false)
+alt título ou opções inválidos
+  Lista --> Ator : erro no campo, sem requisição
+else válido
+  Lista -> App : create(token, reuniaoId,\n{ titulo, opcoes })
+  App -> Auth : POST /api/reunioes/:id/votacoes
+  Auth -> Ctrl : next()
+  Ctrl -> Ctrl : votacaoSchema.validate(body)
+  alt corpo inválido
+    Ctrl --> Lista : 400 com a primeira mensagem do Yup
+  else
+    Ctrl -> Svc : create(userId, role, reuniaoId, data)
+    Svc -> Db : reuniao.findUnique
+    alt sem permissão de gerir
+      Svc --> Lista : 403 "Você não pode criar uma votação nesta reunião."
+    else
+      Svc -> Db : votacao.create\n(opções com ordem do array)
+      Svc -> Db : getById
+      Svc --> Lista : 201 e o detalhe
+      Lista --> Ator : "Votação criada."
+    end
+  end
+end
+@enduml

@@ -1,0 +1,31 @@
+@startuml DS-Encerrar-Votacao
+' UC20. Encerrar não apaga votos.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Usuário comum\nou Administrador" as Ator
+participant "VotacaoDetalheScreen" as Tela
+participant "ConfirmDialog" as Dialogo
+participant "votacaoService\n(app)" as App
+participant "votacaoController" as Ctrl
+participant "votacaoService\n(API)" as Svc
+database "prisma" as Db
+
+Ator -> Tela : toca em Encerrar votação
+Tela -> Dialogo : abre a confirmação
+Ator -> Dialogo : confirma
+Dialogo -> Tela : onConfirm
+Tela -> App : close(token, votacaoId)
+App -> Ctrl : POST /api/votacoes/:id/encerrar
+Ctrl -> Svc : close(userId, role, votacaoId)
+Svc -> Db : acessoDaReuniao
+alt sem permissão de gerir
+  Svc --> Tela : 403 "Você não pode encerrar esta votação."
+else
+  Svc -> Db : votacao.update\n{ encerrada: true }
+  Svc --> Tela : 200 e o detalhe
+  Tela --> Ator : "Votação encerrada."
+end
+@enduml

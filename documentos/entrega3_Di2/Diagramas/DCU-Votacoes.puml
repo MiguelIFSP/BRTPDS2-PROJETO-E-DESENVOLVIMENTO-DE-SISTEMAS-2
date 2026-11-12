@@ -1,0 +1,33 @@
+@startuml DCU-Votacoes
+' Casos de uso da votação de opções da reunião (RF16, UC17–UC21).
+' Não inclui a votação da ata (AtaVoto).
+' Gerar o SVG: java -jar plantuml.jar -charset UTF-8 -tsvg "DCU-Votacoes.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Administrador" as Adm
+actor "Usuário comum" as Usu
+
+rectangle "Better Meet (App e API de Dados)" {
+  usecase "UC17 - Consultar votações\nda reunião" as UC17
+  usecase "UC18 - Criar votação" as UC18
+  usecase "UC19 - Registrar voto" as UC19
+  usecase "UC20 - Encerrar votação" as UC20
+  usecase "UC21 - Excluir votação" as UC21
+}
+
+Adm -- UC17
+Adm -- UC18
+Adm -- UC19
+Adm -- UC20
+Adm -- UC21
+Usu -- UC17
+Usu -- UC18
+Usu -- UC19
+Usu -- UC20
+Usu -- UC21
+@enduml

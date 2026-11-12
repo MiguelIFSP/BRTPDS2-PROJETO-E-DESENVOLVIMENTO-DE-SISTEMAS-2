@@ -1,0 +1,48 @@
+@startuml DS-Registrar-Voto
+' UC19. Trocar o voto usa o mesmo POST. A biblioteca trava a opção
+' depois do primeiro toque; "Trocar voto" só remonta o componente.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Usuário comum\nou Administrador" as Ator
+participant "VotacaoDetalheScreen" as Tela
+participant "RNPoll" as Poll
+participant "votacaoService\n(app)" as App
+participant "votacaoController" as Ctrl
+participant "votacaoService\n(API)" as Svc
+database "prisma" as Db
+
+alt ainda não votou
+  Ator -> Poll : toca numa opção
+else já votou e a votação está aberta
+  Ator -> Tela : toca em Trocar voto
+  Tela -> Poll : remonta com hasBeenVoted false
+  Ator -> Poll : toca na nova opção
+end
+Poll -> Tela : onChoicePress(choice)
+Tela -> App : vote(token, votacaoId, opcaoId)
+App -> Ctrl : POST /api/votacoes/:id/voto\n{ opcaoId }
+Ctrl -> Ctrl : votoSchema.validate
+Ctrl -> Svc : vote(userId, role, votacaoId, opcaoId)
+Svc -> Db : votacao.findUnique e acessoDaReuniao
+alt a pessoa não participa
+  Svc --> Tela : 403 "Só participantes da reunião podem votar."
+else
+  Svc -> Db : $transaction
+  alt encerrada
+    Svc --> Tela : 409 "Esta votação já foi encerrada."
+  else opção de outra votação
+    Svc --> Tela : 400 "Essa opção não pertence à votação."
+  else
+    Svc -> Db : votacaoVoto.upsert\n(votacaoId_userId)
+    note right
+      create grava o voto.
+      update troca só opcaoId.
+    end note
+    Svc --> Tela : 200 e o detalhe atualizado
+    Tela -> Poll : barras com a nova contagem
+  end
+end
+@enduml

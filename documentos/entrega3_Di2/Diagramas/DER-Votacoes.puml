@@ -1,0 +1,55 @@
+@startuml DER-Votacoes
+' Banco bettermeet. Tabelas da votação de opções e as pontas de Reuniao e User.
+' A estrutura física em execução não foi consultada nesta revisão.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+hide circle
+
+entity Reuniao {
+  * id : int <<PK>>
+  --
+  * criadoPorUserId : int <<FK>>
+}
+
+entity User {
+  * id : int <<PK>>
+  --
+  * role : enum('USER','ADMIN')
+}
+
+entity Votacao {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * reuniaoId : int <<FK>>
+  * titulo : varchar(120)
+  * criadoPorUserId : int <<FK>>
+  * encerrada : boolean <<DEFAULT false>>
+  * createdAt : datetime(3) <<DEFAULT CURRENT_TIMESTAMP(3)>>
+}
+
+entity VotacaoOpcao {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * votacaoId : int <<FK>>
+  * texto : varchar(80)
+  * ordem : int <<DEFAULT 0>>
+}
+
+entity VotacaoVoto {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * votacaoId : int <<FK>>
+  * opcaoId : int <<FK>>
+  * userId : int <<FK>>
+  * createdAt : datetime(3) <<DEFAULT CURRENT_TIMESTAMP(3)>>
+}
+
+Reuniao ||--o{ Votacao : reuniaoId
+User ||--o{ Votacao : criadoPorUserId
+Votacao ||--o{ VotacaoOpcao : votacaoId
+Votacao ||--o{ VotacaoVoto : votacaoId
+VotacaoOpcao ||--o{ VotacaoVoto : opcaoId
+User ||--o{ VotacaoVoto : userId
+@enduml

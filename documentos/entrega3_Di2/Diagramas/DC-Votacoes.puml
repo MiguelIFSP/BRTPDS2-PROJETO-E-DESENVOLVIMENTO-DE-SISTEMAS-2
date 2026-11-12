@@ -1,0 +1,52 @@
+@startuml DC-Votacoes
+' Modelo de persistência Prisma da votação de opções.
+' Os models não têm métodos. Services e controllers não são classes.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+class Reuniao {
+  +Int id
+  +Int criadoPorUserId
+  +StatusReuniao status
+}
+class User {
+  +Int id
+  +String name
+  +Role role
+}
+class Votacao {
+  +Int id
+  +Int reuniaoId
+  +String titulo
+  +Int criadoPorUserId
+  +Boolean encerrada
+  +DateTime createdAt
+}
+class VotacaoOpcao {
+  +Int id
+  +Int votacaoId
+  +String texto
+  +Int ordem
+}
+class VotacaoVoto {
+  +Int id
+  +Int votacaoId
+  +Int opcaoId
+  +Int userId
+  +DateTime createdAt
+}
+enum Role <<enumeration>> {
+  USER
+  ADMIN
+}
+
+Reuniao "1" --> "0..*" Votacao : votacoes
+User "1" <-- "0..*" Votacao : criadoPor
+Votacao "1" --> "0..*" VotacaoOpcao : opcoes
+Votacao "1" --> "0..*" VotacaoVoto : votos
+VotacaoOpcao "1" --> "0..*" VotacaoVoto : votos
+User "1" <-- "0..*" VotacaoVoto : user
+User "0..*" --> "1" Role : role
+@enduml

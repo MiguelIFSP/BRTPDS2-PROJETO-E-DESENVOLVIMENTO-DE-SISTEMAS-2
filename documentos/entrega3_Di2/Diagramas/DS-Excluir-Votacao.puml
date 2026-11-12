@@ -1,0 +1,34 @@
+@startuml DS-Excluir-Votacao
+' UC21. O banco apaga opções e votos em cascata.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Usuário comum\nou Administrador" as Ator
+participant "VotacaoDetalheScreen" as Tela
+participant "ConfirmDialog" as Dialogo
+participant "votacaoService\n(app)" as App
+participant "votacaoController" as Ctrl
+participant "votacaoService\n(API)" as Svc
+database "prisma" as Db
+
+Ator -> Tela : toca em Excluir votação
+Tela -> Dialogo : abre a confirmação
+Ator -> Dialogo : confirma
+Tela -> App : delete(token, votacaoId)
+App -> Ctrl : DELETE /api/votacoes/:id
+Ctrl -> Svc : delete(userId, role, votacaoId)
+alt sem permissão de gerir
+  Svc --> Tela : 403 "Você não pode excluir esta votação."
+else
+  Svc -> Db : votacao.delete
+  note right of Db
+    ON DELETE CASCADE em
+    VotacaoOpcao e VotacaoVoto
+  end note
+  Ctrl --> App : 200 { message: "Votação removida." }
+  App --> Tela : message
+  Tela -> Ator : router.back()\nsem banner de sucesso
+end
+@enduml

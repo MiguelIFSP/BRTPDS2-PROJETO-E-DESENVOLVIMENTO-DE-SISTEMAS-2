@@ -1,0 +1,57 @@
+@startuml DS-Consultar-Votacoes
+' UC17. Arquivos: VotacoesDaReuniao.tsx, votacao/[id].tsx,
+' services/votacaoService.ts (app e API), votacaoRoutes.ts, votacaoController.ts, authMiddleware.ts.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Usuário comum\nou Administrador" as Ator
+participant "VotacoesDaReuniao" as Lista
+participant "VotacaoDetalheScreen" as Tela
+participant "votacaoService\n(app)" as App
+participant "requireAuth" as Auth
+participant "votacaoController" as Ctrl
+participant "votacaoService\n(API)" as Svc
+database "prisma" as Db
+
+Ator -> Lista : abre a página da reunião
+Lista -> App : listByReuniao(token, reuniaoId)
+App -> Auth : GET /api/reunioes/:id/votacoes
+alt token ausente, inválido ou conta excluída
+  Auth --> App : 401
+  App --> Lista : ApiError
+  Lista --> Ator : FeedbackBanner de erro
+else sessão válida
+  Auth -> Ctrl : next()\nuser.id e user.role do banco
+  Ctrl -> Svc : listByReuniao(userId, role, reuniaoId)
+  Svc -> Db : reuniao.findUnique\n(convites ACEITO do usuário)
+  alt reunião inexistente
+    Svc --> Ctrl : AppError(404, "Reunião não encontrada.")
+  else role diferente de ADMIN e a pessoa não participa
+    Svc --> Ctrl : AppError(403, "Você não pode ver esta reunião.")
+  else
+    Svc -> Db : votacao.findMany\n(orderBy createdAt desc)
+    Db --> Svc : id, titulo, encerrada, totalVotos, votei
+    Svc --> Ctrl : resumos
+    Ctrl --> App : 200
+    App --> Lista : VotacaoResumo[]
+  end
+end
+
+opt toque no card
+  Lista -> Tela : /votacao/[id]
+  Tela -> App : getById(token, votacaoId)
+  App -> Auth : GET /api/votacoes/:id
+  Auth -> Ctrl : next()
+  Ctrl -> Svc : getById(userId, role, votacaoId)
+  Svc -> Db : votacao.findUnique\n(opções e votos)
+  alt votação inexistente
+    Svc --> Tela : 404 "Votação não encontrada."
+  else podeGerir
+    Svc --> Tela : 200 com votantes em cada opção
+  else
+    Svc --> Tela : 200 só com a contagem de votos
+  end
+end
+@enduml
