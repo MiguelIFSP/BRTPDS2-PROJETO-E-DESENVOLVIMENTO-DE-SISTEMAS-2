@@ -18,6 +18,7 @@ Wiki: https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMA
 - Branch e commit a inspecionar: [BRANCH E COMMIT]
 - Arquivos relevantes: [CAMINHOS OU LINKS]
 - Incremento e pasta de destino: [EX.: entrega3_Di2]
+- App do `aidlc-docs/` (se usar o AI-DLC): [better-meet OU management-better-meet/web]
 
 Leia também o `GUIA_DE_DOCUMENTACAO.md`, que está no repositório. Se não tiver acesso a ele, peça que seja anexado. Nas seções 4 a 13, o guia traz exemplos preenchidos com o RF06 e o RNF06: use-os como referência do nível de detalhe esperado, sem copiar os dados deles para outro requisito. Os exemplos não provam o estado atual do código. As regras abaixo são obrigatórias. Se uma regra impedir o que foi pedido, pare e explique o conflito em vez de quebrá-la. Não pergunte o que já está especificado aqui.
 
@@ -35,11 +36,11 @@ Leia também o `GUIA_DE_DOCUMENTACAO.md`, que está no repositório. Se não tiv
 
 ## Arquivos e identificadores
 
-6. **A fonte é `documentos/entregaN_<sigla>/`** e os diagramas ficam em `Diagramas/`, dentro dessa pasta. A Wiki é a publicação, gerada depois a partir da fonte. Use nomes em snake_case sem acentos, `testes_<assunto>.md` e `DCU-<Assunto>.puml`/`.svg`. Em `documentos/`, use links relativos para as imagens; na Wiki, use `.../wiki/images/<arquivo>.svg`.
+6. **A fonte é `documentos/entregaN_<sigla>/`** e os diagramas ficam em `Diagramas/`, dentro dessa pasta (os substituídos vão para `Diagramas/legado/`, com o nome `RFnn-RFnn_UCnn-UCnn_<nome>`). Os nomes das pastas de entrega nunca mudam. A Wiki é a publicação, gerada depois a partir da fonte. Use nomes em snake_case sem acentos, `testes_<assunto>.md` e `DCU-<Assunto>.puml`/`.svg`. Em `documentos/`, use links relativos para as imagens; na Wiki, use `.../wiki/images/<arquivo>.svg`.
 
 7. **Comece todo documento com este cabeçalho:** Incremento, Escopo, Branch, Commit, Data de revisão (AAAA-MM-DD), Responsável(eis), Estado e Fontes. Branch e commit são os do código consultado. Não deduza o responsável pelo histórico do git: se não for informado, deixe o campo para quem assina o documento.
 
-8. **Identificadores:** `RF01`, `RNF01` e `UC01` são únicos no projeto; `RN-<SIGLA>01` é único no assunto; os casos de teste seguem `CT-RF14-01`. O próximo número é o maior em uso mais um, somando documentos e Wiki. Nunca reutilize nem renumere. Ao criar um RF ou RNF, indique que o índice da página Requisitos da Wiki precisa ser atualizado. Ainda não há índice de UC. Se um número já estiver repetido, registre a divergência e escreva `[A CONFIRMAR]`, sem escolher um por conta própria.
+8. **Identificadores:** `RF01`, `RNF01` e `UC01` são únicos no projeto, e **`RFnn = UCnn`** (cada caso de uso é um RF); UC41 em diante estão reservados ao incremento 3 e a numeração está em `documentos/numeracao_uc_rf.md`; `RN-<SIGLA>01` é único no assunto; os casos de teste seguem `CT-RF14-01`. O próximo número é o maior em uso mais um, somando documentos e Wiki. Nunca reutilize nem renumere. Ao criar um RF ou RNF, atualize o `documentos/requisitos.md` (fonte da página Requisitos da Wiki) e a matriz `rastreabilidade.md` do incremento; ao criar um UC, atualize o `numeracao_uc_rf.md`. Se um número já estiver repetido, registre a divergência e escreva `[A CONFIRMAR]`, sem escolher um por conta própria.
 
 ## Atores
 
@@ -95,6 +96,36 @@ Leia também o `GUIA_DE_DOCUMENTACAO.md`, que está no repositório. Se não tiv
 
 19. **Matriz de rastreabilidade** entre RF/RNF, UC, tela, endpoint ou service, classe ou model, tabela, diagrama, teste e status. Nenhum RF fica sem vínculo ou justificativa.
 
+## Fluxo de trabalho com AI-DLC v1
+
+O AI-DLC v1 (https://github.com/awslabs/aidlc-workflows/tree/v1) define o **processo**; este prompt define o **conteúdo** da documentação. Se houver conflito sobre o conteúdo, valem as regras deste prompt. O processo detalhado está nas regras 83 a 90 do `PROMPT_AGENTES_IA.md`; leia-as junto.
+
+20. **Siga o AI-DLC quando o pedido começar com "Using AI-DLC, ..."** ou quando a tarefa cobrir mais de um documento. Leia `sistema/better-meet/.aidlc-rule-details/core-workflow.md` e os arquivos de etapa que ele indicar. Não copie nem edite essa pasta. Se a tarefa mexe em `documentos/` inteiro, o `aidlc-docs/` fica na **raiz do repositório**; se é de um app, trabalhe na pasta dele (`sistema/better-meet` ou `sistema/management-better-meet/web`).
+
+21. **Retomar ou reiniciar.** Compare o pedido com o `Request` e a unidade registrados em `aidlc-docs/aidlc-state.md`. Se for a mesma alteração e o fluxo estiver incompleto, retome. Se o estado for de **outra alteração** (por exemplo, a migração do Expo) ou o fluxo anterior estiver concluído, **reinicie o AI-DLC por conta própria**: comece pelo Workspace Detection, crie uma nova unidade (ex.: `documentacao-<assunto>`) em `aidlc-docs/construction/` e reescreva o `aidlc-state.md`. Não aproveite planos, respostas nem aprovações antigos, não apague as pastas anteriores e registre o motivo no `audit.md` (só com acréscimos). Em caso de dúvida, pergunte em arquivo.
+
+22. **Etapas aplicadas à documentação.** Workspace Detection e Reverse Engineering (conferir branch e commit, inspecionar o código) → Requirements Analysis (assunto, pasta da entrega, lacunas) → Workflow Planning (o que roda e o que é pulado; User Stories, Application Design, Units Generation e as etapas de Design normalmente são dispensadas, com o motivo) → Code Generation (plano com caixas `[ ]` listando os arquivos de `documentos/` a criar ou alterar; só depois de aprovado, escreva) → Build and Test (verificação pelo checklist abaixo). **Pare e espere a aprovação** ao fim de cada etapa. As perguntas vão em arquivo (regra 87 do `PROMPT_AGENTES_IA.md`), nunca no chat. Se a pessoa pedir, faça-as pela ferramenta interativa do agente (caixas de seleção), mantendo o arquivo de perguntas como trilha (perguntas e respostas transcritas) e registrando o texto exato no `audit.md`.
+
+23. **A documentação oficial vai em `documentos/entregaN_<sigla>/`** (regra 6). Em `aidlc-docs/` ficam só o plano, o resumo da execução, o `aidlc-state.md` e o `audit.md`. Nunca grave o documento da entrega só em `aidlc-docs/`.
+
+24. **O `aidlc-docs/` não é evidência.** Os resumos de engenharia reversa e as notas de migração servem de ponto de partida. Todo fato é conferido no código da branch e do commit do cabeçalho (regras 1 a 3), e o que não for conferido leva `[A CONFIRMAR NO CÓDIGO]`.
+
+25. **O responsável não é a IA.** Não preencha "Responsável(eis)" (regra 7) com o nome do agente nem do autor do commit. O `audit.md` registra o que o agente fez, e a assinatura é de quem revisa.
+
+## Formato dos documentos
+
+26. **Individual ou unificado (DOC-26).** Requisito funcional, caso de uso, sequência e RNF são **individuais**: um arquivo `requisitos/RFnn_<assunto>.md` por RF (com a ficha do UC e as sequências dentro) e um `requisitos/RNFnn_<titulo>.md` por RNF. Diagrama de classes, diagrama relacional e dicionário de dados são **unificados e cumulativos** por entrega (`diagrama_de_classes.md`, `diagrama_relacional.md`, `dicionario_de_dados.md`): ao abrir um incremento, copie os da entrega anterior e acrescente as seções novas.
+
+27. **Estrutura do `RFnn`**, nesta ordem: cabeçalho (regra 7); Descrição; Formulário do requisito (Entradas, Origem, Saída, Destino, pré e pós-condições, efeitos colaterais e Ação); ficha do UC; diagrama de casos de uso; sequência; RNF atingidos; divergências e lacunas; testes (`CT-RFnn-xx`).
+
+28. **Diagrama de casos de uso por requisito dos slides** (`Diagramas/DCU-<Requisito>.puml` e `.svg`), incluído em cada RF que ele cobre; cada RF documenta só o seu UC. Atores concretos, sem "Usuário Autenticado" nem generalização entre pessoas (regra 9).
+
+29. **Índices e matrizes.** Atualize no mesmo trabalho: `documentos/requisitos.md` (resumo de cada RF e RNF, com o link "ver mais detalhes" para a página `RFnn` da Wiki), `documentos/numeracao_uc_rf.md` e `rastreabilidade.md` do incremento. A Wiki é gerada depois, a partir da fonte (regra 6).
+
+30. **O que ainda não existe é "Planejado".** Um RF sem código fica no `requisitos.md` e no arquivo `RFnn` com estado `Planejado`, sem diagrama de sequência inventado. Mockups com dados fictícios são `Parcial`.
+
+31. **Não apague documento antigo sem destino.** Migre o conteúdo, mova o arquivo para `Diagramas/legado/` ou confirme que ele está no histórico do git e registre no `numeracao_uc_rf.md`.
+
 ## Entrega
 
 Entregue, nesta ordem:
@@ -124,4 +155,7 @@ Faça uma auditoria crítica. Não diga que está perfeito se houver lacunas.
 - [ ] Matriz de rastreabilidade completa.
 - [ ] Nenhum segredo ou dado pessoal desnecessário.
 - [ ] Pendências, divergências e limitações registradas.
+- [ ] Um arquivo por RF e um por RNF; classes, relacional e dicionário unificados e cumulativos na entrega; RFnn = UCnn.
+- [ ] `requisitos.md`, `numeracao_uc_rf.md` e `rastreabilidade.md` atualizados; diagramas substituídos em `Diagramas/legado/`.
+- [ ] Em fluxo AI-DLC: documento oficial em `documentos/`; `aidlc-state.md` e `audit.md` atualizados (acréscimo, sem reescrever); etapas aprovadas; perguntas em arquivo; nenhum fato tirado só do `aidlc-docs/`.
 ```
