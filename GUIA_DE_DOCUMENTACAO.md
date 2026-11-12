@@ -108,7 +108,7 @@ Como o AI-DLC se aplica a uma tarefa de documentação:
 | Requirements Analysis | Definir o assunto (RF, RNF, UC), a pasta da entrega e as lacunas. Perguntas ao responsável ficam em arquivo, nunca no chat |
 | User Stories, Application Design, Units Generation e as etapas de Design | Normalmente dispensadas; o Workflow Planning registra por quê |
 | Code Generation | Escrever os documentos. O plano lista os arquivos a criar ou alterar em `documentos/entregaN_<sigla>/` (caixas `[ ]`), e a execução marca cada passo |
-| Build and Test | Verificar o documento: checklist da seção 15, links, renderização de Mermaid e SVG, e `Não executado` onde não houve teste |
+| Build and Test | Verificar o documento: checklist da seção 15, links, renderização dos SVG gerados do PlantUML, e `Não executado` onde não houve teste |
 
 Regras:
 
@@ -468,9 +468,9 @@ Também não são permitidos:
 - caso de uso solto, sem ligação com um ator ou com outro caso de uso;
 - generalização entre atores humanos (DOC-10), embora a UML a permita: é uma decisão da equipe para manter os diagramas consistentes.
 
-**A equipe usa PlantUML para casos de uso**, porque foi o formato mais bem aceito pelo professor. O Mermaid também tem recursos de diagramação UML e continua sendo usado nos diagramas de classes e de sequência, mas não é usado para casos de uso. Um `flowchart`, em especial, não é aceito, porque é um fluxograma, não um diagrama UML de casos de uso.
+**A equipe usa PlantUML (`.puml`) para todos os diagramas**: casos de uso, sequência, classes e relacional. Foi o formato mais bem aceito pelo professor. Não use Mermaid, e não use blocos de código ```` ```mermaid ```` na documentação. Um `flowchart`, em especial, não é aceito, porque é um fluxograma, não um diagrama UML.
 
-Versione a fonte `.puml` e o `.svg` gerado, lado a lado, e incorpore o SVG ao Markdown. A notação em PlantUML, com nomes fictícios:
+Para cada diagrama, versione a fonte `.puml` e o `.svg` gerado, lado a lado, em `Diagramas/`, e incorpore o SVG ao Markdown. Os blocos `text` com `@startuml` deste guia são modelos para copiar para o arquivo `.puml`. A notação de casos de uso em PlantUML, com nomes fictícios:
 
 ```text
 @startuml DCU-Assunto
@@ -500,11 +500,13 @@ UC93 -|> UC90
 @enduml
 ```
 
-Para gerar o SVG:
+Para gerar o SVG de qualquer diagrama:
 
 ```bash
 java -jar plantuml.jar -tsvg "DCU-Assunto.puml"
 ```
+
+Nomes dos arquivos de diagrama: `DCU-<Assunto>` (casos de uso), `DS-<Cenario>` (sequência), `DC-<Assunto>` (classes) e `DER-<Assunto>` (relacional).
 
 #### Exemplo preenchido: diagrama do RF06
 
@@ -602,7 +604,7 @@ Toda página termina com a tabela de auditoria:
 
 ### 8.1 Participantes e mensagens reais (DOC-18)
 
-Faça **um diagrama `sequenceDiagram` por cenário significativo**. Em funcionalidades grandes, separe envio, resposta, entrada, saída etc.
+Faça **um diagrama de sequência em PlantUML (`DS-<Cenario>.puml` e `.svg`) por cenário significativo**. Em funcionalidades grandes, separe envio, resposta, entrada, saída etc.
 
 - Os participantes são objetos, componentes e classes reais. Não use "Sistema" nem "Banco de Dados" quando houver service ou classe concreta.
 - As mensagens técnicas são chamadas reais, com argumentos: `reuniaoService.listMine(userId)`. "Registrar convites pendentes" não é um método. Mensagens do ator para a tela podem descrever a interação.
@@ -612,25 +614,31 @@ Faça **um diagrama `sequenceDiagram` por cenário significativo**. Em funcional
 
 Modelo com **nomes fictícios**. Substitua-os somente por nomes encontrados no código:
 
-```mermaid
-sequenceDiagram
-    actor U as Usuário comum
-    participant T as :TelaReal
-    participant C as :ControllerReal
-    participant S as :ServiceReal
-    participant P as :PrismaClient
-    U->>T: seleciona ação
-    T->>C: operacaoHTTP(parametros)
-    C->>S: executar(dadosValidados)
-    alt dados e permissão válidos
-        S->>P: model.update({where, data})
-        P-->>S: registroAtualizado
-        S-->>C: resultado
-        C-->>T: 200 + resultado
-    else dados inválidos
-        S-->>C: erroDeValidacao
-        C-->>T: código + erro
-    end
+```text
+@startuml DS-Assunto
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+
+actor "Usuário comum" as U
+participant ":TelaReal" as T
+participant ":ControllerReal" as C
+participant ":ServiceReal" as S
+participant ":PrismaClient" as P
+
+U -> T : seleciona ação
+T -> C : operacaoHTTP(parametros)
+C -> S : executar(dadosValidados)
+alt dados e permissão válidos
+  S -> P : model.update({where, data})
+  P --> S : registroAtualizado
+  S --> C : resultado
+  C --> T : 200 + resultado
+else dados inválidos
+  S --> C : erroDeValidacao
+  C --> T : código + erro
+end
+@enduml
 ```
 
 #### Exemplo preenchido: sequência do RF06
@@ -639,59 +647,66 @@ sequenceDiagram
 
 **Arquivos usados:** os listados em "Referências do código", na seção 6.1.
 
-```mermaid
-sequenceDiagram
-    actor Ator as Administrador ou Usuário comum
-    participant Tela as :MaisScreen
-    participant Hook as :useThemePreference
-    participant Store as :useThemeStore
-    participant SvcApp as :usuarioService (app)
-    participant Req as :apiRequest
-    participant Mon as :monitoringService
-    participant Exp as :Express
-    participant Auth as :authMiddleware
-    participant Ctrl as :usuarioController
-    participant SvcApi as :usuarioService (API)
-    participant Db as :PrismaClient
-    participant Err as :handleError
+Arquivo: `DS-Tema-Preferido.puml`.
 
-    Ator->>Tela: toca no chip Escuro
-    Tela->>Hook: changeTheme('dark')
-    Hook->>Store: setTheme('dark')
-    Store-->>Tela: novo theme, tela redesenhada
-    opt há token e user no authStore
-        Hook->>SvcApp: updateTheme(token, 42, 'dark')
-        SvcApp->>Req: apiRequest('/usuarios/42/tema', opcoes)
-        alt API acessível, sem erro
-            Req->>Exp: PATCH /api/usuarios/42/tema {theme: 'dark'}
-            Exp->>Auth: requireAuth(request, response, next)
-            Auth-->>Exp: next()
-            Exp->>Auth: requireSelf(request, response, next)
-            Auth-->>Exp: next()
-            Exp->>Ctrl: updateTheme(request, response)
-            Ctrl->>Ctrl: temaSchema.validate(request.body, opcoes)
-            Ctrl->>SvcApi: updateTheme(42, 'dark')
-            SvcApi->>Db: user.update({where, data, select})
-            Db-->>SvcApi: {id, themePreference}
-            SvcApi-->>Ctrl: {id, themePreference}
-            Ctrl-->>Req: 200 + {id, themePreference}
-            Req-->>SvcApp: {id, themePreference}
-            SvcApp-->>Hook: promessa concluída
-        else erro em token, dono, corpo ou gravação
-            Req->>Exp: PATCH /api/usuarios/42/tema {theme: 'dark'}
-            Exp->>Err: handleError(error, request, response, next)
-            Err-->>Req: 400, 401, 403, 404 ou 500 + {error}
-            Req-->>SvcApp: lança ApiError(mensagem, status, data)
-            SvcApp-->>Hook: rejeição com ApiError
-            Hook->>Mon: reportRequestFailure(error, 'useThemePreference.changeTheme', false)
-            Hook-->>Tela: feedback de erro no FeedbackBanner
-        else API inacessível
-            Req-->>SvcApp: lança ApiError(NETWORK_ERROR_MESSAGE, 0)
-            SvcApp-->>Hook: rejeição com ApiError
-            Hook->>Mon: reportRequestFailure(error, 'useThemePreference.changeTheme', false)
-            Hook-->>Tela: feedback de erro no FeedbackBanner
-        end
-    end
+```text
+@startuml DS-Tema-Preferido
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+
+actor "Administrador ou Usuário comum" as Ator
+participant ":MaisScreen" as Tela
+participant ":useThemePreference" as Hook
+participant ":useThemeStore" as Store
+participant ":usuarioService (app)" as SvcApp
+participant ":apiRequest" as Req
+participant ":monitoringService" as Mon
+participant ":Express" as Exp
+participant ":authMiddleware" as Auth
+participant ":usuarioController" as Ctrl
+participant ":usuarioService (API)" as SvcApi
+participant ":PrismaClient" as Db
+participant ":handleError" as Err
+
+Ator -> Tela : toca no chip Escuro
+Tela -> Hook : changeTheme('dark')
+Hook -> Store : setTheme('dark')
+Store --> Tela : novo theme, tela redesenhada
+opt há token e user no authStore
+  Hook -> SvcApp : updateTheme(token, 42, 'dark')
+  SvcApp -> Req : apiRequest('/usuarios/42/tema', opcoes)
+  alt API acessível, sem erro
+    Req -> Exp : PATCH /api/usuarios/42/tema {theme: 'dark'}
+    Exp -> Auth : requireAuth(request, response, next)
+    Auth --> Exp : next()
+    Exp -> Auth : requireSelf(request, response, next)
+    Auth --> Exp : next()
+    Exp -> Ctrl : updateTheme(request, response)
+    Ctrl -> Ctrl : temaSchema.validate(request.body, opcoes)
+    Ctrl -> SvcApi : updateTheme(42, 'dark')
+    SvcApi -> Db : user.update({where, data, select})
+    Db --> SvcApi : {id, themePreference}
+    SvcApi --> Ctrl : {id, themePreference}
+    Ctrl --> Req : 200 + {id, themePreference}
+    Req --> SvcApp : {id, themePreference}
+    SvcApp --> Hook : promessa concluída
+  else erro em token, dono, corpo ou gravação
+    Req -> Exp : PATCH /api/usuarios/42/tema {theme: 'dark'}
+    Exp -> Err : handleError(error, request, response, next)
+    Err --> Req : 400, 401, 403, 404 ou 500 + {error}
+    Req --> SvcApp : lança ApiError(mensagem, status, data)
+    SvcApp --> Hook : rejeição com ApiError
+    Hook -> Mon : reportRequestFailure(error, 'useThemePreference.changeTheme', false)
+    Hook --> Tela : feedback de erro no FeedbackBanner
+  else API inacessível
+    Req --> SvcApp : lança ApiError(NETWORK_ERROR_MESSAGE, 0)
+    SvcApp --> Hook : rejeição com ApiError
+    Hook -> Mon : reportRequestFailure(error, 'useThemePreference.changeTheme', false)
+    Hook --> Tela : feedback de erro no FeedbackBanner
+  end
+end
+@enduml
 ```
 
 Se o chip escolhido já for o tema atual, `changeTheme` encerra antes de `setTheme`. O passo a passo com as ligações entre as funções está em "Ação", na seção 6.1.
@@ -702,7 +717,7 @@ Se o chip escolhido já for o tema atual, `changeTheme` encerra antes de `setThe
 
 ### 9.1 Declarar o tipo de modelo (DOC-19)
 
-Use `classDiagram` e declare se é **modelo de domínio**, **modelo de persistência Prisma** ou **classes da implementação**. O `schema.prisma` mostra entidades e relações, mas não prova que existam classes com métodos no código.
+Use um diagrama de classes em PlantUML (`DC-<Assunto>.puml` e `.svg`) e declare se é **modelo de domínio**, **modelo de persistência Prisma** ou **classes da implementação**. O `schema.prisma` mostra entidades e relações, mas não prova que existam classes com métodos no código.
 
 - Mostre atributos e tipos reais, visibilidade quando aplicável, operações efetivas e multiplicidades.
 - Use herança, composição e agregação apenas quando o código as sustentar.
@@ -719,38 +734,42 @@ Explique cada elemento do diagrama:
 
 **Tipo de modelo:** modelo de persistência Prisma. O diagrama mostra o `User`, os enums de que ele depende e uma relação de exemplo. As demais relações de `User` não são afetadas pelo RF06 e foram omitidas.
 
-```mermaid
-classDiagram
-    class User {
-        +Int id
-        +String name
-        +String email
-        +String password
-        +Role role
-        +DateTime createdAt
-        +Tema? themePreference
-    }
-    class PasswordResetToken {
-        +Int id
-        +Int userId
-        +String token
-        +DateTime expiresAt
-        +DateTime? usedAt
-    }
-    class Role {
-        <<enumeration>>
-        USER
-        ADMIN
-    }
-    class Tema {
-        <<enumeration>>
-        light
-        dark
-        system
-    }
-    User "1" --> "0..*" PasswordResetToken : passwordResetTokens
-    User "0..*" --> "1" Role : role
-    User "0..*" --> "0..1" Tema : themePreference
+```text
+@startuml DC-Usuario-Tema
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+
+class User {
+  +Int id
+  +String name
+  +String email
+  +String password
+  +Role role
+  +DateTime createdAt
+  +Tema? themePreference
+}
+class PasswordResetToken {
+  +Int id
+  +Int userId
+  +String token
+  +DateTime expiresAt
+  +DateTime? usedAt
+}
+enum Role <<enumeration>> {
+  USER
+  ADMIN
+}
+enum Tema <<enumeration>> {
+  light
+  dark
+  system
+}
+
+User "1" --> "0..*" PasswordResetToken : passwordResetTokens
+User "0..*" --> "1" Role : role
+User "0..*" --> "0..1" Tema : themePreference
+@enduml
 ```
 
 Os models do Prisma não têm métodos. As operações do RF06 estão em objetos exportados pelos módulos, que não são classes e por isso não aparecem no diagrama. Eles estão descritos na tabela:
@@ -770,7 +789,7 @@ Os models do Prisma não têm métodos. As operações do RF06 estão em objetos
 
 ### 10.1 Diagrama relacional (DOC-20)
 
-Use `erDiagram`.
+Use um diagrama entidade-relacionamento em PlantUML (`DER-<Assunto>.puml` e `.svg`), com `entity` e notação de cardinalidade *crow's foot*.
 
 - Cubra o **banco principal** (`sistema/api/prisma/schema.prisma`) e todas as entidades afetadas pelo incremento, além do banco de monitoramento (`sistema/monitoring-better-meet/prisma/schema.prisma`) quando for pertinente.
 - Baseie-se no schema, nas migrations e, quando acessível, na estrutura física do MySQL. Registre divergências.
@@ -785,26 +804,38 @@ Use `erDiagram`.
 
 O RF06 altera apenas `User`. `PasswordResetToken` entra só para mostrar como registrar FK e cardinalidade. As demais tabelas ligadas a `User` foram omitidas.
 
-```mermaid
-erDiagram
-    User ||--o{ PasswordResetToken : "userId"
-    User {
-        int id PK "AUTO_INCREMENT"
-        varchar(191) name "NOT NULL"
-        varchar(191) email UK "NOT NULL"
-        varchar(191) password "NOT NULL"
-        enum role "USER, ADMIN - NOT NULL DEFAULT USER"
-        datetime(3) createdAt "NOT NULL DEFAULT CURRENT_TIMESTAMP(3)"
-        enum themePreference "light, dark, system - NULL DEFAULT system"
-    }
-    PasswordResetToken {
-        int id PK "AUTO_INCREMENT"
-        int userId FK "NOT NULL"
-        varchar(191) token UK "NOT NULL"
-        datetime(3) expiresAt "NOT NULL"
-        datetime(3) usedAt "NULL"
-    }
+```text
+@startuml DER-Usuario-Tema
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+hide circle
+
+entity User {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * name : varchar(191)
+  * email : varchar(191) <<UK>>
+  * password : varchar(191)
+  * role : enum('USER','ADMIN') <<DEFAULT USER>>
+  * createdAt : datetime(3) <<DEFAULT CURRENT_TIMESTAMP(3)>>
+  themePreference : enum('light','dark','system') <<NULL, DEFAULT system>>
+}
+
+entity PasswordResetToken {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * userId : int <<FK>>
+  * token : varchar(191) <<UK>>
+  * expiresAt : datetime(3)
+  usedAt : datetime(3) <<NULL>>
+}
+
+User ||--o{ PasswordResetToken : userId
+@enduml
 ```
+
+Na notação acima, `*` marca coluna obrigatória (`NOT NULL`).
 
 **Dados sem banco:** o app também guarda o tema no `AsyncStorage` do aparelho, na chave `better-meet-theme`. Esse dado não é uma tabela e não aparece no diagrama.
 
@@ -1027,7 +1058,8 @@ Estas são as regras para não repetir as críticas já recebidas.
 - [ ] RNFs mensuráveis, bem classificados e com versões confirmadas.
 - [ ] Testes com ID `CT-…`, como rodar, resultado e evidências, ou `Não executado`.
 - [ ] Matriz de rastreabilidade sem RF solto.
-- [ ] Mermaid e SVG conferidos no GitHub e na Wiki.
+- [ ] Todos os diagramas (casos de uso, sequência, classes e relacional) em PlantUML, com `.puml` e `.svg` versionados e nenhum bloco Mermaid.
+- [ ] SVG conferidos no GitHub e na Wiki.
 - [ ] Nenhum segredo, credencial ou dado pessoal desnecessário.
 - [ ] Pendências e limitações registradas.
 - [ ] Trabalho com IA conduzido pelo AI-DLC v1: documento oficial em `documentos/`, `aidlc-state.md` e `audit.md` do app atualizados, etapas aprovadas e nenhum fato tirado só do `aidlc-docs/` (DOC-25).

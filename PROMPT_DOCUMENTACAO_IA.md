@@ -71,7 +71,7 @@ Leia também o `GUIA_DE_DOCUMENTACAO.md`, que está no repositório. Se não tiv
 ## Diagramas
 
 13. **Casos de uso:** siga obrigatoriamente as normas do Diagrama de Casos de Uso e da notação UML.
-    - Ferramenta: PlantUML, formato mais bem aceito pelo professor, com fonte `.puml` e `.svg` gerado, incorporado ao Markdown. O Mermaid também tem recursos UML e é usado em classes e sequência, mas não em casos de uso. **Nunca use `flowchart`.**
+    - Ferramenta: PlantUML, formato mais bem aceito pelo professor, com fonte `.puml` e `.svg` gerado, incorporado ao Markdown. **Todos os diagramas (casos de uso, sequência, classes e relacional) usam PlantUML; nunca use Mermaid nem `flowchart`.**
     - Ator: boneco fora da fronteira, representando um papel externo. Componentes internos, como banco de dados e service, não são atores.
     - Caso de uso: elipse dentro da fronteira do sistema, com nome de ação.
     - Associação: linha contínua sem seta, entre ator e caso de uso.
@@ -84,11 +84,11 @@ Leia também o `GUIA_DE_DOCUMENTACAO.md`, que está no repositório. Se não tiv
 
 14. **Cada elipse tem ficha própria:** objetivo, atores, RF, gatilho, entradas tipadas, pré-condições próprias, fluxo principal, erros, pós-condições próprias, relações UML e rastreabilidade. Termine a página com a tabela de auditoria de cobertura.
 
-15. **Sequência:** um `sequenceDiagram` por cenário, com participantes reais, métodos e argumentos reais, retornos e `alt`, `opt` e `loop`. Não use mensagens narrativas nem "Sistema" e "Banco de Dados" quando houver classe ou service concreto. Cite os arquivos usados.
+15. **Sequência:** um diagrama de sequência em PlantUML (`DS-<Cenario>.puml` e `.svg`) por cenário, com participantes reais, métodos e argumentos reais, retornos e `alt`, `opt` e `loop`. Não use mensagens narrativas nem "Sistema" e "Banco de Dados" quando houver classe ou service concreto. Cite os arquivos usados.
 
-16. **Classes:** `classDiagram`, declarando se é modelo de domínio, de persistência Prisma ou classes da implementação. O schema não prova que existam classes com métodos. Objetos exportados por módulos, como services e controllers, não são classes: não os desenhe como classes e descreva-os na tabela de responsabilidades. Use herança, composição e agregação apenas quando o código as sustentar, e mostre enums como `<<enumeration>>`. Não apresente dados em memória como se fossem persistidos. Explique a responsabilidade e os relacionamentos de cada elemento.
+16. **Classes:** diagrama de classes em PlantUML (`DC-<Assunto>.puml` e `.svg`), declarando se é modelo de domínio, de persistência Prisma ou classes da implementação. O schema não prova que existam classes com métodos. Objetos exportados por módulos, como services e controllers, não são classes: não os desenhe como classes e descreva-os na tabela de responsabilidades. Use herança, composição e agregação apenas quando o código as sustentar, e mostre enums como `<<enumeration>>`. Não apresente dados em memória como se fossem persistidos. Explique a responsabilidade e os relacionamentos de cada elemento.
 
-17. **Dados:** `erDiagram` do banco principal e dos bancos afetados, com nomes físicos, cardinalidades, PK, FK e UK. Baseie-se no schema, nas migrations e, quando acessível, no MySQL. Registre divergências e declare quando a estrutura física não foi conferida em um banco em execução. Não desenhe FK entre bancos diferentes. Separe tabelas planejadas de implementadas. Para dados sem banco (memória ou armazenamento local), descreva o armazenamento real em seção própria, sem inventar tabela. Faça o dicionário com uma linha por coluna: tipo físico, tipo lógico, domínio, nulidade, default, chave e descrição. Inclua índices e regras `ON DELETE` e `ON UPDATE` verificadas.
+17. **Dados:** diagrama entidade-relacionamento em PlantUML (`DER-<Assunto>.puml` e `.svg`) do banco principal e dos bancos afetados, com nomes físicos, cardinalidades, PK, FK e UK. Baseie-se no schema, nas migrations e, quando acessível, no MySQL. Registre divergências e declare quando a estrutura física não foi conferida em um banco em execução. Não desenhe FK entre bancos diferentes. Separe tabelas planejadas de implementadas. Para dados sem banco (memória ou armazenamento local), descreva o armazenamento real em seção própria, sem inventar tabela. Faça o dicionário com uma linha por coluna: tipo físico, tipo lógico, domínio, nulidade, default, chave e descrição. Inclua índices e regras `ON DELETE` e `ON UPDATE` verificadas.
 
 ## Testes e rastreabilidade
 
@@ -118,7 +118,7 @@ Entregue, nesta ordem:
 
 A. Diagnóstico: arquivos consultados e divergências encontradas.
 B. Documento Markdown completo, pronto para revisão humana.
-C. Diagramas: PlantUML e SVG para casos de uso; Mermaid para classes, sequência e dados.
+C. Diagramas: PlantUML (`.puml`) e SVG para todos os diagramas: casos de uso, sequência, classes e dados.
 D. Tabelas de campos, persistência e rastreabilidade.
 E. Testes e evidências reais, ou pendências explícitas.
 F. Resultado do checklist abaixo: atendido, não atendido ou não verificado.
