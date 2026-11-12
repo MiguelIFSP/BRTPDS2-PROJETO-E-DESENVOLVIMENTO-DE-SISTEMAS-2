@@ -5,6 +5,7 @@ export type StatusAtaVoto = 'APROVADO' | 'REPROVADO';
 export type Ata = {
   reuniaoId: number;
   titulo: string;
+  dataReuniao: string;
   conteudoAta: string | null;
   versaoAta: number;
   papelNaComissao: PapelComissao;

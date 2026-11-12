@@ -57,6 +57,7 @@ beforeEach(() => {
   reuniao = {
     id: 31,
     titulo: 'Planejamento',
+    data: '2026-11-11',
     conteudoAta: '<p>Ata original.</p>',
     versaoAta: 1,
   };
@@ -99,18 +100,23 @@ describe('RBAC e presença na ata', () => {
       papel = cargo;
       const response = await call('get');
       expect(response.status).toBe(200);
+      expect(response.body.dataReuniao).toBe('2026-11-11');
       expect(response.body.podeEditar).toBe(
         ['ADMINISTRADOR', 'SECRETARIO'].includes(cargo),
       );
       expect(response.body.podeVotar).toBe(true);
-      expect((await vote()).status).toBe(200);
+      const voted = await vote();
+      expect(voted.status).toBe(200);
+      expect(voted.body.dataReuniao).toBe('2026-11-11');
     },
   );
   test.each(['ADMINISTRADOR', 'SECRETARIO'])(
     '%s presente pode salvar',
     async (cargo) => {
       papel = cargo;
-      expect((await save()).status).toBe(200);
+      const saved = await save();
+      expect(saved.status).toBe(200);
+      expect(saved.body.dataReuniao).toBe('2026-11-11');
     },
   );
   test.each(['FACILITADOR', 'MEMBRO'])(

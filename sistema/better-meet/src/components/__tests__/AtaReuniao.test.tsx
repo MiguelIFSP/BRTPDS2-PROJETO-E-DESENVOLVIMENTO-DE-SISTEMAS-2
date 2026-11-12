@@ -18,6 +18,10 @@ import type { AtaEditorProps } from '@/components/ata/AtaEditor.types';
 import { ataService, type Ata } from '@/services/ataService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError } from '@/utils/apiClient';
+import { exportAtaPdf } from '@/utils/ataPdf';
+
+jest.mock('@/utils/ataPdf', () => ({ exportAtaPdf: jest.fn() }));
+const exportPdf = jest.mocked(exportAtaPdf);
 
 let mockPrevented: ((options: { repeat: () => void }) => void) | undefined;
 jest.mock('expo-router', () => ({
@@ -66,6 +70,7 @@ jest.mock('@/components/ata/AtaLeitura', () => ({
 const initialAta: Ata = {
   reuniaoId: 31,
   titulo: 'Planejamento',
+  dataReuniao: '2026-11-11',
   conteudoAta: '<p>Ata original.</p>',
   versaoAta: 1,
   papelNaComissao: 'SECRETARIO',
@@ -89,29 +94,93 @@ const show = (overrides: Partial<Ata> = {}) =>
 
 beforeEach(() => {
   jest.clearAllMocks();
+  exportPdf.mockReset().mockResolvedValue(undefined);
   save.mockReset().mockResolvedValue({ ...initialAta, versaoAta: 2 });
-  vote
-    .mockReset()
-    .mockResolvedValue({
-      ...initialAta,
-      meuVoto: 'APROVADO',
-      votos: { aprovados: 1, reprovados: 0 },
-    });
-  useAuthStore
-    .getState()
-    .login(
-      {
-        id: 7,
-        name: 'Ana',
-        email: 'ana@example.test',
-        role: 'USER',
-        createdAt: '',
-      },
-      'jwt',
-    );
+  vote.mockReset().mockResolvedValue({
+    ...initialAta,
+    meuVoto: 'APROVADO',
+    votos: { aprovados: 1, reprovados: 0 },
+  });
+  useAuthStore.getState().login(
+    {
+      id: 7,
+      name: 'Ana',
+      email: 'ana@example.test',
+      role: 'USER',
+      createdAt: '',
+    },
+    'jwt',
+  );
 });
 
 describe('AtaReuniao', () => {
+  it.each(['ADMINISTRADOR', 'SECRETARIO', 'FACILITADOR', 'MEMBRO'] as const)(
+    '%s com acesso à leitura exporta a ata salva',
+    async (papelNaComissao) => {
+      await show({
+        papelNaComissao,
+        podeEditar: ['ADMINISTRADOR', 'SECRETARIO'].includes(papelNaComissao),
+      });
+      await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+      await waitFor(() =>
+        expect(exportPdf).toHaveBeenCalledWith({
+          titulo: 'Planejamento',
+          dataReuniao: '2026-11-11',
+          conteudoAta: '<p>Ata original.</p>',
+        }),
+      );
+      expect(save).not.toHaveBeenCalled();
+      expect(vote).not.toHaveBeenCalled();
+    },
+  );
+  it('exporta o conteúdo salvo e informa que o rascunho não será incluído', async () => {
+    await show();
+    await fireEvent.changeText(
+      screen.getByLabelText('Conteúdo da ata'),
+      '<p>Rascunho</p>',
+    );
+    expect(screen.getByText(/O PDF usa a versão salva/)).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    await waitFor(() =>
+      expect(exportPdf).toHaveBeenCalledWith(
+        expect.objectContaining({ conteudoAta: initialAta.conteudoAta }),
+      ),
+    );
+    expect(save).not.toHaveBeenCalled();
+  });
+  it('não exporta antes de existir ata salva', async () => {
+    await show({ conteudoAta: null, versaoAta: 0, podeVotar: false });
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    expect(exportPdf).not.toHaveBeenCalled();
+  });
+  it('evita exportação duplicada enquanto o compartilhamento está aberto', async () => {
+    let complete: (() => void) | undefined;
+    exportPdf.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          complete = resolve;
+        }),
+    );
+    await show();
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    expect(screen.getByText('Gerando PDF...')).toBeTruthy();
+    expect(exportPdf).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      complete?.();
+    });
+    expect(screen.queryByText('Gerando PDF...')).toBeNull();
+  });
+  it('exibe o erro e permite tentar exportar novamente', async () => {
+    exportPdf.mockRejectedValueOnce(new Error('Não foi possível gerar o PDF.'));
+    await show();
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    expect(
+      await screen.findByText('Não foi possível gerar o PDF.'),
+    ).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    await waitFor(() => expect(exportPdf).toHaveBeenCalledTimes(2));
+  });
   it.each(['ADMINISTRADOR', 'SECRETARIO'] as const)(
     '%s edita e também pode votar',
     async (papelNaComissao) => {

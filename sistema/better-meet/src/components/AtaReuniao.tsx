@@ -20,6 +20,7 @@ import {
 } from '@/services/ataService';
 import { useAuthStore } from '@/store/authStore';
 import { ApiError, getErrorMessage } from '@/utils/apiClient';
+import { exportAtaPdf } from '@/utils/ataPdf';
 
 export default function AtaReuniao({
   ata,
@@ -34,6 +35,8 @@ export default function AtaReuniao({
   const token = useAuthStore((state) => state.token);
   const [html, setHtml] = useState(ata.conteudoAta ?? '');
   const [busy, setBusy] = useState(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
+  const exportInProgress = useRef(false);
   const [conflict, setConflict] = useState(false);
   const [pendingHtml, setPendingHtml] = useState<string | null>(null);
   const [confirmReload, setConfirmReload] = useState(false);
@@ -115,6 +118,30 @@ export default function AtaReuniao({
     }
   };
 
+  const handleExportPdf = async () => {
+    if (exportInProgress.current || busy || !ata.conteudoAta) return;
+    exportInProgress.current = true;
+    setIsExportingPdf(true);
+    try {
+      await exportAtaPdf({
+        titulo: ata.titulo,
+        dataReuniao: ata.dataReuniao,
+        conteudoAta: ata.conteudoAta,
+      });
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(
+          error,
+          'Não foi possível exportar a ata para PDF.',
+        ),
+      });
+    } finally {
+      exportInProgress.current = false;
+      setIsExportingPdf(false);
+    }
+  };
+
   return (
     <View style={styles.container}>
       <FeedbackBanner feedback={feedback} />
@@ -150,6 +177,22 @@ export default function AtaReuniao({
             salvar o conteúdo.
           </Text>
         )}
+        <Button
+          label="Exportar PDF"
+          icon="download-outline"
+          variant="secondary"
+          isLoading={isExportingPdf}
+          loadingLabel="Gerando PDF..."
+          disabled={busy || !ata.conteudoAta}
+          accessibilityHint="Exporta a versão salva da ata para guardar ou compartilhar."
+          onPress={() => void handleExportPdf()}
+        />
+        {ata.podeEditar && dirty && ata.conteudoAta ? (
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            O PDF usa a versão salva. Salve as alterações para incluí-las na
+            exportação.
+          </Text>
+        ) : null}
       </Card>
       <Card>
         <SectionLabel label="Votação da ata" />

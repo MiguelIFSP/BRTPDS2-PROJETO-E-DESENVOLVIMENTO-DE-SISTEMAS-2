@@ -16,6 +16,7 @@ const loadAccess = async (
     select: {
       id: true,
       titulo: true,
+      data: true,
       conteudoAta: true,
       versaoAta: true,
       comissao: {
@@ -65,6 +66,7 @@ const present = async (
   return {
     reuniaoId,
     titulo: reuniao.titulo,
+    dataReuniao: reuniao.data,
     conteudoAta: reuniao.conteudoAta
       ? sanitizeAtaHtml(reuniao.conteudoAta)
       : null,

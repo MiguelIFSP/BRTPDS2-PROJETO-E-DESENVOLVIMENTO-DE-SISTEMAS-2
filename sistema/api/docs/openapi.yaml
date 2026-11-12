@@ -105,10 +105,15 @@ components:
   schemas:
     Ata:
       type: object
-      required: [reuniaoId, titulo, conteudoAta, versaoAta, papelNaComissao, podeEditar, podeVotar, meuVoto, votos]
+      required: [reuniaoId, titulo, dataReuniao, conteudoAta, versaoAta, papelNaComissao, podeEditar, podeVotar, meuVoto, votos]
       properties:
         reuniaoId: { type: integer }
         titulo: { type: string }
+        dataReuniao:
+          type: string
+          format: date
+          example: '2026-11-11'
+          description: Data da reunião (AAAA-MM-DD), sem conversão de fuso horário.
         conteudoAta:
           type: string
           nullable: true

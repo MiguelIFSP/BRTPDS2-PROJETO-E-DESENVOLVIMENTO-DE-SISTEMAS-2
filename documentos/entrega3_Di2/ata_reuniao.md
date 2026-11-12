@@ -14,6 +14,7 @@ Editor ampliado em 10/11/2026. Esta ampliação não exige migração adicional.
 | RF-ATA-04 | Exigir vínculo atual com a comissão e registro de entrada na reunião | Todos |
 | RF-ATA-05 | Sanitizar HTML, detectar edições concorrentes e invalidar votos ao alterar o texto | UC-ATA-01 e UC-ATA-03 |
 | RF-ATA-06 | Oferecer barra horizontal com ícones, histórico e menu de tabelas no celular e na web | UC-ATA-01 — Redigir ata |
+| RF-ATA-07 | Exportar a ata salva em PDF para qualquer integrante com acesso à leitura | UC-ATA-04 — Exportar ata |
 
 ### Permissões
 
@@ -73,7 +74,7 @@ Todos os endpoints usam `Authorization: Bearer <token>` e o prefixo `/api`.
 
 | Método e caminho | Corpo | Comportamento |
 |---|---|---|
-| `GET /reunioes/:id/ata` | — | Retorna texto, versão, cargo, permissões, voto próprio e totais |
+| `GET /reunioes/:id/ata` | — | Retorna título, data da reunião, texto, versão, cargo, permissões, voto próprio e totais |
 | `PUT /reunioes/:id/ata` | `{ "conteudoAta": "<p>Decisões...</p>", "versaoAta": 0 }` | Cria/edita como administrador ou secretário presente |
 | `POST /reunioes/:id/ata/votar` | `{ "status": "APROVADO", "versaoAta": 1 }` | Registra ou troca voto na versão atual |
 
@@ -201,3 +202,42 @@ Resultados: API com 261 testes aprovados (13 suítes), app com 177 testes aprova
 Chrome/Playwright em largura de 390 pixels: aplicação real com Tiptap, formatação, recuo, fonte, desfazer/refazer, inserir tabela, trocar bordas, adicionar linha, salvar, reabrir, votar, ler sem editor e bloquear acesso 403. As respostas HTTP foram simuladas com o sanitizador real da API na gravação. Não houve escrita no banco. Sem erros JavaScript ou transbordamento horizontal da página.
 
 O HTML real do Pell e sua ponte foram executados em Chrome para validar formatação, H1–H3, recuo, fonte, histórico, seleção após perda de foco, inserção de tabela, linhas/colunas e bordas. Isso não substitui a validação física em Android/iOS: conferir teclado, seleção de trechos, rolagem horizontal da barra, abertura/fechamento do painel e edição nas células, especialmente após desfazer/refazer. Repetir os fluxos de gravação/leitura entre celular e web.
+
+## Exportação para PDF — 11/11/2026
+
+O botão **Exportar PDF**, ao final do conteúdo da ata, está disponível para os quatro cargos com acesso à leitura. Sem ata salva, fica desabilitado. Exportar não altera o texto, a versão nem os votos. Para editores com alterações locais, a tela informa que o PDF usa a versão salva; é necessário salvar para incluir o rascunho.
+
+O contrato de `Ata` passou a retornar `dataReuniao` no formato `AAAA-MM-DD` em GET, PUT e POST de voto. A data vem de `Reuniao.data`, sob a mesma autorização da ata, sem consulta a outro endpoint nem migração de banco. Sua formatação não usa conversão de fuso horário.
+
+Implementação:
+
+- `src/utils/ataPdfHtml.ts`: documento A4 com cabeçalho BetterMeet, título escapado, data da reunião, fundo branco, fonte sans-serif, margens e CSS compartilhado de formatação/tabelas. Inclui CSP para impedir scripts e recursos externos; o conteúdo recebido é o HTML já sanitizado pela API.
+- `src/utils/ataPdf.ts`: `expo-print` 58.0.9 gera o PDF; em Android e iOS, seu base64 é gravado em `Paths.cache` com `expo-file-system` 58.0.13 antes de chamar `expo-sharing` 58.0.23. A disponibilidade é verificada antes da geração. iOS utiliza margens nativas; Android utiliza `@page`.
+- `src/utils/ataPdf.web.ts`: sanitiza novamente o conteúdo com DOMPurify e abre somente o documento da ata em outra janela, com diálogo de impressão para **Salvar como PDF**. Não imprime a tela inteira do aplicativo. Informa bloqueio de pop-up e fecha a janela após a impressão.
+- `AtaReuniao.tsx`: estado de carregamento independente, bloqueio contra toques duplicados e tratamento de falhas com possibilidade de nova tentativa. Cancelar o compartilhamento não exibe confirmação de envio ou gravação.
+
+As dependências foram instaladas com `npx expo install expo-print expo-sharing`; o Expo incluiu o plugin `expo-sharing` no `app.json`. Os ajustes transitivos de `@expo/config-plugins`, `@expo/plist` e `@expo/require-utils` são exigidos pela versão instalada de `expo-sharing`. Reiniciar API e Expo para carregar o contrato e as dependências; development builds existentes precisam ser recompiladas para incluir os módulos nativos. O recurso não habilita recebimento de arquivos compartilhados por outros aplicativos.
+
+Referências: [Expo 58 — Print](https://docs.expo.dev/versions/v58.0.0/sdk/print/), [Expo 58 — Sharing](https://docs.expo.dev/versions/v58.0.0/sdk/sharing/).
+
+### Testes da exportação
+
+| IDs | Requisito/caso de uso | Cobertura |
+|---|---|---|
+| CT-ATA-11 | RF-ATA-07, UC-ATA-04 | Os quatro cargos exportam; sem conteúdo salvo o botão fica desabilitado; rascunho não é exportado nem salvo implicitamente |
+| CT-ATA-12 | RF-ATA-07, UC-ATA-04 | Bloqueio de exportação duplicada, falha e nova tentativa; geração A4 e chamada de compartilhamento com MIME/UTI de PDF |
+| CT-ATA-13 | RF-ATA-05/07, UC-ATA-04 | Título escapado, data civil, preservação das dez bordas, sanitização web, documento isolado e bloqueio de pop-ups |
+
+Validação concluída: API com 261 testes (13 suítes), app com 192 testes (23 suítes) e web com 43 testes (5 suítes), todos aprovados. Typecheck e lint aprovados nos dois subsistemas. Exportação Expo aprovada para Android, iOS e web.
+
+Chrome/Playwright: aplicação exportada, leitura como MEMBRO e edição como SECRETARIO, abertura do documento correto, título/data, tabela e fundo branco. Um PDF A4 foi gerado a partir do HTML da janela e conferido; a chamada ao diálogo foi interceptada no teste automatizado. Confirmados também exclusão do rascunho, bloqueio sem ata e ausência de erros JavaScript. API simulada, sem escrita no banco.
+
+A geração e o compartilhamento nativos foram testados com mocks das APIs Expo. Em aparelho físico, ainda é necessário conferir o PDF em Android/iOS, salvar em Arquivos/Drive, compartilhar com um aplicativo instalado, cancelar e repetir a operação. Conferir também atas com várias páginas e a paginação de tabelas nesses dispositivos.
+
+### Correção de compartilhamento no Expo Go — 12/11/2026
+
+O teste do usuário no Android apresentou `Not allowed to read file under given URL` em `ExpoSharing.shareAsync`. No código nativo Android instalado, Print grava em `context.cacheDir/Print`, enquanto Sharing verifica o caminho com `appContext.filePermission`. `Paths.cache` usa `appContext.cacheDirectory`, que respeita o escopo do aplicativo. No iOS, Print usa o cache da interface legada de arquivos, enquanto Sharing verifica os diretórios de `appContext.config`. Passar a URI da impressão diretamente deixa o fluxo sujeito à recusa desse caminho no Expo Go.
+
+A exportação Android e iOS solicita `base64: true`, grava esses bytes com `await new File(Paths.cache, ...).write(base64, { encoding: 'base64' })` e compartilha a URI do arquivo gravado. Não é necessário ler ou copiar a URI recusada. O nome inclui data e instante de exportação; o arquivo permanece no cache para permitir a leitura pelo aplicativo destinatário após a gaveta fechar. A ausência do base64 ou a falha da gravação interrompe o fluxo antes de compartilhar. Referência: [Expo 58 — FileSystem](https://docs.expo.dev/versions/v58.0.0/sdk/filesystem/).
+
+Regressão (CT-ATA-12, RF-ATA-07, UC-ATA-04): os testes simulam um caminho de impressão inacessível, verificam os bytes/encoding, esperam a conclusão da gravação e impedem compartilhar em caso de erro em ambas as plataformas. Quatro casos Android falharam antes de estender a correção para essa plataforma. Após a alteração, `npm test -- --runInBand src/utils/__tests__/ataPdf.test.ts src/components/__tests__/AtaReuniao.test.tsx` passou com 33 testes, sem falhas; `npm run typecheck` e `npm run lint` também passaram. O bundle Android servido pelo Metro respondeu com HTTP 200 e contém o fluxo atualizado de gravação antes do compartilhamento. A confirmação do compartilhamento real após a correção depende de repetir o teste no Android do usuário.
