@@ -1,5 +1,16 @@
 # Ata de reunião
 
+```text
+Incremento: Entrega 4 — Di3
+Escopo: RF-ATA-01 a RF-ATA-07; UC-ATA-01 a UC-ATA-04 (conforme a tabela deste documento)
+Branch: development
+Commit: [A CONFIRMAR NO CÓDIGO] (último commit do documento: 945419d)
+Data de revisão: [A CONFIRMAR] (última alteração do documento: 2026-11-12)
+Responsável(eis): Gustavo de Oliveira Tomaz
+Estado: [A CONFIRMAR NO CÓDIGO] (o documento afirma: implementado em 09/11/2026)
+Fontes: [A CONFIRMAR] (o documento não lista as fontes no cabeçalho)
+```
+
 Implementado em 09/11/2026. Migração aplicada ao banco configurado, com histórico atualizado.
 
 Editor ampliado em 10/11/2026. Esta ampliação não exige migração adicional.

@@ -1,10 +1,10 @@
 ```text
-Incremento: Entrega 3 — Di2
+Incremento: Entrega 4 — Di3
 Escopo: RF16; RNF44; UC17, UC18, UC19, UC20 e UC21
 Branch: development
 Commit: 18c26a6e1b9301a177c1bb5fd09aff1d0de7ffa0
 Data de revisão: 2026-11-13
-Responsável(eis):
+Responsável(eis): Cauê Watanabe de Campos
 Estado: Parcial
 Fontes: sistema/api/prisma/schema.prisma; sistema/api/prisma/migrations/20261107140000_votacoes/migration.sql; sistema/api/src/routes/votacaoRoutes.ts; sistema/api/src/controllers/votacaoController.ts; sistema/api/src/services/votacaoService.ts; sistema/api/src/schemas/votacaoSchema.ts; sistema/api/src/middlewares/authMiddleware.ts; sistema/api/src/middlewares/errorMiddleware.ts; sistema/api/src/utils/parseId.ts; sistema/api/src/server.ts; sistema/api/docs/openapi.yaml; sistema/api/tests/votacaoSchema.test.mjs; sistema/better-meet/src/components/VotacoesDaReuniao.tsx; sistema/better-meet/src/app/(tabs)/(reunioes)/votacao/[id].tsx; sistema/better-meet/src/app/(tabs)/(reunioes)/reuniao/[id].tsx; sistema/better-meet/src/services/votacaoService.ts; sistema/better-meet/src/schemas/votacaoSchema.ts; sistema/better-meet/src/components/__tests__/VotacoesDaReuniao.test.tsx; sistema/better-meet/package.json; sistema/better-meet/package-lock.json; sistema/api/package-lock.json; Wiki Requisitos (RF01–RF15 e RNF01–RNF43, lida em 2026-11-12)
 ```
@@ -468,7 +468,7 @@ O tipo físico `boolean` está escrito assim na migration. Não foi conferido se
 | Item | Resultado |
 |---|---|
 | Cabeçalho com branch e commit | Atendido. Responsável em branco |
-| Arquivo em `documentos/entrega3_Di2/` | Atendido. A Wiki ainda não foi publicada a partir dele |
+| Arquivo em `documentos/entrega4_Di3/` | Atendido. A Wiki ainda não foi publicada a partir dele |
 | Identificadores novos | Atendido no texto: RF16, RNF44, UC17–UC21. O índice da Wiki ainda não os lista |
 | Status e divergências | Atendido. Estado geral Parcial |
 | Atores | Atendido. Administrador e Usuário comum, sem ator autenticado genérico |

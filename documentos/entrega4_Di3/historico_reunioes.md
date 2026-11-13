@@ -6,7 +6,7 @@ Escopo: histórico de reuniões em que o usuário participou
 Branch: development
 Commit: [a confirmar no código consultado]
 Data de revisão: 2026-11-12
-Responsável(eis):
+Responsável(eis): Breno Nobre de Souza
 Estado: Parcial
 Fontes:
 - sistema/better-meet/src/app/(tabs)/(reunioes)/historico.tsx

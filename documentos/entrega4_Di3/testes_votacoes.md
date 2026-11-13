@@ -1,10 +1,10 @@
 ```text
-Incremento: Entrega 3 — Di2
+Incremento: Entrega 4 — Di3
 Escopo: RF16; RNF44; UC17, UC18 e UC19
 Branch: development
 Commit: 18c26a6e1b9301a177c1bb5fd09aff1d0de7ffa0
 Data de revisão: 2026-11-12
-Responsável(eis):
+Responsável(eis): Cauê Watanabe de Campos
 Estado: Parcial
 Fontes: sistema/api/tests/votacaoSchema.test.mjs; sistema/better-meet/src/components/__tests__/VotacoesDaReuniao.test.tsx; sistema/better-meet/package.json
 ```

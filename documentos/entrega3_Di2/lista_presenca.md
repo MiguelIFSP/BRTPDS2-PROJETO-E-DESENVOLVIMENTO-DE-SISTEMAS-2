@@ -1,5 +1,16 @@
 # Lista de presença — prévia e preparação da integração
 
+```text
+Incremento: Entrega 3 — Di2
+Escopo: Lista de presença, prévia (mockup) e preparação da integração; RF e UC [A CONFIRMAR]
+Branch: development
+Commit: [A CONFIRMAR NO CÓDIGO] (último commit do documento: 3dee99e)
+Data de revisão: [A CONFIRMAR] (última alteração do documento: 2026-10-21)
+Responsável(eis): Miguel Augusto Baptista
+Estado: Parcial (o documento descreve um mockup funcional com dados fictícios, sem persistência nem API)
+Fontes: [A CONFIRMAR] (o documento não lista as fontes no cabeçalho)
+```
+
 ## Entrega atual e limites
 
 A entrega atual é um **mockup funcional com dados fictícios e histórico em memória**. Permite marcar manualmente a presença de cada participante, adicionar observações individuais e gerais, acompanhar o resumo de adesão, salvar versões locais e compartilhar texto ou exportar CSV. O aviso de demonstração identifica que o resultado não é uma lista oficial.
