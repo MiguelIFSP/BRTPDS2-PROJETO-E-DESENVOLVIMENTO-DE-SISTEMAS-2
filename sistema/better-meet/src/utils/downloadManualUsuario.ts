@@ -42,9 +42,11 @@ export async function downloadManualUsuario(): Promise<DownloadResult> {
     );
   const destination =
     existingFile ?? directory.createFile(MANUAL_FILE_NAME, 'application/pdf');
+  const contents = await new File(downloadedAsset.localUri).bytes();
+  if (contents.length === 0) {
+    throw new Error('O arquivo PDF do manual está vazio.');
+  }
 
-  await new File(downloadedAsset.localUri)
-    .readableStream()
-    .pipeTo(destination.writableStream());
+  await destination.write(contents);
   return 'saved';
 }
