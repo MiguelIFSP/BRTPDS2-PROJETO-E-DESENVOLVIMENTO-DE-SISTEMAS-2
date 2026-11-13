@@ -3,7 +3,7 @@ Incremento: Entrega 3 — Di2
 Escopo: RF16; RNF44; UC17, UC18, UC19, UC20 e UC21
 Branch: development
 Commit: 18c26a6e1b9301a177c1bb5fd09aff1d0de7ffa0
-Data de revisão: 2026-11-12
+Data de revisão: 2026-11-13
 Responsável(eis):
 Estado: Parcial
 Fontes: sistema/api/prisma/schema.prisma; sistema/api/prisma/migrations/20261107140000_votacoes/migration.sql; sistema/api/src/routes/votacaoRoutes.ts; sistema/api/src/controllers/votacaoController.ts; sistema/api/src/services/votacaoService.ts; sistema/api/src/schemas/votacaoSchema.ts; sistema/api/src/middlewares/authMiddleware.ts; sistema/api/src/middlewares/errorMiddleware.ts; sistema/api/src/utils/parseId.ts; sistema/api/src/server.ts; sistema/api/docs/openapi.yaml; sistema/api/tests/votacaoSchema.test.mjs; sistema/better-meet/src/components/VotacoesDaReuniao.tsx; sistema/better-meet/src/app/(tabs)/(reunioes)/votacao/[id].tsx; sistema/better-meet/src/app/(tabs)/(reunioes)/reuniao/[id].tsx; sistema/better-meet/src/services/votacaoService.ts; sistema/better-meet/src/schemas/votacaoSchema.ts; sistema/better-meet/src/components/__tests__/VotacoesDaReuniao.test.tsx; sistema/better-meet/package.json; sistema/better-meet/package-lock.json; sistema/api/package-lock.json; Wiki Requisitos (RF01–RF15 e RNF01–RNF43, lida em 2026-11-12)
@@ -79,18 +79,65 @@ Não há query string.
 
 ## Ação
 
-As rotas estão em `votacaoRoutes` e o `server.ts` monta esse router em `/api`, depois de `express.json()` e `cors`. Toda rota chama `requireAuth` antes do controller. O `requireAuth` lê o papel no banco a cada requisição.
+Existem dois `votacaoService`: o do app (`better-meet/src/services/votacaoService.ts`) e o da API (`api/src/services/votacaoService.ts`). No app, cada método chama `apiRequest` (`src/utils/apiClient.ts`). `apiRequest` junta o caminho a `API_URL`, envia `Authorization: Bearer <token>` e chama `fetch`. Na API, a requisição passa por `express.json()` e `cors`, entra em `app.use('/api', apiRouter)` e chega a `apiRouter.use(votacaoRoutes)`. Toda rota de votação chama `requireAuth` antes do controller. O `requireAuth` lê o papel no banco a cada requisição.
 
-1. A seção pede `GET /api/reunioes/:id/votacoes`.
-2. `votacaoController.listByReuniao` lê o id com `parseId` e chama `votacaoService.listByReuniao(userId, role, reuniaoId)`.
-3. `acessoDaReuniao` busca a reunião e os convites `ACEITO` da pessoa. Sem reunião, 404. Sem participação e sem `ADMIN`, 403.
-4. `votacao.findMany` devolve título, `encerrada`, `createdAt`, `totalVotos` e `votei`, da mais nova para a mais antiga.
-5. No card, a tela abre `GET /api/votacoes/:id`. `getById` carrega opções em ordem crescente de `ordem` e os votos. `apresentar` inclui `votantes` só se `podeGerir`. `podeVotar` é verdadeiro só se a pessoa participa e a votação não está encerrada.
-6. No modal, o app valida com `votacaoSchema.validateSync`. Se passar, `POST /api/reunioes/:id/votacoes` envia `{ titulo, opcoes }`.
-7. O controller valida de novo com `votacaoSchema`. `create` grava `Votacao` e as `VotacaoOpcao`, com `ordem` igual ao índice do array, e responde 201 com o detalhe.
-8. O toque na opção envia `POST /api/votacoes/:id/voto` com `{ opcaoId }`. Dentro de `prisma.$transaction`, o service relê `encerrada`, confere se a opção pertence à votação e faz `votacaoVoto.upsert` pela chave `votacaoId_userId`.
-9. **Encerrar** envia `POST /api/votacoes/:id/encerrar` e grava `encerrada: true`.
-10. **Excluir** envia `DELETE /api/votacoes/:id`. O `delete` da `Votacao` dispara o `ON DELETE CASCADE` das opções e dos votos.
+### Consultar a lista
+
+1. **Lista → página da reunião.** Na aba Reuniões, o ator toca o `ReuniaoCard`. O `onPress` passado pela lista chama `router.push` com `pathname: '/reuniao/[id]'`. No Histórico, o `Pressable` do card faz o mesmo `router.push`.
+2. **Página → seção.** `reuniao/[id].tsx` renderiza `VotacoesDaReuniao` com `reuniaoId={reuniao.id}` e `canManage={canManage}`.
+3. **Foco → `load`.** O `useFocusEffect` do componente chama `load`. Se o `authStore` não tiver `token`, `load` encerra sem chamar a API.
+4. **Componente → service do app.** `load` chama `votacaoService.listByReuniao(token, reuniaoId)`.
+5. **Service do app → `fetch`.** `listByReuniao` chama `apiRequest(\`/reunioes/${reuniaoId}/votacoes\`, { token })`. O `fetch` envia `GET /api/reunioes/:id/votacoes`.
+6. **Rota → controller.** A rota `GET /reunioes/:id/votacoes` executa `requireAuth` e depois `votacaoController.listByReuniao`. O controller lê o id com `parseId(request.params.id, 'da reunião')` e chama `votacaoService.listByReuniao(userId, role, reuniaoId)` da API.
+7. **Service da API → banco.** `acessoDaReuniao` faz `reuniao.findUnique` e olha os convites `ACEITO`. Sem reunião, 404. Sem participação e sem `ADMIN`, 403. `votacao.findMany` filtra `reuniaoId`, ordena por `createdAt` decrescente e devolve `id`, `titulo`, `encerrada`, `createdAt`, `totalVotos` e `votei`.
+8. **Resposta → tela.** O controller responde `200`. `apiRequest` devolve o array a `load`, que chama `setVotacoes`. A seção desenha um `SummaryCard` por votação, ou o texto "Nenhuma votação nesta reunião."
+
+### Criar votação
+
+1. **Botão → modal.** O `Pressable` com `accessibilityLabel` "Nova votação" só é renderizado quando `canManage` é verdadeiro. O `onPress` chama `resetForm()` e `setIsCreateOpen(true)`. O `BottomSheet` "Nova votação" abre. Essa etapa não chama a API.
+2. **Botão → `handleCreate`.** O ator preenche Título e as opções. O `Button` "Criar votação" tem `onPress={() => void handleCreate()}`.
+3. **Componente → validação.** `handleCreate` chama `votacaoSchema.validateSync({ titulo, opcoes }, { abortEarly: false })`. Se falhar, grava o erro no campo e retorna. O `fetch` não sai.
+4. **Componente → service do app.** Se passar, chama `votacaoService.create(token, reuniaoId, { titulo: titulo.trim(), opcoes })`, com cada opção também em `trim`.
+5. **Service do app → `fetch`.** `create` chama `apiRequest` com `method: 'POST'` e `body`. O `fetch` envia `POST /api/reunioes/:id/votacoes`.
+6. **Rota → controller.** `requireAuth` e `votacaoController.create`. O controller valida de novo com `votacaoSchema.validate` e chama `votacaoService.create` da API.
+7. **Service da API → banco.** Sem `podeGerir`, 403. Com permissão, `votacao.create` grava a `Votacao` e as `VotacaoOpcao`, com `ordem` igual ao índice do array, e em seguida `getById`.
+8. **Resposta → tela.** A API responde `201` com o detalhe. `handleCreate` fecha o modal, chama `load()` de novo e o `FeedbackBanner` mostra "Votação criada."
+
+### Abrir uma votação
+
+1. **Card → rota.** O `onPress` do `SummaryCard` chama `router.push({ pathname: '/votacao/[id]', params: { id: String(votacao.id) } })`.
+2. **Tela → `load`.** `VotacaoDetalheScreen` lê `id` com `useLocalSearchParams`. O `useFocusEffect` chama `load`. Se o id não for inteiro positivo, a tela mostra "Votação não encontrada." e não chama a API.
+3. **Tela → service do app.** `load` chama `votacaoService.getById(token, votacaoId)`.
+4. **Service do app → `fetch`.** `getById` chama `apiRequest(\`/votacoes/${votacaoId}\`, { token })`. O `fetch` envia `GET /api/votacoes/:id`.
+5. **Rota → service da API.** `requireAuth` e `votacaoController.getById`. O controller usa `parseId(request.params.id, 'da votação')` e chama `getById`. `carregar` faz `votacao.findUnique` com as opções em ordem crescente de `ordem`. `apresentar` inclui `votantes` só se `podeGerir`. `podeVotar` é verdadeiro só se a pessoa participa e a votação não está encerrada.
+6. **Resposta → tela.** A API responde `200`. `load` chama `setVotacao`. O `Poll` (`RNPoll`) recebe as opções e `onChoicePress`.
+
+### Registrar ou trocar o voto
+
+1. **Barra → `handleVote`.** O toque numa opção do `Poll` dispara `onChoicePress={(choice) => void handleVote(choice.id)}`.
+2. **Troca, ainda sem API.** O `Button` "Trocar voto" só chama `setTrocando(true)`. Isso remonta o `Poll` com `hasBeenVoted` falso. O `fetch` acontece no toque seguinte, no passo 1.
+3. **Tela → service do app.** Se a opção tocada já é `meuVotoOpcaoId`, `handleVote` só faz `setTrocando(false)` e retorna. Nos outros casos chama `votacaoService.vote(token, votacao.id, opcaoId)`.
+4. **Service do app → `fetch`.** `vote` chama `apiRequest(\`/votacoes/${votacaoId}/voto\`, { method: 'POST', token, body: { opcaoId } })`. O `fetch` envia `POST /api/votacoes/:id/voto`.
+5. **Rota → banco.** `requireAuth`, `votoSchema.validate` e `votacaoService.vote`. Sem participação, 403. Dentro de `prisma.$transaction`, votação encerrada responde 409 e opção de outra votação responde 400. O caminho válido faz `votacaoVoto.upsert` pela chave `votacaoId_userId`: o `create` grava o voto e o `update` troca só `opcaoId`.
+6. **Resposta → tela.** A API responde `200` com o detalhe. `handleVote` chama `setVotacao` e `setTrocando(false)`. Enquanto espera, a tela mostra "Registrando voto...". Não há banner de sucesso.
+
+### Encerrar
+
+1. **Botão → diálogo.** O `Button` "Encerrar votação" só aparece com `podeGerir` e votação aberta. O `onPress` chama `setIsCloseOpen(true)`. Ainda não há `fetch`.
+2. **Diálogo → `handleClose`.** No `ConfirmDialog` "Encerrar votação?", o ator toca **Encerrar**. O `onConfirm` chama `handleClose`.
+3. **Tela → service do app → `fetch`.** `handleClose` chama `votacaoService.close(token, votacao.id)`. `close` chama `apiRequest` com `method: 'POST'` e envia `POST /api/votacoes/:id/encerrar`, sem corpo.
+4. **Rota → banco.** `requireAuth` e `votacaoController.close`. Sem `podeGerir`, 403. `votacao.update` grava `encerrada: true` e `getById` devolve o detalhe.
+5. **Resposta → tela.** A API responde `200`. A tela fecha o diálogo e o `FeedbackBanner` mostra "Votação encerrada."
+
+### Excluir
+
+1. **Botão → diálogo.** O `Button` "Excluir votação" só aparece com `podeGerir`. O `onPress` chama `setIsDeleteOpen(true)`. Ainda não há `fetch`.
+2. **Diálogo → `handleDelete`.** No `ConfirmDialog` "Excluir votação?", o ator toca **Excluir**. O `onConfirm` chama `handleDelete`.
+3. **Tela → service do app → `fetch`.** `handleDelete` chama `votacaoService.delete(token, votacao.id)`. `delete` chama `apiRequest` com `method: 'DELETE'` e envia `DELETE /api/votacoes/:id`.
+4. **Rota → banco.** `requireAuth` e `votacaoController.delete`. Sem `podeGerir`, 403. `votacao.delete` apaga a `Votacao`. Opções e votos saem por `ON DELETE CASCADE`.
+5. **Resposta → tela.** A API responde `200` com `{ message: "Votação removida." }`. `handleDelete` chama `router.back()` e não exibe essa mensagem.
+
+**Caminho de erro.** Uma falha na API lança `AppError` ou `yup.ValidationError`. O Express encaminha o erro ao `handleError`, registrado com `app.use(handleError)`, e o restante da rota não roda. O `handleError` responde com o status e o `{ error }` da tabela de Saída. No app, `apiRequest` transforma a resposta de erro em `ApiError`. Se o `fetch` falhar, lança `ApiError` com status 0. O `catch` de `load`, `handleCreate`, `handleVote`, `handleClose` ou `handleDelete` chama `monitoringService.reportRequestFailure` e `setFeedback`. O `FeedbackBanner` da tela mostra o aviso.
 
 ## Saída
 
