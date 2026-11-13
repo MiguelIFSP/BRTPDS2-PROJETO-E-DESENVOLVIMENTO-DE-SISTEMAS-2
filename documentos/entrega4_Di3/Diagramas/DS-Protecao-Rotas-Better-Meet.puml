@@ -1,0 +1,68 @@
+@startuml DS-Protecao-Rotas-Better-Meet
+skinparam shadowing false
+skinparam monochrome true
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+
+title better-meet: abertura do app e proteção de rotas (Stack.Protected)
+
+actor "Administrador ou Usuário comum" as Ator
+participant ":RootLayout" as Root
+participant ":useFonts" as Fontes
+participant ":useAuthStore" as Store
+participant ":AsyncStorage" as Disco
+participant ":SplashScreen" as Splash
+participant ":Stack.Protected\n(expo-router)" as Prot
+participant ":LoginScreen" as Login
+participant ":authService" as Auth
+
+Ator -> Root : abre o aplicativo
+Root -> Splash : preventAutoHideAsync()
+Root -> Fontes : useFonts({PlusJakartaSans_400Regular, ...})
+Root -> Store : useAuthStore(state => state.hasHydrated)
+
+par leitura da sessão
+  Store -> Disco : getItem('better-meet-auth')
+  Disco --> Store : {user, token, isAuthenticated} ou nada
+  Store -> Store : onRehydrateStorage: markHydrated()
+  Store --> Root : hasHydrated = true
+else carregamento das fontes
+  Fontes --> Root : fontsLoaded = true
+end
+
+note over Root
+  Enquanto !fontsLoaded ou !hasHydrated,
+  RootLayout devolve null.
+end note
+
+Root -> Splash : hideAsync()
+Root -> Prot : guard={isAuthenticated} redirectTo="/login"
+
+alt isAuthenticated = true (sessão salva)
+  Prot --> Ator : monta (tabs) e lista-presenca, e mostra o início
+else isAuthenticated = false
+  Prot --> Login : redirectTo "/login"
+  Login --> Ator : formulário de login
+  opt o ator entra com credenciais válidas
+    Ator -> Login : toca em Entrar
+    Login -> Auth : login(identifier, password)
+    Auth --> Login : LoginResponse
+    Login -> Login : setSession(result) e exibe o Toast de sucesso
+    Login -> Store : login(user, token), em finishLogin
+    Login -> Login : router.replace('/')
+    Store --> Prot : isAuthenticated = true
+    Prot --> Ator : monta (tabs) e o guard de login deixa de valer
+  end
+end
+
+opt o ator sai da conta (aba Mais, perfil)
+  Ator -> Store : logout(), em handleLogout
+  Store --> Prot : isAuthenticated = false
+  Prot --> Login : redirectTo "/login"
+end
+
+note over Login
+  finishLogin também chama applyUserPreference(themePreference)
+  (tema); omitido por não fazer parte da proteção de rotas.
+end note
+@enduml
