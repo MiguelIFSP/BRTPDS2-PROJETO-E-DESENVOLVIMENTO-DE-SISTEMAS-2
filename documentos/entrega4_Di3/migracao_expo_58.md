@@ -4,10 +4,10 @@
 Incremento: Entrega Di3 — Manutenção: migração para a SDK 58 do Expo
 Escopo: migração do better-meet e do management-better-meet/web do SDK 57 para o SDK 58; RNF45 a RNF49 (requisitos_nao_funcionais_migracao_expo_58.md). Nenhum RF e nenhum UC novos.
 Branch: development (código verificado); a migração foi feita em feature/migracao-expo-58
-Commit: 80ec6e5 (development); commits da migração: 9527c1b, dbf965d e 23b9226, integrados à development pelo merge 5b94ead
+Commit: 6e4b743 (development); verificações automáticas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web); commits da migração: 9527c1b, dbf965d e 23b9226, integrados à development pelo merge 5b94ead
 Data de revisão: 2026-11-13
-Responsável(eis): [preencher: quem revisou e assina o documento]
-Estado: Parcial (código migrado e verificado por análise estática e testes automatizados; tsc do web falha em clone limpo; execução em Android e iOS não realizada)
+Responsável(eis): Bruno Soares Machado
+Estado: Parcial (código migrado e verificado por análise estática e testes automatizados; testes manuais aprovados no Android e no painel web; iOS não executado, sem acesso a dispositivo)
 Fontes: sistema/better-meet/package.json; sistema/better-meet/package-lock.json; sistema/better-meet/src/app/_layout.tsx; sistema/better-meet/src/app/(tabs)/_layout.tsx; sistema/better-meet/src/components/ui/KeyboardAwareScrollView.tsx; sistema/better-meet/src/components/ui/TextField.tsx; sistema/better-meet/src/utils/__tests__/apiClient.test.ts; sistema/management-better-meet/web/package.json; sistema/management-better-meet/web/src/app/_layout.tsx; sistema/management-better-meet/web/src/store/themeStore.ts; sistema/management-better-meet/web/src/hooks/use-theme.ts; git diff ae0dec7..23b9226; git diff 0320831..origin/development; slide aula4.pptx (Incremento 3, "Manutenção")
 ```
 
@@ -34,7 +34,7 @@ O slide pede RF, casos de uso, classes, relacional e sequência "referentes ao r
 | Diagrama de classes | Sem classe, atributo ou relação de domínio novos (seção 6) | Justificativa na seção 6 |
 | Diagrama relacional e dicionário | Nenhuma alteração de schema pela migração (seção 7) | Justificativa na seção 7 |
 
-**Decisão pendente:** o enunciado pede os seis artefatos "referentes ao requisito". Esta documentação entende que, numa migração sem funcionalidade nova, os artefatos sem impacto são justificados em vez de repetidos. Se o professor exigir diagramas de UC, de classes e relacional também para a manutenção, a decisão precisa ser confirmada com ele. `[A CONFIRMAR COM O PROFESSOR]`
+**Decisão confirmada:** o enunciado pede os seis artefatos "referentes ao requisito". Esta documentação entende que, numa migração sem funcionalidade nova, os artefatos sem impacto são justificados em vez de repetidos, e **o professor aceita a justificativa** (informado por Bruno Soares Machado).
 
 ### 1.3 Como a análise foi feita
 
@@ -100,7 +100,7 @@ Versões fora do SDK que não mudaram: `typescript ~6.0.3`, `zustand ^5.0.15`, `
 | `src/components/ui/KeyboardAwareScrollView.tsx` | `ScrollView` e `TextInput` em refs passam a `ScrollViewInstance` e `TextInputInstance` | Tipos de instância do React Native 0.88; sem isso o `tsc` acusa erros | `9527c1b` |
 | `src/components/ui/TextField.tsx` | `useRef<TextInputInstance>` | Mesmo motivo | `9527c1b` |
 | `src/utils/__tests__/apiClient.test.ts` | `globalThis.fetch = mockFetch as typeof fetch` (era `global.fetch`) | O `tsc` deixou de reconhecer `global` | `9527c1b` |
-| `src/app/_layout.tsx` | `AppGate` (com `useSegments`, `useRouter` e a lista `PUBLIC_ROUTES`) substituído por `Stack.Protected` com `guard` e `redirectTo`; a splash agora espera fontes **e** `hasHydrated` | Ver divergência D2 (seção 11): a causa não está registrada no commit | `dbf965d` |
+| `src/app/_layout.tsx` | `AppGate` (com `useSegments`, `useRouter` e a lista `PUBLIC_ROUTES`) substituído por `Stack.Protected` com `guard` e `redirectTo`; a splash agora espera fontes **e** `hasHydrated` | Correção de um bug que passou a ocorrer após a atualização para o Expo 58 e que afetava só o ambiente de testes, não o produtivo (informado por Bruno Soares Machado; o commit não explica e o bug não foi detalhado). Ver também D2 (seção 11) | `dbf965d` |
 | `src/app/login.tsx`, `src/app/(tabs)/mais/status.tsx` | Só comentários (citam `Stack.Protected` no lugar de `AppGate`) | Consequência da linha acima | `dbf965d` |
 | `.gitignore` | Removida a linha `example` | Pendência antiga de baixo risco | `9527c1b` |
 | `AGENTS.md`, `README.md` | SDK 58 e link `v58.0.0` | Documentação do app | `9527c1b` |
@@ -116,7 +116,7 @@ Fonte: `git diff 9527c1b 23b9226 -- sistema/management-better-meet/web`. Versõe
 | `src/hooks/use-theme.ts` | `scheme === 'dark' ? 'dark' : 'light'` (o React Native 0.88 não devolve mais `'unspecified'`) | Migração | `dbf965d` |
 | `src/hooks/use-color-scheme.web.ts` | `eslint-disable-next-line react-hooks/set-state-in-effect` com motivo | Migração (regra nova do `eslint-config-expo` 58) | `dbf965d` |
 | `eslint.config.js` | Arquivo novo, base `eslint-config-expo` | Migração | `dbf965d` |
-| `src/store/themeStore.ts`, `src/app/_layout.tsx` | Estado inicial `'light'`, `skipHydration`, `merge`, `partialize` e `rehydrateTheme()` chamado ao montar | Correção encontrada nos testes da migração (erro de hidratação React #418). Que o SDK 58 seja a causa **não foi comprovado** `[A CONFIRMAR]` | `dbf965d` |
+| `src/store/themeStore.ts`, `src/app/_layout.tsx` | Estado inicial `'light'`, `skipHydration`, `merge`, `partialize` e `rehydrateTheme()` chamado ao montar | Correção encontrada nos testes da migração (erro de hidratação React #418). A causa **não foi mapeada** (informado por Bruno Soares Machado), então não se afirma que seja o SDK 58 | `dbf965d` |
 
 ### 2.4 Alterações que vieram nos mesmos commits e **não** são migração
 
@@ -145,9 +145,9 @@ Os RNFs desta migração estão em [requisitos_nao_funcionais_migracao_expo_58.m
 | ID | Propriedade | Resultado em 2026-11-13 (`development`, commit `80ec6e5`) |
 |---|---|---|
 | RNF45 | Compatibilidade com o Expo SDK 58 | Aprovado (`expo-doctor` 20 de 20 nos dois apps; em 2026-11-12, no commit `0320831`, estava reprovado por diferenças de patch) |
-| RNF46 | Qualidade estática (tipos e lint) | Reprovado no `tsc` do web em clone limpo (falta o `expo-env.d.ts`, que o `expo start` gera); `tsc` do app e lint dos dois apps aprovados |
+| RNF46 | Qualidade estática (tipos e lint) | Aprovado depois da correção do `tsc` do web (`src/expo-types.d.ts`). No commit `80ec6e5` estava reprovado nesse caso, por falta do `expo-env.d.ts`, que o `expo start` gera |
 | RNF47 | Ausência de regressão nos testes automatizados | Aprovado no `better-meet` (23 suítes, 198 testes); sem testes no web |
-| RNF48 | Execução em Android e iOS | Não executado |
+| RNF48 | Execução em Android e iOS | Aprovado no Android (Samsung Galaxy S21+, Android 15, Expo Go) e no painel web (Chrome, 2026-11-07), informado por Bruno Soares Machado; iOS não executado, sem acesso a dispositivo |
 | RNF49 | Ambiente de execução (Node) | Aprovado |
 
 ---
@@ -190,9 +190,9 @@ Não há diagrama para o restante da migração: troca de versões, caminho de i
 | RF/RNF | UC | Tela/componente | Endpoint/service | Classe/modelo | Tabela/campos | Diagrama | Teste | Status |
 |---|---|---|---|---|---|---|---|---|
 | RNF45 | Não se aplica | `package.json` dos dois apps | Não se aplica | Não se aplica | Não se aplica | Seção 2 | CT-RNF45-01, CT-RNF45-02 | Aprovado (`development`) |
-| RNF46 | Não se aplica | Todo o `src/` | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF46-01 a CT-RNF46-04 | Reprovado (CT-RNF46-03, `tsc` do web em clone limpo) |
+| RNF46 | Não se aplica | Todo o `src/` | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF46-01 a CT-RNF46-04 | Aprovado (CT-RNF46-03 estava reprovado no commit `80ec6e5` e foi corrigido) |
 | RNF47 | Não se aplica | `src/**/__tests__` | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF47-01 | Aprovado (`better-meet`); web sem testes |
-| RNF48 | Não se aplica | Telas do app e do painel web | Não se aplica | Não se aplica | Não se aplica | Sequências 1 e 2 | CT-RNF48-01 a CT-RNF48-06 | Não executado |
+| RNF48 | Não se aplica | Telas do app e do painel web | Não se aplica | Não se aplica | Não se aplica | Sequências 1 e 2 | CT-RNF48-01 a CT-RNF48-06 | Aprovado no Android (CT-RNF48-01 a 05) e no painel web (CT-RNF48-06); iOS não executado |
 | RNF49 | Não se aplica | Não se aplica | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF49-01 | Aprovado |
 
 ---
@@ -202,9 +202,9 @@ Não há diagrama para o restante da migração: troca de versões, caminho de i
 Em [testes_migracao_expo_58.md](testes_migracao_expo_58.md). Resumo da execução de 2026-11-13, sobre uma cópia limpa da `development` (commit `80ec6e5`):
 
 - `better-meet`: `tsc --noEmit` sem erros; `expo lint` sem erros; `jest --ci`: 23 suítes e 198 testes aprovados.
-- `management-better-meet/web`: `expo lint` sem erros e sem suíte de testes. O `tsc --noEmit` **falha em clone limpo** (erro TS2882 em `@/global.css`, por falta do `expo-env.d.ts` gerado pelo `expo start`) e passa quando o arquivo existe.
+- `management-better-meet/web`: `expo lint` sem erros e sem suíte de testes. O `tsc --noEmit` **falhava em clone limpo** no commit `80ec6e5` (erro TS2882 em `@/global.css`, por falta do `expo-env.d.ts` gerado pelo `expo start`). Foi corrigido com `src/expo-types.d.ts` e passa com e sem o arquivo gerado (correção commitada em `6e4b743`).
 - `expo-doctor` nos dois apps: **20 de 20** checagens. Em 2026-11-12, no commit `0320831` da feature, eram 19 de 20; o commit `ee65540` corrigiu.
-- Execução em Android e iOS, e teste manual das telas: **não executados**.
+- Teste manual no **Android** (Samsung Galaxy S21+, Android 15, Expo Go, em 2026-11-13) e no **painel web** (Chrome, em 2026-11-07, antes do commit `ee65540` de patches do SDK 58 e sem repetição depois): executados e aprovados, segundo Bruno Soares Machado (sem log nem captura de tela). **iOS: não executado**, porque não tivemos acesso a um dispositivo iOS.
 
 ---
 
@@ -224,19 +224,17 @@ Em [testes_migracao_expo_58.md](testes_migracao_expo_58.md). Resumo da execuçã
 |---|---|---|---|---|
 | D1 | SDK do painel web | `management-better-meet/web/AGENTS.md` aponta para a documentação `v57.0.0`. O `GUIA_DE_CODIFICACAO.md` (RN-01) e o `PROMPT_AGENTES_IA.md` (regra 49) da `development` já dizem SDK 58 para os dois apps e avisam desse `AGENTS.md` | `web/package.json` declara `expo ~58.0.25`, instalado 58.0.25 | Atualizar só o `AGENTS.md` do web |
 | D2 | Proteção de rotas do `better-meet` | `GUIA_DE_CODIFICACAO.md` seção 6.16 (RN-16), `PROMPT_AGENTES_IA.md` (regras 63 e a de criação de rotas) e os `aidlc-docs` do app descrevem `AppGate` e a lista `PUBLIC_ROUTES` (conferido na `development` em 2026-11-13) | `src/app/_layout.tsx` usa `Stack.Protected` (`guard={isAuthenticated}` e `guard={!isAuthenticated}`), sem `AppGate` e sem `PUBLIC_ROUTES` | Atualizar a RN-16 e o PROMPT. O painel web continua com `AppGate` |
-| D3 | Motivo da troca para `Stack.Protected` | Nenhum documento registra | O commit `dbf965d` não explica | `[A CONFIRMAR]` com quem fez a mudança se foi exigência do SDK 58 ou escolha de projeto |
+| D3 | Motivo da troca para `Stack.Protected` | Nenhum documento registra | O commit `dbf965d` não explica | Esclarecido pelo responsável: a troca corrigiu um bug que começou a ocorrer após a atualização para o Expo 58, sem efeito no ambiente produtivo (só no de testes). O bug não foi detalhado. Falta apenas registrar o motivo no commit ou na RN-16 |
 | D4 | Resultado do `expo-doctor` | `aidlc-docs` do app: "20 de 20" | Em 2026-11-12 (commit `0320831`): 19 de 20, por patches novos do SDK 58. Em 2026-11-13 (`development`): 20 de 20 nos dois apps | Resolvido pelo commit `ee65540`; ver RNF45 |
 | D5 | Quantidade de testes | `aidlc-docs` do app: 155 testes em 18 suítes | 198 testes em 23 suítes na `development` | Esperado: a `development` recebeu testes de outras funcionalidades |
 | D6 | Escopo web | `aidlc-docs` do app: web "fora do escopo" e "segue no SDK 57" | O web foi migrado em `dbf965d` | O web foi incluído nesta documentação |
 
 ### 11.2 Pendências
 
-1. **Teste prático em Android e iOS** (RNF48). O commit `9527c1b` diz "sem testes práticos". A lista de verificação manual dos `aidlc-docs` do app tem 41 itens, todos desmarcados. O slide diz que o app será executado nos dois sistemas.
-2. **`tsc` do web em clone limpo** (RNF46): documentar no README do `web`, ou automatizar, a geração do `expo-env.d.ts` antes do `tsc`.
-3. **Documentar à parte** as mudanças da seção 2.4, principalmente a promoção e o rebaixamento de membro da comissão, que mexe na API e no app.
-4. **Atualizar a RN-16 do `GUIA_DE_CODIFICACAO.md`, o `PROMPT_AGENTES_IA.md` e o `AGENTS.md` do web** (D1 e D2).
-5. **Índice da Wiki:** conferir se `RNF45` a `RNF49` estão livres e acrescentá-los à página Requisitos. A Wiki não foi consultada. A `development` ainda não tem `documentos/requisitos.md`.
-6. **Responsável:** campo do cabeçalho em branco, para quem revisar.
-7. `npm ci` não mostra o total de vulnerabilidades (rodado com `--no-audit`). As 33 do app e as 5 do web, que vêm dos `aidlc-docs`, não foram reavaliadas aqui, e não há RNF de segurança de dependências.
-8. **Diagramas PlantUML:** `DS-Protecao-Rotas-Better-Meet` e `DS-Hidratacao-Tema-Web` têm `.puml` e `.svg` em `Diagramas/`, compilados sem erro com o PlantUML 1.2026.10. Falta conferir a renderização no GitHub e na Wiki (item do checklist da seção 15 do guia).
-9. O painel web tem dependências que o código não usa (`@expo/ui`, `expo-device`, `expo-glass-effect`, `expo-image`, `expo-symbols`, `expo-web-browser`, `expo-status-bar`), segundo o `aidlc-docs` do web. Não reconferido por busca no código.
+1. **Teste no iOS** (RNF48): não realizado, porque não tivemos acesso a um dispositivo iOS (limitação registrada no RNF48). O slide diz que o app será executado nos dois sistemas; se um aparelho ficar disponível, repetir CT-RNF48-01 a 05.
+2. **Documentar à parte** as mudanças da seção 2.4, principalmente a promoção e o rebaixamento de membro da comissão, que mexe na API e no app.
+3. **Atualizar a RN-16 do `GUIA_DE_CODIFICACAO.md`, o `PROMPT_AGENTES_IA.md` e o `AGENTS.md` do web** (D1 e D2).
+4. **Índice da Wiki:** conferir se `RNF45` a `RNF49` estão livres e acrescentá-los à página Requisitos. A Wiki não foi consultada, por decisão do responsável de não mexer nela por enquanto. A `development` ainda não tem `documentos/requisitos.md`.
+5. `npm ci` não mostra o total de vulnerabilidades (rodado com `--no-audit`). As 33 do app e as 5 do web, que vêm dos `aidlc-docs`, não foram reavaliadas aqui, e não há RNF de segurança de dependências.
+6. **Diagramas PlantUML:** `DS-Protecao-Rotas-Better-Meet` e `DS-Hidratacao-Tema-Web` têm `.puml` e `.svg` em `Diagramas/`, compilados sem erro com o PlantUML 1.2026.10. Falta conferir a renderização no GitHub e na Wiki (item do checklist da seção 15 do guia).
+7. O painel web tem dependências que o código não usa (`@expo/ui`, `expo-device`, `expo-glass-effect`, `expo-image`, `expo-symbols`, `expo-web-browser`, `expo-status-bar`), segundo o `aidlc-docs` do web. Não reconferido por busca no código.
