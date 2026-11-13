@@ -2,10 +2,10 @@
 
 ```text
 Incremento: Entrega Di3 — Manutenção: migração para a SDK 58 do Expo
-Escopo: fluxos de execução cuja implementação mudou na migração (sem RF nem UC novos); RNF45
-Branch: feature/migracao-expo-58
-Commit: 0320831
-Data de revisão: 2026-11-12
+Escopo: fluxos de execução cuja implementação mudou na migração (sem RF nem UC novos); RNF48
+Branch: development (código verificado); a migração foi feita em feature/migracao-expo-58
+Commit: 80ec6e5
+Data de revisão: 2026-11-13
 Responsável(eis): [preencher: quem revisou e assina o documento]
 Estado: Implementado (verificado no código); não executado em dispositivo
 Fontes: sistema/better-meet/src/app/_layout.tsx; sistema/better-meet/src/store/authStore.ts; sistema/better-meet/src/app/login.tsx; sistema/better-meet/src/services/authService.ts; sistema/better-meet/src/app/(tabs)/mais/perfil.tsx; sistema/management-better-meet/web/src/app/_layout.tsx; sistema/management-better-meet/web/src/store/themeStore.ts; sistema/management-better-meet/web/src/store/authStore.ts

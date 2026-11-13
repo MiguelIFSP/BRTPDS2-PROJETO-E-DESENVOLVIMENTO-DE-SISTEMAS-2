@@ -8,8 +8,6 @@ Quem usa IA generativa para escrever documentação deve anexar ao agente o arqu
 
 > **Situação:** padrão interno da equipe. Não equivale à aprovação do professor.
 
-> **Refatoração de 2026-11-10:** a documentação foi reorganizada em um padrão único: classes, diagrama relacional e dicionário **unificados** por entrega; RF, caso de uso, sequência e RNF **individuais**; numeração única de UC e RF (**RFnn = UCnn**). O formato está na seção 2.5 (DOC-26), e o de-para dos números antigos, em [numeracao_uc_rf.md](documentos/numeracao_uc_rf.md). Os exemplos deste guia que citam o "RF06" (tema) agora são o **RF15**; o RF06 atual é "Excluir comissão".
-
 > **Seções do guia:** 1. Regra principal · 2. Onde ficam os arquivos · 3. Identificadores · 4. Atores · 5. Estrutura de cada entrega · 6. Requisitos funcionais · 7. Casos de uso · 8. Diagramas de sequência · 9. Diagrama de classes · 10. Dados · 11. Requisitos não funcionais · 12. Testes · 13. Rastreabilidade · 14. Críticas do professor · 15. Checklist de revisão.
 
 ---
@@ -68,9 +66,6 @@ Escreva em português do Brasil. Mantenha classes, métodos, rotas, campos e enu
 | Guias de documentação | Raiz do repositório |
 | Documentação da entrega (fonte oficial) | `documentos/entregaN_<sigla>/` (ex.: `entrega3_Di2/`) |
 | Diagramas da entrega | `documentos/entregaN_<sigla>/Diagramas/` |
-| Diagramas antigos, substituídos | `documentos/entregaN_<sigla>/Diagramas/legado/` (DOC-26) |
-| Documentos de requisitos (índice, numeração) | `documentos/requisitos.md` e `documentos/numeracao_uc_rf.md` |
-| Um arquivo por requisito | `documentos/entregaN_<sigla>/requisitos/` (DOC-26) |
 | Publicação | Wiki do GitHub, gerada a partir da fonte |
 | Artefatos de trabalho do AI-DLC (não são a documentação oficial) | `sistema/better-meet/aidlc-docs/` e `sistema/management-better-meet/web/aidlc-docs/` (ver DOC-25) |
 
@@ -101,16 +96,6 @@ Não use espaços em nomes novos. Ao alterar um arquivo com espaços, avalie o i
 
 Em `documentos/`, use link relativo: `![Diagrama de casos de uso — Relatórios](Diagramas/DCU-Relatorios.svg)`.
 
-**Páginas da Wiki geradas a partir da fonte:**
-
-| Página da Wiki | Fonte no repositório |
-|---|---|
-| Requisitos (resumo de cada RF e RNF) | `documentos/requisitos.md`; cada requisito traz o link "ver mais detalhes" para a página `RFnn` |
-| `RFnn` | `documentos/entregaN_<sigla>/requisitos/RFnn_<assunto>.md` |
-| `RNFnn` | `documentos/entregaN_<sigla>/requisitos/RNFnn_<titulo>.md` |
-
-O índice lateral da Wiki lista "Requisitos Funcionais" (RF01 em diante, com o nome do requisito) e "Requisitos Não Funcionais" (RNF01 em diante), na ordem do número.
-
 ### 2.4 Documentar com IA: AI-DLC v1 (DOC-25)
 
 Documentação feita com ajuda de um agente de IA segue o mesmo fluxo **AI-DLC v1** do código (seção 9.5 do [GUIA_DE_CODIFICACAO.md](GUIA_DE_CODIFICACAO.md) e regras 83 a 90 do [PROMPT_AGENTES_IA.md](PROMPT_AGENTES_IA.md)). O pedido começa com **"Using AI-DLC, ..."**, e o agente lê as regras em `sistema/better-meet/.aidlc-rule-details/`. Este guia define o **conteúdo** da documentação; o AI-DLC define o **processo**. Se houver conflito sobre o conteúdo, vale este guia.
@@ -123,46 +108,17 @@ Como o AI-DLC se aplica a uma tarefa de documentação:
 | Requirements Analysis | Definir o assunto (RF, RNF, UC), a pasta da entrega e as lacunas. Perguntas ao responsável ficam em arquivo, nunca no chat |
 | User Stories, Application Design, Units Generation e as etapas de Design | Normalmente dispensadas; o Workflow Planning registra por quê |
 | Code Generation | Escrever os documentos. O plano lista os arquivos a criar ou alterar em `documentos/entregaN_<sigla>/` (caixas `[ ]`), e a execução marca cada passo |
-| Build and Test | Verificar o documento: checklist da seção 15, links, renderização de Mermaid e SVG, e `Não executado` onde não houve teste |
+| Build and Test | Verificar o documento: checklist da seção 15, links, renderização dos SVG gerados do PlantUML, e `Não executado` onde não houve teste |
 
 Regras:
 
-- **Onde fica o quê.** A documentação oficial é gravada em `documentos/entregaN_<sigla>/` (DOC-06). Em `aidlc-docs/` ficam só o plano, o resumo da execução, o `aidlc-state.md` e o `audit.md`. Nunca grave o documento da entrega só em `aidlc-docs/`. Para uma tarefa que mexe em `documentos/` inteiro (e não em um app só), o `aidlc-docs/` fica na **raiz do repositório**; para uma tarefa de um app, no `aidlc-docs/` dele.
-- **Perguntas.** O padrão é o arquivo de perguntas (`requirement-verification-questions.md`). Se a pessoa pedir, o agente pode fazê-las pela ferramenta interativa do agente (caixas de seleção); nesse caso ele mantém o arquivo de perguntas como trilha, transcreve nele as perguntas e as respostas escolhidas e registra o texto exato no `audit.md`.
+- **Onde fica o quê.** A documentação oficial é gravada em `documentos/entregaN_<sigla>/` (DOC-06). Em `aidlc-docs/` ficam só o plano, o resumo da execução, o `aidlc-state.md` e o `audit.md`. Nunca grave o documento da entrega só em `aidlc-docs/`.
 - **O `aidlc-docs/` não é evidência.** Resumos de engenharia reversa e notas de migração podem estar desatualizados. Todo fato citado na documentação é conferido no código da branch e do commit informados no cabeçalho (DOC-12).
 - **O responsável não é a IA.** O campo "Responsável(eis)" é de quem revisa e assina (seção 5.1). O `audit.md` registra o que o agente fez, mas não substitui essa assinatura.
 - **Aprovação humana em cada etapa**, inclusive a do plano de documentação, antes de o agente escrever.
 - **Reinício automático.** Se o `aidlc-state.md` for de outra alteração (por exemplo, a migração do Expo) ou o fluxo anterior estiver concluído, o agente reinicia o AI-DLC com uma nova unidade (ex.: `documentacao-<assunto>`), sem aproveitar planos nem aprovações antigos e sem apagar os documentos anteriores.
 - **Idioma:** tudo em pt-BR, como em todo o guia (DOC-05).
 - **Versões:** ao citar versões de ferramentas, copie dos manifestos e lockfiles do commit consultado (DOC-22). Em 2026-11-08, os dois apps Expo usam o SDK 58 e o Jest 30; as versões de commits anteriores continuam valendo para os documentos que se referem a eles.
-
-### 2.5 Formato dos documentos: unificados e individuais (DOC-26)
-
-Os nomes das pastas `entrega1_AP`, `entrega2_Di1`, `entrega3_Di2` (e, adiante, `entrega4_Di3`) **não mudam**. Dentro de cada pasta de incremento:
-
-| Tipo | Formato | Arquivo |
-|---|---|---|
-| Diagrama de classes | **Unificado e cumulativo**: cada entrega traz o acumulado até o seu incremento, com uma seção por assunto | `diagrama_de_classes.md` |
-| Diagrama relacional | Unificado e cumulativo | `diagrama_relacional.md` |
-| Dicionário de dados | Unificado e cumulativo | `dicionario_de_dados.md` |
-| Requisito funcional e caso de uso | **Individual**: um arquivo por RF, com a ficha do UC (RFnn = UCnn) | `requisitos/RFnn_<assunto>.md` |
-| Diagrama de sequência | Individual: dentro do arquivo do RF | `requisitos/RFnn_<assunto>.md` |
-| Diagrama de casos de uso | Individual por **requisito dos slides** (um por assunto, como "Cadastro de Organização") | `Diagramas/DCU-<Requisito>.puml` e `.svg` |
-| Requisito não funcional | Individual: um arquivo por RNF, na entrega em que nasceu | `requisitos/RNFnn_<titulo>.md` |
-| Atores | Um arquivo por entrega | `atores.md` |
-| Testes | Por assunto (DOC-23) | `testes_<assunto>.md` |
-| Rastreabilidade | Uma matriz por incremento (DOC-24) | `rastreabilidade.md` |
-
-Na raiz de `documentos/` ficam o índice de requisitos (`requisitos.md`) e a numeração (`numeracao_uc_rf.md`).
-
-**Estrutura do arquivo `RFnn_<assunto>.md`**, nesta ordem: cabeçalho (DOC-12); Descrição; Formulário do requisito (Entradas, Origem, Saída, Destino, pré e pós-condições, efeitos colaterais e Ação); ficha do caso de uso UCnn; diagrama de casos de uso; diagrama de sequência (Mermaid); requisitos não funcionais atingidos; divergências e lacunas; testes (`CT-RFnn-xx`). O arquivo do `RNFnn` tem: cabeçalho, exigência, RF atingidos, métrica e método de verificação, versões, evidência e resultado.
-
-**Regras:**
-
-- Ao abrir um incremento novo, copie os três documentos unificados da entrega anterior e acrescente as seções do novo incremento; os que não mudaram permanecem. O que ainda não existe no código entra marcado **Planejado**.
-- Um RF novo nasce com o seu UC, no próximo número livre, e é incluído no `requisitos.md` e na matriz de rastreabilidade.
-- Diagramas substituídos vão para `Diagramas/legado/` com o nome `RFnn-RFnn_UCnn-UCnn_<nome-original>`; os diagramas atuais ficam em `Diagramas/`, sem espaços nem acentos (DOC-07).
-- Nunca apague um documento antigo sem destino: o conteúdo precisa estar migrado, ou o arquivo vai para o legado, ou fica no histórico do git com a indicação no `numeracao_uc_rf.md`.
 
 ---
 
@@ -178,12 +134,10 @@ Na raiz de `documentos/` ficam o índice de requisitos (`requisitos.md`) e a num
 | Regra de negócio | `RN-<SIGLA>01` (ex.: `RN-LP01`) | Assunto |
 | Caso de teste | `CT-RF14-01`, `CT-RNF02-01` | Requisito testado |
 
-- Um número nunca é reutilizado nem renumerado, mesmo que o item seja removido. **Exceção única:** a renumeração de 2026-11-10, que eliminou números de UC repetidos entre documentos (ver [numeracao_uc_rf.md](documentos/numeracao_uc_rf.md)). Depois dela, os números voltam a ser imutáveis, e os números antigos só aparecem nesse arquivo.
-- **Cada caso de uso é um requisito funcional, e o número é o mesmo: `RFnn = UCnn`.** Um UC novo recebe o próximo número livre e cria o RF de mesmo número. UC41 em diante estão reservados ao incremento 3.
-- Os RNF têm numeração global (RNF01 em diante, com os números já usados nos documentos e na Wiki); um RNF novo usa o próximo número livre.
+- Um número nunca é reutilizado nem renumerado, mesmo que o item seja removido.
 - O próximo número é o maior em uso mais um, somando os documentos e a Wiki.
-- O índice de RF e RNF é o [documentos/requisitos.md](documentos/requisitos.md) (fonte da página [Requisitos](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/Requisitos) da Wiki). Atualize-o ao criar um RF ou RNF novo, no mesmo PR.
-- O índice de UC é a tabela de [numeracao_uc_rf.md](documentos/numeracao_uc_rf.md). Procure o maior número nele antes de criar um UC novo.
+- Hoje o índice de RF e RNF está na página [Requisitos](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/Requisitos) da Wiki. Atualize-o ao criar um item novo.
+- Ainda não há índice de UC. Procure o maior número nos documentos e nas páginas da Wiki antes de criar um novo.
 
 ---
 
@@ -218,9 +172,9 @@ Toda página com diagrama de casos de uso traz esta tabela:
 |---|---|---|---|
 | `[nome do catálogo]` | Humano / Sistema externo | `[descrição]` | `[RF, enum ou arquivo]` |
 
-#### Exemplo preenchido: atores do RF15
+#### Exemplo preenchido: atores do RF06
 
-> Todos os exemplos deste guia usam o RF15 (seção 6.1), salvo indicação. Foram conferidos em 2026-11-06 na branch `development`, commit `9e48774`, e não são atualizados junto com o código.
+> Todos os exemplos deste guia usam o RF06 (seção 6.1), salvo indicação. Foram conferidos em 2026-11-06 na branch `development`, commit `9e48774`, e não são atualizados junto com o código.
 
 | Ator | Tipo | Responsabilidade | Evidência |
 |---|---|---|---|
@@ -248,24 +202,24 @@ Estado: [Implementado / Parcial / Planejado / Não verificado]
 Fontes: [caminhos e links precisos]
 ```
 
-#### Exemplo preenchido: cabeçalho do RF15
+#### Exemplo preenchido: cabeçalho do RF06
 
 ```text
 Incremento: Entrega Di1 — Configurações de usuário
-Escopo: RF15; caso de uso UC15 Alterar tema preferido
+Escopo: RF06; caso de uso Alterar tema preferido (número a confirmar)
 Branch: development
 Commit: 9e48774
 Data de revisão: 2026-11-06
 Responsável(eis): [nome de quem assina o documento]
 Estado: Parcial
-Fontes: sistema/better-meet/src/hooks/useThemePreference.ts; sistema/better-meet/src/store/themeStore.ts; sistema/api/src/routes/usuarioRoutes.ts; sistema/api/src/services/usuarioService.ts; sistema/api/prisma/schema.prisma; página antiga RF15 da Wiki
+Fontes: sistema/better-meet/src/hooks/useThemePreference.ts; sistema/better-meet/src/store/themeStore.ts; sistema/api/src/routes/usuarioRoutes.ts; sistema/api/src/services/usuarioService.ts; sistema/api/prisma/schema.prisma; Wiki RF06
 ```
 
 O responsável fica em branco de propósito: é quem revisou e assina o documento, e não deve ser deduzido do histórico do git.
 
 ### 5.2 Conteúdo mínimo do incremento (DOC-13)
 
-O conteúdo é dividido em arquivos da pasta da entrega, conforme o formato da seção 2.5 (DOC-26): requisitos, casos de uso e sequências **individuais** (um arquivo por RF), e classes, relacional e dicionário **unificados** e cumulativos. Um arquivo pode apontar para outro em vez de duplicá-lo, desde que o impacto do incremento fique explícito.
+O conteúdo pode ser dividido em vários arquivos da pasta da entrega. Um arquivo pode apontar para uma seção compartilhada, em vez de duplicá-la, desde que o impacto do incremento fique explícito.
 
 1. Resumo e escopo
 2. Requisitos funcionais
@@ -279,12 +233,12 @@ O conteúdo é dividido em arquivos da pasta da entrega, conforme o formato da s
 10. Testes e evidências
 11. Pendências, divergências e limitações conhecidas
 
-#### Exemplo preenchido: conteúdo do RF15
+#### Exemplo preenchido: conteúdo do RF06
 
 | Conteúdo | Onde está o exemplo neste guia |
 |---|---|
 | Resumo, escopo e requisito funcional | Seção 6.1 |
-| Requisito não funcional | Seção 11.1 (RNF06, porque o RF15 não tem RNF próprio no catálogo) |
+| Requisito não funcional | Seção 11.1 (RNF06, porque o RF06 não tem RNF próprio no catálogo) |
 | Atores | Seção 4.2 |
 | Caso de uso | Seções 7.1 e 7.3 |
 | Sequência | Seção 8.1 |
@@ -300,7 +254,7 @@ O conteúdo é dividido em arquivos da pasta da entrega, conforme o formato da s
 
 ### 6.1 Modelo de requisito (DOC-14)
 
-A estrutura Entradas, Origem, Saída, Destino e Ação vem da Wiki e deve ser mantida. Informe campos, tipos, rotas, tabelas e respostas verificáveis. **Cada caso de uso é um RF** (RFnn = UCnn): há um arquivo por RF (DOC-26), com a ficha do caso de uso e as sequências dentro dele, e o resumo vai para o [documentos/requisitos.md](documentos/requisitos.md) com o link "ver mais detalhes".
+A estrutura Entradas, Origem, Saída, Destino e Ação vem da Wiki e deve ser mantida. Informe campos, tipos, rotas, tabelas e respostas verificáveis.
 
 Copie o modelo abaixo. No documento do requisito, o título `RFxx` usa `#` e cada seção usa `##`.
 
@@ -374,9 +328,9 @@ Copie o modelo abaixo. No documento do requisito, o título `RFxx` usa `#` e cad
 
 Descreva as camadas que existem de fato. Não monte uma sequência técnica com camadas que o código não tem.
 
-#### Exemplo preenchido: RF15 — Alterar o tema preferido do aplicativo
+#### Exemplo preenchido: RF06 — Alterar o tema preferido do aplicativo
 
-> Exemplo real, conferido em 2026-11-06 na branch `development`, commit `9e48774`. Ele mostra o nível de detalhe esperado e não é atualizado junto com o código. Para documentar o RF15, confira a implementação novamente.
+> Exemplo real, conferido em 2026-11-06 na branch `development`, commit `9e48774`. Ele mostra o nível de detalhe esperado e não é atualizado junto com o código. Para documentar o RF06, confira a implementação novamente.
 
 - **Status:** Parcial. A sincronização posterior prevista na Wiki não foi implementada (veja "Divergências encontradas").
 - **Objetivo:** permitir que a pessoa escolha o tema visual e o mantenha entre sessões.
@@ -472,19 +426,19 @@ Existem dois `usuarioService`: o do app (`better-meet/src/services`) e o da API 
 ##### Diagramas e testes relacionados
 
 - **Caso de uso:** `[A CONFIRMAR]`. A Wiki e os comentários do código usam `UC04`, número que também identifica outros casos de uso.
-- **Sequência:** o diagrama da página antiga RF15 da Wiki precisa ser refeito, pois cita componentes que não existem mais.
+- **Sequência:** o diagrama da página RF06 da Wiki precisa ser refeito, pois cita componentes que não existem mais.
 
 | ID | Cenário | Arquivo | Status |
 |---|---|---|---|
-| CT-RF15-01 | `applyUserPreference` aceita os três temas e converte `roxo`, `null` e `undefined` em `system` (6 casos) | `sistema/better-meet/src/store/__tests__/stores.test.ts` | Passou em 2026-11-06 |
-| CT-RF15-02 | `PATCH /api/usuarios/:id/tema`: sucesso e erros | Nenhum teste localizado | Não executado |
+| CT-RF06-01 | `applyUserPreference` aceita os três temas e converte `roxo`, `null` e `undefined` em `system` (6 casos) | `sistema/better-meet/src/store/__tests__/stores.test.ts` | Passou em 2026-11-06 |
+| CT-RF06-02 | `PATCH /api/usuarios/:id/tema`: sucesso e erros | Nenhum teste localizado | Não executado |
 
 ##### Divergências encontradas
 
 | Item | Wiki ou documento | Código | Situação |
 |---|---|---|---|
-| Local da troca | página antiga RF15 da Wiki: menu lateral, `CustomDrawer.tsx` e `Switch` | Chips na aba Mais; `CustomDrawer` não existe mais | Atualizar a Wiki |
-| API indisponível | página antiga RF15 da Wiki: sincronizar em uma próxima interação com rede | Só avisa, sem nova tentativa | Decidir entre implementar e corrigir o requisito |
+| Local da troca | Wiki RF06: menu lateral, `CustomDrawer.tsx` e `Switch` | Chips na aba Mais; `CustomDrawer` não existe mais | Atualizar a Wiki |
+| API indisponível | Wiki RF06: sincronizar em uma próxima interação com rede | Só avisa, sem nova tentativa | Decidir entre implementar e corrigir o requisito |
 | Número do caso de uso | `UC04` usado para o tema na Wiki e no código | `requisitos_e_casos_de_uso.md` usa `UC04` para a checagem periódica, e `DCU - Comissão.md` para adicionar membro | Renumerar |
 | Tipo da coluna | `dicionario_de_dados.md`: `String? themePreference` | Migration: `ENUM('light','dark','system')` | Atualizar o dicionário |
 
@@ -514,9 +468,9 @@ Também não são permitidos:
 - caso de uso solto, sem ligação com um ator ou com outro caso de uso;
 - generalização entre atores humanos (DOC-10), embora a UML a permita: é uma decisão da equipe para manter os diagramas consistentes.
 
-**A equipe usa PlantUML para casos de uso**, porque foi o formato mais bem aceito pelo professor. O Mermaid também tem recursos de diagramação UML e continua sendo usado nos diagramas de classes e de sequência, mas não é usado para casos de uso. Um `flowchart`, em especial, não é aceito, porque é um fluxograma, não um diagrama UML de casos de uso.
+**A equipe usa PlantUML (`.puml`) para todos os diagramas**: casos de uso, sequência, classes e relacional. Foi o formato mais bem aceito pelo professor. Não use Mermaid, e não use blocos de código ```` ```mermaid ```` na documentação. Um `flowchart`, em especial, não é aceito, porque é um fluxograma, não um diagrama UML.
 
-Versione a fonte `.puml` e o `.svg` gerado, lado a lado, e incorpore o SVG ao Markdown. A notação em PlantUML, com nomes fictícios:
+Para cada diagrama, versione a fonte `.puml` e o `.svg` gerado, lado a lado, em `Diagramas/`, e incorpore o SVG ao Markdown. Os blocos `text` com `@startuml` deste guia são modelos para copiar para o arquivo `.puml`. A notação de casos de uso em PlantUML, com nomes fictícios:
 
 ```text
 @startuml DCU-Assunto
@@ -546,13 +500,15 @@ UC93 -|> UC90
 @enduml
 ```
 
-Para gerar o SVG:
+Para gerar o SVG de qualquer diagrama:
 
 ```bash
 java -jar plantuml.jar -tsvg "DCU-Assunto.puml"
 ```
 
-#### Exemplo preenchido: diagrama do RF15
+Nomes dos arquivos de diagrama: `DCU-<Assunto>` (casos de uso), `DS-<Cenario>` (sequência), `DC-<Assunto>` (classes) e `DER-<Assunto>` (relacional).
+
+#### Exemplo preenchido: diagrama do RF06
 
 ```text
 @startuml DCU-Tema-Preferido
@@ -586,8 +542,6 @@ Use-o como referência de notação e detalhamento. Confira a semântica de cada
 
 ### 7.3 Uma ficha para cada elipse (DOC-17)
 
-A ficha do UCnn fica dentro do arquivo do RFnn (DOC-26). O diagrama de casos de uso é individual por requisito dos slides (por exemplo, "Cadastro de Organização") e é incluído em cada RF que ele cobre; cada RF documenta só o seu UC.
-
 Cada elipse tem sua própria ficha, ou um link direto para ela. Pré e pós-condições gerais para o diagrama inteiro não valem: a pré-condição de *Autenticar administrador* não substitui a de *Iniciar, parar ou reiniciar um subsistema*.
 
 ```markdown
@@ -615,13 +569,13 @@ Toda página termina com a tabela de auditoria:
 |---|---|---|---|---|---|
 | UCxx | [link] | Sim/Não | Sim/Não | Sim/Não | Sim/Não |
 
-#### Exemplo preenchido: ficha do RF15
+#### Exemplo preenchido: ficha do RF06
 
-##### UC15 — Alterar tema preferido
+##### UC[A CONFIRMAR] — Alterar tema preferido
 
 - **Objetivo:** deixar o aplicativo no tema escolhido e manter a escolha entre sessões.
 - **Atores:** Administrador; Usuário comum.
-- **RF relacionado:** RF15.
+- **RF relacionado:** RF06.
 - **Gatilho:** toque em um dos chips **Claro**, **Escuro** ou **Sistema**, na seção **Tema** da aba **Mais**.
 - **Entradas:** `theme` (`Tema`: `light`, `dark` ou `system`, obrigatório, valor do chip); `id` (`Int` positivo, obrigatório, `user.id` do `authStore`); `Authorization` (`Bearer <JWT>`, obrigatório, `token` do `authStore`).
 - **Pré-condições (deste UC):** conta existente e autenticada; `id` da rota igual ao da conta; opção diferente do tema atual.
@@ -638,7 +592,7 @@ Toda página termina com a tabela de auditoria:
   - Sucesso: aparelho e `User.themePreference` têm o mesmo tema.
   - Falha: o aparelho fica com o novo tema e o banco, com o anterior; o próximo login aplica o valor do banco.
 - **Relações UML:** nenhuma; somente associações com os dois atores.
-- **Rastreabilidade:** `useThemePreference.changeTheme`; `usuarioController.updateTheme`; `User.themePreference`; CT-RF15-01 e CT-RF15-02.
+- **Rastreabilidade:** `useThemePreference.changeTheme`; `usuarioController.updateTheme`; `User.themePreference`; CT-RF06-01 e CT-RF06-02.
 
 | Elipse do diagrama | Ficha | Pré-condições | Pós-condições | Fluxos e erros | Verificado no código |
 |---|---|---|---|---|---|
@@ -650,7 +604,7 @@ Toda página termina com a tabela de auditoria:
 
 ### 8.1 Participantes e mensagens reais (DOC-18)
 
-Faça **um diagrama `sequenceDiagram` por cenário significativo**. Em funcionalidades grandes, separe envio, resposta, entrada, saída etc.
+Faça **um diagrama de sequência em PlantUML (`DS-<Cenario>.puml` e `.svg`) por cenário significativo**. Em funcionalidades grandes, separe envio, resposta, entrada, saída etc.
 
 - Os participantes são objetos, componentes e classes reais. Não use "Sistema" nem "Banco de Dados" quando houver service ou classe concreta.
 - As mensagens técnicas são chamadas reais, com argumentos: `reuniaoService.listMine(userId)`. "Registrar convites pendentes" não é um método. Mensagens do ator para a tela podem descrever a interação.
@@ -660,86 +614,99 @@ Faça **um diagrama `sequenceDiagram` por cenário significativo**. Em funcional
 
 Modelo com **nomes fictícios**. Substitua-os somente por nomes encontrados no código:
 
-```mermaid
-sequenceDiagram
-    actor U as Usuário comum
-    participant T as :TelaReal
-    participant C as :ControllerReal
-    participant S as :ServiceReal
-    participant P as :PrismaClient
-    U->>T: seleciona ação
-    T->>C: operacaoHTTP(parametros)
-    C->>S: executar(dadosValidados)
-    alt dados e permissão válidos
-        S->>P: model.update({where, data})
-        P-->>S: registroAtualizado
-        S-->>C: resultado
-        C-->>T: 200 + resultado
-    else dados inválidos
-        S-->>C: erroDeValidacao
-        C-->>T: código + erro
-    end
+```text
+@startuml DS-Assunto
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+
+actor "Usuário comum" as U
+participant ":TelaReal" as T
+participant ":ControllerReal" as C
+participant ":ServiceReal" as S
+participant ":PrismaClient" as P
+
+U -> T : seleciona ação
+T -> C : operacaoHTTP(parametros)
+C -> S : executar(dadosValidados)
+alt dados e permissão válidos
+  S -> P : model.update({where, data})
+  P --> S : registroAtualizado
+  S --> C : resultado
+  C --> T : 200 + resultado
+else dados inválidos
+  S --> C : erroDeValidacao
+  C --> T : código + erro
+end
+@enduml
 ```
 
-#### Exemplo preenchido: sequência do RF15
+#### Exemplo preenchido: sequência do RF06
 
 **Cenário:** trocar o tema para escuro, com sessão ativa. Os valores `'dark'` e `42` são ilustrativos.
 
 **Arquivos usados:** os listados em "Referências do código", na seção 6.1.
 
-```mermaid
-sequenceDiagram
-    actor Ator as Administrador ou Usuário comum
-    participant Tela as :MaisScreen
-    participant Hook as :useThemePreference
-    participant Store as :useThemeStore
-    participant SvcApp as :usuarioService (app)
-    participant Req as :apiRequest
-    participant Mon as :monitoringService
-    participant Exp as :Express
-    participant Auth as :authMiddleware
-    participant Ctrl as :usuarioController
-    participant SvcApi as :usuarioService (API)
-    participant Db as :PrismaClient
-    participant Err as :handleError
+Arquivo: `DS-Tema-Preferido.puml`.
 
-    Ator->>Tela: toca no chip Escuro
-    Tela->>Hook: changeTheme('dark')
-    Hook->>Store: setTheme('dark')
-    Store-->>Tela: novo theme, tela redesenhada
-    opt há token e user no authStore
-        Hook->>SvcApp: updateTheme(token, 42, 'dark')
-        SvcApp->>Req: apiRequest('/usuarios/42/tema', opcoes)
-        alt API acessível, sem erro
-            Req->>Exp: PATCH /api/usuarios/42/tema {theme: 'dark'}
-            Exp->>Auth: requireAuth(request, response, next)
-            Auth-->>Exp: next()
-            Exp->>Auth: requireSelf(request, response, next)
-            Auth-->>Exp: next()
-            Exp->>Ctrl: updateTheme(request, response)
-            Ctrl->>Ctrl: temaSchema.validate(request.body, opcoes)
-            Ctrl->>SvcApi: updateTheme(42, 'dark')
-            SvcApi->>Db: user.update({where, data, select})
-            Db-->>SvcApi: {id, themePreference}
-            SvcApi-->>Ctrl: {id, themePreference}
-            Ctrl-->>Req: 200 + {id, themePreference}
-            Req-->>SvcApp: {id, themePreference}
-            SvcApp-->>Hook: promessa concluída
-        else erro em token, dono, corpo ou gravação
-            Req->>Exp: PATCH /api/usuarios/42/tema {theme: 'dark'}
-            Exp->>Err: handleError(error, request, response, next)
-            Err-->>Req: 400, 401, 403, 404 ou 500 + {error}
-            Req-->>SvcApp: lança ApiError(mensagem, status, data)
-            SvcApp-->>Hook: rejeição com ApiError
-            Hook->>Mon: reportRequestFailure(error, 'useThemePreference.changeTheme', false)
-            Hook-->>Tela: feedback de erro no FeedbackBanner
-        else API inacessível
-            Req-->>SvcApp: lança ApiError(NETWORK_ERROR_MESSAGE, 0)
-            SvcApp-->>Hook: rejeição com ApiError
-            Hook->>Mon: reportRequestFailure(error, 'useThemePreference.changeTheme', false)
-            Hook-->>Tela: feedback de erro no FeedbackBanner
-        end
-    end
+```text
+@startuml DS-Tema-Preferido
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+
+actor "Administrador ou Usuário comum" as Ator
+participant ":MaisScreen" as Tela
+participant ":useThemePreference" as Hook
+participant ":useThemeStore" as Store
+participant ":usuarioService (app)" as SvcApp
+participant ":apiRequest" as Req
+participant ":monitoringService" as Mon
+participant ":Express" as Exp
+participant ":authMiddleware" as Auth
+participant ":usuarioController" as Ctrl
+participant ":usuarioService (API)" as SvcApi
+participant ":PrismaClient" as Db
+participant ":handleError" as Err
+
+Ator -> Tela : toca no chip Escuro
+Tela -> Hook : changeTheme('dark')
+Hook -> Store : setTheme('dark')
+Store --> Tela : novo theme, tela redesenhada
+opt há token e user no authStore
+  Hook -> SvcApp : updateTheme(token, 42, 'dark')
+  SvcApp -> Req : apiRequest('/usuarios/42/tema', opcoes)
+  alt API acessível, sem erro
+    Req -> Exp : PATCH /api/usuarios/42/tema {theme: 'dark'}
+    Exp -> Auth : requireAuth(request, response, next)
+    Auth --> Exp : next()
+    Exp -> Auth : requireSelf(request, response, next)
+    Auth --> Exp : next()
+    Exp -> Ctrl : updateTheme(request, response)
+    Ctrl -> Ctrl : temaSchema.validate(request.body, opcoes)
+    Ctrl -> SvcApi : updateTheme(42, 'dark')
+    SvcApi -> Db : user.update({where, data, select})
+    Db --> SvcApi : {id, themePreference}
+    SvcApi --> Ctrl : {id, themePreference}
+    Ctrl --> Req : 200 + {id, themePreference}
+    Req --> SvcApp : {id, themePreference}
+    SvcApp --> Hook : promessa concluída
+  else erro em token, dono, corpo ou gravação
+    Req -> Exp : PATCH /api/usuarios/42/tema {theme: 'dark'}
+    Exp -> Err : handleError(error, request, response, next)
+    Err --> Req : 400, 401, 403, 404 ou 500 + {error}
+    Req --> SvcApp : lança ApiError(mensagem, status, data)
+    SvcApp --> Hook : rejeição com ApiError
+    Hook -> Mon : reportRequestFailure(error, 'useThemePreference.changeTheme', false)
+    Hook --> Tela : feedback de erro no FeedbackBanner
+  else API inacessível
+    Req --> SvcApp : lança ApiError(NETWORK_ERROR_MESSAGE, 0)
+    SvcApp --> Hook : rejeição com ApiError
+    Hook -> Mon : reportRequestFailure(error, 'useThemePreference.changeTheme', false)
+    Hook --> Tela : feedback de erro no FeedbackBanner
+  end
+end
+@enduml
 ```
 
 Se o chip escolhido já for o tema atual, `changeTheme` encerra antes de `setTheme`. O passo a passo com as ligações entre as funções está em "Ação", na seção 6.1.
@@ -750,7 +717,7 @@ Se o chip escolhido já for o tema atual, `changeTheme` encerra antes de `setThe
 
 ### 9.1 Declarar o tipo de modelo (DOC-19)
 
-Use `classDiagram` e declare se é **modelo de domínio**, **modelo de persistência Prisma** ou **classes da implementação**. O `schema.prisma` mostra entidades e relações, mas não prova que existam classes com métodos no código.
+Use um diagrama de classes em PlantUML (`DC-<Assunto>.puml` e `.svg`) e declare se é **modelo de domínio**, **modelo de persistência Prisma** ou **classes da implementação**. O `schema.prisma` mostra entidades e relações, mas não prova que existam classes com métodos no código.
 
 - Mostre atributos e tipos reais, visibilidade quando aplicável, operações efetivas e multiplicidades.
 - Use herança, composição e agregação apenas quando o código as sustentar.
@@ -763,51 +730,55 @@ Explique cada elemento do diagrama:
 |---|---|---|---|---|
 | `[nome real]` | `[domínio/persistência/service]` | `[descrição]` | `[assinaturas]` | `[arquivo]` |
 
-#### Exemplo preenchido: modelo de persistência do RF15
+#### Exemplo preenchido: modelo de persistência do RF06
 
-**Tipo de modelo:** modelo de persistência Prisma. O diagrama mostra o `User`, os enums de que ele depende e uma relação de exemplo. As demais relações de `User` não são afetadas pelo RF15 e foram omitidas.
+**Tipo de modelo:** modelo de persistência Prisma. O diagrama mostra o `User`, os enums de que ele depende e uma relação de exemplo. As demais relações de `User` não são afetadas pelo RF06 e foram omitidas.
 
-```mermaid
-classDiagram
-    class User {
-        +Int id
-        +String name
-        +String email
-        +String password
-        +Role role
-        +DateTime createdAt
-        +Tema? themePreference
-    }
-    class PasswordResetToken {
-        +Int id
-        +Int userId
-        +String token
-        +DateTime expiresAt
-        +DateTime? usedAt
-    }
-    class Role {
-        <<enumeration>>
-        USER
-        ADMIN
-    }
-    class Tema {
-        <<enumeration>>
-        light
-        dark
-        system
-    }
-    User "1" --> "0..*" PasswordResetToken : passwordResetTokens
-    User "0..*" --> "1" Role : role
-    User "0..*" --> "0..1" Tema : themePreference
+```text
+@startuml DC-Usuario-Tema
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+
+class User {
+  +Int id
+  +String name
+  +String email
+  +String password
+  +Role role
+  +DateTime createdAt
+  +Tema? themePreference
+}
+class PasswordResetToken {
+  +Int id
+  +Int userId
+  +String token
+  +DateTime expiresAt
+  +DateTime? usedAt
+}
+enum Role <<enumeration>> {
+  USER
+  ADMIN
+}
+enum Tema <<enumeration>> {
+  light
+  dark
+  system
+}
+
+User "1" --> "0..*" PasswordResetToken : passwordResetTokens
+User "0..*" --> "1" Role : role
+User "0..*" --> "0..1" Tema : themePreference
+@enduml
 ```
 
-Os models do Prisma não têm métodos. As operações do RF15 estão em objetos exportados pelos módulos, que não são classes e por isso não aparecem no diagrama. Eles estão descritos na tabela:
+Os models do Prisma não têm métodos. As operações do RF06 estão em objetos exportados pelos módulos, que não são classes e por isso não aparecem no diagrama. Eles estão descritos na tabela:
 
 | Classe/modelo | Camada | Responsabilidade | Atributos e operações relevantes | Caminho no código |
 |---|---|---|---|---|
 | `User` | Persistência | Representa a conta e guarda a preferência de tema | `id`, `role`, `themePreference` | `sistema/api/prisma/schema.prisma` |
 | `Tema` | Persistência (enum) | Limita os valores de tema | `light`, `dark`, `system` | `sistema/api/prisma/schema.prisma` |
-| `PasswordResetToken` | Persistência | Guarda os tokens de recuperação de conta; não participa do RF15 | `userId`, `token`, `expiresAt`, `usedAt` | `sistema/api/prisma/schema.prisma` |
+| `PasswordResetToken` | Persistência | Guarda os tokens de recuperação de conta; não participa do RF06 | `userId`, `token`, `expiresAt`, `usedAt` | `sistema/api/prisma/schema.prisma` |
 | `usuarioController` | Controller (objeto) | Recebe a requisição, valida o corpo e devolve a resposta | `updateTheme(request, response)` | `sistema/api/src/controllers/usuarioController.ts` |
 | `usuarioService` (API) | Service (objeto) | Grava a preferência no banco | `updateTheme(userId: number, theme: Tema)` | `sistema/api/src/services/usuarioService.ts` |
 | `useThemeStore` | Estado do app (store Zustand) | Guarda o tema no aparelho e o aplica | `theme`, `setTheme(theme)`, `applyUserPreference(theme)` | `sistema/better-meet/src/store/themeStore.ts` |
@@ -818,7 +789,7 @@ Os models do Prisma não têm métodos. As operações do RF15 estão em objetos
 
 ### 10.1 Diagrama relacional (DOC-20)
 
-Use `erDiagram`.
+Use um diagrama entidade-relacionamento em PlantUML (`DER-<Assunto>.puml` e `.svg`), com `entity` e notação de cardinalidade *crow's foot*.
 
 - Cubra o **banco principal** (`sistema/api/prisma/schema.prisma`) e todas as entidades afetadas pelo incremento, além do banco de monitoramento (`sistema/monitoring-better-meet/prisma/schema.prisma`) quando for pertinente.
 - Baseie-se no schema, nas migrations e, quando acessível, na estrutura física do MySQL. Registre divergências.
@@ -827,32 +798,44 @@ Use `erDiagram`.
 - Separe tabelas planejadas de implementadas.
 - Para dados sem banco (memória ou armazenamento local), descreva o armazenamento real em seção própria, sem inventar tabela.
 
-#### Exemplo preenchido: diagrama relacional do RF15
+#### Exemplo preenchido: diagrama relacional do RF06
 
 **Banco:** `bettermeet` (MySQL). **Fontes:** `schema.prisma` e migrations `20260918235817_config_usuario` e `20261014120100_adiciona_enums_status_tema`. A estrutura física não foi conferida em um banco em execução.
 
-O RF15 altera apenas `User`. `PasswordResetToken` entra só para mostrar como registrar FK e cardinalidade. As demais tabelas ligadas a `User` foram omitidas.
+O RF06 altera apenas `User`. `PasswordResetToken` entra só para mostrar como registrar FK e cardinalidade. As demais tabelas ligadas a `User` foram omitidas.
 
-```mermaid
-erDiagram
-    User ||--o{ PasswordResetToken : "userId"
-    User {
-        int id PK "AUTO_INCREMENT"
-        varchar(191) name "NOT NULL"
-        varchar(191) email UK "NOT NULL"
-        varchar(191) password "NOT NULL"
-        enum role "USER, ADMIN - NOT NULL DEFAULT USER"
-        datetime(3) createdAt "NOT NULL DEFAULT CURRENT_TIMESTAMP(3)"
-        enum themePreference "light, dark, system - NULL DEFAULT system"
-    }
-    PasswordResetToken {
-        int id PK "AUTO_INCREMENT"
-        int userId FK "NOT NULL"
-        varchar(191) token UK "NOT NULL"
-        datetime(3) expiresAt "NOT NULL"
-        datetime(3) usedAt "NULL"
-    }
+```text
+@startuml DER-Usuario-Tema
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+hide circle
+
+entity User {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * name : varchar(191)
+  * email : varchar(191) <<UK>>
+  * password : varchar(191)
+  * role : enum('USER','ADMIN') <<DEFAULT USER>>
+  * createdAt : datetime(3) <<DEFAULT CURRENT_TIMESTAMP(3)>>
+  themePreference : enum('light','dark','system') <<NULL, DEFAULT system>>
+}
+
+entity PasswordResetToken {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * userId : int <<FK>>
+  * token : varchar(191) <<UK>>
+  * expiresAt : datetime(3)
+  usedAt : datetime(3) <<NULL>>
+}
+
+User ||--o{ PasswordResetToken : userId
+@enduml
 ```
+
+Na notação acima, `*` marca coluna obrigatória (`NOT NULL`).
 
 **Dados sem banco:** o app também guarda o tema no `AsyncStorage` do aparelho, na chave `better-meet-theme`. Esse dado não é uma tabela e não aparece no diagrama.
 
@@ -888,7 +871,7 @@ Inclua também uma tabela de PK, UK, FK, índices e regras `ON DELETE` e `ON UPD
 | `password` | `varchar(191)` | `String` | 64 caracteres hexadecimais gravados | Não | — | — | Hash SHA-256 da senha (`hashPassword`). A senha informada tem de 8 a 72 caracteres, com maiúscula, minúscula e número (`senhaForteRule`). Veja o RNF06 na seção 11.1 |
 | `role` | `enum('USER','ADMIN')` | `Role` | `USER`, `ADMIN` | Não | `USER` | — | Perfil na plataforma. O cadastro público só aceita `USER` (`cadastroUsuarioSchema`) |
 | `createdAt` | `datetime(3)` | `DateTime` | Data e hora com milissegundos | Não | `CURRENT_TIMESTAMP(3)` | — | Momento do cadastro |
-| `themePreference` | `enum('light','dark','system')` | `Tema?` | `light`, `dark`, `system` | Sim | `system` | — | Tema preferido, alterado pelo RF15 (`temaSchema`). `NULL` é tratado como `system` |
+| `themePreference` | `enum('light','dark','system')` | `Tema?` | `light`, `dark`, `system` | Sim | `system` | — | Tema preferido, alterado pelo RF06 (`temaSchema`). `NULL` é tratado como `system` |
 
 **Restrições:**
 
@@ -928,7 +911,7 @@ Resultado: [Aprovado / Reprovado / Não executado]
 
 #### Exemplo preenchido: RNF06 — Armazenamento seguro de senha
 
-O RF15 não tem RNF próprio no catálogo. Este exemplo usa o RNF06, um caso real da crítica do professor sobre "hash-256".
+O RF06 não tem RNF próprio no catálogo. Este exemplo usa o RNF06, um caso real da crítica do professor sobre "hash-256".
 
 **Como está na Wiki:** "As senhas devem ser criptografadas em hash-256."
 
@@ -990,14 +973,14 @@ Execução de [AAAA-MM-DD]:
 - Confira as mensagens e os códigos HTTP realmente retornados.
 - Não exponha tokens, senhas ou dados pessoais nas evidências.
 
-#### Exemplo preenchido: testes do RF15
+#### Exemplo preenchido: testes do RF06
 
 ##### O que foi testado
 
 | ID | RF/RNF e UC | Rota ou tela | Cenário verificado | Arquivo ou passos | Status |
 |---|---|---|---|---|---|
-| CT-RF15-01 | RF15; UC15 | Login no app (`applyUserPreference`) | `dark`, `light` e `system` são mantidos; `roxo`, `null` e `undefined` viram `system` (6 casos) | `sistema/better-meet/src/store/__tests__/stores.test.ts` | Passou |
-| CT-RF15-02 | RF15; UC15 | `PATCH /api/usuarios/:id/tema` | Sucesso e erros `400`, `401`, `403` e `404` | Nenhum teste localizado | Não executado |
+| CT-RF06-01 | RF06; UC a confirmar | Login no app (`applyUserPreference`) | `dark`, `light` e `system` são mantidos; `roxo`, `null` e `undefined` viram `system` (6 casos) | `sistema/better-meet/src/store/__tests__/stores.test.ts` | Passou |
+| CT-RF06-02 | RF06; UC a confirmar | `PATCH /api/usuarios/:id/tema` | Sucesso e erros `400`, `401`, `403` e `404` | Nenhum teste localizado | Não executado |
 
 ##### Como rodar
 
@@ -1013,7 +996,7 @@ Execução de 2026-11-06, branch `development`, commit `9e48774`:
 
 - 1 suíte e 9 testes: 6 aprovados, 3 ignorados pelo filtro `-t` e nenhuma falha.
 - Defeitos encontrados: nenhum nos casos executados.
-- Lacuna: CT-RF15-02 não foi executado porque não há teste automatizado nem roteiro manual da rota. Por isso, os erros da tabela de Saída foram verificados apenas por leitura do código.
+- Lacuna: CT-RF06-02 não foi executado porque não há teste automatizado nem roteiro manual da rota. Por isso, os erros da tabela de Saída foram verificados apenas por leitura do código.
 - Evidência: saída do comando acima, `Tests: 3 skipped, 6 passed, 9 total`.
 
 ---
@@ -1022,19 +1005,17 @@ Execução de 2026-11-06, branch `development`, commit `9e48774`:
 
 ### 13.1 Matriz por incremento (DOC-24)
 
-A matriz de cada incremento fica em `entregaN_<sigla>/rastreabilidade.md` (exemplos: `entrega2_Di1/rastreabilidade.md` e `entrega3_Di2/rastreabilidade.md`).
-
 | RF/RNF | UC | Tela/componente | Endpoint/service | Classe/modelo | Tabela/campos | Diagrama | Teste | Status |
 |---|---|---|---|---|---|---|---|---|
 | RFxx | UCxx | `[arquivo]` | `[rota ou método]` | `[classe]` | `[tabela]` | `[link]` | CT-RFxx-01 | `[status]` |
 
 Nenhum RF fica sem vínculo ou justificativa. Diagramas, matriz e código usam os mesmos nomes.
 
-#### Exemplo preenchido: rastreabilidade do RF15 e do RNF06
+#### Exemplo preenchido: rastreabilidade do RF06 e do RNF06
 
 | RF/RNF | UC | Tela/componente | Endpoint/service | Classe/modelo | Tabela/campos | Diagrama | Teste | Status |
 |---|---|---|---|---|---|---|---|---|
-| RF15 | UC15 (Alterar tema preferido) | `(tabs)/mais/index.tsx`, `useThemePreference`, `useThemeStore` | `PATCH /api/usuarios/:id/tema`; `usuarioController.updateTheme`; `usuarioService.updateTheme` | `User`, `Tema` | `User.themePreference` | Seções 7.1, 8.1, 9.1 e 10.1 | CT-RF15-01 (Passou); CT-RF15-02 (Não executado) | Parcial |
+| RF06 | A confirmar (Alterar tema preferido) | `(tabs)/mais/index.tsx`, `useThemePreference`, `useThemeStore` | `PATCH /api/usuarios/:id/tema`; `usuarioController.updateTheme`; `usuarioService.updateTheme` | `User`, `Tema` | `User.themePreference` | Seções 7.1, 8.1, 9.1 e 10.1 | CT-RF06-01 (Passou); CT-RF06-02 (Não executado) | Parcial |
 | RNF06 | Não se aplica: propriedade de segurança | Não se aplica | `hashPassword` e `verifyPassword`, usados por `authService` e `usuarioService` | `User` | `User.password` | Seção 10.1 | CT-RNF06-01 (Reprovado por inspeção) | Reprovado |
 
 ---
@@ -1077,10 +1058,8 @@ Estas são as regras para não repetir as críticas já recebidas.
 - [ ] RNFs mensuráveis, bem classificados e com versões confirmadas.
 - [ ] Testes com ID `CT-…`, como rodar, resultado e evidências, ou `Não executado`.
 - [ ] Matriz de rastreabilidade sem RF solto.
-- [ ] Mermaid e SVG conferidos no GitHub e na Wiki.
+- [ ] Todos os diagramas (casos de uso, sequência, classes e relacional) em PlantUML, com `.puml` e `.svg` versionados e nenhum bloco Mermaid.
+- [ ] SVG conferidos no GitHub e na Wiki.
 - [ ] Nenhum segredo, credencial ou dado pessoal desnecessário.
 - [ ] Pendências e limitações registradas.
-- [ ] Formato da seção 2.5: um arquivo por RF (RFnn = UCnn), RNF individuais, classes, relacional e dicionário unificados e cumulativos na entrega.
-- [ ] `documentos/requisitos.md` e `documentos/numeracao_uc_rf.md` atualizados; matriz `rastreabilidade.md` do incremento atualizada.
-- [ ] Diagramas substituídos em `Diagramas/legado/`; nenhum nome com espaço ou acento em pasta de entrega nova.
 - [ ] Trabalho com IA conduzido pelo AI-DLC v1: documento oficial em `documentos/`, `aidlc-state.md` e `audit.md` do app atualizados, etapas aprovadas e nenhum fato tirado só do `aidlc-docs/` (DOC-25).
