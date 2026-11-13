@@ -1,0 +1,82 @@
+' Incremento: 3 — entrega3_Di2
+' Escopo: Ata de Reunião — RF17, RNF45/RNF46, UC22–UC25
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/api/src/{routes/ataRoutes.ts,middlewares/authMiddleware.ts,middlewares/ataMiddleware.ts,controllers/ataController.ts,services/ataService.ts,schemas/ataSchema.ts,middlewares/errorMiddleware.ts}; sistema/better-meet/src/{services/ataService.ts,utils/apiClient.ts,components/AtaReuniao.tsx}
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam shadowing false
+hide footbox
+title UC22 — Consultar ata: GET /api/reunioes/:id/ata
+participant "app: ataService\nservices/ataService.ts" as App
+participant "Express Router\nataRoutes.ts" as Router
+participant "requireAuth\nauthMiddleware.ts" as Auth
+participant "ataController\ngetByReuniao" as Controller
+participant "API: ataService\nataService.ts" as Service
+participant "prisma / transaction\nPrisma Client" as DB
+participant "handleError\nerrorMiddleware.ts" as Error
+App -> Router : GET /api/reunioes/:id/ata\nAuthorization: Bearer <token>
+Router -> Auth : requireAuth(request, response, next)
+Auth -> Auth : getToken(request)\nverifyToken(token)
+break token ausente, inválido, expirado ou payload rejeitado
+  Auth -> Error : throw new AppError(401, mensagem)
+  Error --> App : 401 {error: mensagem}
+end
+Auth -> DB : user.findUnique({where:{id},\nselect:{role:true,email:true}})
+DB --> Auth : user ou null
+break user === null
+  Auth -> Error : throw new AppError(401, "Sessão inválida. Entre novamente.")
+  Error --> App : 401 {error: mensagem}
+end
+Auth -> Auth : request.user = {id, role:user.role, email:user.email}
+Auth --> Router : next()
+Router -> Controller : getByReuniao(request, response)
+Controller -> Controller : parseId(request.params.id, 'da reunião')
+break id não inteiro ou menor que 1
+  Controller -> Error : AppError(400, "Identificador da reunião inválido.")
+  Error --> App : 400 {error: mensagem}
+end
+Controller -> Service : getByReuniao(userId, reuniaoId)
+Service -> DB : $transaction(transaction => present(transaction, userId, reuniaoId))
+DB -> Service : present(transaction, userId, reuniaoId)
+Service -> Service : loadAccess(transaction, userId, reuniaoId)
+Service -> DB : reuniao.findUnique({where:{id:reuniaoId}, select})
+note right of DB
+  select: id, titulo, data, conteudoAta, versaoAta;
+  comissao.equipe where userId, select papel;
+  registros where userId, select id.
+  Não filtra saidaAt nem status da reunião.
+end note
+DB --> Service : reuniao ou null
+break reunião inexistente ou equipe/entrada ausente
+  Service --> Controller : AppError(404, "Reunião não encontrada.")\nou AppError(403, mensagem de presença/vínculo)
+  Controller -> Error : handleError(error, request, response, next)
+  Error --> App : 404 ou 403 {error: mensagem}
+end
+Service -> DB : ataVoto.findMany({where:{reuniaoId,\nversaoAta:reuniao.versaoAta},select:{userId:true,status:true}})
+DB --> Service : votos
+opt reuniao.conteudoAta não vazio
+  Service -> Service : sanitizeAtaHtml(reuniao.conteudoAta)
+end
+Service -> Service : podeEditar(papel)
+note over Service
+  Retorno: reuniaoId, titulo, dataReuniao, conteudoAta, versaoAta,
+  papelNaComissao, podeEditar, podeVotar, meuVoto e votos.
+  podeVotar = Boolean(reuniao.conteudoAta).
+end note
+Service --> Controller : objeto da ata, após conclusão de $transaction
+Controller --> App : 200 response.json(ata)
+note over App
+  AtaReuniaoScreen.load() chama getByReuniao(token, reuniaoId)
+  e armazena resultado. Falha de rede vira ApiError(status=0);
+  feedback exibe a mensagem. Reload repete a consulta.
+end note
+legend bottom
+  Falhas não tratadas no percurso chegam a handleError: 500 "Erro interno. Tente novamente mais tarde."
+  JSON inválido é tratado antes das rotas; mensagens completas e precedência constam no RF17.
+endlegend
+@enduml

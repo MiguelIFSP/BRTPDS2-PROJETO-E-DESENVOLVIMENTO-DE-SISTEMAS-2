@@ -1,0 +1,70 @@
+' Incremento: 3 — entrega3_Di2
+' Escopo: Ata de Reunião — RF17, RNF45/RNF46, UC22–UC25
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/better-meet/src/components/AtaReuniao.tsx; sistema/better-meet/src/utils/{ataPdf.ts,ataPdf.web.ts,ataPdfHtml.ts,ataHtml.web.ts,format.ts}
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam shadowing false
+hide footbox
+title UC25 — Exportar PDF na web
+participant "AtaReuniao.tsx\ncomponente" as UI
+participant "ataPdf.web.ts\nmódulo" as PDF
+participant "ataHtml.web.ts\nmódulo" as Sanitize
+participant "ataPdfHtml.ts\nmódulo" as HTML
+participant "window\njanela atual" as Window
+participant "preview\njanela de impressão" as Preview
+UI -> UI : handleExportPdf()
+note over UI
+  Mesmo bloqueio de duplicidade e uso do conteúdo salvo do fluxo nativo.
+  Nenhuma consulta adicional à API neste clique.
+end note
+UI -> PDF : exportAtaPdf({titulo, dataReuniao, conteudoAta:ata.conteudoAta})
+PDF -> Sanitize : sanitizeAtaHtml(input.conteudoAta)
+Sanitize --> PDF : HTML sanitizado
+PDF -> HTML : buildAtaPdfHtml({...input, conteudoAta:sanitized})
+alt entrada rejeitada
+  HTML --> PDF : Error de conteúdo/data
+  PDF --> UI : rejeição da Promise
+else template gerado
+  HTML --> PDF : html com BetterMeet, título, data, CSS e CSP
+  PDF -> Window : window.open('', '_blank')
+  alt pop-up bloqueado
+    Window --> PDF : null
+    PDF --> UI : Error("Permita pop-ups para exportar a ata.")
+  else janela criada
+    Window --> PDF : preview
+    PDF -> Preview : preview.opener = null
+    PDF -> Preview : preview.document.open()
+    PDF -> Preview : preview.document.write(html)
+    PDF -> Preview : preview.document.close()
+    PDF -> Preview : preview.addEventListener('afterprint',\n() => preview.close(), {once:true})
+    PDF -> Preview : preview.focus()
+    PDF -> Preview : preview.print()
+    alt exceção no bloco try
+      Preview --> PDF : error
+      PDF -> Preview : preview.close()
+      PDF --> UI : throw error
+    else chamada de impressão concluída
+      Preview --> PDF : void
+      PDF --> UI : Promise<void> resolvida
+      opt evento afterprint
+        Preview -> Preview : preview.close()
+      end
+    end
+  end
+end
+opt erro recebido pela UI
+  UI -> UI : setFeedback({type:'error',\nmessage:getErrorMessage(error, 'Não foi possível exportar a ata para PDF.')})
+end
+UI -> UI : exportInProgress.current = false\nsetIsExportingPdf(false) [finally]
+legend bottom
+  O navegador oferece impressão/salvar PDF; destino escolhido pelo participante.
+  Não usa expo-print/expo-sharing na web. Nenhum arquivo é persistido pela API.
+  Cancelamento de impressão e confirmação de arquivo salvo não são informados ao componente.
+endlegend
+@enduml

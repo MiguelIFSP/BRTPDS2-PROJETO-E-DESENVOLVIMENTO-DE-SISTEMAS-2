@@ -1,0 +1,93 @@
+' Incremento: 3 — entrega3_Di2
+' Escopo: Ata de Reunião — RF17, RNF45/RNF46, UC22–UC25
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/api/src/{routes/ataRoutes.ts,middlewares/authMiddleware.ts,middlewares/ataMiddleware.ts,controllers/ataController.ts,services/ataService.ts,schemas/ataSchema.ts,middlewares/errorMiddleware.ts}; sistema/better-meet/src/{services/ataService.ts,utils/apiClient.ts,components/AtaReuniao.tsx}
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam shadowing false
+hide footbox
+title UC24 — Votar: POST /api/reunioes/:id/ata/votar
+participant "app: ataService\nvote" as App
+participant "Express Router\nataRoutes.ts" as Router
+participant "ataController\nvote" as Controller
+participant "API: ataService\nataService.ts" as Service
+participant "prisma / transaction\nPrisma Client" as DB
+participant "handleError\nerrorMiddleware.ts" as Error
+note over App
+  Administrador, Secretário, Facilitador e Membro da comissão.
+  AtaReuniao.vote(status) usa versão carregada.
+  UI desabilita voto se não podeVotar, dirty, busy, conflict ou voto já igual.
+end note
+App -> Router : POST /api/reunioes/:id/ata/votar\n{status, versaoAta} + Bearer
+Router -> Router : requireAuth(request, response, next)
+break autenticação rejeitada
+  Router -> Error : throw new AppError(401, mensagem)
+  Error --> App : 401 {error: mensagem}
+end
+Router -> Controller : vote(request, response)
+Controller -> Controller : parseId(request.params.id, 'da reunião')\nataVotoSchema.validate(request.body, {stripUnknown:true})
+break id, status ou versão inválidos
+  Controller -> Error : AppError(400) ou ValidationError
+  Error --> App : 400 {error: mensagem}
+end
+Controller -> Service : vote(userId, reuniaoId, status, versaoAta)
+Service -> DB : $transaction(async transaction => ...)
+group callback da transação
+  DB -> Service : async (transaction) => { ... }
+  Service -> Service : loadAccess(transaction, userId, reuniaoId)
+  Service -> DB : reuniao.findUnique({where:{id:reuniaoId}, select})
+  DB --> Service : reuniao com equipe e registros, ou null
+  break reunião ausente ou sem vínculo/entrada
+    Service --> Controller : AppError(404/403, mensagem)
+    Controller -> Error : handleError(error, request, response, next)
+    Error --> App : 404 ou 403 {error: mensagem}
+  end
+  break !reuniao.conteudoAta
+    Service --> Controller : AppError(409, "A ata precisa ser redigida e salva antes da votação.")
+    Controller -> Error : handleError(error, request, response, next)
+    Error --> App : 409 {error: mensagem}
+  end
+  break reuniao.versaoAta !== versaoAta
+    Service --> Controller : conflict()
+    Controller -> Error : AppError(409, mensagem de versão)
+    Error --> App : 409 {error: mensagem}
+  end
+  Service -> DB : reuniao.updateMany({where:{id:reuniaoId,versaoAta},\ndata:{versaoAta:{increment:0}}})
+  DB --> Service : {count}
+  break count === 0
+    Service --> Controller : conflict()
+    Controller -> Error : AppError(409, mensagem de versão)
+    Error --> App : 409 {error: mensagem}
+  end
+  Service -> DB : ataVoto.upsert({where:{reuniaoId_userId:{reuniaoId,userId}},\ncreate:{reuniaoId,userId,status,versaoAta},update:{status,versaoAta}})
+  DB --> Service : {id,reuniaoId,userId,status,versaoAta,updatedAt}
+  note right of DB
+    Sem voto: cria.
+    Com voto: atualiza status e versão.
+    UK (reuniaoId,userId), sem histórico de versões.
+  end note
+  Service -> Service : present(transaction, userId, reuniaoId)
+  Service -> Service : loadAccess(transaction, userId, reuniaoId)
+  Service -> DB : reuniao.findUnique({where:{id:reuniaoId}, select})
+  DB --> Service : reunião e acesso
+  Service -> DB : ataVoto.findMany({where:{reuniaoId,versaoAta:reuniao.versaoAta},\nselect:{userId:true,status:true}})
+  DB --> Service : votos da versão
+  Service -> Service : sanitizeAtaHtml(reuniao.conteudoAta)\npodeEditar(papel)
+end
+Service --> Controller : objeto da ata após $transaction
+Controller --> App : 200 response.json(ata)
+note over App
+  onUpdated(updated) e feedback "Seu voto foi registrado."
+  API aceita repetição do voto; a UI bloqueia o botão do status atual.
+end note
+legend bottom
+  select de loadAccess: campos da ata + comissao.equipe(userId,papel) + registros(userId,id).
+  requireAuth é detalhado em DS-Consultar-Ata. Falhas inesperadas chegam a handleError [500].
+  Sem quorum, encerramento de votação ou aprovação final automática no código consultado.
+endlegend
+@enduml
