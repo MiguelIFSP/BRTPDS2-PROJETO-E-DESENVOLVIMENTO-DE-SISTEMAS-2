@@ -75,14 +75,25 @@ Permitir que o usuário visualize as reuniões em que participou e acompanhe o r
 
 ## Casos de uso
 
-```mermaid
-flowchart LR
-    U[Usuário] --> UC1[Consultar histórico]
-    U --> UC2[Registrar entrada]
-    U --> UC3[Registrar saída]
-    M[Membro da comissão] --> UC1
-    M --> UC2
-    M --> UC3
+```plantuml
+@startuml
+left to right direction
+actor "Usuário" as U
+actor "Membro da comissão" as M
+
+rectangle "Better Meet" {
+  usecase "Consultar histórico" as UC1
+  usecase "Registrar entrada" as UC2
+  usecase "Registrar saída" as UC3
+}
+
+U --> UC1
+U --> UC2
+U --> UC3
+M --> UC1
+M --> UC2
+M --> UC3
+@enduml
 ```
 
 ### UC-HIST-01 — Consultar histórico de reuniões
@@ -117,29 +128,30 @@ flowchart LR
 
 ## Diagrama de sequência
 
-```mermaid
-sequenceDiagram
-    actor Usuario
-    participant Historico as HistoricoReunioesScreen
-    participant Service as reuniaoService
-    participant API as API
-    participant DB as Banco
+```plantuml
+@startuml
+actor Usuario
+participant "HistoricoReunioesScreen" as Screen
+participant "reuniaoService" as Service
+participant "API" as API
+participant "Banco" as DB
 
-    Usuario->>Historico: abre histórico
-    Historico->>Service: listMine(token)
-    Service->>API: GET /reunioes/minhas
-    API->>DB: busca reuniões do usuário
-    DB-->>API: lista de reuniões
-    API-->>Service: retorno
-    Service-->>Historico: exibe histórico
+Usuario -> Screen: abre histórico
+Screen -> Service: listMine(token)
+Service -> API: GET /reunioes/minhas
+API -> DB: busca reuniões do usuário
+DB --> API: lista de reuniões
+API --> Service: retorno
+Service --> Screen: exibe histórico
 
-    Usuario->>Historico: confirma presença
-    Historico->>Service: checkIn(token, reuniaoId)
-    Service->>API: POST /reunioes/:id/entrar
-    API->>DB: cria ReuniaoRegistro
-    DB-->>API: registro salvo
-    API-->>Service: resposta
-    Service-->>Historico: presença confirmada
+Usuario -> Screen: confirma presença
+Screen -> Service: checkIn(token, reuniaoId)
+Service -> API: POST /reunioes/:id/entrar
+API -> DB: cria ReuniaoRegistro
+DB --> API: registro salvo
+API --> Service: resposta
+Service --> Screen: presença confirmada
+@enduml
 ```
 
 ## Entradas e saídas
