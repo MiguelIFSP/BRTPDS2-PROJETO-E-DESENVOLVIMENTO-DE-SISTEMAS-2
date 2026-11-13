@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-13
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Parcial — escrita concluída; revisão humana e Build and Test pendentes.
-- **Fontes:** [plano](../../plans/documentacao-ata-reuniao-di2-code-generation-plan.md), [documento principal](../../../../../../documentos/entrega3_Di2/ata_reuniao.md), [testes](../../../../../../documentos/entrega3_Di2/testes_ata_reuniao.md), [estado](../../../aidlc-state.md) e [auditoria](../../../audit.md).
+- **Fontes:** [plano](../../plans/documentacao-ata-reuniao-di2-code-generation-plan.md), [documento principal](../../../../../../documentos/entrega4_Di3/ata_reuniao.md), [testes](../../../../../../documentos/entrega4_Di3/testes_ata_reuniao.md), [estado](../../../aidlc-state.md) e [auditoria](../../../audit.md).
 
 # Resumo da escrita — Ata de Reunião
 

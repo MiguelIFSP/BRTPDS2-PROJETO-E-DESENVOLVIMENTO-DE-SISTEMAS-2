@@ -512,3 +512,17 @@ Faça uma auditoria crítica. Não diga que está perfeito se houver lacunas.\
 **Destinos e limites**: permanecem development e os documentos em entrega3_Di2; classes/dicionário e ZIP permanecem fora do repositório para unificação. Sem nova branch, commit, push, publicação ou Operations. Nenhuma nova aprovação é necessária para encerrar esta unidade.
 
 ---
+## Integração e publicação Git autorizadas
+**Timestamp**: 2026-11-13T14:17:25Z
+**User Input**: "pode mexer em tudo, pode dar os commits pushs, pull. resolva tudo"
+**AI Response / ação**: encontrado commit local 30bccb2 e merge já iniciado para 3832724, com 15 arquivos em conflito por realocação de diretório e cabeçalho. Preservada a documentação completa local, adotado o destino remoto documentos/entrega4_Di3 e o responsável Gustavo de Oliveira Tomaz expressamente informado no documento remoto; testes e sete pares de diagramas acompanham a mudança. Metadados preservam Incremento 3 e distinguem Entrega 4. Links dos registros desta unidade atualizados, mantendo conteúdo de respostas/histórico; audit.md apenas recebe acréscimos.
+**Limites**: classes/dicionário externos; não publicados. Código recebido do remoto preservado. Autorização atual cobre concluir merge, commit e push na development, sem nova branch ou novos gates. Constatada colisão concorrente RNF45/RNF46 e CT-RNF45/46 com a migração Expo: registrada como [A CONFIRMAR], sem renumerar unilateralmente conforme regra 8. Baseline funcional 945419d continua explícita; dependências remotas posteriores serão verificadas separadamente.
+
+---
+## Merge pronto para commit e push — atas
+**Timestamp**: 2026-11-13T14:22:00Z
+**AI Response / ação**: resolvidos todos os conflitos sem descartar o trabalho local ou o remoto. Principal, testes e sete pares PlantUML/SVG em entrega4_Di3; 21 Markdown e 142 links locais conferidos, oito pares de diagramas/44 colunas/28 CT sem erros no verificador. Corrigido espaço final apontado por diff --check no histórico recebido. Não há diferenças de código/dependências em relação a MERGE_HEAD; classes/dicionário permanecem externos e ZIP atualizado.
+**Verificação da integração**: npm ci concluído em API/app conforme lockfiles recebidos; Prisma Client 7.10.0 regenerado sem migration. Mesmos comandos direcionados do registro oficial executados: API 58 testes/1 suíte, 0.953 s; app 37/3, 5.107 s; web 43/5, 2.701 s; saídas 0 e zero falhas. npm run typecheck no app passou (tsc --noEmit). Avisos de instalação e auditoria de dependências registrados no documento de testes, sem atualizações automáticas fora do escopo.
+**Autorização**: instrução atual do usuário autoriza concluir merge, commit e push diretamente na development; prevalece sobre aprovação repetida ou criação de branch. Wiki não faz parte desta integração. RNFs duplicados ficam [A CONFIRMAR] conforme regra expressa de não renumerar unilateralmente.
+
+---

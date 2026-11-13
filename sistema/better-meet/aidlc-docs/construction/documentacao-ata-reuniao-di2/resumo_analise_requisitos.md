@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-12
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Parcial — análise concluída e aprovada; escrita oficial pendente.
-- **Fontes:** [guia de documentação](../../../../../GUIA_DE_DOCUMENTACAO.md), [fonte atual da ata](../../../../../documentos/entrega3_Di2/ata_reuniao.md), [schema](../../../../api/prisma/schema.prisma), [serviço da API](../../../../api/src/services/ataService.ts), [sanitização](../../../../api/src/utils/ataHtml.ts), [componente](../../../src/components/AtaReuniao.tsx) e fontes complementares da seção 9.
+- **Fontes:** [guia de documentação](../../../../../GUIA_DE_DOCUMENTACAO.md), [fonte atual da ata](../../../../../documentos/entrega4_Di3/ata_reuniao.md), [schema](../../../../api/prisma/schema.prisma), [serviço da API](../../../../api/src/services/ataService.ts), [sanitização](../../../../api/src/utils/ataHtml.ts), [componente](../../../src/components/AtaReuniao.tsx) e fontes complementares da seção 9.
 
 # Resumo de Requirements Analysis — Ata de Reunião
 

@@ -43,7 +43,13 @@ export default function StatTile({
       >
         {value}
       </Text>
-      <Text style={[styles.label, { color: colors.textSecondary }]}>
+      <Text
+        style={[
+          styles.label,
+          compact && styles.labelCompact,
+          { color: colors.textSecondary },
+        ]}
+      >
         {label}
       </Text>
     </View>
@@ -65,7 +71,10 @@ const styles = StyleSheet.create({
     flexBasis: 0,
     minWidth: 0,
     borderRadius: Radius.lg,
-    padding: Spacing.md,
+    paddingVertical: Spacing.md,
+    // pouco recuo lateral: palavras longas como "Organizações" precisam
+    // caber inteiras na coluna, senão quebram no meio.
+    paddingHorizontal: Spacing.xs,
   },
   value: { ...Typography.heading1 },
   valueCompact: { ...Typography.heading2 },
@@ -74,4 +83,5 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: Spacing.xs,
   },
+  labelCompact: { ...Typography.caption, textAlign: 'center' },
 });

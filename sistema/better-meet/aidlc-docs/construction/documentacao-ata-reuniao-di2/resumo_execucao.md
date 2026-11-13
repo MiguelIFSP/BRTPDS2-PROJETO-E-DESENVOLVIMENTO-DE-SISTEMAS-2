@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-12
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Parcial — Workspace Detection concluído e aprovado; etapas posteriores registradas em resumos próprios e no estado AI-DLC.
-- **Fontes:** [guia de documentação](../../../../../GUIA_DE_DOCUMENTACAO.md), [guia de codificação](../../../../../GUIA_DE_CODIFICACAO.md), [prompt de agentes](../../../../../PROMPT_AGENTES_IA.md), [documento existente da ata](../../../../../documentos/entrega3_Di2/ata_reuniao.md), [estado AI-DLC](../../aidlc-state.md) e inventário abaixo.
+- **Fontes:** [guia de documentação](../../../../../GUIA_DE_DOCUMENTACAO.md), [guia de codificação](../../../../../GUIA_DE_CODIFICACAO.md), [prompt de agentes](../../../../../PROMPT_AGENTES_IA.md), [documento existente da ata](../../../../../documentos/entrega4_Di3/ata_reuniao.md), [estado AI-DLC](../../aidlc-state.md) e inventário abaixo.
 
 # Resumo da execução — Documentação de Ata de Reunião
 

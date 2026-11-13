@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-13
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Parcial — verificações direcionadas concluídas; validação física e aprovação final pendentes.
-- **Fontes:** [testes oficiais](../../../../../documentos/entrega3_Di2/testes_ata_reuniao.md), [principal](../../../../../documentos/entrega3_Di2/ata_reuniao.md), [plano](../plans/documentacao-ata-reuniao-di2-code-generation-plan.md).
+- **Fontes:** [testes oficiais](../../../../../documentos/entrega4_Di3/testes_ata_reuniao.md), [principal](../../../../../documentos/entrega4_Di3/ata_reuniao.md), [plano](../plans/documentacao-ata-reuniao-di2-code-generation-plan.md).
 
 # Suítes direcionadas
 

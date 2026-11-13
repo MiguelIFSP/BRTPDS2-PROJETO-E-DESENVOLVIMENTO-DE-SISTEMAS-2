@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-12
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Parcial — inspeção estática concluída e aprovada; verificações em execução pendentes.
-- **Fontes:** [schema Prisma](../../../../api/prisma/schema.prisma), [serviço da API](../../../../api/src/services/ataService.ts), [componente da ata](../../../src/components/AtaReuniao.tsx), [documento existente](../../../../../documentos/entrega3_Di2/ata_reuniao.md), [guia de documentação](../../../../../GUIA_DE_DOCUMENTACAO.md) e inventário da seção 10.
+- **Fontes:** [schema Prisma](../../../../api/prisma/schema.prisma), [serviço da API](../../../../api/src/services/ataService.ts), [componente da ata](../../../src/components/AtaReuniao.tsx), [documento existente](../../../../../documentos/entrega4_Di3/ata_reuniao.md), [guia de documentação](../../../../../GUIA_DE_DOCUMENTACAO.md) e inventário da seção 10.
 
 # Resumo de Reverse Engineering — Ata de Reunião
 

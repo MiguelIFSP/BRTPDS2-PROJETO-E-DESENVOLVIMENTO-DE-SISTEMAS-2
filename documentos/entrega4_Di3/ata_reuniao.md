@@ -1,15 +1,17 @@
-- **Incremento:** 3 — entrega3_Di2
+- **Incremento:** 3 — Entrega 4 (entrega4_Di3)
 - **Escopo:** RF17, RNF45/RNF46 e UC22–UC25 — editor, acesso, leitura, voto e PDF da ata.
 - **Branch:** development
 - **Commit:** 945419d84dd6a3dd32aacab736f32f9c7ed806f5
 - **Data de revisão:** 2026-11-13
-- **Responsável(eis):** [nome de quem revisa e assina]
+- **Responsável(eis):** Gustavo de Oliveira Tomaz
 - **Estado:** Parcial — entrega documental aprovada em 2026-11-13; 138 testes direcionados aprovados, integração física pendente.
 - **Fontes:** [schema](../../sistema/api/prisma/schema.prisma), [serviço](../../sistema/api/src/services/ataService.ts), [rotas](../../sistema/api/src/routes/ataRoutes.ts), [componente](../../sistema/better-meet/src/components/AtaReuniao.tsx), [OpenAPI](../../sistema/api/docs/openapi.yaml) e inventário A.1.
 
 # Ata de reunião
 
 ## A. Diagnóstico
+
+Integração de 2026-11-13: a fonte foi transferida para entrega4_Di3 conforme a reorganização da equipe em 3832724. O responsável acima foi informado no cabeçalho desse documento remoto, não deduzido da autoria do commit. Preservam-se o Incremento 3 solicitado e a baseline funcional 945419d; Entrega 4 identifica a pasta de publicação. Os patches de dependências posteriores não alteram retroativamente as versões inspecionadas no cabeçalho.
 
 A ata pertence à reunião. Administrador e Secretário da comissão podem redigir; os quatro papéis podem consultar, votar e exportar, respeitando vínculo atual e entrada registrada. Registrar saída não revoga por si só o acesso. O papel global não substitui o papel da comissão.
 
@@ -46,6 +48,7 @@ Wiki: snapshot **1226e33743b2d27ec16fd6738986faf7ca745a9b**, reconfirmado no rem
 | Ordem de erros na OpenAPI | Parcial | A ordem geral descrita não representa estas rotas; ver B.1 |
 | Dicionário antigo | Parcial | Tema/status foram convertidos de VARCHAR para enums; conteudoAta é LONGTEXT |
 | IDs globais repetidos | Parcial | UC04 tem significados distintos em monitoramento, comissão e tema; UC01 também tem usos distintos. Significado canônico [A CONFIRMAR]; não se escolheu nem renumerou |
+| RNFs concorrentes após integração | Parcial | O remoto 3832724 trouxe RNF45/RNF46 para compatibilidade Expo e qualidade estática, colidindo com os RNFs de HTML/integridade desta ata e com CT-RNF45/46. Identificadores globais definitivos [A CONFIRMAR]; preservados sem renumeração, conforme a regra 8. Referências desta página designam o assunto Ata de Reunião |
 | IDs legados da ata | Parcial | RF-ATA/UC-ATA/CT-ATA preservados em D e no histórico de testes; equivalência formal [A CONFIRMAR] |
 | Banco aplicado/concorrência real | Não verificado | Conexão somente de leitura recusada com ECONNREFUSED em 2026-11-12, antes de consultas SQL |
 | Uso em Android/iOS | Não verificado | APIs nativas simuladas nos testes existentes; nenhuma confirmação própria em aparelho |

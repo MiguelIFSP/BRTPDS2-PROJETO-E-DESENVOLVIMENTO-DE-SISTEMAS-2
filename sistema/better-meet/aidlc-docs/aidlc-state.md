@@ -123,3 +123,7 @@ O usuário pediu para receber diagrama de classes e dicionário separadamente, f
 ## Encerramento — 2026-11-13
 
 [Resumo de Build and Test](construction/build-and-test/documentacao-ata-reuniao-di2-summary.md): nove suítes, 138 testes aprovados, zero falhas. Aprovação final registrada em [build_and_test_questions.md](inception/requirements/documentacao-ata-reuniao-di2/build_and_test_questions.md) com [A]: e confirmada no chat. Resposta preservada byte a byte. O encerramento da documentação não comprova testes físicos: MySQL aplicado/concorrência/rollback, Android/iOS/navegador real, atualização da Wiki e unificação de classes/dicionário continuam pendentes. Responsável(eis) permanece para assinatura humana.
+
+## Integração autorizada — 2026-11-13
+
+Usuário autorizou resolver conflitos, fazer commits, pull e push. Merge iniciado no GitHub Desktop: HEAD local 30bccb2 e remoto 3832724. Destino atual: documentos/entrega4_Di3/ (principal, testes e sete pares de diagramas). Referências a entrega3_Di2 acima descrevem o pedido e histórico originais. Classes/dicionário continuam externos. Aprovações e nomes da unidade histórica são preservados; links ajustados para os arquivos atuais.

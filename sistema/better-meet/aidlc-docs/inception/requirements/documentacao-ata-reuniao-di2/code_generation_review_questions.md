@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-13
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Parcial — escrita concluída, aguardando revisão humana.
-- **Fontes:** [principal](../../../../../../documentos/entrega3_Di2/ata_reuniao.md), [testes](../../../../../../documentos/entrega3_Di2/testes_ata_reuniao.md), [resumo da escrita](../../../construction/documentacao-ata-reuniao-di2/code/code-summary.md) e [plano](../../../construction/plans/documentacao-ata-reuniao-di2-code-generation-plan.md).
+- **Fontes:** [principal](../../../../../../documentos/entrega4_Di3/ata_reuniao.md), [testes](../../../../../../documentos/entrega4_Di3/testes_ata_reuniao.md), [resumo da escrita](../../../construction/documentacao-ata-reuniao-di2/code/code-summary.md) e [plano](../../../construction/plans/documentacao-ata-reuniao-di2-code-generation-plan.md).
 
 # Revisão da documentação — Ata de Reunião
 

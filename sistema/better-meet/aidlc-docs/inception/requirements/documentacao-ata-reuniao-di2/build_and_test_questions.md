@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-13
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Parcial — verificações direcionadas concluídas; validação física e aprovação final pendentes.
-- **Fontes:** [resultado da etapa](../../../construction/build-and-test/documentacao-ata-reuniao-di2-summary.md), [principal](../../../../../../documentos/entrega3_Di2/ata_reuniao.md) e [testes](../../../../../../documentos/entrega3_Di2/testes_ata_reuniao.md).
+- **Fontes:** [resultado da etapa](../../../construction/build-and-test/documentacao-ata-reuniao-di2-summary.md), [principal](../../../../../../documentos/entrega4_Di3/ata_reuniao.md) e [testes](../../../../../../documentos/entrega4_Di3/testes_ata_reuniao.md).
 
 # Revisão final
 

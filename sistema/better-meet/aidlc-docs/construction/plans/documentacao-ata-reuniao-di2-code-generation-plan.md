@@ -5,7 +5,7 @@
 - **Data de revisão:** 2026-11-13
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Implementado — onze passos executados; escrita e Build and Test aprovados, fluxo documental encerrado em 2026-11-13.
-- **Fontes:** [análise aprovada](../documentacao-ata-reuniao-di2/resumo_analise_requisitos.md), [fluxo aprovado](../documentacao-ata-reuniao-di2/plano_fluxo.md), [inventário da inspeção](../documentacao-ata-reuniao-di2/resumo_engenharia_reversa.md), [fonte atual](../../../../../documentos/entrega3_Di2/ata_reuniao.md), [guia](../../../../../GUIA_DE_DOCUMENTACAO.md), [regra de Code Generation](../../../.aidlc-rule-details/construction/code-generation.md) e [estado](../../aidlc-state.md).
+- **Fontes:** [análise aprovada](../documentacao-ata-reuniao-di2/resumo_analise_requisitos.md), [fluxo aprovado](../documentacao-ata-reuniao-di2/plano_fluxo.md), [inventário da inspeção](../documentacao-ata-reuniao-di2/resumo_engenharia_reversa.md), [fonte atual](../../../../../documentos/entrega4_Di3/ata_reuniao.md), [guia](../../../../../GUIA_DE_DOCUMENTACAO.md), [regra de Code Generation](../../../.aidlc-rule-details/construction/code-generation.md) e [estado](../../aidlc-state.md).
 
 # Plano de escrita — documentacao-ata-reuniao-di2
 

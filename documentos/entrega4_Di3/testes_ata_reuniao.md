@@ -1,4 +1,4 @@
-- **Incremento:** 3 — entrega3_Di2
+- **Incremento:** 3 — Entrega 4 (entrega4_Di3)
 - **Escopo:** Testes e pendências do módulo de Ata de Reunião; RF17, RNF45/RNF46, UC22–UC25.
 - **Branch:** development
 - **Commit:** 945419d84dd6a3dd32aacab736f32f9c7ed806f5
@@ -8,6 +8,8 @@
 - **Fontes:** [especificação](ata_reuniao.md); nove arquivos de teste e configurações listados abaixo; schema e migrations do mesmo commit.
 
 # Testes de ata de reunião
+
+Após integrar 3832724, constatou-se colisão de RNF45/RNF46 e CT-RNF45/46 com os documentos da migração Expo 58. Os IDs desta página referem-se exclusivamente à ata. Identificadores globais definitivos **[A CONFIRMAR]**, sem renumeração unilateral; os testes da migração não são evidência destes casos.
 
 ## O que foi testado
 
@@ -211,6 +213,19 @@ Ran all test suites within paths "src/web-tests/ataEditor.test.ts", "src/web-tes
 | RNF45/RNF46 completos | Não executado | Aprovação dos subconjuntos não comprova as exigências integrais |
 
 Nenhum defeito foi detectado pelas 138 asserções de teste aprovadas; isso não demonstra ausência de defeitos fora da cobertura. Não foram produzidos logs com tokens, senhas ou dados pessoais.
+
+## Revalidação após integração do remoto — 2026-11-13
+
+Árvore integrada: commit local 30bccb2 e remoto 3832724. Os comandos direcionados da seção Como rodar foram repetidos após npm.cmd ci na API e no app; client Prisma regenerado com npm.cmd run prisma:generate, sem aplicar migrations. A documentação conserva a baseline 945419d para as afirmações históricas; esta execução cobre a árvore integrada e os lockfiles recebidos.
+
+| Verificação | Resultado | Tempo informado | Exit code |
+|---|---|---|---|
+| API, tests/ata.test.mjs | 58 testes / 1 suíte aprovados | 0.953 s | 0 |
+| App, três arquivos direcionados | 37 testes / 3 suítes aprovados | 5.107 s | 0 |
+| Web, cinco arquivos direcionados | 43 testes / 5 suítes aprovados | 2.701 s | 0 |
+| App, npm.cmd run typecheck | tsc --noEmit concluído sem erros | Não medido como métrica | 0 |
+
+Total revalidado: **138 testes, nove suítes, zero falhas**. Limitações de mocks/jsdom e pendências de aparelho/MySQL continuam válidas. A instalação informou avisos de pacotes obsoletos/scripts e auditoria de dependências (API: 39 ocorrências, incluindo uma crítica; app: 32). Esses avisos não foram tratados como falhas da suíte nem corrigidos por atualizações automáticas; avaliação de dependências permanece separada da integração documental.
 
 ## Histórico preservado
 

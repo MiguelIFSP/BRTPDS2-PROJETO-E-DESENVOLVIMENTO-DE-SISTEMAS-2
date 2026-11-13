@@ -5,9 +5,11 @@
 - **Data de revisão:** 2026-11-13
 - **Responsável(eis):** [nome de quem revisa e assina]
 - **Estado:** Implementado — etapa documental concluída e aprovada; validações físicas pendentes registradas.
-- **Fontes:** [testes oficiais](../../../../../documentos/entrega3_Di2/testes_ata_reuniao.md), [principal](../../../../../documentos/entrega3_Di2/ata_reuniao.md), [plano](../plans/documentacao-ata-reuniao-di2-code-generation-plan.md).
+- **Fontes:** [testes oficiais](../../../../../documentos/entrega4_Di3/testes_ata_reuniao.md), [principal](../../../../../documentos/entrega4_Di3/ata_reuniao.md), [plano](../plans/documentacao-ata-reuniao-di2-code-generation-plan.md).
 
 # Resultado da validação
+
+Atualização de integração em 2026-11-13: origem 3832724 integrada ao commit local 30bccb2; documentação movida para entrega4_Di3, acompanhada dos testes e diagramas. npm ci executado em API/app, client Prisma regenerado, 138 testes direcionados novamente aprovados e typecheck do app aprovado. Resultados da revalidação estão no registro oficial. Colisão RNF45/RNF46 com a migração Expo registrada como [A CONFIRMAR], sem renumeração unilateral.
 
 A opção A foi aprovada expressamente no chat em 2026-11-13 (“respondido, A”). O arquivo de revisão da escrita continuava com marcador vazio e foi preservado; não se afirmou que havia resposta nele.
 
