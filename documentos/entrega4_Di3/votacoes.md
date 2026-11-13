@@ -1,7 +1,7 @@
 ```text
 Incremento: Entrega 4 — Di3
-Escopo: RF16; RNF44; UC17, UC18, UC19, UC20 e UC21
-Branch: development
+Escopo: RF17; RNF46; UC21, UC22, UC23, UC24 e UC25
+Branch: main
 Commit: 18c26a6e1b9301a177c1bb5fd09aff1d0de7ffa0
 Data de revisão: 2026-11-13
 Responsável(eis): Cauê Watanabe de Campos
@@ -11,9 +11,9 @@ Fontes: sistema/api/prisma/schema.prisma; sistema/api/prisma/migrations/20261107
 
 Este documento cobre só a votação de opções de uma reunião. A votação da ata (`AtaVoto`, descrita em [ata_reuniao.md](ata_reuniao.md)) é outra funcionalidade e não entra aqui.
 
-A página [Requisitos](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/Requisitos) da Wiki ainda não lista o RF16 nem o RNF44. O índice precisa ser atualizado na publicação.
+A página [Requisitos](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/Requisitos) da Wiki ainda não lista o RF17 nem o RNF46. O índice precisa ser atualizado na publicação.
 
-# RF16 — Votar em opções de uma reunião
+# RF17 — Votar em opções de uma reunião
 
 - **Status:** Parcial. Criar, listar, abrir, votar, trocar, encerrar e excluir estão no código. A tela e a API divergem quando a reunião já passou, e o `docs/openapi.yaml` não publica estas rotas.
 - **Objetivo:** permitir que a reunião tenha votações com opções, um voto por pessoa e resultado em barras.
@@ -212,10 +212,10 @@ Não há tabela nova no banco de monitoramento.
 
 | ID | Cenário | Arquivo | Status |
 |---|---|---|---|
-| CT-RF16-01 | Título e duas opções válidos | `sistema/api/tests/votacaoSchema.test.mjs` | Passou em 2026-11-12 |
-| CT-RF16-02 | Uma opção só e opções repetidas | O mesmo arquivo | Passou em 2026-11-12 |
-| CT-RF16-03 | Botão de criar e navegação do card | `VotacoesDaReuniao.test.tsx` | Não executado nesta revisão |
-| CT-RF16-04 | HTTP de criar, votar, encerrar e excluir | Nenhum teste localizado | Não executado |
+| CT-RF17-01 | Título e duas opções válidos | `sistema/api/tests/votacaoSchema.test.mjs` | Passou em 2026-11-12 |
+| CT-RF17-02 | Uma opção só e opções repetidas | O mesmo arquivo | Passou em 2026-11-12 |
+| CT-RF17-03 | Botão de criar e navegação do card | `VotacoesDaReuniao.test.tsx` | Não executado nesta revisão |
+| CT-RF17-04 | HTTP de criar, votar, encerrar e excluir | Nenhum teste localizado | Não executado |
 
 ## Divergências encontradas
 
@@ -224,13 +224,13 @@ Não há tabela nova no banco de monitoramento.
 | OpenAPI | RNF05 da Wiki pede as rotas no Swagger | `docs/openapi.yaml` não tem `/votacoes` nem `/reunioes/:id/votacoes` | Pendência de contrato. Não foi alterado neste documento |
 | Reunião já realizada ou com horário passado | A tela esconde **Nova votação** | `podeGerir` da API não olha `status` nem horário. A página da votação ainda mostra encerrar e excluir | Comportamento parcial. A ficha registra os dois lados |
 | Votação da ata | [ata_reuniao.md](ata_reuniao.md) usa `AtaVoto` e aprovar/reprovar | Esta votação usa `Votacao`, `VotacaoOpcao` e `VotacaoVoto` | Não misturar os dois requisitos |
-| UC01–UC12 | Vários documentos reutilizam os mesmos números | Este texto usa UC17–UC21, depois do UC16 dos relatórios | Não renumerar o que já existe. A Wiki não tem índice de UC |
+| UC01–UC12 | Vários documentos reutilizam os mesmos números | Este texto usa UC21–UC25, depois do UC16 dos relatórios | Não renumerar o que já existe. A Wiki não tem índice de UC |
 | Banco em execução | Migration `20261107140000_votacoes` | As tabelas não foram relidas no MySQL em 2026-11-12 | Estrutura conferida no schema e no SQL da migration |
 
-# RNF44 — Um voto por pessoa em cada votação
+# RNF46 — Um voto por pessoa em cada votação
 
 ```text
-RNF44 — Um voto por pessoa em cada votação
+RNF46 — Um voto por pessoa em cada votação
 Categoria: Segurança
 Escopo: tabela VotacaoVoto; votacaoService.vote
 Exigência: a mesma pessoa não pode ter duas linhas de voto na mesma votação. A troca de opção atualiza a linha existente
@@ -249,11 +249,11 @@ Fonte: [Diagramas/DCU-Votacoes.puml](Diagramas/DCU-Votacoes.puml).
 
 Não há `<<include>>`, `<<extend>>` nem generalização. Abrir a lista antes de votar é a ordem da tela, não uma inclusão obrigatória: a API de voto não chama a listagem.
 
-### UC17 — Consultar votações da reunião
+### UC21 — Consultar votações da reunião
 
 - **Objetivo:** ver as votações da reunião e, ao abrir uma, as opções e as contagens.
 - **Atores:** Administrador; Usuário comum.
-- **RF relacionado:** RF16.
+- **RF relacionado:** RF17.
 - **Gatilho:** a página da reunião ganha foco, ou o ator toca num card.
 - **Entradas:** `Authorization`; `id` da reunião; `id` da votação no segundo passo.
 - **Pré-condições (deste UC):** conta autenticada; a pessoa é Administrador, criador da reunião ou convidado com status `ACEITO`.
@@ -267,11 +267,11 @@ Não há `<<include>>`, `<<extend>>` nem generalização. Abrir a lista antes de
 - **Relações UML:** só as associações com os dois atores.
 - **Rastreabilidade:** `votacaoService.listByReuniao` e `getById`; [DS-Consultar-Votacoes.svg](Diagramas/DS-Consultar-Votacoes.svg).
 
-### UC18 — Criar votação
+### UC22 — Criar votação
 
 - **Objetivo:** gravar uma votação aberta com título e opções.
 - **Atores:** Administrador; Usuário comum.
-- **RF relacionado:** RF16.
+- **RF relacionado:** RF17.
 - **Gatilho:** toque em **Nova votação** e depois em **Criar votação**.
 - **Entradas:** `titulo`; `opcoes`; `id` da reunião; `Authorization`.
 - **Pré-condições (deste UC):** na API, `podeGerir`. Na tela, além disso, a reunião não pode estar histórica, porque senão o botão não é renderizado.
@@ -283,13 +283,13 @@ Não há `<<include>>`, `<<extend>>` nem generalização. Abrir a lista antes de
 - **Fluxos alternativos e erros:** validação local não chama a API. API 400, 401, 403 ou 404 mostra o banner e não fecha o modal com sucesso.
 - **Pós-condições (deste UC):** uma `Votacao` com `encerrada` falso e as opções na ordem digitada.
 - **Relações UML:** só as associações com os dois atores.
-- **Rastreabilidade:** `votacaoController.create`; [DS-Criar-Votacao.svg](Diagramas/DS-Criar-Votacao.svg); CT-RF16-01 e CT-RF16-02.
+- **Rastreabilidade:** `votacaoController.create`; [DS-Criar-Votacao.svg](Diagramas/DS-Criar-Votacao.svg); CT-RF17-01 e CT-RF17-02.
 
-### UC19 — Registrar voto
+### UC23 — Registrar voto
 
 - **Objetivo:** gravar a opção escolhida ou substituir a escolha anterior.
 - **Atores:** Administrador; Usuário comum.
-- **RF relacionado:** RF16. RNF44.
+- **RF relacionado:** RF17. RNF46.
 - **Gatilho:** toque numa opção, ou toque em **Trocar voto** e depois noutra opção.
 - **Entradas:** `opcaoId`; `id` da votação; `Authorization`.
 - **Pré-condições (deste UC):** a pessoa participa da reunião; a votação existe e não está encerrada; a opção pertence a essa votação.
@@ -302,11 +302,11 @@ Não há `<<include>>`, `<<extend>>` nem generalização. Abrir a lista antes de
 - **Relações UML:** só as associações com os dois atores.
 - **Rastreabilidade:** `votacaoService.vote`; [DS-Registrar-Voto.svg](Diagramas/DS-Registrar-Voto.svg).
 
-### UC20 — Encerrar votação
+### UC24 — Encerrar votação
 
 - **Objetivo:** impedir votos novos e trocas, mantendo o resultado.
 - **Atores:** Administrador; Usuário comum.
-- **RF relacionado:** RF16.
+- **RF relacionado:** RF17.
 - **Gatilho:** toque em **Encerrar votação** e confirmação.
 - **Entradas:** `id` da votação; `Authorization`. Sem corpo.
 - **Pré-condições (deste UC):** `podeGerir` na API. O botão só aparece se a resposta do detalhe tiver `podeGerir` e `encerrada` falso.
@@ -319,11 +319,11 @@ Não há `<<include>>`, `<<extend>>` nem generalização. Abrir a lista antes de
 - **Relações UML:** só as associações com os dois atores.
 - **Rastreabilidade:** `votacaoService.close`; [DS-Encerrar-Votacao.svg](Diagramas/DS-Encerrar-Votacao.svg).
 
-### UC21 — Excluir votação
+### UC25 — Excluir votação
 
 - **Objetivo:** remover a votação e os votos.
 - **Atores:** Administrador; Usuário comum.
-- **RF relacionado:** RF16.
+- **RF relacionado:** RF17.
 - **Gatilho:** toque em **Excluir votação** e confirmação.
 - **Entradas:** `id` da votação; `Authorization`.
 - **Pré-condições (deste UC):** `podeGerir` na API.
@@ -338,11 +338,11 @@ Não há `<<include>>`, `<<extend>>` nem generalização. Abrir a lista antes de
 
 | Elipse do diagrama | Ficha | Pré-condições | Pós-condições | Fluxos e erros | Verificado no código |
 |---|---|---|---|---|---|
-| UC17 — Consultar votações da reunião | Ficha acima | Sim | Sim | Sim | Sim |
-| UC18 — Criar votação | Ficha acima | Sim | Sim | Sim | Sim |
-| UC19 — Registrar voto | Ficha acima | Sim | Sim | Sim | Sim |
-| UC20 — Encerrar votação | Ficha acima | Sim | Sim | Sim | Sim |
-| UC21 — Excluir votação | Ficha acima | Sim | Sim | Sim | Sim |
+| UC21 — Consultar votações da reunião | Ficha acima | Sim | Sim | Sim | Sim |
+| UC22 — Criar votação | Ficha acima | Sim | Sim | Sim | Sim |
+| UC23 — Registrar voto | Ficha acima | Sim | Sim | Sim | Sim |
+| UC24 — Encerrar votação | Ficha acima | Sim | Sim | Sim | Sim |
+| UC25 — Excluir votação | Ficha acima | Sim | Sim | Sim | Sim |
 
 # Sequências
 
@@ -437,7 +437,7 @@ O banco exige pelo menos zero opções. A RN-VT01 exige de 2 a 6 só na validaç
 | PK | `PRIMARY` | `VotacaoOpcao.id` | — |
 | FK | `VotacaoOpcao_votacaoId_fkey` | `votacaoId` → `Votacao.id` | `ON DELETE CASCADE`, `ON UPDATE CASCADE` |
 | PK | `PRIMARY` | `VotacaoVoto.id` | — |
-| UK | `VotacaoVoto_votacaoId_userId_key` | `votacaoId`, `userId` | RNF44 |
+| UK | `VotacaoVoto_votacaoId_userId_key` | `votacaoId`, `userId` | RNF46 |
 | FK | `VotacaoVoto_votacaoId_fkey` | `votacaoId` → `Votacao.id` | `ON DELETE CASCADE`, `ON UPDATE CASCADE` |
 | FK | `VotacaoVoto_opcaoId_fkey` | `opcaoId` → `VotacaoOpcao.id` | `ON DELETE CASCADE`, `ON UPDATE CASCADE` |
 | FK | `VotacaoVoto_userId_fkey` | `userId` → `User.id` | `ON DELETE CASCADE`, `ON UPDATE CASCADE` |
@@ -448,16 +448,16 @@ O tipo físico `boolean` está escrito assim na migration. Não foi conferido se
 
 | RF/RNF | UC | Tela | Endpoint ou service | Model | Tabela | Diagrama | Teste | Status |
 |---|---|---|---|---|---|---|---|---|
-| RF16 | UC17 | `VotacoesDaReuniao`, `VotacaoDetalheScreen` | `GET /reunioes/:id/votacoes`, `GET /votacoes/:id`; `listByReuniao`, `getById` | `Votacao`, `VotacaoOpcao`, `VotacaoVoto` | as três tabelas | DCU, DS-Consultar, DC, DER | CT-RF16-03, não executado nesta revisão | Parcial |
-| RF16 | UC18 | `VotacoesDaReuniao` | `POST /reunioes/:id/votacoes`; `create` | `Votacao`, `VotacaoOpcao` | `Votacao`, `VotacaoOpcao` | DS-Criar | CT-RF16-01 e CT-RF16-02, passaram; CT-RF16-04, não executado | Parcial |
-| RF16 | UC19 | `VotacaoDetalheScreen`, `RNPoll` | `POST /votacoes/:id/voto`; `vote` | `VotacaoVoto` | `VotacaoVoto` | DS-Registrar | CT-RF16-04, não executado | Parcial |
-| RF16 | UC20 | `VotacaoDetalheScreen` | `POST /votacoes/:id/encerrar`; `close` | `Votacao` | `Votacao.encerrada` | DS-Encerrar | CT-RF16-04, não executado | Parcial |
-| RF16 | UC21 | `VotacaoDetalheScreen` | `DELETE /votacoes/:id`; `delete` | `Votacao` | as três, por cascata | DS-Excluir | CT-RF16-04, não executado | Parcial |
-| RNF44 | UC19 | — | `votacaoVoto.upsert` | `VotacaoVoto` | UK `VotacaoVoto_votacaoId_userId_key` | DER | Inspeção aprovada; teste no banco não executado | Parcial |
+| RF17 | UC21 | `VotacoesDaReuniao`, `VotacaoDetalheScreen` | `GET /reunioes/:id/votacoes`, `GET /votacoes/:id`; `listByReuniao`, `getById` | `Votacao`, `VotacaoOpcao`, `VotacaoVoto` | as três tabelas | DCU, DS-Consultar, DC, DER | CT-RF17-03, não executado nesta revisão | Parcial |
+| RF17 | UC22 | `VotacoesDaReuniao` | `POST /reunioes/:id/votacoes`; `create` | `Votacao`, `VotacaoOpcao` | `Votacao`, `VotacaoOpcao` | DS-Criar | CT-RF17-01 e CT-RF17-02, passaram; CT-RF17-04, não executado | Parcial |
+| RF17 | UC23 | `VotacaoDetalheScreen`, `RNPoll` | `POST /votacoes/:id/voto`; `vote` | `VotacaoVoto` | `VotacaoVoto` | DS-Registrar | CT-RF17-04, não executado | Parcial |
+| RF17 | UC24 | `VotacaoDetalheScreen` | `POST /votacoes/:id/encerrar`; `close` | `Votacao` | `Votacao.encerrada` | DS-Encerrar | CT-RF17-04, não executado | Parcial |
+| RF17 | UC25 | `VotacaoDetalheScreen` | `DELETE /votacoes/:id`; `delete` | `Votacao` | as três, por cascata | DS-Excluir | CT-RF17-04, não executado | Parcial |
+| RNF46 | UC23 | — | `votacaoVoto.upsert` | `VotacaoVoto` | UK `VotacaoVoto_votacaoId_userId_key` | DER | Inspeção aprovada; teste no banco não executado | Parcial |
 
 # Pendências
 
-- Atualizar o índice da Wiki com RF16 e RNF44. Não há índice de UC para atualizar.
+- Atualizar o índice da Wiki com RF17 e RNF46. Não há índice de UC para atualizar.
 - Publicar as seis rotas no `docs/openapi.yaml`.
 - Decidir se reunião histórica deve impedir criar, encerrar e excluir também na API.
 - Cobrir com teste os status 401, 403, 404 e 409 e a UK no MySQL.
@@ -469,7 +469,7 @@ O tipo físico `boolean` está escrito assim na migration. Não foi conferido se
 |---|---|
 | Cabeçalho com branch e commit | Atendido. Responsável em branco |
 | Arquivo em `documentos/entrega4_Di3/` | Atendido. A Wiki ainda não foi publicada a partir dele |
-| Identificadores novos | Atendido no texto: RF16, RNF44, UC17–UC21. O índice da Wiki ainda não os lista |
+| Identificadores novos | Atendido no texto: RF17, RNF46, UC21–UC25. O índice da Wiki ainda não os lista |
 | Status e divergências | Atendido. Estado geral Parcial |
 | Atores | Atendido. Administrador e Usuário comum, sem ator autenticado genérico |
 | Casos de uso em PlantUML | Atendido. `.puml` e `.svg` na pasta `Diagramas/` |

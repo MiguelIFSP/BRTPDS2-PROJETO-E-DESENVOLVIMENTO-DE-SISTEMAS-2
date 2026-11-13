@@ -1,0 +1,107 @@
+' Incremento: 3 — Entrega 4 (entrega4_Di3)
+' Escopo: Ata de Reunião — RF16, RNF44/RNF45, UC17–UC20
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/api/prisma/schema.prisma e migrations 20260918235817, 20260922140000, 20261014120000, 20261014120100, 20261021120000, 20261021120100, 20261023120000, 20261109140000 (ver Markdown para nomes completos).
+@startuml
+hide circle
+skinparam linetype ortho
+skinparam shadowing false
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+title Ata de Reunião — recorte físico MySQL (7 tabelas / 44 colunas)
+entity "User" as User {
+  {field} * id : INTEGER <<PK>>
+  {field} * name : VARCHAR(191)
+  {field} * email : VARCHAR(191) <<UK>>
+  {field} * password : VARCHAR(191)
+  {field} * role : ENUM
+  {field} * createdAt : DATETIME(3)
+  {field} themePreference : ENUM
+}
+entity "Organizacao" as Organizacao {
+  {field} * id : INTEGER <<PK>>
+  {field} * nome : VARCHAR(191)
+  {field} * status : ENUM
+  {field} * createdAt : DATETIME(3)
+}
+entity "Comissao" as Comissao {
+  {field} * id : INTEGER <<PK>>
+  {field} * nome : VARCHAR(191)
+  {field} descricao : VARCHAR(191)
+  {field} * createdAt : DATETIME(3)
+  {field} * organizacaoId : INTEGER <<FK>>
+}
+entity "ComissaoEquipe" as ComissaoEquipe {
+  {field} * comissaoId : INTEGER <<PK / FK>>
+  {field} * userId : INTEGER <<PK / FK>>
+  {field} * papel : ENUM
+}
+entity "Reuniao" as Reuniao {
+  {field} * id : INTEGER <<PK>>
+  {field} * comissaoId : INTEGER <<FK / índice>>
+  {field} * titulo : VARCHAR(191)
+  {field} * pauta : VARCHAR(191)
+  {field} descricao : VARCHAR(191)
+  {field} * data : VARCHAR(191) <<Índice>>
+  {field} * horaInicio : VARCHAR(191)
+  {field} * horaFim : VARCHAR(191)
+  {field} local : VARCHAR(500)
+  {field} * status : ENUM
+  {field} * criadoPorUserId : INTEGER <<FK / índice>>
+  {field} * createdAt : DATETIME(3)
+  {field} conteudoAta : LONGTEXT
+  {field} * versaoAta : INTEGER
+}
+entity "ReuniaoRegistro" as ReuniaoRegistro {
+  {field} * id : INTEGER <<PK>>
+  {field} * reuniaoId : INTEGER <<FK / UK>>
+  {field} * userId : INTEGER <<FK / UK / índice>>
+  {field} * entradaAt : DATETIME(3)
+  {field} saidaAt : DATETIME(3)
+}
+entity "AtaVoto" as AtaVoto {
+  {field} * id : INTEGER <<PK>>
+  {field} * reuniaoId : INTEGER <<FK / UK>>
+  {field} * userId : INTEGER <<FK / UK / índice>>
+  {field} * status : ENUM
+  {field} * versaoAta : INTEGER
+  {field} * updatedAt : DATETIME(3)
+}
+Organizacao ||--o{ Comissao : organizacaoId
+Comissao ||--o{ ComissaoEquipe : comissaoId
+User ||--o{ ComissaoEquipe : userId
+Comissao ||--o{ Reuniao : comissaoId
+User ||--o{ Reuniao : criadoPorUserId
+Reuniao ||--o{ ReuniaoRegistro : reuniaoId
+User ||--o{ ReuniaoRegistro : userId
+Reuniao ||--o{ AtaVoto : reuniaoId
+User ||--o{ AtaVoto : userId
+note right of Reuniao
+  conteudoAta: LONGTEXT, fragmento HTML.
+  data/horaInicio/horaFim são VARCHAR(191).
+  versaoAta default 0; sem CHECK no DDL.
+end note
+note bottom of AtaVoto
+  UK (reuniaoId,userId).
+  updatedAt: DATETIME(3), sem default SQL;
+  Prisma aplica @updatedAt.
+  versaoAta não é FK nem parte da UK.
+end note
+note bottom of ComissaoEquipe
+  PK composta (comissaoId,userId).
+  papel: ADMINISTRADOR, FACILITADOR,
+  SECRETARIO ou MEMBRO.
+end note
+legend bottom
+  Nomes físicos sem @@map/@map no recorte. * = NOT NULL. Parent 1 : child 0..*.
+  UK User.email; UK ReuniaoRegistro(reuniaoId,userId); UK AtaVoto(reuniaoId,userId).
+  Todas as FKs: ON UPDATE CASCADE. ON DELETE CASCADE, exceto
+  Reuniao.criadoPorUserId -> User.id: ON DELETE RESTRICT.
+  Recorte do banco principal; demais módulos e outros bancos não são representados.
+  Schema/migrations inspecionados; estrutura aplicada no MySQL não verificada.
+endlegend
+@enduml

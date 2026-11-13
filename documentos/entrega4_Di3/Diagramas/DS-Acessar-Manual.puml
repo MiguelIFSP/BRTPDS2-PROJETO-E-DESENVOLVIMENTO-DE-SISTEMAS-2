@@ -1,0 +1,51 @@
+@startuml DS-Acessar-Manual
+' UC29, fluxo de download (aba Mais). Não há chamada à API nem ao banco.
+' Na Web, o código não detecta falha do download depois do click().
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Usuário comum\nou Administrador" as Ator
+participant "MaisScreen" as Mais
+participant "downloadManualUsuario" as Dl
+participant "Asset\n(expo-asset)" as Asset
+participant "Navegador" as Nav
+participant "Directory / File\n(expo-file-system)" as Fs
+
+Ator -> Mais : toca em "Baixar manual do\nusuário (PDF)"
+Mais -> Mais : isDownloadingManual = true\nmanualFeedback = null
+Mais -> Dl : downloadManualUsuario()
+Dl -> Asset : Asset.fromModule\n(Manual-do-Usuario-Better-Meet.pdf)
+alt Platform.OS == web
+  alt sem document ou sem asset.uri
+    Dl --> Mais : erro "Este navegador não permite\nbaixar o manual em PDF."
+  else
+    Dl -> Nav : link <a download="Manual-do-Usuario-\nBetter-Meet.pdf"> e click()
+    Dl --> Mais : "downloaded"
+    Mais --> Ator : "Manual em PDF baixado."
+  end
+else Android ou iOS
+  Dl -> Asset : downloadAsync()
+  alt sem localUri
+    Dl --> Mais : erro "Não foi possível preparar\no arquivo PDF."
+  else
+    Dl -> Fs : Directory.pickDirectoryAsync()
+    Dl -> Fs : directory.list() busca arquivo\ncom o mesmo nome
+    alt já existe
+      Dl -> Dl : reutiliza o arquivo existente
+    else
+      Dl -> Fs : directory.createFile(nome, application/pdf)
+    end
+    Dl -> Fs : new File(localUri).bytes()
+    alt arquivo vazio
+      Dl --> Mais : erro "O arquivo PDF do\nmanual está vazio."
+    else
+      Dl -> Fs : destination.write(bytes)
+      Dl --> Mais : "saved"
+      Mais --> Ator : "Manual em PDF salvo na pasta escolhida."
+    end
+  end
+end
+Mais --> Ator : em qualquer erro: FeedbackBanner de erro\n(getErrorMessage, padrão "Não foi possível baixar o manual.")
+Mais -> Mais : isDownloadingManual = false
+@enduml

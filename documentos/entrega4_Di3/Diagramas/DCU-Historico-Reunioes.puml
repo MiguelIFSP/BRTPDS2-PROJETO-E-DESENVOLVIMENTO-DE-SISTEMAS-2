@@ -1,0 +1,26 @@
+@startuml DCU-Historico-Reunioes
+' Casos de uso do histórico de reuniões e do registro de presença (RF18, UC26-UC28 locais).
+' Numeração final de RF e UC a definir. Não inclui lista de presença consolidada, ata nem votações.
+' Gerar o SVG: java -jar plantuml.jar -charset UTF-8 -tsvg "DCU-Historico-Reunioes.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Administrador" as Adm
+actor "Usuário comum" as Usu
+actor "Membro da comissão" as Mem
+
+rectangle "Better Meet (App e API de Dados)" {
+  usecase "UC26 - Consultar histórico\nde reuniões" as UC26
+  usecase "UC27 - Registrar entrada\nna reunião" as UC27
+  usecase "UC28 - Registrar saída\nda reunião" as UC28
+}
+
+Adm -- UC26
+Usu -- UC26
+Mem -- UC27
+Mem -- UC28
+@enduml

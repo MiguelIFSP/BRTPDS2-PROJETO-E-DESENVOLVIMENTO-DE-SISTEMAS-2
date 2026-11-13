@@ -1,0 +1,44 @@
+@startuml DS-Primeiro-Acesso-Manual
+' UC29, convite de primeiro acesso. A indicação fica só no AsyncStorage (chave por userId).
+' O cadastro não autentica: o toast leva ao login e o modal aparece depois, quando a conta entra.
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Usuário comum\nou Administrador" as Ator
+participant "UsuarioScreen" as Cad
+participant "usuarioService" as Svc
+participant "firstAccessWelcome" as Fa
+database "AsyncStorage\n(local)" as St
+participant "PrimeiroAcessoDialog" as Dlg
+participant "MaisScreen" as Mais
+
+Ator -> Cad : envia o cadastro
+Cad -> Svc : create({ nome, email, password })
+Svc --> Cad : AuthUser (id)
+Cad -> Fa : markFirstAccessWelcomePending(id)
+Fa -> St : setItem("better-meet:first-access-\nwelcome:<id>", "pending")
+alt falha ao gravar
+  Cad -> Cad : console.warn, o cadastro segue como sucesso
+end
+Cad --> Ator : toast de sucesso e redirecionamento ao login
+
+Ator -> Dlg : entra na conta (authStore autenticado)
+Dlg -> Fa : isFirstAccessWelcomePending(userId)
+Fa -> St : getItem(chave)
+alt pendente
+  Dlg --> Ator : modal "Bem-vindo ao Better Meet!"
+  alt "Sim, quero aprender"
+    Dlg -> Fa : clearFirstAccessWelcomePending(userId)
+    Fa -> St : removeItem(chave)
+    Dlg -> Mais : router.navigate("/mais",\n{ highlightManual: "1" })
+    Mais --> Ator : botão do manual com destaque\n(4 pulsos de cerca de 1,1 s)
+  else "Não / Fechar", fundo ou voltar
+    Dlg -> Fa : clearFirstAccessWelcomePending(userId)
+    Fa -> St : removeItem(chave)
+    Dlg --> Ator : fecha o modal, sem navegar
+  end
+else não pendente
+  Dlg --> Ator : nada é exibido
+end
+@enduml

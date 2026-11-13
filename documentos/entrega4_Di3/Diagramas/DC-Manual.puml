@@ -1,0 +1,95 @@
+@startuml DC-Manual
+' Módulos, componentes, tipos e APIs externas do fluxo do manual (RF19).
+' Não há classes de domínio nem models Prisma novos: os estereótipos indicam unidades do código.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+left to right direction
+
+class UsuarioScreen <<screen>> {
+  +handleCreateUser()
+}
+class usuarioService <<service>> {
+  +create(usuario): AuthUser
+}
+class AuthUser <<type>> {
+  +id: number
+  +name: string
+  +email: string
+  +role: Role
+  +createdAt: string
+}
+enum Role <<type>> {
+  USER
+  ADMIN
+}
+class AuthStore <<Zustand store>> {
+  +user: AuthUser
+  +isAuthenticated: boolean
+  +login()
+  +logout()
+}
+class PrimeiroAcessoDialog <<component>> {
+  +welcomeUserId: number
+  +visible: boolean
+  +close()
+  +openManual()
+}
+class firstAccessWelcome <<utility>> {
+  +markFirstAccessWelcomePending(userId): Promise
+  +isFirstAccessWelcomePending(userId): Promise
+  +clearFirstAccessWelcomePending(userId): Promise
+}
+class AsyncStorage <<external API>> {
+  +setItem(key, value): Promise
+  +getItem(key): Promise
+  +removeItem(key): Promise
+}
+class MaisScreen <<screen>> {
+  +shouldHighlightManual: boolean
+  +isDownloadingManual: boolean
+  +handleDownloadManual()
+}
+class downloadManualUsuario <<utility>> {
+  +downloadManualUsuario(): Promise<DownloadResult>
+}
+enum DownloadResult <<type>> {
+  downloaded
+  saved
+}
+class ManualPDF <<static asset>> {
+  +fileName: string
+  +mediaType: string
+}
+class ExpoAsset <<external API>> {
+  +fromModule()
+  +downloadAsync()
+}
+class ExpoFileSystem <<external API>> {
+  +pickDirectoryAsync()
+  +list()
+  +createFile(name, mimeType)
+  +bytes()
+  +write(content)
+}
+class Browser <<external API>> {
+  +createElement()
+  +click()
+}
+
+UsuarioScreen ..> usuarioService : cria a conta
+usuarioService ..> AuthUser : retorna os dados da conta
+AuthUser ..> Role : possui papel
+UsuarioScreen ..> firstAccessWelcome : marca primeiro acesso
+PrimeiroAcessoDialog ..> AuthStore : consulta sessão e userId
+PrimeiroAcessoDialog ..> firstAccessWelcome : consulta e remove indicação
+PrimeiroAcessoDialog ..> MaisScreen : navega ao aceitar
+MaisScreen ..> downloadManualUsuario : solicita o PDF
+downloadManualUsuario ..> ManualPDF : carrega o asset
+downloadManualUsuario ..> ExpoAsset : prepara o arquivo
+downloadManualUsuario ..> ExpoFileSystem : transfere bytes (Android/iOS)
+downloadManualUsuario ..> Browser : inicia download (Web)
+downloadManualUsuario ..> DownloadResult : retorna resultado
+firstAccessWelcome ..> AsyncStorage : persiste indicação local
+@enduml

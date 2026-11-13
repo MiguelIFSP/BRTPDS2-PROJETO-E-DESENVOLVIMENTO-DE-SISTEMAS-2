@@ -2,8 +2,8 @@
 
 ```text
 Incremento: Entrega 4 — Di3
-Escopo: RF-ATA-01 a RF-ATA-07; UC-ATA-01 a UC-ATA-04 (conforme a tabela deste documento)
-Branch: development
+Escopo: RF16.1 a RF16.7; UC17 a UC20 (conforme a tabela deste documento)
+Branch: main
 Commit: [A CONFIRMAR NO CÓDIGO] (último commit do documento: 945419d)
 Data de revisão: [A CONFIRMAR] (última alteração do documento: 2026-11-12)
 Responsável(eis): Gustavo de Oliveira Tomaz
@@ -19,13 +19,13 @@ Editor ampliado em 10/11/2026. Esta ampliação não exige migração adicional.
 
 | ID | Requisito | Caso de uso |
 |---|---|---|
-| RF-ATA-01 | Redigir e editar uma ata com formatação textual, parágrafos e tabelas | UC-ATA-01 — Redigir ata |
-| RF-ATA-02 | Ler a ata salva, sem controles de edição para facilitador/membro | UC-ATA-02 — Consultar ata |
-| RF-ATA-03 | Aprovar ou reprovar a ata, com um voto por integrante e possibilidade de troca | UC-ATA-03 — Votar na ata |
-| RF-ATA-04 | Exigir vínculo atual com a comissão e registro de entrada na reunião | Todos |
-| RF-ATA-05 | Sanitizar HTML, detectar edições concorrentes e invalidar votos ao alterar o texto | UC-ATA-01 e UC-ATA-03 |
-| RF-ATA-06 | Oferecer barra horizontal com ícones, histórico e menu de tabelas no celular e na web | UC-ATA-01 — Redigir ata |
-| RF-ATA-07 | Exportar a ata salva em PDF para qualquer integrante com acesso à leitura | UC-ATA-04 — Exportar ata |
+| RF16.1 | Redigir e editar uma ata com formatação textual, parágrafos e tabelas | UC17 — Redigir ata |
+| RF16.2 | Ler a ata salva, sem controles de edição para facilitador/membro | UC18 — Consultar ata |
+| RF16.3 | Aprovar ou reprovar a ata, com um voto por integrante e possibilidade de troca | UC19 — Votar na ata |
+| RF16.4 | Exigir vínculo atual com a comissão e registro de entrada na reunião | Todos |
+| RF16.5 | Sanitizar HTML, detectar edições concorrentes e invalidar votos ao alterar o texto | UC17 e UC19 |
+| RF16.6 | Oferecer barra horizontal com ícones, histórico e menu de tabelas no celular e na web | UC17 — Redigir ata |
+| RF16.7 | Exportar a ata salva em PDF para qualquer integrante com acesso à leitura | UC20 — Exportar ata |
 
 ### Permissões
 
@@ -153,12 +153,12 @@ Data: 09/11/2026. Os testes da API usam Prisma simulado e Supertest, sem alterar
 
 | IDs | Requisito/caso de uso | Cenários automatizados |
 |---|---|---|
-| CT-ATA-01 | RF-ATA-01, UC-ATA-01 | Administrador e secretário editam; facilitador/membro recebem 403 inclusive com ADMIN global |
-| CT-ATA-02 | RF-ATA-04, todos | Ausentes, ex-integrantes, token inválido e presença em outra reunião não concedem acesso; saída não revoga presença |
-| CT-ATA-03 | RF-ATA-02/05, UC-ATA-02 | HTML sanitizado na gravação e leitura, preservação de formatação, bloqueio de scripts e recursos externos |
-| CT-ATA-04 | RF-ATA-03, UC-ATA-03 | Quatro cargos votam; duplicação, troca, voto próprio e totais; bloqueio antes de existir conteúdo |
-| CT-ATA-05 | RF-ATA-05, UC-ATA-01/03 | Edição invalida votos, conteúdo idêntico preserva votos, versão antiga e concorrência recebem 409 |
-| CT-ATA-06 | RF-ATA-01/02/03, todos | Interface condicional, gravação/voto, rascunho preservado em erros e confirmações |
+| CT-ATA-01 | RF16.1, UC17 | Administrador e secretário editam; facilitador/membro recebem 403 inclusive com ADMIN global |
+| CT-ATA-02 | RF16.4, todos | Ausentes, ex-integrantes, token inválido e presença em outra reunião não concedem acesso; saída não revoga presença |
+| CT-ATA-03 | RF16.2/05, UC18 | HTML sanitizado na gravação e leitura, preservação de formatação, bloqueio de scripts e recursos externos |
+| CT-ATA-04 | RF16.3, UC19 | Quatro cargos votam; duplicação, troca, voto próprio e totais; bloqueio antes de existir conteúdo |
+| CT-ATA-05 | RF16.5, UC17/03 | Edição invalida votos, conteúdo idêntico preserva votos, versão antiga e concorrência recebem 409 |
+| CT-ATA-06 | RF16.1/02/03, todos | Interface condicional, gravação/voto, rascunho preservado em erros e confirmações |
 
 ```powershell
 # sistema/api
@@ -203,10 +203,10 @@ Essa validação com dispositivo e banco real ainda não foi executada. Exportar
 
 | IDs | Requisito/caso de uso | Cobertura adicionada |
 |---|---|---|
-| CT-ATA-07 | RF-ATA-01/05, UC-ATA-01/02 | Salvar/reler títulos, sublinhado, rasurado, recuo, fonte e os dez estilos de borda; normalizar fonte nativa; rejeitar CSS/atributos inválidos e tabela sem texto |
-| CT-ATA-08 | RF-ATA-01/06, UC-ATA-01 | Comandos reais do Tiptap: alinhamentos, títulos, fonte, recuo, histórico e edição de tabela, com sanitização e reabertura |
-| CT-ATA-09 | RF-ATA-06, UC-ATA-01 | Barra horizontal, nomes acessíveis, estados ativo/desabilitado e escolha de tamanho/bordas |
-| CT-ATA-10 | RF-ATA-03/06, UC-ATA-01/03 | Alternar salvamento não cria alterações pendentes; ponte nativa preserva histórico e filtra mensagens |
+| CT-ATA-07 | RF16.1/05, UC17/02 | Salvar/reler títulos, sublinhado, rasurado, recuo, fonte e os dez estilos de borda; normalizar fonte nativa; rejeitar CSS/atributos inválidos e tabela sem texto |
+| CT-ATA-08 | RF16.1/06, UC17 | Comandos reais do Tiptap: alinhamentos, títulos, fonte, recuo, histórico e edição de tabela, com sanitização e reabertura |
+| CT-ATA-09 | RF16.6, UC17 | Barra horizontal, nomes acessíveis, estados ativo/desabilitado e escolha de tamanho/bordas |
+| CT-ATA-10 | RF16.3/06, UC17/03 | Alternar salvamento não cria alterações pendentes; ponte nativa preserva histórico e filtra mensagens |
 
 Resultados: API com 261 testes aprovados (13 suítes), app com 177 testes aprovados (22 suítes) e web com 29 testes aprovados (4 suítes). Typecheck e lint aprovados na API e no app. Exportação Expo aprovada para Android, iOS e web.
 
@@ -235,9 +235,9 @@ Referências: [Expo 58 — Print](https://docs.expo.dev/versions/v58.0.0/sdk/pri
 
 | IDs | Requisito/caso de uso | Cobertura |
 |---|---|---|
-| CT-ATA-11 | RF-ATA-07, UC-ATA-04 | Os quatro cargos exportam; sem conteúdo salvo o botão fica desabilitado; rascunho não é exportado nem salvo implicitamente |
-| CT-ATA-12 | RF-ATA-07, UC-ATA-04 | Bloqueio de exportação duplicada, falha e nova tentativa; geração A4 e chamada de compartilhamento com MIME/UTI de PDF |
-| CT-ATA-13 | RF-ATA-05/07, UC-ATA-04 | Título escapado, data civil, preservação das dez bordas, sanitização web, documento isolado e bloqueio de pop-ups |
+| CT-ATA-11 | RF16.7, UC20 | Os quatro cargos exportam; sem conteúdo salvo o botão fica desabilitado; rascunho não é exportado nem salvo implicitamente |
+| CT-ATA-12 | RF16.7, UC20 | Bloqueio de exportação duplicada, falha e nova tentativa; geração A4 e chamada de compartilhamento com MIME/UTI de PDF |
+| CT-ATA-13 | RF16.5/07, UC20 | Título escapado, data civil, preservação das dez bordas, sanitização web, documento isolado e bloqueio de pop-ups |
 
 Validação concluída: API com 261 testes (13 suítes), app com 192 testes (23 suítes) e web com 43 testes (5 suítes), todos aprovados. Typecheck e lint aprovados nos dois subsistemas. Exportação Expo aprovada para Android, iOS e web.
 
@@ -251,7 +251,7 @@ O teste do usuário no Android apresentou `Not allowed to read file under given 
 
 A exportação Android e iOS solicita `base64: true`, grava esses bytes com `await new File(Paths.cache, ...).write(base64, { encoding: 'base64' })` e compartilha a URI do arquivo gravado. Não é necessário ler ou copiar a URI recusada. O nome inclui data e instante de exportação; o arquivo permanece no cache para permitir a leitura pelo aplicativo destinatário após a gaveta fechar. A ausência do base64 ou a falha da gravação interrompe o fluxo antes de compartilhar. Referência: [Expo 58 — FileSystem](https://docs.expo.dev/versions/v58.0.0/sdk/filesystem/).
 
-Regressão (CT-ATA-12, RF-ATA-07, UC-ATA-04): os testes simulam um caminho de impressão inacessível, verificam os bytes/encoding, esperam a conclusão da gravação e impedem compartilhar em caso de erro em ambas as plataformas. Quatro casos Android falharam antes de estender a correção para essa plataforma. Após a alteração, `npm test -- --runInBand src/utils/__tests__/ataPdf.test.ts src/components/__tests__/AtaReuniao.test.tsx` passou com 33 testes, sem falhas; `npm run typecheck` e `npm run lint` também passaram. O bundle Android servido pelo Metro respondeu com HTTP 200 e contém o fluxo atualizado de gravação antes do compartilhamento. A confirmação do compartilhamento real após a correção depende de repetir o teste no Android do usuário.
+Regressão (CT-ATA-12, RF16.7, UC20): os testes simulam um caminho de impressão inacessível, verificam os bytes/encoding, esperam a conclusão da gravação e impedem compartilhar em caso de erro em ambas as plataformas. Quatro casos Android falharam antes de estender a correção para essa plataforma. Após a alteração, `npm test -- --runInBand src/utils/__tests__/ataPdf.test.ts src/components/__tests__/AtaReuniao.test.tsx` passou com 33 testes, sem falhas; `npm run typecheck` e `npm run lint` também passaram. O bundle Android servido pelo Metro respondeu com HTTP 200 e contém o fluxo atualizado de gravação antes do compartilhamento. A confirmação do compartilhamento real após a correção depende de repetir o teste no Android do usuário.
 
 ### Validação da integração na development — 12/11/2026
 

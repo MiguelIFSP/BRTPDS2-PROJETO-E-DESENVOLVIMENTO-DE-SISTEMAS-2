@@ -1,0 +1,101 @@
+@startuml DC-Historico-Reunioes
+' Modelo de persistência Prisma do histórico de reuniões e da presença.
+' Os models não têm métodos. Services, controllers e telas não são classes.
+' Só os campos de User, Comissao, ComissaoEquipe e Organizacao usados na autorização foram desenhados.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+class Reuniao {
+  +Int id
+  +Int comissaoId
+  +String titulo
+  +String pauta
+  +String? descricao
+  +String data
+  +String horaInicio
+  +String horaFim
+  +String? local
+  +StatusReuniao status
+  +Int criadoPorUserId
+  +DateTime createdAt
+  +String? conteudoAta
+  +Int versaoAta
+}
+class ReuniaoRegistro {
+  +Int id
+  +Int reuniaoId
+  +Int userId
+  +DateTime entradaAt
+  +DateTime? saidaAt
+}
+class ConviteReuniao {
+  +Int id
+  +Int reuniaoId
+  +Int userId
+  +StatusConviteReuniao status
+  +DateTime createdAt
+  +DateTime? respondidoAt
+  +String? tokenResposta
+}
+class User {
+  +Int id
+  +String name
+  +Role role
+}
+class Comissao {
+  +Int id
+  +String nome
+  +Int organizacaoId
+}
+class ComissaoEquipe {
+  +Int comissaoId
+  +Int userId
+  +PapelComissao papel
+}
+class Organizacao {
+  +Int id
+  +StatusOrganizacao status
+}
+enum StatusReuniao <<enumeration>> {
+  AGENDADA
+  REALIZADA
+  CANCELADA
+}
+enum StatusConviteReuniao <<enumeration>> {
+  PENDENTE
+  ACEITO
+  RECUSADO
+}
+enum PapelComissao <<enumeration>> {
+  ADMINISTRADOR
+  FACILITADOR
+  SECRETARIO
+  MEMBRO
+}
+enum StatusOrganizacao <<enumeration>> {
+  PENDENTE
+  ACEITA
+  RECUSADA
+}
+enum Role <<enumeration>> {
+  USER
+  ADMIN
+}
+
+Comissao "1" --> "0..*" Reuniao : reunioes
+User "1" <-- "0..*" Reuniao : criadoPor
+Reuniao "1" --> "0..*" ReuniaoRegistro : registros
+User "1" <-- "0..*" ReuniaoRegistro : user
+Reuniao "1" --> "0..*" ConviteReuniao : convites
+User "1" <-- "0..*" ConviteReuniao : user
+Comissao "1" --> "0..*" ComissaoEquipe : equipe
+User "1" <-- "0..*" ComissaoEquipe : user
+Organizacao "1" --> "0..*" Comissao : comissoes
+Reuniao "0..*" --> "1" StatusReuniao : status
+ConviteReuniao "0..*" --> "1" StatusConviteReuniao : status
+ComissaoEquipe "0..*" --> "1" PapelComissao : papel
+Organizacao "0..*" --> "1" StatusOrganizacao : status
+User "0..*" --> "1" Role : role
+@enduml

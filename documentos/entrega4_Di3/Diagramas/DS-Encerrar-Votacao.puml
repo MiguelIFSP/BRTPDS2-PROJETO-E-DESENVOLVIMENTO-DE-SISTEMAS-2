@@ -1,5 +1,5 @@
 @startuml DS-Encerrar-Votacao
-' UC20. Encerrar não apaga votos.
+' UC24. Encerrar não apaga votos.
 !pragma layout smetana
 skinparam shadowing false
 skinparam monochrome true

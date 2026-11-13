@@ -2,16 +2,16 @@
 
 ```text
 Incremento: Entrega Di3 — Manutenção: migração para a SDK 58 do Expo
-Escopo: migração do better-meet e do management-better-meet/web do SDK 57 para o SDK 58; RNF45 a RNF49 (requisitos_nao_funcionais_migracao_expo_58.md). Nenhum RF e nenhum UC novos.
-Branch: development (código verificado); a migração foi feita em feature/migracao-expo-58
-Commit: 6e4b743 (development); verificações automáticas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web); commits da migração: 9527c1b, dbf965d e 23b9226, integrados à development pelo merge 5b94ead
+Escopo: migração do better-meet e do management-better-meet/web do SDK 57 para o SDK 58; RNF50 a RNF54 (requisitos_nao_funcionais_migracao_expo_58.md). Nenhum RF e nenhum UC novos.
+Branch: main
+Commit: 6e4b743; verificações automáticas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web); commits da migração: 9527c1b, dbf965d e 23b9226, integrados à development pelo merge 5b94ead
 Data de revisão: 2026-11-13
 Responsável(eis): Bruno Soares Machado
 Estado: Parcial (código migrado e verificado por análise estática e testes automatizados; testes manuais aprovados no Android e no painel web; iOS não executado, sem acesso a dispositivo)
 Fontes: sistema/better-meet/package.json; sistema/better-meet/package-lock.json; sistema/better-meet/src/app/_layout.tsx; sistema/better-meet/src/app/(tabs)/_layout.tsx; sistema/better-meet/src/components/ui/KeyboardAwareScrollView.tsx; sistema/better-meet/src/components/ui/TextField.tsx; sistema/better-meet/src/utils/__tests__/apiClient.test.ts; sistema/management-better-meet/web/package.json; sistema/management-better-meet/web/src/app/_layout.tsx; sistema/management-better-meet/web/src/store/themeStore.ts; sistema/management-better-meet/web/src/hooks/use-theme.ts; git diff ae0dec7..23b9226; git diff 0320831..origin/development; slide aula4.pptx (Incremento 3, "Manutenção")
 ```
 
-> Escrito conforme o [GUIA_DE_DOCUMENTACAO.md](../../GUIA_DE_DOCUMENTACAO.md) e o [PROMPT_DOCUMENTACAO_IA.md](../../PROMPT_DOCUMENTACAO_IA.md). **Rascunho para revisão humana.** Os números `RNF45` a `RNF49` seguem o maior número em uso na `development` (`RNF44`, nos documentos de votações); a Wiki não foi consultada, então o índice da página Requisitos precisa ser conferido (seção 11).
+> Escrito conforme o [GUIA_DE_DOCUMENTACAO.md](../../GUIA_DE_DOCUMENTACAO.md) e o [PROMPT_DOCUMENTACAO_IA.md](../../PROMPT_DOCUMENTACAO_IA.md). **Rascunho para revisão humana.** Os números `RNF50` a `RNF54` seguem a ordem dos requisitos do Incremento 3 no slide (Ata, Votação, Histórico de reuniões, Manual e, por último, a Manutenção), depois do `RNF49` do manual; a Wiki não foi consultada, então o índice da página Requisitos precisa ser conferido (seção 11).
 
 ---
 
@@ -27,7 +27,7 @@ O slide pede RF, casos de uso, classes, relacional e sequência "referentes ao r
 
 | Artefato do slide | Impacto da migração | Tratamento neste incremento |
 |---|---|---|
-| Requisitos não funcionais | Principal. A migração é compatibilidade, manutenibilidade e portabilidade | [requisitos_nao_funcionais_migracao_expo_58.md](requisitos_nao_funcionais_migracao_expo_58.md) (RNF45 a RNF49) |
+| Requisitos não funcionais | Principal. A migração é compatibilidade, manutenibilidade e portabilidade | [requisitos_nao_funcionais_migracao_expo_58.md](requisitos_nao_funcionais_migracao_expo_58.md) (RNF50 a RNF54) |
 | Testes e evidências | Prova de que nada quebrou | [testes_migracao_expo_58.md](testes_migracao_expo_58.md) |
 | Diagrama de sequência | Só onde o fluxo de execução mudou: proteção de rotas do app e hidratação do tema no painel web | [Diagramas/sequencia_migracao_expo_58.md](Diagramas/sequencia_migracao_expo_58.md) |
 | Requisitos funcionais e casos de uso | Nenhum RF ou UC novo ou alterado (seção 4) | Sem diagrama `.puml` e sem ficha de UC (seção 4) |
@@ -144,11 +144,11 @@ Os RNFs desta migração estão em [requisitos_nao_funcionais_migracao_expo_58.m
 
 | ID | Propriedade | Resultado em 2026-11-13 (`development`, commit `80ec6e5`) |
 |---|---|---|
-| RNF45 | Compatibilidade com o Expo SDK 58 | Aprovado (`expo-doctor` 20 de 20 nos dois apps; em 2026-11-12, no commit `0320831`, estava reprovado por diferenças de patch) |
-| RNF46 | Qualidade estática (tipos e lint) | Aprovado depois da correção do `tsc` do web (`src/expo-types.d.ts`). No commit `80ec6e5` estava reprovado nesse caso, por falta do `expo-env.d.ts`, que o `expo start` gera |
-| RNF47 | Ausência de regressão nos testes automatizados | Aprovado no `better-meet` (23 suítes, 198 testes); sem testes no web |
-| RNF48 | Execução em Android e iOS | Aprovado no Android (Samsung Galaxy S21+, Android 15, Expo Go) e no painel web (Chrome, 2026-11-07), informado por Bruno Soares Machado; iOS não executado, sem acesso a dispositivo |
-| RNF49 | Ambiente de execução (Node) | Aprovado |
+| RNF50 | Compatibilidade com o Expo SDK 58 | Aprovado (`expo-doctor` 20 de 20 nos dois apps; em 2026-11-12, no commit `0320831`, estava reprovado por diferenças de patch) |
+| RNF51 | Qualidade estática (tipos e lint) | Aprovado depois da correção do `tsc` do web (`src/expo-types.d.ts`). No commit `80ec6e5` estava reprovado nesse caso, por falta do `expo-env.d.ts`, que o `expo start` gera |
+| RNF52 | Ausência de regressão nos testes automatizados | Aprovado no `better-meet` (23 suítes, 198 testes); sem testes no web |
+| RNF53 | Execução em Android e iOS | Aprovado no Android (Samsung Galaxy S21+, Android 15, Expo Go) e no painel web (Chrome, 2026-11-07), informado por Bruno Soares Machado; iOS não executado, sem acesso a dispositivo |
+| RNF54 | Ambiente de execução (Node) | Aprovado |
 
 ---
 
@@ -156,7 +156,7 @@ Os RNFs desta migração estão em [requisitos_nao_funcionais_migracao_expo_58.m
 
 - **Nenhum RF novo e nenhum RF alterado.** A migração não acrescenta nem remove ação do usuário.
 - **Nenhum caso de uso novo ou alterado.** Por isso não há diagrama `.puml`, ficha de UC nem tabela de atores neste incremento. Criar um diagrama sem caso de uso novo contrariaria a regra de não deixar elipse solta (DOC-15).
-- **Comportamento que mudou de implementação e deve continuar igual:** a decisão "quem não tem login vai para a tela de login", que a regra RN-16 do guia de codificação centraliza. Ela está documentada como sequência na seção 5 e coberta pelos testes manuais `CT-RNF48-02` e `CT-RNF48-03`. O RF de autenticação do app ao qual ela pertence não foi localizado nos documentos: `[A CONFIRMAR: número do RF]`. No painel web, a mesma regra pertence ao UC07 (*Autenticar administrador*, em [requisitos_e_casos_de_uso.md](../entrega2_Di1/requisitos_e_casos_de_uso.md)), mas o web continua com `AppGate`, sem alteração.
+- **Comportamento que mudou de implementação e deve continuar igual:** a decisão "quem não tem login vai para a tela de login", que a regra RN-16 do guia de codificação centraliza. Ela está documentada como sequência na seção 5 e coberta pelos testes manuais `CT-RNF53-02` e `CT-RNF53-03`. O RF de autenticação do app ao qual ela pertence não foi localizado nos documentos: `[A CONFIRMAR: número do RF]`. No painel web, a mesma regra pertence ao UC07 (*Autenticar administrador*, em [requisitos_e_casos_de_uso.md](../entrega2_Di1/requisitos_e_casos_de_uso.md)), mas o web continua com `AppGate`, sem alteração.
 
 ---
 
@@ -189,11 +189,11 @@ Não há diagrama para o restante da migração: troca de versões, caminho de i
 
 | RF/RNF | UC | Tela/componente | Endpoint/service | Classe/modelo | Tabela/campos | Diagrama | Teste | Status |
 |---|---|---|---|---|---|---|---|---|
-| RNF45 | Não se aplica | `package.json` dos dois apps | Não se aplica | Não se aplica | Não se aplica | Seção 2 | CT-RNF45-01, CT-RNF45-02 | Aprovado (`development`) |
-| RNF46 | Não se aplica | Todo o `src/` | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF46-01 a CT-RNF46-04 | Aprovado (CT-RNF46-03 estava reprovado no commit `80ec6e5` e foi corrigido) |
-| RNF47 | Não se aplica | `src/**/__tests__` | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF47-01 | Aprovado (`better-meet`); web sem testes |
-| RNF48 | Não se aplica | Telas do app e do painel web | Não se aplica | Não se aplica | Não se aplica | Sequências 1 e 2 | CT-RNF48-01 a CT-RNF48-06 | Aprovado no Android (CT-RNF48-01 a 05) e no painel web (CT-RNF48-06); iOS não executado |
-| RNF49 | Não se aplica | Não se aplica | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF49-01 | Aprovado |
+| RNF50 | Não se aplica | `package.json` dos dois apps | Não se aplica | Não se aplica | Não se aplica | Seção 2 | CT-RNF50-01, CT-RNF50-02 | Aprovado (`development`) |
+| RNF51 | Não se aplica | Todo o `src/` | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF51-01 a CT-RNF51-04 | Aprovado (CT-RNF51-03 estava reprovado no commit `80ec6e5` e foi corrigido) |
+| RNF52 | Não se aplica | `src/**/__tests__` | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF52-01 | Aprovado (`better-meet`); web sem testes |
+| RNF53 | Não se aplica | Telas do app e do painel web | Não se aplica | Não se aplica | Não se aplica | Sequências 1 e 2 | CT-RNF53-01 a CT-RNF53-06 | Aprovado no Android (CT-RNF53-01 a 05) e no painel web (CT-RNF53-06); iOS não executado |
+| RNF54 | Não se aplica | Não se aplica | Não se aplica | Não se aplica | Não se aplica | Não se aplica | CT-RNF54-01 | Aprovado |
 
 ---
 
@@ -225,16 +225,16 @@ Em [testes_migracao_expo_58.md](testes_migracao_expo_58.md). Resumo da execuçã
 | D1 | SDK do painel web | `management-better-meet/web/AGENTS.md` aponta para a documentação `v57.0.0`. O `GUIA_DE_CODIFICACAO.md` (RN-01) e o `PROMPT_AGENTES_IA.md` (regra 49) da `development` já dizem SDK 58 para os dois apps e avisam desse `AGENTS.md` | `web/package.json` declara `expo ~58.0.25`, instalado 58.0.25 | Atualizar só o `AGENTS.md` do web |
 | D2 | Proteção de rotas do `better-meet` | `GUIA_DE_CODIFICACAO.md` seção 6.16 (RN-16), `PROMPT_AGENTES_IA.md` (regras 63 e a de criação de rotas) e os `aidlc-docs` do app descrevem `AppGate` e a lista `PUBLIC_ROUTES` (conferido na `development` em 2026-11-13) | `src/app/_layout.tsx` usa `Stack.Protected` (`guard={isAuthenticated}` e `guard={!isAuthenticated}`), sem `AppGate` e sem `PUBLIC_ROUTES` | Atualizar a RN-16 e o PROMPT. O painel web continua com `AppGate` |
 | D3 | Motivo da troca para `Stack.Protected` | Nenhum documento registra | O commit `dbf965d` não explica | Esclarecido pelo responsável: a troca corrigiu um bug que começou a ocorrer após a atualização para o Expo 58, sem efeito no ambiente produtivo (só no de testes). O bug não foi detalhado. Falta apenas registrar o motivo no commit ou na RN-16 |
-| D4 | Resultado do `expo-doctor` | `aidlc-docs` do app: "20 de 20" | Em 2026-11-12 (commit `0320831`): 19 de 20, por patches novos do SDK 58. Em 2026-11-13 (`development`): 20 de 20 nos dois apps | Resolvido pelo commit `ee65540`; ver RNF45 |
+| D4 | Resultado do `expo-doctor` | `aidlc-docs` do app: "20 de 20" | Em 2026-11-12 (commit `0320831`): 19 de 20, por patches novos do SDK 58. Em 2026-11-13 (`development`): 20 de 20 nos dois apps | Resolvido pelo commit `ee65540`; ver RNF50 |
 | D5 | Quantidade de testes | `aidlc-docs` do app: 155 testes em 18 suítes | 198 testes em 23 suítes na `development` | Esperado: a `development` recebeu testes de outras funcionalidades |
 | D6 | Escopo web | `aidlc-docs` do app: web "fora do escopo" e "segue no SDK 57" | O web foi migrado em `dbf965d` | O web foi incluído nesta documentação |
 
 ### 11.2 Pendências
 
-1. **Teste no iOS** (RNF48): não realizado, porque não tivemos acesso a um dispositivo iOS (limitação registrada no RNF48). O slide diz que o app será executado nos dois sistemas; se um aparelho ficar disponível, repetir CT-RNF48-01 a 05.
+1. **Teste no iOS** (RNF53): não realizado, porque não tivemos acesso a um dispositivo iOS (limitação registrada no RNF53). O slide diz que o app será executado nos dois sistemas; se um aparelho ficar disponível, repetir CT-RNF53-01 a 05.
 2. **Documentar à parte** as mudanças da seção 2.4, principalmente a promoção e o rebaixamento de membro da comissão, que mexe na API e no app.
 3. **Atualizar a RN-16 do `GUIA_DE_CODIFICACAO.md`, o `PROMPT_AGENTES_IA.md` e o `AGENTS.md` do web** (D1 e D2).
-4. **Índice da Wiki:** conferir se `RNF45` a `RNF49` estão livres e acrescentá-los à página Requisitos. A Wiki não foi consultada, por decisão do responsável de não mexer nela por enquanto. A `development` ainda não tem `documentos/requisitos.md`.
+4. **Índice da Wiki:** conferir se `RNF50` a `RNF54` estão livres e acrescentá-los à página Requisitos. A Wiki não foi consultada, por decisão do responsável de não mexer nela por enquanto. A `development` ainda não tem `documentos/requisitos.md`.
 5. `npm ci` não mostra o total de vulnerabilidades (rodado com `--no-audit`). As 33 do app e as 5 do web, que vêm dos `aidlc-docs`, não foram reavaliadas aqui, e não há RNF de segurança de dependências.
 6. **Diagramas PlantUML:** `DS-Protecao-Rotas-Better-Meet` e `DS-Hidratacao-Tema-Web` têm `.puml` e `.svg` em `Diagramas/`, compilados sem erro com o PlantUML 1.2026.10. Falta conferir a renderização no GitHub e na Wiki (item do checklist da seção 15 do guia).
 7. O painel web tem dependências que o código não usa (`@expo/ui`, `expo-device`, `expo-glass-effect`, `expo-image`, `expo-symbols`, `expo-web-browser`, `expo-status-bar`), segundo o `aidlc-docs` do web. Não reconferido por busca no código.

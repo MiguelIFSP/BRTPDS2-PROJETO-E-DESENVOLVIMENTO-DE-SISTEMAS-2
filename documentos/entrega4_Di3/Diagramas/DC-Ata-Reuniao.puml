@@ -1,0 +1,125 @@
+' Incremento: 3 — entrega3_Di2
+' Escopo: Ata de Reunião — RF16, RNF44/RNF45, UC17–UC20
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/api/prisma/schema.prisma e migrations 20260918235817, 20260922140000, 20261014120000, 20261014120100, 20261021120000, 20261021120100, 20261023120000, 20261109140000 (ver Markdown para nomes completos).
+@startuml
+hide circle
+skinparam shadowing false
+skinparam classAttributeIconSize 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+title Ata de Reunião — modelo de persistência Prisma
+class User <<Prisma model>> {
+  id : Int
+  name : String
+  email : String
+  password : String
+  role : Role
+  createdAt : DateTime
+  themePreference : Tema?
+}
+class Organizacao <<Prisma model>> {
+  id : Int
+  nome : String
+  status : StatusOrganizacao
+  createdAt : DateTime
+}
+class Comissao <<Prisma model>> {
+  id : Int
+  nome : String
+  descricao : String?
+  createdAt : DateTime
+  organizacaoId : Int
+}
+class ComissaoEquipe <<Prisma model>> {
+  comissaoId : Int
+  userId : Int
+  papel : PapelComissao
+}
+class Reuniao <<Prisma model>> {
+  id : Int
+  comissaoId : Int
+  titulo : String
+  pauta : String
+  descricao : String?
+  data : String
+  horaInicio : String
+  horaFim : String
+  local : String?
+  status : StatusReuniao
+  criadoPorUserId : Int
+  createdAt : DateTime
+  conteudoAta : String?
+  versaoAta : Int
+}
+class ReuniaoRegistro <<Prisma model>> {
+  id : Int
+  reuniaoId : Int
+  userId : Int
+  entradaAt : DateTime
+  saidaAt : DateTime?
+}
+class AtaVoto <<Prisma model>> {
+  id : Int
+  reuniaoId : Int
+  userId : Int
+  status : StatusAtaVoto
+  versaoAta : Int
+  updatedAt : DateTime
+}
+enum Role <<enumeration>> {
+  USER
+  ADMIN
+}
+enum Tema <<enumeration>> {
+  light
+  dark
+  system
+}
+enum StatusOrganizacao <<enumeration>> {
+  PENDENTE
+  ACEITA
+  RECUSADA
+}
+enum PapelComissao <<enumeration>> {
+  ADMINISTRADOR
+  FACILITADOR
+  SECRETARIO
+  MEMBRO
+}
+enum StatusReuniao <<enumeration>> {
+  AGENDADA
+  REALIZADA
+  CANCELADA
+}
+enum StatusAtaVoto <<enumeration>> {
+  APROVADO
+  REPROVADO
+}
+Organizacao "1" -- "0..*" Comissao : organizacaoId
+Comissao "1" -- "0..*" ComissaoEquipe : comissaoId
+User "1" -- "0..*" ComissaoEquipe : userId
+Comissao "1" -- "0..*" Reuniao : comissaoId
+User "1" -- "0..*" Reuniao : criadoPorUserId
+Reuniao "1" -- "0..*" ReuniaoRegistro : reuniaoId
+User "1" -- "0..*" ReuniaoRegistro : userId
+Reuniao "1" -- "0..*" AtaVoto : reuniaoId
+User "1" -- "0..*" AtaVoto : userId
+User ..> Role : tipo do atributo
+User ..> Tema : tipo do atributo
+Organizacao ..> StatusOrganizacao : tipo do atributo
+ComissaoEquipe ..> PapelComissao : tipo do atributo
+Reuniao ..> StatusReuniao : tipo do atributo
+AtaVoto ..> StatusAtaVoto : tipo do atributo
+legend bottom
+  Modelo de persistência, não classes TypeScript da implementação.
+  Somente atributos escalares do recorte; relações mostradas nas associações.
+  Objetos ataService e ataController não são classes: ver tabela de responsabilidades.
+  Sem métodos, herança, composição ou agregação presumidos.
+  Papéis são valores de enum; não existe herança entre pessoas.
+endlegend
+@enduml

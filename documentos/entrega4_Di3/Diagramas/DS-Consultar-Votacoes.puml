@@ -1,5 +1,5 @@
 @startuml DS-Consultar-Votacoes
-' UC17. Arquivos: VotacoesDaReuniao.tsx, votacao/[id].tsx,
+' UC21. Arquivos: VotacoesDaReuniao.tsx, votacao/[id].tsx,
 ' services/votacaoService.ts (app e API), votacaoRoutes.ts, votacaoController.ts, authMiddleware.ts.
 !pragma layout smetana
 skinparam shadowing false

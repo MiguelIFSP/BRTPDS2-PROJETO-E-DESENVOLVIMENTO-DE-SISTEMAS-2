@@ -1,5 +1,5 @@
 @startuml DS-Excluir-Votacao
-' UC21. O banco apaga opções e votos em cascata.
+' UC25. O banco apaga opções e votos em cascata.
 !pragma layout smetana
 skinparam shadowing false
 skinparam monochrome true

@@ -1,5 +1,5 @@
 @startuml DS-Criar-Votacao
-' UC18. A validação do app usa votacaoSchema antes do POST.
+' UC22. A validação do app usa votacaoSchema antes do POST.
 !pragma layout smetana
 skinparam shadowing false
 skinparam monochrome true

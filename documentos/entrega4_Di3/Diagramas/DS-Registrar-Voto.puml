@@ -1,5 +1,5 @@
 @startuml DS-Registrar-Voto
-' UC19. Trocar o voto usa o mesmo POST. A biblioteca trava a opção
+' UC23. Trocar o voto usa o mesmo POST. A biblioteca trava a opção
 ' depois do primeiro toque; "Trocar voto" só remonta o componente.
 !pragma layout smetana
 skinparam shadowing false

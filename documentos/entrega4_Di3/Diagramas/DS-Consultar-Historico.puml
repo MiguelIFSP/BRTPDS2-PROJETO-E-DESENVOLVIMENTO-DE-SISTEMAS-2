@@ -1,0 +1,48 @@
+@startuml DS-Consultar-Historico
+' UC26. Arquivos: (reunioes)/index.tsx, (reunioes)/historico.tsx, services/reuniaoService.ts (app),
+' reuniaoRoutes.ts, authMiddleware.ts, reuniaoController.ts, services/reuniaoService.ts (API).
+' O filtro por meuRegistro e a ordenação decrescente acontecem no app, não na API.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Administrador ou\nUsuário comum" as Ator
+participant "HistoricoReunioesScreen" as Tela
+participant "reuniaoService\n(app)" as App
+participant "requireAuth" as Auth
+participant "reuniaoController" as Ctrl
+participant "reuniaoService\n(API)" as Svc
+database "prisma" as Db
+
+Ator -> Tela : toca no botão Histórico de reuniões\ne a tela ganha foco
+alt sem token no authStore
+  Tela --> Ator : lista vazia, texto "Você ainda não participou\nde nenhuma reunião."
+else com token
+  Tela -> App : listMine(token)
+  App -> Auth : GET /api/reunioes/minhas
+  alt token ausente, inválido, payload incompleto ou conta excluída
+    Auth --> App : 401 { error }
+    App --> Tela : ApiError
+    Tela --> Ator : FeedbackBanner de erro
+  else sessão válida
+    Auth -> Ctrl : next()\nrequest.user = { id, role, email }
+    Ctrl -> Svc : listMine(userId)
+    Svc -> Db : reuniao.findMany\n(criadoPorUserId = userId OU convite ACEITO do userId,\norderBy data asc, horaInicio asc)
+    Db --> Svc : reuniões com comissão, convites e registros
+    Svc --> Ctrl : apresentarReuniao(reuniao, userId)\ncom meuRegistro e participantes
+    Ctrl --> App : 200 Reuniao[]
+    App --> Tela : Reuniao[]
+    Tela -> Tela : filter(meuRegistro != null)\nsort(data desc, horaInicio desc)
+    alt nenhuma reunião com presença
+      Tela --> Ator : "Você ainda não participou\nde nenhuma reunião."
+    else
+      Tela --> Ator : cards com título, data, horário,\ncomissão e "Presença registrada em ..."
+    end
+  end
+end
+opt toque num card
+  Ator -> Tela : toca no card
+  Tela -> Tela : router.push('/reuniao/[id]', { id })
+end
+@enduml

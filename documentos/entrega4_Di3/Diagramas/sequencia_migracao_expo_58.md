@@ -2,12 +2,12 @@
 
 ```text
 Incremento: Entrega Di3 — Manutenção: migração para a SDK 58 do Expo
-Escopo: fluxos de execução cuja implementação mudou na migração (sem RF nem UC novos); RNF48
-Branch: development (código verificado); a migração foi feita em feature/migracao-expo-58
-Commit: 6e4b743 (development); as verificações automáticas foram feitas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web)
+Escopo: fluxos de execução cuja implementação mudou na migração (sem RF nem UC novos); RNF53
+Branch: main
+Commit: 6e4b743; as verificações automáticas foram feitas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web)
 Data de revisão: 2026-11-13
 Responsável(eis): Bruno Soares Machado
-Estado: Implementado (verificado no código); fluxos validados no Android e no painel web (RNF48, informado pelo responsável); iOS não executado, sem acesso a dispositivo
+Estado: Implementado (verificado no código); fluxos validados no Android e no painel web (RNF53, informado pelo responsável); iOS não executado, sem acesso a dispositivo
 Fontes: sistema/better-meet/src/app/_layout.tsx; sistema/better-meet/src/store/authStore.ts; sistema/better-meet/src/app/login.tsx; sistema/better-meet/src/services/authService.ts; sistema/better-meet/src/app/(tabs)/mais/perfil.tsx; sistema/management-better-meet/web/src/app/_layout.tsx; sistema/management-better-meet/web/src/store/themeStore.ts; sistema/management-better-meet/web/src/store/authStore.ts
 Fontes dos diagramas: DS-Protecao-Rotas-Better-Meet.puml; DS-Hidratacao-Tema-Web.puml
 ```
