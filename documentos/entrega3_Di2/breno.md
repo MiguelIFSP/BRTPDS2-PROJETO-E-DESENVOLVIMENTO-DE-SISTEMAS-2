@@ -19,217 +19,176 @@ Fontes:
 - sistema/better-meet/src/components/__tests__/ReuniaoCheckIn.test.tsx
 ```
 
-Este documento cobre somente o histórico de reuniões do usuário e o registro de presença. Ele não inclui relatórios, ata, votações, lista de presença consolidada nem outros módulos adicionais.
+## Entrega atual e limites
 
-# RF-HIST-01 — Histórico de reuniões do usuário
+A funcionalidade atual cobre o histórico de reuniões em que o usuário participou e o registro de presença na reunião. O fluxo inclui a listagem do histórico, a confirmação de entrada, a marcação de saída e a persistência do registro em banco.
 
-- **Status:** Parcial.
-- **Objetivo:** permitir que o usuário veja as reuniões em que participou e mantenha o registro de entrada e saída.
-- **Atores:** Usuário comum e membro da comissão.
-- **Referências do código:** `historico.tsx`, `reuniaoService` do app, `reuniaoController` e `reuniaoService` da API.
+Este incremento é restrito ao histórico de reuniões. Ele não cobre relatórios, ata, votação, lista de presença consolidada, exportação de dados nem outros módulos do sistema.
 
-## Descrição
+## Objetivo
 
-A tela de histórico listada na aba de reuniões consulta as reuniões relacionadas ao usuário e filtra apenas as que possuem registro de presença. A funcionalidade também oferece a confirmação de entrada em reunião agendada e o registro de saída quando o usuário já havia entrado.
+Permitir que o usuário visualize as reuniões em que participou e acompanhe o registro de presença dentro do app, sem ampliar o escopo para funcionalidades paralelas.
+
+## Atores
+
+| Ator | Tipo | Responsabilidade |
+|---|---|---|
+| Usuário comum | Humano | consulta o histórico e registra presença na reunião |
+| Membro da comissão | Humano | participa da reunião, confirma entrada e registra saída |
 
 ## Regras de negócio
 
 | ID | Regra | Onde está |
 |---|---|---|
-| RN-HIST-01 | O histórico deve mostrar apenas reuniões em que o usuário tem registro de presença | `historico.tsx` e `reuniaoService.listMine` |
-| RN-HIST-02 | A listagem deve ordenar pela data e horário em ordem decrescente | `historico.tsx` |
-| RN-HIST-03 | O usuário só pode registrar entrada se for membro da comissão ou tiver convite aceito para a reunião | `api/src/services/reuniaoService.ts` |
-| RN-HIST-04 | A entrada é única por usuário e reunião | `reuniaoId_userId` em `ReuniaoRegistro` |
-| RN-HIST-05 | A saída só pode acontecer após a entrada existir e ainda não ter sido fechada | `checkOut` |
+| RN-HIST-01 | O histórico mostra apenas reuniões em que o usuário possui registro de presença | `historico.tsx` e `reuniaoService.listMine` |
+| RN-HIST-02 | A listagem é ordenada por data e hora | `historico.tsx` |
+| RN-HIST-03 | O usuário só pode registrar entrada se tiver vínculo com a reunião | `api/src/services/reuniaoService.ts` |
+| RN-HIST-04 | A presença é registrada uma única vez por reunião e usuário | `ReuniaoRegistro` com chave única |
+| RN-HIST-05 | A saída só pode ser registrada após a entrada já existir | `checkOut` |
 | RN-HIST-06 | Reuniões fora do status `AGENDADA` não aceitam check-in | `checkIn` |
 
-## Atores
+## Requisitos funcionais detalhados
 
-| Ator | Tipo | Responsabilidade | Evidência |
-|---|---|---|---|
-| Usuário comum | Humano | visualiza o histórico de reuniões e registra presença | `historico.tsx` |
-| Membro da comissão | Humano | participa de reuniões e registra entrada/saída | `assertMembroDaComissao` |
+### RF-HIST-01 — Consultar histórico de reuniões
 
-## Entradas
+- **Status:** Parcial
+- **Objetivo:** exibir as reuniões em que o usuário participou.
+- **Fluxo principal:** o usuário acessa a aba de reuniões e a tela busca as reuniões relacionadas ao seu perfil, filtrando apenas as que possuem `meuRegistro`.
+- **Saída esperada:** a tela mostra o histórico com data, horário, local/organização e registro de presença.
+- **Referência do código:** `sistema/better-meet/src/app/(tabs)/(reunioes)/historico.tsx`.
 
-| Campo | Origem (tela/rota) | Tipo/formato | Obrigatório | Domínio/validação | Exemplo |
-|---|---|---|---|---|---|
-| `Authorization` | Cabeçalho; token do `authStore` | `Bearer <JWT>` | Sim | `requireAuth` | `Bearer abc123` |
-| `reuniaoId` | rota `/reunioes/:id/entrar` e `/reunioes/:id/sair` | `Int` | Sim | inteiro positivo | `31` |
-| `token` | aba de reuniões e tela de histórico | `String` | Sim | JWT válido | `jwt-teste` |
-| `status` | resposta de presença/convite | `String` | Não | `ACEITO`, `PENDENTE`, etc. | `ACEITO` |
+### RF-HIST-02 — Registrar entrada
 
-## Origem
+- **Status:** Parcial
+- **Objetivo:** confirmar presença do usuário em uma reunião agendada.
+- **Fluxo principal:** o usuário toca em confirmar presença; a app chama `checkIn(token, reuniaoId)`; a API valida o vínculo e cria o registro de presença.
+- **Saída esperada:** o sistema grava `entradaAt` e retorna o registro salvo.
+- **Referência do código:** `sistema/api/src/services/reuniaoService.ts`, `sistema/better-meet/src/services/reuniaoService.ts`.
 
-- Tela de histórico em `sistema/better-meet/src/app/(tabs)/(reunioes)/historico.tsx`.
-- Serviço do app `reuniaoService.listMine(token)`.
-- Rotas da API `GET /reunioes/minhas`, `POST /reunioes/:id/entrar` e `POST /reunioes/:id/sair`.
-- Componente `ReuniaoCheckIn` para confirmar presença e saída.
+### RF-HIST-03 — Registrar saída
 
-## Pré-condições
+- **Status:** Parcial
+- **Objetivo:** registrar a saída do usuário após a entrada.
+- **Fluxo principal:** o usuário toca em registrar saída; a API valida o registro anterior e atualiza `saidaAt`.
+- **Saída esperada:** a presença passa a conter a saída registrada sem apagar a entrada original.
+- **Referência do código:** `checkOut` em `sistema/api/src/services/reuniaoService.ts`.
 
-- O usuário está autenticado.
-- A reunião existe e está vinculada ao perfil do usuário ou a um convite aceito.
-- O usuário faz parte da comissão da reunião ou foi convidado e aceitou o convite.
-- Para check-in, a reunião deve estar em status `AGENDADA`.
+## Casos de uso
 
-## Ação
+```mermaid
+flowchart LR
+    U[Usuário] --> UC1[Consultar histórico]
+    U --> UC2[Registrar entrada]
+    U --> UC3[Registrar saída]
+    M[Membro da comissão] --> UC1
+    M --> UC2
+    M --> UC3
+```
 
-1. O usuário entra na aba de reuniões e acessa a tela de histórico.
-2. O app chama `reuniaoService.listMine(token)`.
-3. A API busca as reuniões do usuário, incluindo as em que ele é criador ou participante aceito.
-4. O app filtra apenas os itens com `meuRegistro` preenchido para mostrar o histórico.
-5. O usuário toca em confirmar presença em uma reunião agendada.
-6. O app chama `checkIn(token, reuniaoId)`.
-7. A API valida a reunião e o vínculo do usuário.
-8. Se não houver registro anterior, a entrada é criada com `entradaAt` e o registro fica salvo.
-9. Se o usuário já registrou entrada, a API retorna `jaRegistrado: true` sem duplicar o registro.
-10. A saída segue o mesmo fluxo, validando a existência da entrada antes de registrar `saidaAt`.
+### UC-HIST-01 — Consultar histórico de reuniões
 
-## Saída
+| Campo | Descrição |
+|---|---|
+| Ator(es) | Usuário comum, Membro da comissão |
+| Descrição | Exibe as reuniões em que o usuário teve presença registrada |
+| Pré-condição | usuário autenticado |
+| Fluxo principal | 1. usuário entra na aba de reuniões; 2. app chama `listMine`; 3. a API retorna as reuniões; 4. a tela exibe somente registros válidos |
+| Pós-condição | usuário visualiza o histórico de reuniões em que participou |
 
-| Situação | Status/resposta | Comportamento |
-|---|---|---|
-| Histórico carregado | `200` | lista de reuniões com registro de presença |
-| Sem registros | `200` | tela mostra "Você ainda não participou de nenhuma reunião." |
-| Check-in bem sucedido | `200`/`201` | presença registrada e retorno do registro |
-| Check-in duplicado | `200` | mantém o primeiro registro e retorna `jaRegistrado: true` |
-| Reunião não encontrada | `404` | erro indicando que a reunião não existe |
-| Sem vínculo ou convite pendente | `403` | falha ao registrar presença |
-| Reunião não agendada | `409` | rejeita entrada fora do status permitido |
-| Falha de rede | sem resposta | exibem mensagem de erro no app |
+### UC-HIST-02 — Registrar entrada
 
-## Destino
+| Campo | Descrição |
+|---|---|
+| Ator(es) | Usuário comum, Membro da comissão |
+| Descrição | Confirma presença do usuário em uma reunião agendada |
+| Pré-condição | reunião existente; usuário vinculado à reunião; status `AGENDADA` |
+| Fluxo principal | 1. usuário toca em confirmar presença; 2. app chama `checkIn`; 3. API valida e cria `ReuniaoRegistro` |
+| Pós-condição | presença fica registrada para aquele usuário e reunião |
 
-| Banco | Tabela/modelo | Operação | Campos relevantes | Vínculos |
+### UC-HIST-03 — Registrar saída
+
+| Campo | Descrição |
+|---|---|
+| Ator(es) | Usuário comum, Membro da comissão |
+| Descrição | Fecha o registro de presença do usuário |
+| Pré-condição | existe registro de entrada |
+| Fluxo principal | 1. usuário toca em registrar saída; 2. app chama `checkOut`; 3. API grava `saidaAt` |
+| Pós-condição | usuário passa a ter presença fechada, sem perder o registro de entrada |
+
+## Diagrama de sequência
+
+```mermaid
+sequenceDiagram
+    actor Usuario
+    participant Historico as HistoricoReunioesScreen
+    participant Service as reuniaoService
+    participant API as API
+    participant DB as Banco
+
+    Usuario->>Historico: abre histórico
+    Historico->>Service: listMine(token)
+    Service->>API: GET /reunioes/minhas
+    API->>DB: busca reuniões do usuário
+    DB-->>API: lista de reuniões
+    API-->>Service: retorno
+    Service-->>Historico: exibe histórico
+
+    Usuario->>Historico: confirma presença
+    Historico->>Service: checkIn(token, reuniaoId)
+    Service->>API: POST /reunioes/:id/entrar
+    API->>DB: cria ReuniaoRegistro
+    DB-->>API: registro salvo
+    API-->>Service: resposta
+    Service-->>Historico: presença confirmada
+```
+
+## Entradas e saídas
+
+| Campo | Origem | Tipo | Obrigatório | Observação |
 |---|---|---|---|---|
-| MySQL (via Prisma) | `Reuniao` | consulta e associação | `id`, `titulo`, `data`, `horaInicio`, `horaFim`, `status`, `criadoPorUserId` | FK com `comissao` e `user` |
-| MySQL (via Prisma) | `ReuniaoRegistro` | `create`/`findUnique`/`updateMany` | `reuniaoId`, `userId`, `entradaAt`, `saidaAt` | chave única `reuniaoId_userId` |
-| MySQL (via Prisma) | `ConviteReuniao` | consulta de vínculo | `userId`, `status`, `reuniaoId` | identifica participação aceita |
+| `token` | sessão autenticada | string | Sim | JWT válido |
+| `reuniaoId` | seleção da reunião | number | Sim | id da reunião |
+| `entradaAt` | banco | datetime | Sim | gerado pelo sistema |
+| `saidaAt` | banco | datetime | Não | preenchido na saída |
 
-## Fluxos alternativos e exceções
+### Saídas do fluxo
 
-- **1a:** sem token no app, a tela não tenta carregar o histórico.
-- **3a:** se não houver reuniões com registro, a listagem aparece vazia.
-- **6a:** o usuário repete o check-in, e a API retorna `jaRegistrado: true` em vez de duplicar o registro.
-- **8a:** se a reunião não estiver em `AGENDADA`, a entrada é negada com `409` e a tela mostra a mensagem correspondente.
-- **9a:** o usuário tenta sair sem ter entrado antes; a API responde `409` com a mensagem "Registre sua entrada antes de sair da reunião.".
+| Situação | Resultado |
+|---|---|
+| histórico carregado | lista com reuniões em que o usuário participou |
+| sem registros | tela mostra mensagem de ausência de histórico |
+| check-in bem sucedido | presença registrada |
+| check-in duplicado | retorna `jaRegistrado: true` sem nova criação |
+| check-out sem entrada | retorna erro `409` |
+| reunião fora do status | retorna erro `409` |
 
-## Pós-condições
+## Rastreabilidade no código
 
-- O histórico do usuário contém as reuniões em que ele registrou entrada.
-- A presença fica persistida pela chave única da tabela de registros.
-- A saída atualiza o campo `saidaAt` sem apagar o evento de entrada.
-- A reunião não é removida do histórico quando o usuário sai; apenas o registro de saída é preenchido.
+| Funcionalidade | Arquivo |
+|---|---|
+| tela de histórico | `sistema/better-meet/src/app/(tabs)/(reunioes)/historico.tsx` |
+| listagem do histórico | `sistema/better-meet/src/services/reuniaoService.ts` |
+| registro de entrada/saída | `sistema/api/src/services/reuniaoService.ts` |
+| rotas de API | `sistema/api/src/routes/reuniaoRoutes.ts` |
+| controle da API | `sistema/api/src/controllers/reuniaoController.ts` |
+| testes relevantes | `sistema/api/tests/reuniaoCheckIn.test.mjs` |
 
-## Efeitos colaterais
-
-- O processo de presença afeta apenas a tabela de registros e o histórico do usuário, sem alterar o status da reunião.
-- A API e a tela não geram e-mail nem notificação específica para a ação de check-in/check-out.
-- A entrada e saída não alteram a comissão, convites ou ata da reunião.
-
-## Diagramas e testes relacionados
-
-### Diagrama de casos de uso
-
-```plantuml
-@startuml
-left to right direction
-actor "Usuário" as U
-actor "Membro da comissão" as M
-
-rectangle "Better Meet" {
-  usecase "Consultar histórico de reuniões" as UC1
-  usecase "Registrar entrada" as UC2
-  usecase "Registrar saída" as UC3
-}
-
-U --> UC1
-U --> UC2
-U --> UC3
-M --> UC1
-M --> UC2
-M --> UC3
-@enduml
-```
-
-### Diagrama de sequência
-
-```plantuml
-@startuml
-actor Usuario
-participant "HistoricoReunioesScreen" as Screen
-participant "reuniaoService" as Service
-participant "API" as API
-participant "Banco" as DB
-
-Usuario -> Screen: abre histórico
-Screen -> Service: listMine(token)
-Service -> API: GET /reunioes/minhas
-API -> DB: busca reuniões do usuário
-DB --> API: lista de reuniões
-API --> Service: retorno
-Service --> Screen: exibe histórico
-
-Usuario -> Screen: confirma presença
-Screen -> Service: checkIn(token, reuniaoId)
-Service -> API: POST /reunioes/:id/entrar
-API -> DB: cria ReuniaoRegistro
-DB --> API: registro salvo
-API --> Service: resposta
-Service --> Screen: presença confirmada
-@enduml
-```
-
-### Testes relevantes
+## Testes relacionados
 
 | ID | Cenário | Arquivo | Status |
 |---|---|---|---|
-| CT-HIST-01 | Carga do histórico por usuário | `sistema/better-meet/src/components/__tests__/ReunioesData.test.tsx` | Não executado nesta revisão |
-| CT-HIST-02 | Confirmar presença na reunião | `sistema/api/tests/reuniaoCheckIn.test.mjs` | Validado em parte |
-| CT-HIST-03 | Registro de entrada e saída | `sistema/better-meet/src/components/__tests__/ReuniaoCheckIn.test.tsx` | Cobertura parcial |
+| CT-HIST-01 | listagem do histórico do usuário | `sistema/better-meet/src/components/__tests__/ReunioesData.test.tsx` | Parcial |
+| CT-HIST-02 | confirmação de presença | `sistema/api/tests/reuniaoCheckIn.test.mjs` | Parcial |
+| CT-HIST-03 | registro de entrada e saída | `sistema/better-meet/src/components/__tests__/ReuniaoCheckIn.test.tsx` | Parcial |
 
 ## Divergências encontradas
 
-| Item | Documento ou expectativa | Código | Situação |
-|---|---|---|---|
-| status da reunião | A entrada só deve aceitar reuniões agendadas | `checkIn` também valida `status` | Conformidade parcial |
-| múltiplos registros | o sistema deve impedir duplicação | há chave única em `reuniaoId_userId` | atendido |
-| histórico | a tela filtra apenas reuniões com `meuRegistro` | a API lista todas as reuniões do usuário | comportamento correto do app, mas não da API pura |
-| saidaAt | deve ser preenchido somente após entrada | `checkOut` exige registro prévio | atendido |
-
-# Casos de uso
-
-### UC01 — Consultar histórico de reuniões
-
-- **Objetivo:** visualizar reuniões em que o usuário participou.
-- **Atores:** Usuário comum; membro da comissão.
-- **Gatilho:** entrada na aba de reuniões / tela de histórico.
-- **Entradas:** token JWT.
-- **Pré-condições:** usuário autenticado.
-- **Fluxo principal:** 1. o app chama `listMine`; 2. a API retorna reuniões; 3. a tela exibe somente registros com presença.
-- **Pós-condições:** o usuário vê o histórico de reuniões em que participou.
-
-### UC02 — Registrar entrada
-
-- **Objetivo:** confirmar presença do usuário em uma reunião agendada.
-- **Atores:** Usuário comum; membro da comissão.
-- **Gatilho:** toque em "Confirmar presença".
-- **Entradas:** `reuniaoId`; token;
-- **Pré-condições:** reunião existe; usuário tem vínculo com a reunião; status `AGENDADA`.
-- **Fluxo principal:** 1. app chama `checkIn`; 2. API valida vínculo e status; 3. cria `ReuniaoRegistro`.
-- **Pós-condições:** a presença fica registrada para aquele usuário e reunião.
-
-### UC03 — Registrar saída
-
-- **Objetivo:** fechar a presença do usuário após a entrada.
-- **Atores:** Usuário comum; membro da comissão.
-- **Gatilho:** toque em "Registrar saída".
-- **Entradas:** `reuniaoId`; token.
-- **Pré-condições:** há registro de entrada existente.
-- **Fluxo principal:** 1. app chama `checkOut`; 2. API valida registro; 3. grava `saidaAt`.
-- **Pós-condições:** a presença passa a ter saída registrada sem perder a entrada.
+| Item | Situação |
+|---|---|
+| API e interface | a tela filtra somente reuniões com `meuRegistro`, enquanto a API lista o conjunto relacionado ao usuário |
+| unidade de presença | a chave única evita duplicação, mas a regra deve ser confirmada em execução real |
+| status da reunião | a API admite entrada somente quando a reunião está `AGENDADA` |
 
 ## Conclusão
 
-Este incremento trata da funcionalidade de histórico de reuniões do usuário, incluindo listagem de reuniões em que participou e registro de presença. O comportamento principal está ligado ao fluxo de `listMine`, `checkIn` e `checkOut`, com persistência por meio da tabela `ReuniaoRegistro`, sem ampliar o escopo para módulos distintos do projeto.
+Este incremento trata do histórico de reuniões do usuário e do registro de presença em reuniões. A funcionalidade principal é mostrar as reuniões em que o usuário participou e registrar a entrada e saída de forma persistente, sem misturar o escopo com relatórios, ata, votos ou outros módulos do sistema.
