@@ -43,8 +43,8 @@ export async function downloadManualUsuario(): Promise<DownloadResult> {
   const destination =
     existingFile ?? directory.createFile(MANUAL_FILE_NAME, 'application/pdf');
 
-  await new File(downloadedAsset.localUri).copy(destination, {
-    overwrite: true,
-  });
+  await new File(downloadedAsset.localUri)
+    .readableStream()
+    .pipeTo(destination.writableStream());
   return 'saved';
 }
