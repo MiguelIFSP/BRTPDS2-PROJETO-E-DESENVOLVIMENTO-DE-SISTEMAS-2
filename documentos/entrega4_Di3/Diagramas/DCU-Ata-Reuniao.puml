@@ -1,0 +1,53 @@
+' Incremento: 3 — Entrega 4 (entrega4_Di3)
+' Escopo: Ata de Reunião — RF16, RNF44/RNF45, UC17–UC20
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/api/src/services/ataService.ts; sistema/better-meet/src/components/AtaReuniao.tsx
+@startuml
+left to right direction
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam defaultFontName Arial
+skinparam actorStyle stickman
+title Better Meet — Ata de Reunião
+actor "Administrador da comissão" as AC
+actor "Secretário da comissão" as SC
+actor "Facilitador da comissão" as FC
+actor "Membro da comissão" as MC
+rectangle "Better Meet" {
+  usecase "UC17\nConsultar ata" as Consultar
+  usecase "UC18\nRedigir ata" as Redigir
+  usecase "UC19\nVotar na ata" as Votar
+  usecase "UC20\nExportar ata em PDF" as Exportar
+}
+AC -- Consultar
+AC -- Redigir
+AC -- Votar
+AC -- Exportar
+SC -- Consultar
+SC -- Redigir
+SC -- Votar
+SC -- Exportar
+FC -- Consultar
+FC -- Votar
+FC -- Exportar
+MC -- Consultar
+MC -- Votar
+MC -- Exportar
+note bottom of Consultar
+  Pré-condições de API: identidade válida,
+  vínculo atual na comissão e entrada registrada.
+  Saída registrada não remove o acesso.
+end note
+note bottom of Exportar
+  Usa o conteúdo salvo já carregado.
+  Não consulta novamente a autorização no clique.
+end note
+legend bottom
+  Associações contínuas sem seta. Não há generalização entre pessoas.
+  Voto exige conteúdo salvo e versão atual; exportação exige conteúdo salvo.
+endlegend
+@enduml

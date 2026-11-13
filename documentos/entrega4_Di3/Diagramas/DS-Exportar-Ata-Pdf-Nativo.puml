@@ -1,0 +1,81 @@
+' Incremento: 3 — Entrega 4 (entrega4_Di3)
+' Escopo: Ata de Reunião — RF16, RNF44/RNF45, UC17–UC20
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/better-meet/src/components/AtaReuniao.tsx; sistema/better-meet/src/utils/{ataPdf.ts,ataPdf.web.ts,ataPdfHtml.ts,ataHtml.web.ts,format.ts}
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam shadowing false
+hide footbox
+title UC20 — Exportar PDF no Android/iOS
+participant "AtaReuniao.tsx\ncomponente" as UI
+participant "ataPdf.ts\nmódulo" as PDF
+participant "ataPdfHtml.ts\nmódulo" as HTML
+participant "expo-sharing\nSharing" as Sharing
+participant "expo-print\nPrint" as Print
+participant "expo-file-system\nFile / Paths" as FS
+note over UI
+  Ata carregada via GET. Os quatro papéis podem exportar.
+  handleExportPdf() ignora clique se exportInProgress.current,
+  busy ou ausência de ata.conteudoAta.
+end note
+UI -> UI : handleExportPdf()
+UI -> UI : exportInProgress.current = true\nsetIsExportingPdf(true)
+UI -> PDF : exportAtaPdf({titulo:ata.titulo, dataReuniao:ata.dataReuniao,\nconteudoAta:ata.conteudoAta})
+PDF -> HTML : buildAtaPdfHtml(input, Platform.OS === 'ios' ? '0' : '18mm')
+alt HTML vazio ou data fora de YYYY-MM-DD
+  HTML --> PDF : Error("A ata ainda não possui conteúdo salvo.")\nou Error("Atualize a ata para carregar a data da reunião.")
+  PDF --> UI : rejeição da Promise
+else entrada aceita
+  HTML -> HTML : escapeHtml(titulo)\nescapeHtml(formatReuniaoDate(dataReuniao))
+  HTML --> PDF : html com BetterMeet, título, data, CSS e CSP
+  PDF -> Sharing : isAvailableAsync()
+  Sharing --> PDF : boolean
+  alt indisponível
+    PDF --> UI : Error("O compartilhamento não está disponível neste dispositivo.")
+  else disponível
+    PDF -> Print : printToFileAsync({html,width:595,height:842,\nmargins:{top:51,bottom:51,left:51,right:51},base64:true})
+    alt geração rejeitada
+      Print --> PDF : erro
+      PDF --> UI : rejeição da Promise
+    else geração concluída
+      Print --> PDF : {base64, ...}
+      alt base64 ausente
+        PDF --> UI : Error("Não foi possível preparar o PDF para compartilhamento.")
+      else base64 presente
+        PDF -> FS : new File(Paths.cache,\n`ata-${input.dataReuniao}-${Date.now()}.pdf`)
+        FS --> PDF : file
+        PDF -> FS : await file.write(base64, {encoding:'base64'})
+        alt gravação rejeitada
+          FS --> PDF : erro
+          PDF --> UI : rejeição da Promise
+        else gravação concluída
+          FS --> PDF : void
+          PDF -> Sharing : shareAsync(file.uri, {mimeType:'application/pdf',\nUTI:'com.adobe.pdf',dialogTitle:'Salvar ou compartilhar ata'})
+          alt compartilhamento rejeitado
+            Sharing --> PDF : erro
+            PDF --> UI : rejeição da Promise
+          else chamada concluída
+            Sharing --> PDF : void
+            PDF --> UI : Promise<void> resolvida
+          end
+        end
+      end
+    end
+  end
+end
+opt erro recebido pela UI
+  UI -> UI : setFeedback({type:'error',\nmessage:getErrorMessage(error, 'Não foi possível exportar a ata para PDF.')})
+end
+UI -> UI : exportInProgress.current = false\nsetIsExportingPdf(false) [finally]
+legend bottom
+  Conteúdo salvo, não rascunho. Sem endpoint adicional e sem tabela de PDF.
+  URI de Print não é copiada: base64 é escrito no cache do aplicativo antes de shareAsync.
+  Arquivo fica no cache. Resolução de shareAsync não comprova entrega externa nem gravação definitiva.
+  iOS: margem CSS 0 e margens nativas; Android: @page 18mm.
+endlegend
+@enduml

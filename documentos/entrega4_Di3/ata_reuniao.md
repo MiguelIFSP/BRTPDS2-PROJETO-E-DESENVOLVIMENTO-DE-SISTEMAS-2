@@ -1,258 +1,391 @@
+- **Incremento:** 3 — Entrega 4 (entrega4_Di3)
+- **Escopo:** RF16, RNF44/RNF45 e UC17–UC20 — editor, acesso, leitura, voto e PDF da ata.
+- **Branch:** main
+- **Commit:** 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+- **Data de revisão:** 2026-11-13
+- **Responsável(eis):** Gustavo de Oliveira Tomaz
+- **Estado:** Parcial — entrega documental aprovada em 2026-11-13; 138 testes direcionados aprovados, integração física pendente.
+- **Fontes:** [schema](../../sistema/api/prisma/schema.prisma), [serviço](../../sistema/api/src/services/ataService.ts), [rotas](../../sistema/api/src/routes/ataRoutes.ts), [componente](../../sistema/better-meet/src/components/AtaReuniao.tsx), [OpenAPI](../../sistema/api/docs/openapi.yaml) e inventário A.1.
+
 # Ata de reunião
 
-```text
-Incremento: Entrega 4 — Di3
-Escopo: RF16.1 a RF16.7; UC17 a UC20 (conforme a tabela deste documento)
-Branch: main
-Commit: [A CONFIRMAR NO CÓDIGO] (último commit do documento: 945419d)
-Data de revisão: [A CONFIRMAR] (última alteração do documento: 2026-11-12)
-Responsável(eis): Gustavo de Oliveira Tomaz
-Estado: [A CONFIRMAR NO CÓDIGO] (o documento afirma: implementado em 09/11/2026)
-Fontes: [A CONFIRMAR] (o documento não lista as fontes no cabeçalho)
-```
+## A. Diagnóstico
 
-Implementado em 09/11/2026. Migração aplicada ao banco configurado, com histórico atualizado.
+Integração de 2026-11-13: a fonte foi transferida para entrega4_Di3 conforme a reorganização da equipe em 3832724. O responsável acima foi informado no cabeçalho desse documento remoto, não deduzido da autoria do commit. Preservam-se o Incremento 3 solicitado e a baseline funcional 945419d; Entrega 4 identifica a pasta de publicação. Os patches de dependências posteriores não alteram retroativamente as versões inspecionadas no cabeçalho.
 
-Editor ampliado em 10/11/2026. Esta ampliação não exige migração adicional.
+A ata pertence à reunião. Administrador e Secretário da comissão podem redigir; os quatro papéis podem consultar, votar e exportar, respeitando vínculo atual e entrada registrada. Registrar saída não revoga por si só o acesso. O papel global não substitui o papel da comissão.
 
-## Requisitos e casos de uso
+O código do cabeçalho foi incorporado à development. O HEAD e99249376a971507ddb0105884ec34eb6482120f acrescenta documentação/guias; a comparação sob sistema não mostrou diferenças funcionais. Classes e dicionário de dados foram solicitados **separadamente, fora do repositório, para unificação** em 2026-11-13. O DER permanece neste documento; a incorporação da parte separada fica pendente.
 
-| ID | Requisito | Caso de uso |
+### A.1 Fontes inspecionadas
+
+Caminhos relativos à raiz. IDs S01–S11 agrupam fontes; leitura não equivale a execução de testes.
+
+| Grupo | Arquivos e alcance |
+|---|---|
+| S01 — HTTP/identidade | sistema/api/src/server.ts; routes/ataRoutes.ts; controllers/ataController.ts; middlewares/authMiddleware.ts, ataMiddleware.ts, errorMiddleware.ts; utils/parseId.ts, prismaErrors.ts; errors/AppError.ts — integrais, caminhos após src/ relativos à API |
+| S02 — negócio/HTML | sistema/api/src/services/ataService.ts, schemas/ataSchema.ts, utils/ataHtml.ts — integrais |
+| S03 — dados | sistema/api/prisma/schema.prisma integral; migrations 20260918235817_config_usuario, 20260922140000_papeis_organizacao, 20261014120000_alinha_schema_atual, 20261014120100_adiciona_enums_status_tema, 20261021120000_registra_tabelas_reuniao, 20261021120100_registro_entrada_reuniao, 20261023120000_local_reuniao e 20261109140000_ata_reuniao, cada migration.sql integral |
+| S04 — presença | API: reuniaoRoutes.ts integral, trechos de reuniaoController.ts e funções assertMembroDaComissao, apresentarReuniao, getById, checkIn/checkOut e respondInvite em reuniaoService.ts; app: src/app/(tabs)/(reunioes)/reuniao/[id].tsx, participantes e botão da ata |
+| S05 — tela/cliente | sistema/better-meet/src/app/(tabs)/(reunioes)/ata/[id].tsx; components/AtaReuniao.tsx; services/ataService.ts; utils/apiClient.ts; config/api.ts; store/authStore.ts — integrais, caminhos após src/ relativos ao app |
+| S06 — editor/leitor | App src/components/ata/: AtaEditor.tsx, AtaEditor.web.tsx, AtaEditor.types.ts, AtaLeitura.tsx, AtaLeitura.web.tsx, AtaToolbar.tsx, AtaTableMenu.tsx, AtaFormatIcon.tsx; utils/ataFormat.ts, ataNativeBridge.ts, ataTiptap.web.ts, ataHtml.web.ts — integrais; constants/theme.ts e utils/format.ts, trechos usados |
+| S07 — PDF | App src/utils/ataPdf.ts, ataPdf.web.ts, ataPdfHtml.ts — integrais |
+| S08 — testes/configuração | Nove arquivos relacionados em [testes_ata_reuniao.md](testes_ata_reuniao.md); configurações Jest, TS e ESLint; package.json/lock da API e app, versões selecionadas; app.json; API env.ts/database.ts/prisma.config.ts; docker-compose.yml (serviços/imagens/volumes, sem valores privados) |
+| S09 — contrato | sistema/api/docs/openapi.yaml: abertura, segurança, respostas, schemas e três operações da ata |
+| S10 — documentação | Fonte anterior deste arquivo integral; aberturas/IDs de votacoes.md/testes_votacoes.md; contexto de lista_presenca.md; entrega2_Di1/dicionario_de_dados.md e requisitos_e_casos_de_uso.md, trechos relacionados; DCU-Gestao-Setup-Reset.puml integral; guias e regras documentais/83–90 do PROMPT_AGENTES_IA.md |
+| S11 — presença demonstrativa | App src/hooks/useListaPresencaPreview.ts integral; src/app/lista-presenca.tsx e services/listaPresencaService.ts, trechos/busca de chamadas |
+
+Wiki: snapshot **1226e33743b2d27ec16fd6738986faf7ca745a9b**, reconfirmado no remoto ao iniciar a escrita. Busca em 40 páginas Markdown e 42 arquivos textuais de documentos/; leitura relacionada de Home, [Requisitos](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/Requisitos), RF14, RF15 e páginas de comissão/tema. A busca não interpreta IDs apenas em imagens/binários antigos.
+
+### A.2 Divergências e limitações
+
+| Item | Estado | Constatação |
 |---|---|---|
-| RF16.1 | Redigir e editar uma ata com formatação textual, parágrafos e tabelas | UC17 — Redigir ata |
-| RF16.2 | Ler a ata salva, sem controles de edição para facilitador/membro | UC18 — Consultar ata |
-| RF16.3 | Aprovar ou reprovar a ata, com um voto por integrante e possibilidade de troca | UC19 — Votar na ata |
-| RF16.4 | Exigir vínculo atual com a comissão e registro de entrada na reunião | Todos |
-| RF16.5 | Sanitizar HTML, detectar edições concorrentes e invalidar votos ao alterar o texto | UC17 e UC19 |
-| RF16.6 | Oferecer barra horizontal com ícones, histórico e menu de tabelas no celular e na web | UC17 — Redigir ata |
-| RF16.7 | Exportar a ata salva em PDF para qualquer integrante com acesso à leitura | UC20 — Exportar ata |
+| Consulta, redação, voto, PDF | Implementado | S01–S07; 138 testes direcionados aprovados; validação física pendente |
+| Permissão “via JWT” | Implementado | Token identifica a pessoa; papel global e papel da comissão são consultados no banco. UI usa podeEditar da API |
+| Presença | Implementado | Registro de entrada e vínculo atual; não filtra saidaAt |
+| Lista manual de presença | Parcial | S11 é demonstração em memória; marcá-la não cria ReuniaoRegistro |
+| Ordem de erros na OpenAPI | Parcial | A ordem geral descrita não representa estas rotas; ver B.1 |
+| Dicionário antigo | Parcial | Tema/status foram convertidos de VARCHAR para enums; conteudoAta é LONGTEXT |
+| IDs globais repetidos | Parcial | UC04 tem significados distintos em monitoramento, comissão e tema; UC01 também tem usos distintos. Significado canônico [A CONFIRMAR]; não se escolheu nem renumerou |
+| Numeração dos requisitos | Atendido | A numeração segue a ordem dos requisitos do Incremento 3 no slide: esta ata é o RF16, com RNF44 e RNF45 e UC17 a UC20. A Votação passa a RF17, o Histórico a RF18, o Manual a RF19, e a Manutenção Expo 58 usa RNF50 a RNF54 | Os IDs antigos desta ata (RF17, RNF45, RNF46, UC22 a UC25) foram substituídos em todo o documento, nos testes e nos diagramas |
+| IDs legados da ata | Parcial | RF-ATA/UC-ATA/CT-ATA preservados em D e no histórico de testes; equivalência formal [A CONFIRMAR] |
+| Banco aplicado/concorrência real | Não verificado | Conexão somente de leitura recusada com ECONNREFUSED em 2026-11-12, antes de consultas SQL |
+| Uso em Android/iOS | Não verificado | APIs nativas simuladas nos testes existentes; nenhuma confirmação própria em aparelho |
+| Índice da Wiki | Planejado | Precisa incorporar RF16, RNF44 e RNF45 (a Wiki ainda lista o RF16 e o RNF44 da Votação com a numeração antiga) |
+| Classes/dicionário unificados | Planejado | Entrega separada solicitada; integração posterior fora desta edição |
 
-### Permissões
+Não há fase de publicação, quórum, encerramento, assinatura, histórico de textos ou estado coletivo de aprovação da ata. Há votos individuais e totais da versão atual. Exportação usa o conteúdo salvo **já carregado**, sem nova consulta ou autorização remota.
 
-| Cargo na comissão | Consultar | Redigir/editar | Votar após a ata ser salva |
+## B. Requisitos
+
+### B.1 RF16 — Gerenciar atas de reunião
+
+**Estado:** Implementado no código; 138 testes direcionados aprovados; limites em E. **Objetivo:** consultar, redigir conforme o papel, votar e exportar a ata. **Origem:** pedido do módulo e implementação S01–S07. **Destino:** integrantes da comissão, Reuniao/AtaVoto e arquivo local conforme operação.
+
+Numeração pela ordem dos requisitos do Incremento 3 no slide: Ata (RF16), Votação (RF17), Histórico (RF18), Manual (RF19) e Manutenção Expo 58. Os identificadores antigos desta ata aparecem só em arquivos e commits anteriores.
+
+#### Atores
+
+| Ator | Tipo | Responsabilidade | Evidência |
 |---|---|---|---|
-| ADMINISTRADOR | Sim | Sim | Sim |
-| SECRETARIO | Sim | Sim | Sim |
-| FACILITADOR | Sim | Não | Sim |
-| MEMBRO | Sim | Não | Sim |
+| Administrador da comissão (PapelComissao.ADMINISTRADOR) | Pessoa/papel externo | Consultar, redigir, votar e exportar quando elegível | S02 podeEditar/loadAccess; S05 |
+| Secretário da comissão (PapelComissao.SECRETARIO) | Pessoa/papel externo | Consultar, redigir, votar e exportar quando elegível | S02/S05 |
+| Facilitador da comissão (PapelComissao.FACILITADOR) | Pessoa/papel externo | Consultar sem edição, votar e exportar quando elegível | S02/S05 |
+| Membro da comissão (PapelComissao.MEMBRO) | Pessoa/papel externo | Consultar sem edição, votar e exportar quando elegível | S02/S05 |
 
-Todas as permissões exigem uma `ReuniaoRegistro` para o usuário e a reunião solicitada. Ter registrado saída não revoga o acesso, conforme definição do requisito. Um convite aceito sem registro de entrada não é suficiente. Ex-integrantes não têm acesso. O perfil global `ADMIN` não ignora essas restrições.
+“Administrador” isolado significa Role.ADMIN. Nenhum papel global acrescenta privilégio nessa ata. Cada ator exige ComissaoEquipe atual e ReuniaoRegistro da reunião para as operações HTTP.
 
-O JWT identifica a pessoa. O cargo da comissão é consultado no banco em cada operação; cargos fornecidos no corpo ou em claims adicionais do token não concedem acesso. `requireAtaEditor` bloqueia a edição antes do controller, e o service repete a autorização dentro da transação.
+#### Regras de negócio
 
-### Fluxos
+| ID | Regra | Evidência | Estado |
+|---|---|---|---|
+| RN-ATA01 | Leitura/gravação/voto exigem sessão, vínculo atual e entrada; saída não exclui por si só | requireAuth/loadAccess | Implementado |
+| RN-ATA02 | Só ADMINISTRADOR/SECRETARIO editam; middleware e transação verificam; UI recebe podeEditar | requireAtaEditor/assertEditor/save | Implementado |
+| RN-ATA03 | HTML obrigatório com trim, até 50.000 caracteres antes da sanitização e texto efetivo depois dela | ataSchema/validateAtaHtml | Implementado |
+| RN-ATA04 | Versão divergente ou atualização condicional count=0 gera 409 | save/vote | Implementado; concorrência real Não verificado |
+| RN-ATA05 | Alterar HTML normalizado incrementa versão e remove votos; texto normalizado idêntico preserva ambos | save | Implementado |
+| RN-ATA06 | Quatro papéis votam após texto salvo; um registro por reunião/pessoa, com troca; totais sem decisão coletiva automática | vote/present/AtaVoto | Implementado |
+| RN-ATA07 | PDF usa texto salvo carregado, nunca rascunho; não atualiza servidor nem revalida acesso no clique | handleExportPdf/exportAtaPdf | Implementado |
+| RN-ATA08 | Rascunho impede voto na UI; 403/409 preserva rascunho e bloqueia edição/voto até recarregar | AtaReuniao | Implementado |
 
-1. Registrar entrada na tela de detalhes da reunião e abrir **Ata de reunião**.
-2. Administrador/secretário redige o texto e salva. Os demais integrantes veem uma mensagem de espera enquanto não houver ata.
-3. Após salvar, os presentes podem aprovar ou reprovar. A tela exibe totais e o voto do próprio usuário, sem divulgar os votos individuais de terceiros.
-4. Alterar o texto incrementa sua versão e remove os votos, atomicamente. Se houver votos carregados na tela, o app pede confirmação. Salvar texto idêntico não altera a versão nem os votos.
-5. Edição ou voto sobre versão antiga recebe 409. O app preserva o rascunho e orienta atualizar. Atualizar ou sair com alterações locais exige confirmação.
+O checkIn para criar presença verifica comissão/organização aceita, integrante criador ou com convite aceito e reunião AGENDADA; registro existente é retornado antes dessa verificação de status. loadAccess da ata não repete critérios de convite, data ou status da reunião/organização. O botão de acesso exige meuRegistro e papelNaComissao; servidor valida independentemente dele.
 
-Salvar disponibiliza a ata para votação; não há uma etapa separada de publicação, quórum, encerramento ou resultado coletivo automático. Essas regras não foram solicitadas.
+#### Entradas
 
-## Dados
-
-`Reuniao.conteudoAta`: `String? @db.LongText`, nulo antes da primeira gravação. O contrato limita o HTML a 50.000 caracteres e exige texto não vazio após sanitização.
-
-`Reuniao.versaoAta`: inteiro, inicialmente zero, incrementado a cada alteração efetiva do conteúdo. A escrita condicional bloqueia a linha da reunião até o fim da transação para serializar edição e voto.
-
-`AtaVoto`: `id`, `reuniaoId`, `userId`, `status`, `versaoAta`, `updatedAt`. `StatusAtaVoto` admite `APROVADO` ou `REPROVADO`. A chave única `(reuniaoId, userId)` impede votos duplicados; exclusão da reunião ou do usuário remove os votos em cascata.
-
-```mermaid
-erDiagram
-    Reuniao ||--o{ AtaVoto : recebe
-    User ||--o{ AtaVoto : registra
-    Reuniao ||--o{ ReuniaoRegistro : registra_presenca
-    User ||--o{ ReuniaoRegistro : participa
-    Reuniao {
-        int id PK
-        string conteudoAta
-        int versaoAta
-    }
-    AtaVoto {
-        int id PK
-        int reuniaoId FK
-        int userId FK
-        enum status
-        int versaoAta
-        datetime updatedAt
-    }
-```
-
-## API
-
-Todos os endpoints usam `Authorization: Bearer <token>` e o prefixo `/api`.
-
-| Método e caminho | Corpo | Comportamento |
+| Campo | Tipo e domínio | Validação/origem |
 |---|---|---|
-| `GET /reunioes/:id/ata` | — | Retorna título, data da reunião, texto, versão, cargo, permissões, voto próprio e totais |
-| `PUT /reunioes/:id/ata` | `{ "conteudoAta": "<p>Decisões...</p>", "versaoAta": 0 }` | Cria/edita como administrador ou secretário presente |
-| `POST /reunioes/:id/ata/votar` | `{ "status": "APROVADO", "versaoAta": 1 }` | Registra ou troca voto na versão atual |
+| Authorization | Bearer + token | jwt.verify; sub inteiro positivo, role do enum, email presente; User relido. Sessão do authStore |
+| id | Parâmetro convertido em number, inteiro > 0 | parseId usa Number/Number.isInteger (primeiro valor se array); tela usa Number.isSafeInteger antes da chamada |
+| conteudoAta | string HTML | PUT: trim, obrigatório, máximo 50.000; deve manter texto após sanitização; editor.current.getHtml() |
+| versaoAta | number inteiro >= 0 | Obrigatório em PUT/POST; deve coincidir com Reuniao.versaoAta; objeto Ata carregado |
+| status | APROVADO ou REPROVADO | POST: string com trim, obrigatória; botão escolhido |
+| titulo | string | PDF: ata.titulo; escapado no template, sem validação adicional de tamanho |
+| dataReuniao | string AAAA-MM-DD | PDF: padrão textual validado (não calendário completo), formatado sem conversão de fuso |
+| conteudoAta do PDF | string HTML salvo | ata.conteudoAta não nulo; template exige trim não vazio; web sanitiza novamente |
 
-O cliente obtém `versaoAta` no GET e a envia no PUT/POST. Respostas de sucesso usam 200. Erros: 400 (dados inválidos), 401 (sessão ausente/inválida), 403 (cargo/presença/vínculo), 404 (reunião inexistente), 409 (versão antiga ou votação antes da redação), 500 (erro interno).
+Os campos PDF são AtaPdfInput local, não corpo HTTP. Yup realiza coerções/transformações e stripUnknown: true; não promete rejeição de todo tipo JSON inicial diferente. userId e papel não são escolhidos no corpo para conceder permissão.
 
-Contrato completo: `sistema/api/docs/openapi.yaml`, disponível em `/api/docs`.
+#### Saída comum da API
 
-## Interface e HTML
+GET/PUT/POST retornam **200**, objeto sem envelope:
 
-- Rota: `better-meet/src/app/(tabs)/(reunioes)/ata/[id].tsx`.
-- Conteúdo da tela: `better-meet/src/components/AtaReuniao.tsx`.
-- Android/iOS: `react-native-pell-rich-editor` e WebView 14.0.1, versão indicada pelo Expo 58. A leitura usa WebView sem JavaScript, com CSP e bloqueio de navegação externa.
-- Web: Tiptap para edição e DOMPurify para leitura. Os módulos web não entram no bundle nativo.
-- API: `sanitize-html` 2.18.1 preserva elementos de formatação textual e tabelas. Atributos são limitados a alinhamento, fonte da escala permitida, estilo de borda enumerado e dimensões de células entre 1 e 10. Scripts, imagens, eventos, CSS arbitrário e conteúdo externo são removidos. A leitura também sanitiza conteúdo legado.
-- O botão da ata aparece nos detalhes somente para quem tem registro de entrada e cargo na comissão; o servidor valida independentemente da interface.
+| Campo | Tipo/domínio | Origem |
+|---|---|---|
+| reuniaoId | number | ID solicitado |
+| titulo | string | Reuniao.titulo |
+| dataReuniao | string | Reuniao.data |
+| conteudoAta | HTML string ou null | Texto sanitizado novamente em present |
+| versaoAta | number | Reuniao.versaoAta |
+| papelNaComissao | PapelComissao | ComissaoEquipe.papel |
+| podeEditar | boolean | ADMINISTRADOR/SECRETARIO |
+| podeVotar | boolean | Boolean do conteúdo persistido, após autorização |
+| meuVoto | StatusAtaVoto ou null | Voto próprio na versão atual |
+| votos.aprovados | inteiro >= 0 | Contagem APROVADO na versão atual |
+| votos.reprovados | inteiro >= 0 | Contagem REPROVADO na versão atual |
 
-Referências consultadas: [Expo 58 — WebView](https://docs.expo.dev/versions/v58.0.0/sdk/webview/), [Pell Rich Editor](https://github.com/wxik/react-native-rich-editor), [Tiptap para React](https://tiptap.dev/docs/editor/getting-started/install/react), [DOMPurify](https://github.com/cure53/DOMPurify).
+Não se devolve a lista de votos individuais de terceiros. Totais filtram versão, mas não o vínculo atual de cada votante: remover alguém da comissão não apaga automaticamente seu voto armazenado.
 
-### Controles do editor
+#### Origem, Saída, Destino e Ação por operação
 
-| Grupo | Controles |
+| Operação | Origem/rota ou função | Saída/destino | Ação e pré/pós-condições |
+|---|---|---|---|
+| Consultar | Foco/atualização em AtaReuniaoScreen; GET /api/reunioes/:id/ata | Objeto comum para UI | Sessão/vínculo/entrada; getByReuniao abre transação, present/loadAccess consulta reunião e votos, sanitiza e retorna. Sem texto: 200/null, podeVotar false; sem escrita de negócio |
+| Salvar | Editor; PUT /api/reunioes/:id/ata | Objeto comum; Reuniao/AtaVoto | Papel editor e versão atual; middleware assertCanEdit, schema, validateAtaHtml, transação reautoriza e compara versão, updateMany grava, deleteMany remove votos se mudou, present retorna; texto idêntico preserva versão/votos |
+| Votar | Botão; POST /api/reunioes/:id/ata/votar | Objeto comum; AtaVoto | Conteúdo e versão atuais; validar, loadAccess, conferir conteúdo/versão, updateMany incremento zero, upsert pela UK e present. Troca não duplica; texto permanece |
+| Exportar | handleExportPdf; exportAtaPdf(input) | Promise<void>; cache/gaveta ou janela de impressão | Texto salvo carregado; template; nativo verifica Sharing, gera base64, aguarda File.write e compartilha; web sanitiza/abre/imprime; não modifica reunião/votos, nem confirma envio externo |
+
+Prefixo /api vem de server.ts. Nenhum endpoint de PDF. O fluxo detalhado e pré/pós-condições de cada objetivo estão nas fichas UC17–UC20.
+
+#### Erros e ordem de validação
+
+Erros HTTP têm error; propriedades de AppError.details podem ser incorporadas no mesmo nível. Não existe details obrigatório.
+
+| HTTP | Condição | Mensagem literal |
+|---|---|---|
+| 400 | ID inválido | Identificador da reunião inválido. |
+| 400 | JSON malformado | JSON inválido. |
+| 400 | HTML ausente | Escreva o conteúdo da ata. |
+| 400 | HTML acima do limite | A ata deve ter no máximo 50.000 caracteres de HTML. |
+| 400 | Vazio após sanitizar | Escreva o conteúdo da ata antes de salvar. |
+| 400 | Versão ausente/inválida como número | Informe a versão da ata. |
+| 400 | Versão fracionária / negativa | A versão deve ser inteira. / A versão não pode ser negativa. |
+| 400 | Status ausente/inválido | Escolha aprovar ou reprovar a ata. |
+| 401 | Bearer ausente/vazio | Autenticação necessária. |
+| 401 | Assinatura/expiração | Token inválido ou expirado. |
+| 401 | Claims/sub inválidos | Token inválido. |
+| 401 | Conta excluída | Sessão inválida. Entre novamente. |
+| 403 | Sem vínculo ou entrada | A ata está disponível somente para integrantes da comissão com entrada registrada nesta reunião. |
+| 403 | Sem papel de edição | Somente administrador ou secretário da comissão pode editar a ata. |
+| 404 | Reunião inexistente | Reunião não encontrada. |
+| 409 | Voto antes do texto | A ata precisa ser redigida e salva antes da votação. |
+| 409 | Versão divergente/count=0 | A ata foi alterada. Atualize a tela antes de salvar ou votar. |
+| 404 / 409 | Prisma P2025 / P2002 genéricos | Registro não encontrado. / Registro já existente. |
+| 500 | Exceção não convertida | Erro interno. Tente novamente mais tarde. |
+
+JSON malformado pode falhar antes da autenticação. Com JSON bem formado, requireAuth precede as rotas; PUT verifica papel antes do corpo; loadAccess detecta reunião ausente antes de negar vínculo. Voto repetido normalmente retorna 200 por upsert, não o erro P2002. Falha de rede gera ApiError status 0 no cliente (“Não foi possível conectar ao servidor. Verifique sua conexão.”); 0 não é HTTP.
+
+PDF é local. Mensagens próprias: “A ata ainda não possui conteúdo salvo.”; “Atualize a ata para carregar a data da reunião.”; “O compartilhamento não está disponível neste dispositivo.”; “Não foi possível preparar o PDF para compartilhamento.”; “Permita pop-ups para exportar a ata.”. Print/File/Sharing podem fornecer mensagens próprias; fallback: “Não foi possível exportar a ata para PDF.”.
+
+#### Editor, leitura e PDF
+
+| Grupo | Comportamento implementado (S05–S07) |
 |---|---|
-| Histórico | Desfazer e refazer, desabilitados quando indisponíveis |
-| Texto | Negrito, itálico, sublinhado e rasurado |
-| Fonte | Diminuir e aumentar entre 10, 13, 16, 18, 24, 32 e 48 pixels; indicador do tamanho na seleção |
-| Títulos | H1, H2 e H3; tocar novamente retorna ao parágrafo |
-| Parágrafo | Esquerda, centro, direita e justificado |
-| Listas e recuo | Marcadores, numeração, aumentar e diminuir recuo |
-| Tabela | Menu com 1–10 linhas, 1–6 colunas e cabeçalho opcional |
+| Edição por papel | Admin/Secretário da comissão veem AtaEditor/Salvar; demais, AtaLeitura ou espera. Todos recebem voto/PDF, desabilitados conforme estado |
+| Texto/histórico | Negrito, itálico, sublinhado, rasurado, desfazer/refazer |
+| Parágrafos | H1/H2/H3; esquerda/centro/direita/justificado; listas ordenadas/não ordenadas; aumentar/diminuir recuo |
+| Fonte | Escala 10, 13, 16, 18, 24, 32, 48 px |
+| Tabelas | Menu de 1–10 linhas, 1–6 colunas, cabeçalho opcional, adicionar/excluir linha/coluna ou tabela; sem controle de mesclagem |
+| Bordas | all, outer, inner, horizontal, vertical, top, bottom, left, right, none em data-ata-border |
+| Barra | ScrollView horizontal, fundo escuro, ícones Pell/Ionicons e glifos H1/H2/H3; ações Colors.dark.primary (#1FD5B5); alvos de 44 |
+| Plataformas | Pell/WebView/ataNativeBridge no nativo; Tiptap na web; DOMPurify no leitor web; leitor nativo sem JavaScript/acesso a arquivos, navegação só about:blank |
 
-A barra usa `ScrollView` horizontal, alvos de toque de pelo menos 44 pixels, nomes acessíveis em português e ícones do Pell/Ionicons. Seu fundo usa `Colors.dark.backgroundElement`, com seleção e ações em `Colors.dark.primary`. Os demais componentes seguem o tema escolhido no app.
+Limites de linhas/colunas são da interface; a API limita tamanho HTML e colspan/rowspan de 1 a 10, sem contar linhas/colunas. HTML preserva tags textuais/tabelas e estilos enumerados; normaliza font/align legados e remove scripts/eventos/recursos externos. Template PDF escapa título/data, mas não é sanitizador do HTML nativo.
 
-O menu de tabelas oferece todas as bordas, externas, internas, horizontais, verticais, somente superior, inferior, esquerda, direita e sem bordas. Ao selecionar uma célula de uma tabela existente, o mesmo menu permite trocar suas bordas, adicionar linha abaixo/coluna à direita, excluir linha/coluna ou excluir a tabela. Não há mesclagem de células nem edição de bordas individuais de cada célula.
+prepareSave obtém o HTML atual pelo ref e confirma alteração se houver votos carregados. O servidor compara o texto normalizado. A UI preserva rascunho em falhas; 403/409 bloqueia editar/votar até recarregar. PDF pode usar o conteúdo carregado mesmo após conflito, pois não testa conflict nem renova acesso.
 
-`data-ata-border` registra a opção escolhida. A folha de estilos compartilhada entre editores e leitores converte esse valor em bordas, mantendo o HTML salvo sem CSS arbitrário. Fontes `<font size="1..7">` produzidas pelo editor nativo são convertidas em `<span style="font-size:...px">`. O recuo de parágrafos usa `blockquote` sem decoração de citação; em listas, os comandos alteram o nível do item.
+PDF: BetterMeet, título/data, fundo branco, CSS e sans-serif. Nativo gera A4 595×842; iOS usa CSS margin 0 e margens nativas 51; Android @page 18mm. Base64 é gravado em File(Paths.cache, nome com data/Date.now), aguardado antes de compartilhar application/pdf e UTI com.adobe.pdf. O cache permanece para leitura do destinatário. Na web, somente o documento da ata é aberto, opener isolado e print invocado; o navegador decide salvar/imprimir. Cancelar não gera confirmação de envio.
 
-Na web foram adicionadas as extensões [TextAlign](https://tiptap.dev/docs/editor/extensions/functionality/textalign), [FontSize/TextStyle](https://tiptap.dev/docs/editor/extensions/functionality/fontsize) e [Table](https://tiptap.dev/docs/editor/extensions/nodes/table), versão 3.33.0. No celular, a ponte do Pell preserva a seleção ao abrir o painel de tabelas e usa comandos do navegador para conservar o histórico. A normalização de input do Pell é suspensa apenas durante esses comandos, evitando que uma alteração adicional apague o histórico de refazer. Alternar o estado editável do Tiptap durante o salvamento não emite alterações de conteúdo.
+### B.2 RNF44 — Restrições do HTML
 
-## Instalação e migração
+- **Categoria/escopo:** Segurança; gravação/apresentação na API, leitura web/nativa e entrada do PDF.
+- **Exigência:** HTML limitado a tags/atributos/estilos permitidos; leitor nativo sem JavaScript/acesso a arquivos, navegação só about:blank.
+- **Métrica:** nos vetores definidos em CT-RNF44-01, zero scripts/eventos/URLs externas/estilos fora do domínio preservados, mantendo exemplos permitidos. CT-RNF44-02 confere propriedades e comportamento real do leitor.
+- **Método:** testes com sanitizadores reais, inspeção e roteiro manual; listar os vetores executados, sem alegar proteção absoluta.
+- **Versões:** sanitize-html 2.18.1; DOMPurify 3.4.17; WebView 14.0.1, nos lockfiles.
+- **Evidência:** S02/S06 e testes_ata_reuniao.md; CT-RNF44-01 aprovado.
+- **Estado:** mecanismos Implementados; validação completa Não verificado.
+- **Resultado:** **Não executado** para a exigência completa; CT-RNF44-01 aprovado nas suítes, CT-RNF44-02 em aparelho pendente.
 
-Requer Node 24.9 ou superior. O Jest da API foi alinhado à versão 30.5 usada pelo app para testar as dependências ESM do sanitizador atual, sem substituir a sanitização por mocks. Ver [suporte ESM do Jest](https://jestjs.io/docs/ecmascript-modules).
+### B.3 RNF45 — Integridade de texto, versão e votos
 
-Na pasta `sistema/api`:
+- **Categoria/escopo:** Integridade/confiabilidade; save/vote e Reuniao/AtaVoto.
+- **Exigência:** texto, versão e remoção de votos na mesma transação; máximo de um voto por reunião/pessoa; versão rejeitada não grava; falha transacional não deixa estado parcial.
+- **Métrica:** zero pares duplicados, zero votos em versão rejeitada e zero estados parciais nos cenários definidos; conteúdo normalizado idêntico preserva versão/votos.
+- **Método:** CT-RNF45-01 inspeciona SQL/chaves; CT-RNF45-02 testa chamadas/conflitos simulados; CT-RNF45-03 exige concorrência e falha controlada em banco de teste. Registrar amostra e condições.
+- **Versões:** Prisma/@prisma/client 7.10.0; imagem configurada mysql:8.4.0; versão do servidor em execução [A CONFIRMAR NO CÓDIGO/AMBIENTE].
+- **Evidência:** S02/S03, $transaction/updateMany/upsert e UK/FKs; DER e registro de testes.
+- **Estado:** mecanismos Implementados; concorrência/rollback reais Não verificado.
+- **Resultado:** **Não executado** para a exigência completa; CT-RNF45-02 aprovado com mocks, banco/concorrência/rollback reais pendentes.
 
-```powershell
-npm install
-npm run prisma:generate
-npm run prisma:deploy
-```
+Não há metas de tempo/escala sem requisito. Votar, autorizar, exportar e validar campos são RF/regras. Resultado futuro reprovado não autoriza reduzir a exigência.
 
-Na pasta `sistema/better-meet`:
+### B.4 Versões da implementação
 
-```powershell
-npm install
-npm start
-```
-
-Migração: `api/prisma/migrations/20261109140000_ata_reuniao/migration.sql`. Adiciona duas colunas e a tabela de votos, sem excluir tabelas ou dados existentes.
-
-`prisma migrate dev --name ata_reuniao --create-only` encontrou P3014/P1010: o usuário do banco configurado não pode criar o banco temporário (shadow database). O SQL foi gerado por `prisma migrate diff` entre o schema anterior e o novo, revisado e mantido no histórico de migrations. `prisma migrate status` confirmou que somente a migração da ata estava pendente. Ela foi aplicada com sucesso por `prisma migrate deploy`, que não depende de shadow database, sem reset ou remoção de dados existentes. O Prisma Client já foi gerado; processos de API/Expo que estavam abertos precisam ser reiniciados para carregar o código e as dependências.
-
-## Testes
-
-Data: 09/11/2026. Os testes da API usam Prisma simulado e Supertest, sem alterar o banco de desenvolvimento.
-
-| IDs | Requisito/caso de uso | Cenários automatizados |
-|---|---|---|
-| CT-ATA-01 | RF16.1, UC17 | Administrador e secretário editam; facilitador/membro recebem 403 inclusive com ADMIN global |
-| CT-ATA-02 | RF16.4, todos | Ausentes, ex-integrantes, token inválido e presença em outra reunião não concedem acesso; saída não revoga presença |
-| CT-ATA-03 | RF16.2/05, UC18 | HTML sanitizado na gravação e leitura, preservação de formatação, bloqueio de scripts e recursos externos |
-| CT-ATA-04 | RF16.3, UC19 | Quatro cargos votam; duplicação, troca, voto próprio e totais; bloqueio antes de existir conteúdo |
-| CT-ATA-05 | RF16.5, UC17/03 | Edição invalida votos, conteúdo idêntico preserva votos, versão antiga e concorrência recebem 409 |
-| CT-ATA-06 | RF16.1/02/03, todos | Interface condicional, gravação/voto, rascunho preservado em erros e confirmações |
-
-```powershell
-# sistema/api
-npm test -- --runInBand
-npm run typecheck
-npm run lint
-npx prisma validate
-
-# sistema/better-meet
-npm test -- --runInBand
-npm run test:web -- --runInBand
-npm run typecheck
-npm run lint
-npx expo export --platform all --output-dir <pasta-temporaria>
-```
-
-Resultados finais:
-
-| Verificação | Resultado |
+| Área | Manifesto → lockfile |
 |---|---|
-| API — Jest/Supertest | 13 suítes, 247 testes aprovados; 44 testes novos de ata |
-| App — Jest/React Native Testing Library | 21 suítes, 173 testes aprovados; 12 testes novos de ata |
-| HTML web — Jest/DOM | 1 suíte, 3 testes aprovados com o sanitizador real |
-| Typecheck e lint | API e app aprovados |
-| Prisma | Schema validado, Prisma Client gerado, migração aplicada e histórico atualizado |
-| OpenAPI | YAML válido, sem referências internas quebradas |
-| Expo export | Android, iOS e web gerados com sucesso |
-| Navegador real — Chrome/Playwright | Editor Tiptap, negrito, gravação do HTML/versão, aprovação, leitura sem editor, troca para reprovação e bloqueio 403 aprovados, sem erros JavaScript; API simulada |
-| Alterações anteriores do usuário | Lockfile do app preservado; nenhuma versão de dependência preexistente foi alterada |
+| API | express ^5.2.1 → 5.2.1; prisma/@prisma/client 7.10.0; sanitize-html 2.18.1; yup ^1.7.0 → 1.7.1; jsonwebtoken ^9.0.3 → 9.0.3 |
+| App | expo ~58.0.23 → 58.0.23; React 19.3.0; React Native 0.88.1; Pell ^1.10.0 → 1.10.0; WebView 14.0.1 |
+| PDF/web | expo-print ~58.0.9 → 58.0.9; sharing ~58.0.23 → 58.0.23; file-system ~58.0.13 → 58.0.13; @tiptap/react ^3.33.0 → 3.33.0; dompurify ^3.4.17 → 3.4.17 |
 
-O arquivo local `.expo/types/router.d.ts` foi regenerado pelo gerador do Expo, resolvendo os quatro erros de navegação anteriores e incluindo a rota da ata. Não houve alteração das rotas anteriores para contornar o typecheck.
+São versões do código-base, não medidas do celular/produção.
 
-O teste em navegador utilizou a exportação temporária e respostas HTTP simuladas, sem escrita no banco. Os testes de concorrência da API verificam os conflitos de escrita por versão; não substituem um teste concorrente contra MySQL real.
+## C. Casos de uso e diagramas
 
-### Verificação manual em dispositivo
+### C.1 Casos de uso
 
-Usar quatro integrantes com os cargos diferentes: registrar entrada, redigir no celular, aplicar negrito/itálico/listas, salvar e ler com cada papel. Testar teclado, seleção e rolagem em Android/iOS; votar, trocar voto, editar a ata após votos e verificar a reinicialização. Com duas sessões, editar simultaneamente e conferir o conflito. Confirmar acesso após saída e bloqueio sem entrada.
+![Casos de uso](Diagramas/DCU-Ata-Reuniao.svg)
 
-Essa validação com dispositivo e banco real ainda não foi executada. Exportar bundles comprova compilação e resolução de dependências, não a interação nativa com teclado e seleção de texto.
+[Fonte PlantUML](Diagramas/DCU-Ata-Reuniao.puml). Fronteira Better Meet, quatro atores concretos de B.1. Sem include/extend/generalização: os objetivos são independentes, com pré-condições próprias. Carregar uma tela antes de agir não constitui relação UML.
 
-### Validação da ampliação — 10/11/2026
+### UC17 — Consultar ata
 
-| IDs | Requisito/caso de uso | Cobertura adicionada |
+- **Estado/objetivo:** Implementado; obter texto, voto próprio e contagens, inclusive reconhecer ausência de ata.
+- **Atores:** Administrador da comissão; Secretário da comissão; Facilitador da comissão; Membro da comissão.
+- **RF/regras:** RF16; RN-ATA01/02; RNF44.
+- **Gatilho:** abrir Ata de reunião ou Atualizar ata e votos.
+- **Entradas:** token string da sessão; reuniaoId number inteiro positivo, convertido do parâmetro id.
+- **Pré-condições:** conta válida, vínculo atual e entrada registrada; não exige texto salvo nem ausência de saída.
+- **Fluxo:** 1) tela confere token/id; 2) serviço do app envia GET; 3) requireAuth valida identidade; 4) controller resolve id; 5) getByReuniao abre transação, present chama loadAccess; 6) consulta votos da versão e sanitiza texto; 7) responde 200; 8) mostra editor aos dois papéis habilitados e leitor aos demais.
+- **Alternativas/erros:** sem ata, 200/null, podeVotar false e aviso para leitores; id local inválido: “Reunião inválida.”; API: 400/401/403/404/500 conforme B.1; rede: ApiError status 0 e nova tentativa. Recarregar com rascunho exige confirmação de descarte.
+- **Pós-condições:** estado local recebe o objeto; nenhuma escrita de negócio no banco. Erro não confirma carregamento novo.
+- **Relações UML:** nenhuma; associação individual aos quatro atores.
+- **Rastreabilidade:** S01/S02/S05/S06; User, ComissaoEquipe, ReuniaoRegistro, Reuniao, AtaVoto; DS-Consultar-Ata; CT-RF16-01–05 e CT-RNF44-01/02.
+
+### UC18 — Redigir ata
+
+- **Estado/objetivo:** Implementado; criar ou alterar o texto Rich Text.
+- **Atores:** Administrador da comissão; Secretário da comissão.
+- **RF/regras:** RF16; RN-ATA01–05/08; RNF44/RNF45.
+- **Gatilho:** editar e tocar Salvar.
+- **Entradas:** token string; reuniaoId number; conteudoAta string HTML; versaoAta number inteiro >= 0.
+- **Pré-condições:** identidade, vínculo e entrada válidos, papel editor e versão carregada; primeira gravação não exige ata anterior. UI requer alteração local e ausência de ocupação/conflito.
+- **Fluxo:** 1) editor fornece getHtml(); 2) confirmar se há votos carregados e mudança; 3) PUT passa por requireAuth e requireAtaEditor; 4) controller valida id/corpo; 5) service sanitiza/exige texto; 6) transação revalida acesso/papel/versão; 7) updateMany grava e incrementa se mudou; 8) deleteMany remove votos se mudou; 9) present devolve 200; 10) UI atualiza rascunho/objeto e informa disponibilidade de votação.
+- **Alternativas/erros:** HTML normalizado idêntico preserva votos/versão; cancelar confirmação não envia PUT; 400 de schema/sanitizador; 401/403 de acesso; 404 de reunião; 409 de versão/count=0; 500 de exceção. Rede permite nova tentativa; 403/409 bloqueia editar/votar, preservando rascunho até recarregar.
+- **Pós-condições:** sucesso com alteração: HTML normalizado, versão incrementada e votos removidos; sem alteração: versão/votos mantidos. Falha não confirma salvamento. Atomicidade física depende de teste real pendente.
+- **Relações UML:** nenhuma; associação aos dois atores elegíveis.
+- **Rastreabilidade:** S01–S03/S05/S06; Reuniao/AtaVoto; DS-Salvar-Ata; CT-RF16-06–12/15/16, CT-RNF44-01, CT-RNF45-01–03.
+
+### UC19 — Votar na ata
+
+- **Estado/objetivo:** Implementado; registrar/trocar concordância individual na versão salva.
+- **Atores:** Administrador da comissão; Secretário da comissão; Facilitador da comissão; Membro da comissão.
+- **RF/regras:** RF16; RN-ATA01/04–06/08; RNF45.
+- **Gatilho:** tocar Aprovar ou Reprovar.
+- **Entradas:** token string; reuniaoId number; status StatusAtaVoto; versaoAta number inteiro >= 0.
+- **Pré-condições:** identidade, vínculo, entrada, texto salvo e versão atual. UI sem rascunho, ocupação ou conflito; botão igual ao voto atual fica desabilitado.
+- **Fluxo:** 1) escolher status; 2) POST; 3) autenticar e validar id/corpo; 4) transação/loadAccess; 5) conferir conteúdo e versão; 6) updateMany condicional com incremento zero; 7) upsert pela UK; 8) present calcula voto próprio/totais; 9) 200 atualiza UI e mostra “Seu voto foi registrado.”.
+- **Alternativas/erros:** repetição HTTP retorna 200 sem duplicar; troca substitui status; sem texto ou versão antiga, 409; corpo inválido, 400; acesso, 401/403; reunião ausente, 404; exceção, 500. Após edição remota, recarregar e votar na nova versão; não existe encerramento/quórum.
+- **Pós-condições:** voto único sobre versão atual, contagens recalculadas e texto preservado. Erro não é confirmado como voto.
+- **Relações UML:** nenhuma; quatro associações individuais.
+- **Rastreabilidade:** S01–S03/S05; Reuniao/AtaVoto; DS-Votar-Ata; CT-RF16-03–05/11–16 e CT-RNF45-01–03.
+
+### UC20 — Exportar ata
+
+- **Estado/objetivo:** Implementado; preparar documento da versão salva carregada para guardar/compartilhar/imprimir.
+- **Atores:** Administrador da comissão; Secretário da comissão; Facilitador da comissão; Membro da comissão.
+- **RF/regras:** RF16; RN-ATA07; RNF44 no tratamento do HTML.
+- **Gatilho:** tocar Exportar PDF.
+- **Entradas:** AtaPdfInput com titulo string, dataReuniao string AAAA-MM-DD e conteudoAta string HTML, do objeto carregado.
+- **Pré-condições:** leitura já autorizada no carregamento e texto salvo não vazio; não há reautorização no clique. UI impede exportação repetida em andamento e enquanto busy.
+- **Fluxo nativo:** 1) bloquear chamada duplicada; 2) buildAtaPdfHtml valida conteúdo/data e monta template; 3) Sharing.isAvailableAsync; 4) Print.printToFileAsync com base64; 5) exigir base64, criar File em Paths.cache e aguardar write; 6) Sharing.shareAsync; 7) finally libera controle.
+- **Alternativa web:** sanitizeAtaHtml, template, window.open, isolar opener, escrever documento, registrar afterprint, focus/print; fechar após evento. O navegador controla salvar/imprimir.
+- **Erros:** conteúdo/data inválidos, compartilhamento indisponível, falta de base64, falha de Print/File/Sharing ou janela bloqueada; mensagem/fallback de B.1 e liberação para tentar novamente. Falha de gravação impede compartilhar. Rascunho não é salvo/exportado implicitamente.
+- **Pós-condições:** nativo prepara arquivo em cache e invoca gaveta; web invoca impressão isolada. Sem mudança no banco; cancelamento/resolução da chamada não confirma entrega externa.
+- **Relações UML:** nenhuma; quatro associações individuais.
+- **Rastreabilidade:** S05/S07; dois DS-Exportar-Ata-Pdf; sem tabela/endpoint de PDF; CT-RF16-17–19/21–23 e CT-RNF44-01.
+
+### C.2 Sequências
+
+Cada cenário usa participantes concretos e chamadas reais. Notas definem abreviações dos parâmetros e condições, sem métodos inventados.
+
+**Consulta — UC17**, fontes S01/S02/S05; [PlantUML](Diagramas/DS-Consultar-Ata.puml).
+
+![Consultar ata](Diagramas/DS-Consultar-Ata.svg)
+
+**Salvar — UC18**, fontes S01/S02/S05/S06; [PlantUML](Diagramas/DS-Salvar-Ata.puml).
+
+![Salvar ata](Diagramas/DS-Salvar-Ata.svg)
+
+**Votar — UC19**, fontes S01/S02/S05; [PlantUML](Diagramas/DS-Votar-Ata.puml).
+
+![Votar na ata](Diagramas/DS-Votar-Ata.svg)
+
+**PDF nativo — UC20**, fontes S05/S07; [PlantUML](Diagramas/DS-Exportar-Ata-Pdf-Nativo.puml).
+
+![PDF nativo](Diagramas/DS-Exportar-Ata-Pdf-Nativo.svg)
+
+**PDF web — UC20**, fontes S05/S07; [PlantUML](Diagramas/DS-Exportar-Ata-Pdf-Web.puml).
+
+![PDF web](Diagramas/DS-Exportar-Ata-Pdf-Web.svg)
+
+## D. Persistência e rastreabilidade
+
+### D.1 Recorte relacional
+
+![DER da ata](Diagramas/DER-Ata-Reuniao.svg)
+
+[Fonte PlantUML](Diagramas/DER-Ata-Reuniao.puml). Estado: Implementado no schema/DDL; estrutura física aplicada Não verificado. Recorte de sete tabelas e 44 colunas do banco principal, não inventário de todos os módulos. Banco de monitoramento não é afetado; não há FK entre bancos.
+
+Reuniao contém conteudoAta LONGTEXT nullable e versaoAta INTEGER default 0. AtaVoto guarda status, versão e updatedAt, com UK por reunião/pessoa. ReuniaoRegistro comprova entrada; ComissaoEquipe fornece papel atual. User, Comissao e Organizacao contextualizam identidade e FKs. As relações seguem migrations S03; o vínculo do criador da reunião tem ON DELETE RESTRICT e os vínculos de votos/presença têm CASCADE. A remoção de ComissaoEquipe não apaga automaticamente AtaVoto.
+
+Dados locais: rascunho/flags em estado React; sessão no authStore/AsyncStorage; PDF no cache; janela web temporária. Não são tabelas. Controller e service são objetos de módulo; o modelo de classes separado é de persistência Prisma, sem inventar métodos.
+
+**Entrega separada solicitada:** dados_ata_reuniao.md (dicionário completo, índices, FKs, responsabilidades e dados locais), DC-Ata-Reuniao.puml e DC-Ata-Reuniao.svg foram preparados fora deste repositório para unificação. Sua incorporação à documentação consolidada está pendente. Não há cópias versionadas nem links relativos para arquivos ausentes.
+
+### D.2 Matriz
+
+| RF/RNF/regras | UC | Tela | Endpoint/função | Model/tabela | Diagrama | CT | Estado |
+|---|---|---|---|---|---|---|---|
+| RF16 consulta; RN-ATA01/02 | UC17 | AtaReuniaoScreen/AtaReuniao | GET /api/reunioes/:id/ata; getByReuniao/present | User, ComissaoEquipe, ReuniaoRegistro, Reuniao, AtaVoto | DCU; DS-Consultar-Ata; DER | CT-RF16-01–05 | Implementado; suítes direcionadas aprovadas; integração real pendente |
+| RF16 redação; RN-ATA01–05/08 | UC18 | AtaReuniao/AtaEditor/AtaToolbar | PUT /api/reunioes/:id/ata; save | Reuniao/AtaVoto e modelos de acesso | DCU; DS-Salvar-Ata; DER | CT-RF16-06–12/15/16 | Implementado; suítes direcionadas aprovadas; integração real pendente |
+| RF16 voto; RN-ATA01/04–06/08 | UC19 | AtaReuniao | POST /api/reunioes/:id/ata/votar; vote | AtaVoto/Reuniao e modelos de acesso | DCU; DS-Votar-Ata; DER | CT-RF16-03–05/11–16 | Implementado; suítes direcionadas aprovadas; integração real pendente |
+| RF16 PDF; RN-ATA07 | UC20 | AtaReuniao | exportAtaPdf/buildAtaPdfHtml; sem endpoint | Dados carregados de Reuniao; arquivo local, sem tabela PDF | DCU; dois DS-PDF | CT-RF16-17–19/21–23 | Implementado; aparelho Não verificado |
+| RF16 falha não tratada | UC17/UC18/UC19 | FeedbackBanner | handleError/API; ApiError/app | Sem confirmação de gravação na UI | DS consulta/salvar/votar | CT-RF16-20 | Caminho Implementado; cenário Não executado |
+| RNF44 HTML | UC17/UC18/UC20 | Editor/leitor/PDF | sanitizeAtaHtml/validateAtaHtml | Reuniao.conteudoAta | DS consulta/salvar/PDF | CT-RNF44-01/02; CT-RF16-08 | Implementado; resultado Não executado |
+| RNF45 integridade | UC18/UC19 | AtaReuniao | save/vote/$transaction | Reuniao/AtaVoto, UK/FKs | DS salvar/votar; DER; DC separado | CT-RNF45-01–03; CT-RF16-11–15 | Implementado; resultado Não executado |
+
+### D.3 Legado preservado
+
+Origem: versão deste arquivo em e99249376a971507ddb0105884ec34eb6482120f. Cobertura de assunto não renumera nem declara equivalência formal; esta permanece [A CONFIRMAR].
+
+| Identificador original e significado | Cobertura de assunto |
+|---|---|
+| RF-ATA-01 — Redigir/editar texto e tabelas | RF16/UC18 |
+| RF-ATA-02 — Ler sem controles de edição | RF16/UC17 |
+| RF-ATA-03 — Aprovar/reprovar, voto único/troca | RF16/UC19 |
+| RF-ATA-04 — Exigir vínculo e entrada | RN-ATA01/02 |
+| RF-ATA-05 — Sanitização, concorrência, invalidar votos | RN-ATA03–05; RNF44/RNF45 |
+| RF-ATA-06 — Barra horizontal, histórico e tabelas | RF16/UC18 |
+| RF-ATA-07 — Exportar PDF | RF16/UC20 |
+| UC-ATA-01 — Redigir ata | UC18 |
+| UC-ATA-02 — Consultar ata | UC17 |
+| UC-ATA-03 — Votar na ata | UC19 |
+| UC-ATA-04 — Exportar ata | UC20 |
+
+CT-ATA-01–CT-ATA-13 e resultados antigos permanecem no [histórico de testes](testes_ata_reuniao.md#histórico-preservado). RF16/RNF44/RNF45 exigem futura atualização do índice Requisitos da Wiki; esta edição não publica.
+
+## E. Testes
+
+Ver [testes_ata_reuniao.md](testes_ata_reuniao.md) para casos, comandos e roteiros. Nesta revisão foram aprovados 138 testes em nove suítes direcionadas: API 58, app 37 e web 43, sem falhas. Os ambientes usam Prisma/serviços nativos simulados e jsdom. O MySQL recusou a conexão de leitura. Não houve teste próprio em aparelho ou navegador real. Geração e revisão dos diagramas são verificações documentais.
+
+## F. Checklist crítico
+
+| Critério | Resultado da escrita | Evidência/limite |
 |---|---|---|
-| CT-ATA-07 | RF16.1/05, UC17/02 | Salvar/reler títulos, sublinhado, rasurado, recuo, fonte e os dez estilos de borda; normalizar fonte nativa; rejeitar CSS/atributos inválidos e tabela sem texto |
-| CT-ATA-08 | RF16.1/06, UC17 | Comandos reais do Tiptap: alinhamentos, títulos, fonte, recuo, histórico e edição de tabela, com sanitização e reabertura |
-| CT-ATA-09 | RF16.6, UC17 | Barra horizontal, nomes acessíveis, estados ativo/desabilitado e escolha de tamanho/bordas |
-| CT-ATA-10 | RF16.3/06, UC17/03 | Alternar salvamento não cria alterações pendentes; ponte nativa preserva histórico e filtra mensagens |
+| Cabeçalho e baseline | Atendido | Cabeçalhos e S01–S11; assinatura humana a preencher |
+| Fatos/lacunas marcados | Atendido | A.2 e estados por item |
+| Atores concretos | Atendido | B.1 e UC17–UC20 |
+| PlantUML/SVG, sem flowchart | Atendido | Oito pares gerados localmente e XML validado; sete na entrega e classes no pacote separado |
+| Ficha por elipse | Atendido | UC17–UC20 e tabela final |
+| RF com campos/contratos/erros | Atendido | B.1 |
+| Sequências com métodos/caminhos de erro | Atendido | Cinco sequências confrontadas com S01/S02/S05/S07, com retornos, alternativas e falhas |
+| Modelo de classes/dicionário unificados na fonte | Não atendido nesta pasta | Entregues separadamente por instrução expressa; unificação pendente |
+| DER do principal e dados locais | Atendido | Sete tabelas/44 colunas confrontadas com schema/migrations; cache/memória descritos fora do DER |
+| Estrutura MySQL aplicada | Não verificado | ECONNREFUSED |
+| RNFs mensuráveis/versões/resultados | Atendido | B.2/B.3; Não executado sem aprovação presumida |
+| Testes com IDs/evidência ou pendência | Atendido | 28 CT documentais, nove fontes, comandos/saídas reais: 138 testes aprovados; pendências físicas explícitas |
+| Matriz sem RF órfão | Atendido | D.2; PDF sem endpoint/tabela justificado |
+| Segredos/dados pessoais desnecessários | Atendido | Nenhum valor real de credencial ou exemplo pessoal |
+| Pendências/divergências | Atendido | A.2 e D |
+| Fonte em documentos/ e processo atualizado | Atendido com exceção autorizada | Principal/testes e sete diagramas na fonte; classes/dicionário separados; plano, resumo, estado e auditoria atualizados |
+| Etapas finais aprovadas | Atendido | Escrita e Build and Test aprovados; encerramento documental confirmado em 2026-11-13, com pendências explícitas |
 
-Resultados: API com 261 testes aprovados (13 suítes), app com 177 testes aprovados (22 suítes) e web com 29 testes aprovados (4 suítes). Typecheck e lint aprovados na API e no app. Exportação Expo aprovada para Android, iOS e web.
+### Auditoria de cobertura das elipses
 
-Chrome/Playwright em largura de 390 pixels: aplicação real com Tiptap, formatação, recuo, fonte, desfazer/refazer, inserir tabela, trocar bordas, adicionar linha, salvar, reabrir, votar, ler sem editor e bloquear acesso 403. As respostas HTTP foram simuladas com o sanitizador real da API na gravação. Não houve escrita no banco. Sem erros JavaScript ou transbordamento horizontal da página.
-
-O HTML real do Pell e sua ponte foram executados em Chrome para validar formatação, H1–H3, recuo, fonte, histórico, seleção após perda de foco, inserção de tabela, linhas/colunas e bordas. Isso não substitui a validação física em Android/iOS: conferir teclado, seleção de trechos, rolagem horizontal da barra, abertura/fechamento do painel e edição nas células, especialmente após desfazer/refazer. Repetir os fluxos de gravação/leitura entre celular e web.
-
-## Exportação para PDF — 11/11/2026
-
-O botão **Exportar PDF**, ao final do conteúdo da ata, está disponível para os quatro cargos com acesso à leitura. Sem ata salva, fica desabilitado. Exportar não altera o texto, a versão nem os votos. Para editores com alterações locais, a tela informa que o PDF usa a versão salva; é necessário salvar para incluir o rascunho.
-
-O contrato de `Ata` passou a retornar `dataReuniao` no formato `AAAA-MM-DD` em GET, PUT e POST de voto. A data vem de `Reuniao.data`, sob a mesma autorização da ata, sem consulta a outro endpoint nem migração de banco. Sua formatação não usa conversão de fuso horário.
-
-Implementação:
-
-- `src/utils/ataPdfHtml.ts`: documento A4 com cabeçalho BetterMeet, título escapado, data da reunião, fundo branco, fonte sans-serif, margens e CSS compartilhado de formatação/tabelas. Inclui CSP para impedir scripts e recursos externos; o conteúdo recebido é o HTML já sanitizado pela API.
-- `src/utils/ataPdf.ts`: `expo-print` 58.0.9 gera o PDF; em Android e iOS, seu base64 é gravado em `Paths.cache` com `expo-file-system` 58.0.13 antes de chamar `expo-sharing` 58.0.23. A disponibilidade é verificada antes da geração. iOS utiliza margens nativas; Android utiliza `@page`.
-- `src/utils/ataPdf.web.ts`: sanitiza novamente o conteúdo com DOMPurify e abre somente o documento da ata em outra janela, com diálogo de impressão para **Salvar como PDF**. Não imprime a tela inteira do aplicativo. Informa bloqueio de pop-up e fecha a janela após a impressão.
-- `AtaReuniao.tsx`: estado de carregamento independente, bloqueio contra toques duplicados e tratamento de falhas com possibilidade de nova tentativa. Cancelar o compartilhamento não exibe confirmação de envio ou gravação.
-
-As dependências foram instaladas com `npx expo install expo-print expo-sharing`; o Expo incluiu o plugin `expo-sharing` no `app.json`. Os ajustes transitivos de `@expo/config-plugins`, `@expo/plist` e `@expo/require-utils` são exigidos pela versão instalada de `expo-sharing`. Reiniciar API e Expo para carregar o contrato e as dependências; development builds existentes precisam ser recompiladas para incluir os módulos nativos. O recurso não habilita recebimento de arquivos compartilhados por outros aplicativos.
-
-Referências: [Expo 58 — Print](https://docs.expo.dev/versions/v58.0.0/sdk/print/), [Expo 58 — Sharing](https://docs.expo.dev/versions/v58.0.0/sdk/sharing/).
-
-### Testes da exportação
-
-| IDs | Requisito/caso de uso | Cobertura |
-|---|---|---|
-| CT-ATA-11 | RF16.7, UC20 | Os quatro cargos exportam; sem conteúdo salvo o botão fica desabilitado; rascunho não é exportado nem salvo implicitamente |
-| CT-ATA-12 | RF16.7, UC20 | Bloqueio de exportação duplicada, falha e nova tentativa; geração A4 e chamada de compartilhamento com MIME/UTI de PDF |
-| CT-ATA-13 | RF16.5/07, UC20 | Título escapado, data civil, preservação das dez bordas, sanitização web, documento isolado e bloqueio de pop-ups |
-
-Validação concluída: API com 261 testes (13 suítes), app com 192 testes (23 suítes) e web com 43 testes (5 suítes), todos aprovados. Typecheck e lint aprovados nos dois subsistemas. Exportação Expo aprovada para Android, iOS e web.
-
-Chrome/Playwright: aplicação exportada, leitura como MEMBRO e edição como SECRETARIO, abertura do documento correto, título/data, tabela e fundo branco. Um PDF A4 foi gerado a partir do HTML da janela e conferido; a chamada ao diálogo foi interceptada no teste automatizado. Confirmados também exclusão do rascunho, bloqueio sem ata e ausência de erros JavaScript. API simulada, sem escrita no banco.
-
-A geração e o compartilhamento nativos foram testados com mocks das APIs Expo. Em aparelho físico, ainda é necessário conferir o PDF em Android/iOS, salvar em Arquivos/Drive, compartilhar com um aplicativo instalado, cancelar e repetir a operação. Conferir também atas com várias páginas e a paginação de tabelas nesses dispositivos.
-
-### Correção de compartilhamento no Expo Go — 12/11/2026
-
-O teste do usuário no Android apresentou `Not allowed to read file under given URL` em `ExpoSharing.shareAsync`. No código nativo Android instalado, Print grava em `context.cacheDir/Print`, enquanto Sharing verifica o caminho com `appContext.filePermission`. `Paths.cache` usa `appContext.cacheDirectory`, que respeita o escopo do aplicativo. No iOS, Print usa o cache da interface legada de arquivos, enquanto Sharing verifica os diretórios de `appContext.config`. Passar a URI da impressão diretamente deixa o fluxo sujeito à recusa desse caminho no Expo Go.
-
-A exportação Android e iOS solicita `base64: true`, grava esses bytes com `await new File(Paths.cache, ...).write(base64, { encoding: 'base64' })` e compartilha a URI do arquivo gravado. Não é necessário ler ou copiar a URI recusada. O nome inclui data e instante de exportação; o arquivo permanece no cache para permitir a leitura pelo aplicativo destinatário após a gaveta fechar. A ausência do base64 ou a falha da gravação interrompe o fluxo antes de compartilhar. Referência: [Expo 58 — FileSystem](https://docs.expo.dev/versions/v58.0.0/sdk/filesystem/).
-
-Regressão (CT-ATA-12, RF16.7, UC20): os testes simulam um caminho de impressão inacessível, verificam os bytes/encoding, esperam a conclusão da gravação e impedem compartilhar em caso de erro em ambas as plataformas. Quatro casos Android falharam antes de estender a correção para essa plataforma. Após a alteração, `npm test -- --runInBand src/utils/__tests__/ataPdf.test.ts src/components/__tests__/AtaReuniao.test.tsx` passou com 33 testes, sem falhas; `npm run typecheck` e `npm run lint` também passaram. O bundle Android servido pelo Metro respondeu com HTTP 200 e contém o fluxo atualizado de gravação antes do compartilhamento. A confirmação do compartilhamento real após a correção depende de repetir o teste no Android do usuário.
-
-### Validação da integração na development — 12/11/2026
-
-A integração da `feature/Atas` ocorreu sem conflitos, preservando as alterações de histórico de reuniões presentes na `development`. Antes do commit de merge, foram executados `npm test -- --runInBand` na API e no app e `npm run test:web -- --runInBand` no app: 261 testes da API, 198 do app e 43 da web, totalizando 502 testes aprovados em 41 suítes, sem falhas. A execução inclui a regressão de compartilhamento CT-ATA-12 nas duas plataformas. `npm run typecheck` e `npm run lint` também passaram nos dois subsistemas. Os testes da API usam simulações e não alteram o banco de desenvolvimento.
+| Elipse | Atores concretos | Ficha/RF | Fluxo, erros, pré/pós | Sequência e CT | Estado |
+|---|---|---|---|---|---|
+| Consultar ata | Administrador, Secretário, Facilitador e Membro da comissão | UC17/RF16 | UC17 e B.1 | DS-Consultar-Ata; CT-RF16-01–05 | Implementado; suítes direcionadas aprovadas; integração real pendente |
+| Redigir ata | Administrador e Secretário da comissão | UC18/RF16 | UC18 e B.1 | DS-Salvar-Ata; CT-RF16-06–12/15/16 | Implementado; suítes direcionadas aprovadas; integração real pendente |
+| Votar na ata | Os quatro papéis da comissão, associados individualmente | UC19/RF16 | UC19 e B.1 | DS-Votar-Ata; CT-RF16-03–05/11–16 | Implementado; suítes direcionadas aprovadas; integração real pendente |
+| Exportar ata | Os quatro papéis da comissão, associados individualmente | UC20/RF16 | UC20 e B.1 | Dois DS-PDF; CT-RF16-17–19/21–23 | Implementado; uso real Não verificado |

@@ -1,0 +1,117 @@
+' Incremento: 3 — Entrega 4 (entrega4_Di3)
+' Escopo: Ata de Reunião — RF16, RNF44/RNF45, UC17–UC20
+' Branch: development
+' Commit: 945419d84dd6a3dd32aacab736f32f9c7ed806f5
+' Data de revisão: 2026-11-13
+' Responsável(eis): [nome de quem revisa e assina]
+' Estado: Implementado no código; execução funcional desta revisão não verificada.
+' Fontes: sistema/api/src/{routes/ataRoutes.ts,middlewares/authMiddleware.ts,middlewares/ataMiddleware.ts,controllers/ataController.ts,services/ataService.ts,schemas/ataSchema.ts,middlewares/errorMiddleware.ts}; sistema/better-meet/src/{services/ataService.ts,utils/apiClient.ts,components/AtaReuniao.tsx}
+@startuml
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam shadowing false
+hide footbox
+title UC18 — Redigir ata: PUT /api/reunioes/:id/ata
+participant "app: ataService\nsave" as App
+participant "Express Router\nataRoutes.ts" as Router
+participant "requireAtaEditor\nataMiddleware.ts" as Guard
+participant "ataController\nsave" as Controller
+participant "API: ataService\nataService.ts" as Service
+participant "prisma / transaction\nPrisma Client" as DB
+participant "handleError\nerrorMiddleware.ts" as Error
+note over App
+  prepareSave() obtém editor.current.getHtml().
+  Se votos > 0 e HTML difere, aguarda confirmação; save(content)
+  chama ataService.save(token, reuniaoId, content, ata.versaoAta).
+end note
+App -> Router : PUT /api/reunioes/:id/ata\n{conteudoAta, versaoAta} + Bearer
+Router -> Router : requireAuth(request, response, next)
+break autenticação rejeitada
+  Router -> Error : throw new AppError(401, mensagem)
+  Error --> App : 401 {error: mensagem}
+end
+Router -> Guard : requireAtaEditor(request, response, next)
+Guard -> Guard : parseId(request.params.id, 'da reunião')
+break id inválido
+  Guard -> Error : AppError(400, "Identificador da reunião inválido.")
+  Error --> App : 400 {error: mensagem}
+end
+Guard -> Service : assertCanEdit(userId, reuniaoId)
+Service -> Service : loadAccess(prisma, userId, reuniaoId)
+Service -> DB : reuniao.findUnique({where:{id:reuniaoId}, select})
+DB --> Service : reuniao com equipe e registros, ou null
+break reunião ausente ou sem vínculo/entrada
+  Service --> Guard : AppError(404/403, mensagem)
+  Guard -> Error : throw error
+  Error --> App : 403 ou 404 {error: mensagem}
+end
+Service -> Service : assertEditor(papel)
+break papel diferente de ADMINISTRADOR/SECRETARIO
+  Service --> Guard : AppError(403, mensagem de papel)
+  Guard -> Error : handleError(error, request, response, next)
+  Error --> App : 403 {error: mensagem}
+end
+Service --> Guard : void
+Guard --> Router : next()
+Router -> Controller : save(request, response)
+Controller -> Controller : parseId(request.params.id, 'da reunião')\nataSchema.validate(request.body, {stripUnknown:true})
+break validação Yup falha
+  Controller -> Error : ValidationError
+  Error --> App : 400 {error: primeira mensagem}
+end
+Controller -> Service : save(userId, reuniaoId, conteudoAta, versaoAta)
+Service -> Service : validateAtaHtml(conteudoAta)
+break sem texto visível após sanitização
+  Service -> Error : AppError(400, "Escreva o conteúdo da ata antes de salvar.")
+  Error --> App : 400 {error: mensagem}
+end
+Service -> DB : $transaction(async transaction => ...)
+group callback da transação
+  DB -> Service : async (transaction) => { ... }
+  Service -> Service : loadAccess(transaction, userId, reuniaoId)
+  Service -> DB : reuniao.findUnique({where:{id:reuniaoId}, select})
+  DB --> Service : reuniao com papel e registros
+  break acesso removido ou reunião removida
+    Service --> Controller : AppError(403/404, mensagem)
+    Controller -> Error : handleError(error, request, response, next)
+    Error --> App : 403 ou 404 {error: mensagem}
+  end
+  Service -> Service : assertEditor(papel)
+  break papel deixou de ser editor ou versão divergente
+    Service --> Controller : AppError(403, mensagem de papel) ou conflict() [409]
+    Controller -> Error : handleError(error, request, response, next)
+    Error --> App : 403 ou 409 {error: mensagem}
+  end
+  Service -> Service : changed = reuniao.conteudoAta !== sanitized
+  Service -> DB : reuniao.updateMany({where:{id:reuniaoId,versaoAta},\ndata:{conteudoAta:sanitized,versaoAta:{increment:changed ? 1 : 0}}})
+  DB --> Service : {count}
+  break count === 0
+    Service --> Controller : conflict()
+    Controller -> Error : AppError(409, mensagem de versão)
+    Error --> App : 409 {error: mensagem}
+  end
+  opt changed === true
+    Service -> DB : ataVoto.deleteMany({where:{reuniaoId}})
+    DB --> Service : {count}
+  end
+  Service -> Service : present(transaction, userId, reuniaoId)
+  Service -> Service : loadAccess(transaction, userId, reuniaoId)
+  Service -> DB : reuniao.findUnique({where:{id:reuniaoId}, select})
+  DB --> Service : reunião atualizada e acesso
+  Service -> DB : ataVoto.findMany({where:{reuniaoId,versaoAta:reuniao.versaoAta},\nselect:{userId:true,status:true}})
+  DB --> Service : votos da versão atual
+  Service -> Service : sanitizeAtaHtml(reuniao.conteudoAta)\npodeEditar(papel)
+end
+Service --> Controller : objeto da ata após $transaction
+Controller --> App : 200 response.json(ata)
+note over App
+  HTML normalizado idêntico mantém versão e votos.
+  Alteração incrementa a versão e remove todos os votos da reunião.
+  UI atualiza HTML e onUpdated; 403/409 bloqueia novas ações e preserva rascunho.
+end note
+legend bottom
+  select de loadAccess: campos da ata + comissao.equipe(userId,papel) + registros(userId,id).
+  requireAuth é detalhado em DS-Consultar-Ata. $transaction/rollback dependem do Prisma/MySQL;
+  os testes atuais simulam o cliente. Exceção inesperada: handleError retorna 500.
+endlegend
+@enduml
