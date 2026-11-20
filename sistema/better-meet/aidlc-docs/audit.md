@@ -532,3 +532,250 @@ Faça uma auditoria crítica. Não diga que está perfeito se houver lacunas.\
 **Retificação de horário**: o Timestamp 2026-11-13T14:22:00Z do registro anterior foi preenchido incorretamente; aquele registro já estava concluído na leitura real do relógio às 14:21:19Z. O horário exato da gravação anterior não foi capturado. Mantido o histórico original, com esta retificação por acréscimo.
 
 ---
+## Novo pedido — reinício do AI-DLC (unidade revisao-padroes-entrega-final)
+**Timestamp**: 2026-11-20T14:53:23Z (registro gravado neste horário; o pedido foi recebido no início desta sessão, minutos antes)
+**User Input** (texto integral; os blocos colados aparecem no lugar em que o usuário os colou; a captura de tela da Di3 foi anexada como imagem e está transcrita em inception/requirements/revisao-padroes-entrega-final/analise-retornos-professor.md, apêndice A):
+
+```text
+Contexto:
+Estamos fazendo um app para a disciplina de Projeto e Desenvolvimento de Sistemas II do curso de ADS, no repositório atual.
+
+A descrição dos requisitos e incrementos está nos arquivos:
+"C:\Users\bruno\Downloads\aula4.pptx"
+"C:\Users\bruno\Downloads\aula3.pptx"
+"C:\Users\bruno\Downloads\aula 2.pdf"
+"C:\Users\bruno\Downloads\aula1-revisao.pptx"
+"C:\Users\bruno\Downloads\aula1.pptx"
+
+Estamos na última etapa, que o professor não disponibilizou ainda o slide com a descrição e somente fez a descrição do que precisa ser feito, que é basicamente corrigir todos erros, bugs, pontos negativos que ele deu de retorno para a gente nas entregas, fazer os últimos ajustes e padronizações do sistema para apresentação para ele na sexta-feira, dia 27/11.
+
+Os retornos que ele passou foram os seguintes (vou te passar somente os retornos das entregas que efetivamente codamos o app):
+
+_________________________________________________________________
+-- Di1:
+
+Ícone, nome e imagem de splash estão incompatíveis com o aplicativo desenvolvido.
+Rever a utilização da biblioteca de ícones.
+A API deve ser mais protegida.
+Verificar a possibilidade de incrementar as formas de acesso.
+Verificar o cadastro de e-mail.
+Como é possível cadastrar pessoas com mesmo nome, nome não deveria ser utilizado como login.
+Permitir que usuário solicite acesso a uma organização.
+A recuperação de senha é insegura.
+Ocultar ID de usuário e melhroar a interface para adição de pessoas em comissão.
+Rever a necessidade de possui mais de um administrador por comissão/organização.
+Falta de padrão nas interfaces.
+O painel de administração deveria ter mais opções e ser acessado pelo aplicativo
+Permite exclusão de administrador, deixando o sistema sem administrador.
+Rever interface, deve ser uma interface agradável a aplicativo e não parecer um site.
+Levantamento feito sem pesquisa de mercado
+
+Diagrama de casos de uso Falta de padão. 1 e 2 são casos de uso, mas em um há herança entre usuário e administrador, e no outro não. Os demais não são casos de uso UML válidos.
+Diagrama de classes e dicionário de dados Diagrama de classes não é um diagrama de classes UML válido e o dicionário não foi feito.
+Diagrama relacional e dicionário de dados Só foi feito dos sistemas de monitoramento e afins, não foi feito do sistema principal.
+Requisitos não funcionais Mal detalhados e de difícil verificação. Não informa a versão das tecnologias. O que é uma forma indevida de exposição de informação? 15 segundos para carregar uma tela é muito. O que é o algoritmo hash-256? Só usa ele? Como os dados serão protegidos? RNF09 é funcional. RNF10 é funcional. 11 é inverificável. Como garantir 14? 16 é funcional. 17 é funcional. 18 não garante isolamento. 19 é funcional. Entre outros.
+Requisitos funcionais Muito simples. Deveriam ter mais detalhamento. Diagramas de sequência estão errados, não identificam classe e não identificam métodos nem argumentos. Falta de padrão nos diagramas de sequência.
+Outros Rever padrões de nomenclatura e programação definidos na primeira entrega. Não foram documentados os testes realizados.
+
+- Falta de padronização na documentação
+- Descrição de requisitos mt simples
+- RNF não verificaveis, ou são RF
+- Colocar versões nas docs
+- Diagrama de Classe e de Sequencia tem que ter as mesmas classes
+- Faltou plano de testes na doc
+
+- App não salva sessão
+- App parecia mais site que App mobile
+- UI/UX que tenha cara de Android ou iOS para cada um, ou identidade especifica do seu app
+- Padronizar UI
+
+_________________________________________________________________
+-- Entrega Di2:
+
+Criação e edição da reunião Tela muito grande, não é agradável em um dispositivo móvel. Permite criar reunião sem outros participantes ale´m do presidente. Erros (nos inputs) não são limpos após preenchimento. Permite criar reunião com data de início e de término com data passada. Poderia permitir o compartilhamento de arquivos para apreciação por parte dos participantes.
+Convite para participação da reunião Não há como rejeitar o convite após aceitar ou aceitar o convite após rejeitar. Não há como enviar um novo convite se alguém rejeitar um convite anterior.
+Informe de entrada na reunião Simples, feita apenas com clique. Não poderia confirmar com biometria? E como garantir que a pessoa está realmente na reunião? O presidente da comissão deveria poder marcar que os participantes entraram da reunião se esquecessem. Permite entrar na reunião antes do início dela.
+Informe de saída da reunião Simples, feita apenas com clique. Não poderia confirmar com biometria? E como garantir que a pessoa está realmente na reunião? O presidente da comissão deveria poder marcar que os participantes saíram da reunião se esquecessem. Permite sair da reunião antes do início dela.
+Geração da lista de presença Não encontrei a lista de presença? Ou é a tela de reuniões apenas? Poderia ter uma tela separada com a possibilidade de visualizar todas as entradas e saídas (com horários e datas) e também exportar esses dados em PDF.
+Descontos Expo desatualizado (57.0.30 → ~57.0.31
+
+Documentação Comentário
+Diagrama de casos de uso Não é um diagrama de casos de uso. Não detalha os atores (e não é "autores").
+Diagrama de classes e dicionário de dados O diagrama de classes apresentado é muito simples. As três classes" presentes nele eu não encontrei no código. Deveria comentar o que cada classe representa.
+Diagrama relacional e dicionário de dados Não encontrei o diagrama relacional referente a este incremento.
+Requisitos funcionais Muito simples. Os campos entrada e ação deveriam ser bem mais detalhados. Por exemplo, "O sistema deve registrar a resposta e atualizar a situação do convite.". Onde acontece esse registro? Em qual tabela? Qual tipo de dados de cada item? As mensagens dos diagramas de sequência estão erradas. "Registrar convites pendentes" não é uma mensagem válida. As classes também estão erradas.
+
+_________________________________________________________________
+-- Di3: Imagem anexada.
+
+
+_________________________________________________________________
+
+Após esses retornos do professor, fizemos alguns arquivos de padrão de codificação (disponíveis em: E:\GitHub\BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2\GUIA_DE_DOCUMENTACAO.md e E:\GitHub\BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2\PROMPT_AGENTES_IA.md) e padrão de documentação (disponíveis em: E:\GitHub\BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2\GUIA_DE_DOCUMENTACAO.md e E:\GitHub\BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2\PROMPT_DOCUMENTACAO_IA.md)
+
+O que você deve fazer:
+
+Usando o AI-DLC v1 (disponível em: https://github.com/awslabs/aidlc-workflows/tree/v1, não tente usar a v2) no fluxo médio, verifique se os padrões de codificação e documentação precisam de alguma alteração, de acordo com os retornos do professor e faça as propostas de alteração nesses documentos.
+
+No momento, não vamos fazer código ou documentação, apenas ajustar esses arquivos de padronização.
+```
+
+**AI Response / ação**: mensagem de boas-vindas do AI-DLC exibida (common/welcome-message.md). Regras lidas: core-workflow.md, common/process-overview (via core), depth-levels, question-format-guide, content-validation, session-continuity, welcome-message, inception/workspace-detection, inception/requirements-analysis, início de inception/reverse-engineering e os três arquivos *.opt-in.md de extensions/ (regras completas das extensões não carregadas). Versão das regras: 1.0.1 (v1), em sistema/better-meet/.aidlc-rule-details/. A v2 não foi usada. A confirmação direta no repositório upstream não foi possível (gh indisponível); vale a versão versionada e documentada pela equipe (GT-05).
+**Context**: Workspace Detection.
+
+---
+## Workspace Detection — concluída
+**Timestamp**: 2026-11-20T14:53:23Z
+**AI Response / ação**:
+- aidlc-state.md encontrado com a unidade documentacao-ata-reuniao-di2, concluída e aprovada em 2026-11-13. O pedido atual é outra alteração (revisão dos arquivos de padrão). Pela regra 83 do PROMPT_AGENTES_IA.md e pela GT-05, o AI-DLC foi reiniciado com a nova unidade revisao-padroes-entrega-final. Nenhum plano, resposta ou aprovação anterior foi aproveitado. O estado anterior continua versionado no commit 704478f15192f757223c1efce99f43a7a411888c; as pastas das unidades anteriores não foram apagadas nem editadas.
+- Projeto brownfield: TypeScript no app Expo (better-meet), na API, na monitoring e na gestão; npm.
+- Branch atual: feature/refatoracao-ultima-entrega (o retrato inicial da sessão dizia development; conferido com git branch --show-current). HEAD 704478f. Árvore limpa.
+- Arquivos-alvo: GUIA_DE_CODIFICACAO.md, PROMPT_AGENTES_IA.md, GUIA_DE_DOCUMENTACAO.md e PROMPT_DOCUMENTACAO_IA.md, na raiz do repositório. O pedido cita GUIA_DE_DOCUMENTACAO.md também como padrão de codificação; assumido GUIA_DE_CODIFICACAO.md, que o PROMPT_AGENTES_IA.md resume (GT-03). A suposição está registrada na análise para confirmação.
+- Artefatos de engenharia reversa existentes em aidlc-docs/inception/reverse-engineering/ (2026-11-07), anteriores a commits de código posteriores (atas, histórico, manual, exclusão de conta).
+- Slides copiados para pasta temporária isolada e convertidos em texto com script próprio (biblioteca padrão do Python e pdftotext); nenhum arquivo dos slides foi executado.
+**Context**: Workspace Detection (informativa; segue sem aprovação, conforme workspace-detection.md).
+
+---
+## Reverse Engineering — dispensada nesta unidade
+**Timestamp**: 2026-11-20T14:53:23Z
+**AI Response / ação**: dispensada. Motivos: (1) já existem artefatos de engenharia reversa do app (regra 85: "só em código existente, se ainda não houver"); (2) esta unidade altera só arquivos de padrão, sem código; regerar os oito artefatos do app não traria valor ao pedido. Os fatos de código citados pelos guias e pelos retornos foram conferidos diretamente no commit 704478f, por leitura e busca textual, e registrados em construction/revisao-padroes-entrega-final/verificacao_codigo.md. Nenhum teste, build, servidor ou banco foi executado.
+**Context**: decisão de etapa; a dispensa será confirmada no Workflow Planning.
+
+---
+## Requirements Analysis — análise e perguntas apresentadas
+**Timestamp**: 2026-11-20T14:58:41Z
+**AI Response / ação**: profundidade Standard ("fluxo médio"). Gerados: inception/requirements/revisao-padroes-entrega-final/analise-retornos-professor.md (54 retornos F01–F54, 13 exigências dos slides S01–S13, 7 inconsistências internas I01–I07, propostas P-D01–P-D15 e P-C01–P-C18, itens fora do escopo e transcrição da captura da Di3); inception/requirements/revisao-padroes-entrega-final/requirement-verification-questions.md (11 decisões e 3 perguntas obrigatórias de extensões); construction/revisao-padroes-entrega-final/verificacao_codigo.md (16 avisos de divergência resolvidos, 4 parciais, 10 ainda válidos, 5 não verificados). aidlc-state.md reescrito para a nova unidade. Nenhum dos quatro arquivos de padrão foi alterado. Links relativos dos artefatos conferidos.
+**Pedido de aprovação**: aguardando o preenchimento das tags [Answer]: no arquivo de perguntas (gate do passo 6 de requirements-analysis.md). O requirements.md só será gerado depois das respostas e da checagem de contradições.
+**Context**: Requirements Analysis, passos 1 a 6.
+
+---
+## Requirements Analysis — perguntas por caixas de diálogo
+**Timestamp**: 2026-11-20T15:12:43Z
+**User Input**: "Me passe as perguntas pelas caixas de diálogo interetivas do Claude."
+**AI Response / ação**: a pedido expresso do usuário, as 14 perguntas do arquivo foram apresentadas nas caixas de diálogo do chat (quatro diálogos), com o mesmo conteúdo e as mesmas opções; a opção "Other" é oferecida automaticamente pela ferramenta. A instrução do usuário prevalece sobre a regra "perguntas só em arquivo" (question-format-guide e regra 87); as respostas foram transcritas nas tags [Answer]: do arquivo para manter o registro.
+**Respostas do usuário** (texto das opções escolhidas, como retornado pelos diálogos):
+- Pergunta 1 (Formulário RF): "Só formulário padrão (Recomendado)" → A
+- Pergunta 2 (Atores DCU): "Generalização + limite (Recomendado)" → A
+- Pergunta 3 (Classes): "Classes da implementação (Recomendado)" → A
+- Pergunta 4 (Qtd. DC): "Consolidado + recortes (Recomendado)" → B
+- Pergunta 5 (Divergências): "Mover p/ RELATORIO_BUGS (Recomendado)" → A
+- Pergunta 6 (Senha): "Better Auth obrigatório" → A
+- Pergunta 7 (E-mail): "Obrigatória (Recomendado)" → A
+- Pergunta 8 (Acesso): "Biometria + social" → C
+- Pergunta 9 (Manual): "No app + PDF opcional (Recomendado)" → A
+- Pergunta 10 (Plano testes): "Seção no testes_*.md (Recomendado)" → A
+- Pergunta 11 (Versões): "Documento + tecnologias (Recomendado)" → A
+- Pergunta 12 (Ext. Segurança): "Não (Recomendado)" → B
+- Pergunta 13 (Ext. Resiliência): "Não (Recomendado)" → B
+- Pergunta 14 (Ext. PBT): "Não (Recomendado)" → C
+**Análise das respostas**: nenhuma contradição nem ambiguidade que exija arquivo de esclarecimento. Ponto de atenção registrado como risco no requirements.md: Better Auth obrigatório (6) com verificação de e-mail obrigatória (7) e login social (8) exige migração da autenticação no código antes de 27/11, fora desta unidade. A resposta 5 acrescenta ao escopo uma seção nova no RELATORIO_BUGS.md.
+**Context**: Requirements Analysis, passo 6 (respostas) e checagem de contradições.
+
+---
+## Requirements Analysis — requirements.md e pedido de aprovação
+**Timestamp**: 2026-11-20T15:12:43Z
+**AI Response / ação**: gerado inception/requirements/revisao-padroes-entrega-final/requirements.md com 15 requisitos de documentação (RQ-D01 a RQ-D15), 18 de código (RQ-C01 a RQ-C18), 1 do relatório de bugs (RQ-R01), 7 requisitos não funcionais da unidade (RNQ-01 a RNQ-07), riscos e critérios de aceitação. Extensões registradas como desligadas no aidlc-state.md; regras completas não carregadas. Requirements Analysis marcada como concluída no aidlc-state.md. User Stories prevista como dispensada (só documentos de padrão).
+**Pedido de aprovação**: apresentada a mensagem de conclusão de requirements-analysis.md com as opções Request Changes, Add User Stories e Approve & Continue para Workflow Planning. Aguardando resposta.
+**Context**: Requirements Analysis, passos 7 a 9.
+
+---
+## Requirements Analysis — aprovação
+**Timestamp**: 2026-11-20T15:20:16Z
+**User Input**: "Approve & Continue"
+**Status**: Aprovado. User Stories não incluída.
+**Context**: Requirements Analysis concluída; início do Workflow Planning.
+
+---
+## Workflow Planning — plano de execução e pedido de aprovação
+**Timestamp**: 2026-11-20T15:20:16Z
+**AI Response / ação**: lidas as regras de inception/workflow-planning.md. Criado inception/plans/revisao-padroes-entrega-final-execution-plan.md (prefixo da unidade para não sobrescrever o execution-plan.md de unidade anterior). Executar: Code Generation (plano e alteração) e Build and Test. Dispensadas, com motivo: Reverse Engineering, User Stories, Application Design, Units Generation, Functional Design, NFR Requirements, NFR Design e Infrastructure Design; Operations não usada. Sequência: GUIA_DE_DOCUMENTACAO.md, PROMPT_DOCUMENTACAO_IA.md, RELATORIO_BUGS.md, GUIA_DE_CODIFICACAO.md, PROMPT_AGENTES_IA.md. Risco médio; reversão fácil pelo Git. Diagrama Mermaid validado (IDs alfanuméricos, rótulos entre aspas) e acompanhado de alternativa em texto. aidlc-state.md atualizado.
+**AI Prompt**: mensagem de conclusão de workflow-planning.md com as opções Request Changes, Add Skipped Stages e Approve & Continue para Code Generation. Aguardando resposta.
+**Context**: Workflow Planning.
+
+---
+## Workflow Planning — aprovação
+**Timestamp**: 2026-11-20T15:26:24Z
+**AI Prompt**: "Ready to proceed with this plan?" (mensagem de conclusão do Workflow Planning)
+**User Response**: "Approve & Continue"
+**Status**: Aprovado, sem inclusão de etapas dispensadas.
+**Context**: plano de execução com Code Generation e Build and Test.
+
+---
+## Code Generation, parte 1 — consulta de documentação
+**Timestamp**: 2026-11-20T15:26:24Z
+**AI Response / ação**: lidas as regras de construction/code-generation.md. Para resolver o ponto 2 do plano de execução, um agente de leitura web consultou sete páginas públicas: better-auth.com/docs/integrations/expo, /authentication/email-password, /concepts/email, /concepts/rate-limit, /concepts/oauth, e docs.expo.dev/versions/v58.0.0/sdk/local-authentication e /securestore. Nenhum dado do projeto ou do usuário foi enviado. Fatos usados no plano: sessão do cliente Expo do Better Auth guardada no expo-secure-store (sem suporte no web); scrypt como padrão; sendResetPassword; requireEmailVerification e sendOnSignUp; rateLimit embutido, desligado em desenvolvimento, 429 com X-Retry-After; socialProviders; Face ID sem suporte no Expo Go. Não encontrados nas páginas: nome da opção de validade do token de redefinição e verificação do novo e-mail na troca (ficam [A CONFIRMAR]). A página do Expo no Better Auth foi escrita para o SDK 55; a compatibilidade com o SDK 58 fica para a unidade de código.
+**Context**: Code Generation, parte 1.
+
+---
+## Code Generation, parte 1 — plano e pedido de aprovação
+**Timestamp**: 2026-11-20T15:26:24Z
+**AI Response / ação**: criado construction/plans/revisao-padroes-entrega-final-code-generation-plan.md com 28 passos (2 de preparação, 13 no guia de documentação, 1 no prompt de documentação, 1 no RELATORIO_BUGS.md, 8 no guia de código, 2 no prompt de agentes e 1 de fechamento) e rastreabilidade de todos os RQ e RNQ. Decisões do plano: exemplos reconferidos no commit 704478f; locais documentos/consolidado/, documentos/estilo-diagramas.iuml e documentos/entrega5_AF/ só descritos; identificadores novos DOC-26 a DOC-31, EX-19 a EX-22, YP-05, RN-20 a RN-22, UI-09, GT-06 e regras 26 a 31 e 91 a 100 dos prompts, em seção nova no fim para manter a ordem crescente; ZS-01 alterado para a sessão do cliente do Better Auth; RELATORIO_BUGS.md recebe também os 5 avisos não verificados; exceções normativas mantidas. aidlc-state.md atualizado.
+**AI Prompt**: pedido de aprovação do plano (Request Changes ou aprovar e iniciar a parte 2). Aguardando resposta.
+**Context**: Code Generation, parte 1, passos 4 a 7.
+
+---
+## Code Generation, parte 1 — aprovação do plano
+**Timestamp**: 2026-11-20T15:28:59Z
+**User Input**: "Approve & Cotinue"
+**Status**: Aprovado (plano completo, 28 passos, incluindo as decisões da seção 2 do plano).
+**Context**: início da Code Generation, parte 2.
+
+---
+## Code Generation, parte 2 — passos 1 e 2
+**Timestamp**: 2026-11-20T15:29:35Z
+**AI Response / ação**: passo 1 — identificadores do commit 704478f gravados em construction/revisao-padroes-entrega-final/code/identificadores-antes.md. Passo 2 — fluxo do RF06 reconferido no commit 704478f (MaisScreen, useThemePreference, useThemeStore, usuarioService do app e da API, apiRequest/ApiError/getErrorMessage, rota PATCH /usuarios/:id/tema com requireAuth e requireSelf, usuarioController.updateTheme, temaSchema, model User e enum Tema, migrations 20260918235817_config_usuario e 20261014120100_adiciona_enums_status_tema, teste applyUserPreference em stores.test.ts; nenhum teste de API para a rota). RNF06 reconferido: passwordHash.ts continua com SHA-256 sem sal, usado por authService.ts e usuarioService.ts. Observado comentário de histórico "NOVO: tokens de recuperação de conta (UC02)" no schema.prisma; não alterado (NM-08).
+**Context**: Code Generation, parte 2.
+
+---
+## Code Generation, parte 2 — passos 3 a 28 e pedido de aprovação
+**Timestamp**: 2026-11-20T15:57:59Z
+**AI Response / ação**: executados os passos 3 a 28 do plano, cada um marcado [x] ao terminar. GUIA_DE_DOCUMENTACAO.md (+704/−430), PROMPT_DOCUMENTACAO_IA.md (+63/−37), GUIA_DE_CODIFICACAO.md (+268/−115), PROMPT_AGENTES_IA.md (+83/−34) e RELATORIO_BUGS.md (+37) alterados no lugar, mantendo CRLF. Seções longas do guia de documentação substituídas por script próprio entre marcadores únicos (pasta temporária da sessão), com conferência de estrutura. Conferências: 31 identificadores DOC; todos os identificadores do guia de código, inclusive os novos; nenhum aviso de divergência restante; prompts numerados de 1 a 31 e de 1 a 100, em ordem crescente; links relativos válidos; git status só com os cinco arquivos e o aidlc-docs. Diferenças em relação ao plano: RELATORIO_BUGS.md recebeu 22 itens (EX-11 parcial, GT-04 e RN-14 do web não verificados, encontrados ao retirar os avisos); verificacao_codigo.md recebeu o acréscimo. Acréscimos fora do plano feitos durante a escrita do prompt de agentes (regras 83, 87 e 88, exemplos das regras 10, 12, 51 e 53) foram desfeitos e listados como sugestões no code-summary.md. PlantUML não instalado: geração dos SVG não executada. Nenhum teste, build ou servidor executado; nenhum commit.
+**AI Prompt**: mensagem de conclusão de code-generation.md com as opções Request Changes e Continue to Next Stage (Build and Test). Aguardando resposta.
+**Context**: Code Generation, parte 2, passos 10 a 15.
+
+---
+## Nova alteração — retorno da AP (unidade revisao-padroes-ap)
+**Timestamp**: 2026-11-20T16:11:08Z
+**User Input**: "Vamos pulas as próximas etapas e vamos para a próxima iteração: A imagem anexada contém o retorno do professor sobre a AP1. Verifique o que precisa ser corrigido nos arquvios de padronização, de acordo com esse retorno do professor e faça o ajsute, ainda usando o AI-DLC. [imagem anexada, transcrita em inception/requirements/revisao-padroes-ap/requirements.md] [Request interrupted by user] /model sonnet. Continue de onde parou"
+**AI Response / ação**: Build and Test da unidade revisao-padroes-entrega-final pulado a pedido do usuário (sem aprovação final; alterações dela continuam não commitadas). Pela regra 83, o pedido é outra alteração: AI-DLC reiniciado com a unidade revisao-padroes-ap; aidlc-state.md reescrito (estado anterior preservado neste audit.md e nas pastas da unidade anterior). Workspace Detection informativa; Reverse Engineering dispensada (sem código); Requirements Analysis em profundidade mínima, sem perguntas (pedido claro). Gerado inception/requirements/revisao-padroes-ap/requirements.md com RA-01 a RA-08 (DOC-32, DOC-33, GT-07 e ajustes de DOC-22, DOC-23, GT-04 e prompts).
+**AI Prompt**: mensagem de conclusão da Requirements Analysis com Request Changes, Add User Stories e Approve & Continue. Aguardando resposta.
+**Context**: Requirements Analysis.
+
+---
+## Requirements Analysis (revisao-padroes-ap) — aprovação e Workflow Planning
+**Timestamp**: 2026-11-20T16:14:09Z
+**User Input**: "Approve & Continue"
+**Status**: Requirements Analysis aprovada; User Stories não incluída.
+**AI Response / ação**: criado inception/plans/revisao-padroes-ap-execution-plan.md. Executar: Code Generation e Build and Test; demais etapas dispensadas com motivo. Risco baixo. aidlc-state.md atualizado.
+**AI Prompt**: mensagem de conclusão do Workflow Planning (Request Changes, Add Skipped Stages, Approve & Continue). Aguardando resposta.
+**Context**: Workflow Planning.
+
+---
+## Workflow Planning (revisao-padroes-ap) — aprovação e plano de alteração
+**Timestamp**: 2026-11-20T16:15:38Z
+**User Input**: "Approve & Continue"
+**Status**: Workflow Planning aprovado, sem inclusão de etapas dispensadas.
+**AI Response / ação**: criado construction/plans/revisao-padroes-ap-code-generation-plan.md com 11 passos (DOC-32, DOC-33, DOC-22, DOC-23, críticas e checklist; prompt de documentação; GT-04, GT-07 e checklist; prompt de agentes; fechamento) e rastreabilidade de RA-01 a RA-08.
+**AI Prompt**: pedido de aprovação do plano (Request Changes ou aprovar e iniciar a parte 2). Aguardando resposta.
+**Context**: Code Generation, parte 1.
+
+---
+
+---
+## Code Generation, parte 2 (revisao-padroes-ap) — plano aprovado e execução
+**Timestamp**: 2026-11-20T16:19:47Z
+**User Input**: "Approve & Continue" (aprovação do plano de alteração)
+**AI Response / ação**: executados os 11 passos: DOC-32, DOC-33, DOC-22, DOC-23, críticas e checklist no guia de documentação; regras 32 e 33 no prompt de documentação; GT-04 e GT-07 no guia de código; regra 101 e ajuste da regra 80 no prompt de agentes. Versões e exemplos conferidos no código. Links e numeração conferidos. Sem testes, build, SVG ou commit. Resumo em construction/revisao-padroes-ap/code/code-summary.md.
+**AI Prompt**: mensagem de conclusão (Request Changes ou Continue to Next Stage: Build and Test). Aguardando resposta.
+**Context**: Code Generation, parte 2.
+
+---
+
+---
+## Build and Test (revisao-padroes-ap)
+**Timestamp**: 2026-11-20T16:26:07Z
+**User Input**: "Approve & Continue" (aprovação das alterações)
+**AI Response / ação**: verificação dos quatro guias/prompts e do RELATORIO_BUGS.md: identificadores preservados, prompts 1 a 101 e 1 a 33, nenhum termo informal ou aviso de divergência, links e CRLF válidos, só arquivos de padrão e aidlc-docs alterados. Não executado: SVG PlantUML (não instalado). Resumo em construction/build-and-test/revisao-padroes-ap-summary.md. Sem commit.
+**Context**: Build and Test; unidade encerrada.
+
+---
