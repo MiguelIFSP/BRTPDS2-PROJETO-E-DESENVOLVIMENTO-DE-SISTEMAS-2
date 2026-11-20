@@ -305,7 +305,7 @@ const avisarNovoAdministrador = (
   );
 };
 
-const CRIADOR_DE_REUNIAO _OU_VOTACAO =
+const CRIADOR_DE_REUNIAO_OU_VOTACAO =
   'Não foi possível excluir sua conta porque ainda existem reuniões ou votações criadas por você. Exclua essas reuniões e votações, ou peça a um responsável pela comissão, e tente novamente.';
 
 const deleteUser = async (
