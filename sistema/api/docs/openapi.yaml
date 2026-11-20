@@ -824,7 +824,9 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: Falta escolher sucessores.
+          description: >-
+            Falta escolher sucessores (com as pendências), ou ainda existem
+            reuniões ou votações criadas pelo usuário (só `error`).
           content:
             application/json:
               schema:
@@ -868,7 +870,10 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: Falta escolher sucessores de comissão.
+          description: >-
+            Falta escolher sucessores de comissão (com as pendências), ou ainda
+            existem reuniões ou votações criadas pelo usuário em comissões de
+            organizações que não são apagadas (só `error`).
           content:
             application/json:
               schema:
