@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
+import { Prisma } from '@prisma/client';
 import express from 'express';
 import jwt from 'jsonwebtoken';
 import request from 'supertest';
@@ -169,6 +170,27 @@ describe.each(['dados-pessoais', 'dados-completos'])(
 
       expect(response.status).toBe(200);
       expect(prisma.user.update).not.toHaveBeenCalled();
+    });
+
+    test('quem criou reunião ou votação recebe 409 com mensagem amigável', async () => {
+      // o banco recusa o DELETE: Reuniao e Votacao apontam para o criador.
+      prisma.user.delete.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError(
+          'Foreign key constraint violated',
+          { code: 'P2003', clientVersion: Prisma.prismaVersion.client },
+        ),
+      );
+      const consoleError = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
+
+      const response = await excluir(USUARIO_ID, rota);
+
+      expect(response.status).toBe(409);
+      expect(response.body.error).toMatch(/reuniões ou votações/);
+      expect(response.body.error).not.toMatch(/P2003|constraint|Prisma/i);
+      expect(consoleError).not.toHaveBeenCalled();
+      consoleError.mockRestore();
     });
   },
 );

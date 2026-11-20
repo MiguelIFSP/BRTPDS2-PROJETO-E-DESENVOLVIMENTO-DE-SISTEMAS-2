@@ -34,6 +34,12 @@ export const handleError = (
     response.status(409).json({ error: 'Registro já existente.' });
     return;
   }
+  if (isPrismaError(error, PRISMA_ERROR.FOREIGN_KEY_VIOLATION)) {
+    response.status(409).json({
+      error: 'Não foi possível concluir porque este item ainda está em uso.',
+    });
+    return;
+  }
   console.error(`Erro em ${request.method} ${request.originalUrl}:`, error);
   response
     .status(500)

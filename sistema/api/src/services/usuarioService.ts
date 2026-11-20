@@ -305,6 +305,9 @@ const avisarNovoAdministrador = (
   );
 };
 
+const CRIADOR_DE_REUNIAO _OU_VOTACAO =
+  'Não foi possível excluir sua conta porque ainda existem reuniões ou votações criadas por você. Exclua essas reuniões e votações, ou peça a um responsável pela comissão, e tente novamente.';
+
 const deleteUser = async (
   transaction: Prisma.TransactionClient,
   userId: number,
@@ -314,6 +317,12 @@ const deleteUser = async (
   } catch (error) {
     if (isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)) {
       throw new AppError(404, 'Usuário não encontrado.');
+    }
+    // Reuniao e Votacao guardam o criador sem onDelete: o banco recusa o DELETE
+    // enquanto existir alguma criada por ele (as das organizações apagadas na
+    // exclusão completa já saíram em cascata).
+    if (isPrismaError(error, PRISMA_ERROR.FOREIGN_KEY_VIOLATION)) {
+      throw new AppError(409, CRIADOR_DE_REUNIAO_OU_VOTACAO);
     }
     throw error;
   }
