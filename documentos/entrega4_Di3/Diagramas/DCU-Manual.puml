@@ -1,0 +1,20 @@
+@startuml DCU-Manual
+' Caso de uso do manual de utilização (RF19, UC29).
+' Gerar o SVG: java -jar plantuml.jar -charset UTF-8 -tsvg "DCU-Manual.puml"
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam packageStyle rectangle
+
+actor "Administrador" as Adm
+actor "Usuário comum" as Usu
+
+rectangle "Better Meet (App)" {
+  usecase "UC29 - Acessar e baixar\no manual" as UC29
+}
+
+Adm -- UC29
+Usu -- UC29
+@enduml

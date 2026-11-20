@@ -16,6 +16,7 @@ import { cadastroUsuarioSchema } from '@/schemas/usuarioSchema';
 import { monitoringService } from '@/services/monitoringService';
 import { usuarioService } from '@/services/usuarioService';
 import { getErrorMessage } from '@/utils/apiClient';
+import { markFirstAccessWelcomePending } from '@/utils/firstAccessWelcome';
 import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
 
 type CadastroForm = {
@@ -66,11 +67,21 @@ export default function UsuarioScreen() {
 
     setIsSubmitting(true);
     try {
-      await usuarioService.create({
+      const createdUser = await usuarioService.create({
         nome: values.nome,
         email: values.email,
         password: values.password,
       });
+      try {
+        await markFirstAccessWelcomePending(createdUser.id);
+      } catch (error) {
+        // O cadastro já foi concluído; uma falha de armazenamento local não
+        // deve mostrá-lo como erro nem impedir a pessoa de entrar na conta.
+        console.warn(
+          'Não foi possível preparar a apresentação inicial.',
+          error,
+        );
+      }
       setForm(INITIAL_VALUES);
       setToast({
         type: 'success',

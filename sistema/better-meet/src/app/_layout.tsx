@@ -12,6 +12,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import PrimeiroAcessoDialog from '@/components/PrimeiroAcessoDialog';
 import { Colors, type ColorScheme } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useAuthStore } from '@/store/authStore';
@@ -65,6 +66,7 @@ export default function RootLayout() {
           <Stack.Screen name="usuario" />
           <Stack.Screen name="recuperar-senha" />
         </Stack>
+        <PrimeiroAcessoDialog />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

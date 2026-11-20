@@ -1,0 +1,85 @@
+@startuml DER-Historico-Reunioes
+' Banco bettermeet (MySQL). Tabelas do histórico de reuniões e da presença,
+' mais as pontas User, Comissao, ComissaoEquipe e Organizacao usadas na autorização.
+' A estrutura física em execução não foi consultada; fontes: schema.prisma e migrations.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+hide circle
+
+entity Organizacao {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * status : enum('PENDENTE','ACEITA','RECUSADA') <<DEFAULT PENDENTE>>
+}
+
+entity Comissao {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * nome : varchar(191)
+  * organizacaoId : int <<FK>>
+}
+
+entity ComissaoEquipe {
+  * comissaoId : int <<PK, FK>>
+  * userId : int <<PK, FK>>
+  --
+  * papel : enum('ADMINISTRADOR','FACILITADOR','SECRETARIO','MEMBRO') <<DEFAULT MEMBRO>>
+}
+
+entity User {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * name : varchar(191)
+  * role : enum('USER','ADMIN') <<DEFAULT USER>>
+}
+
+entity Reuniao {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * comissaoId : int <<FK>>
+  * titulo : varchar(191)
+  * pauta : varchar(191)
+  descricao : varchar(191) <<NULL>>
+  * data : varchar(191)
+  * horaInicio : varchar(191)
+  * horaFim : varchar(191)
+  local : varchar(500) <<NULL>>
+  * status : enum('AGENDADA','REALIZADA','CANCELADA') <<DEFAULT AGENDADA>>
+  * criadoPorUserId : int <<FK>>
+  * createdAt : datetime(3) <<DEFAULT CURRENT_TIMESTAMP(3)>>
+  conteudoAta : longtext <<NULL>>
+  * versaoAta : int <<DEFAULT 0>>
+}
+
+entity ConviteReuniao {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * reuniaoId : int <<FK, UK>>
+  * userId : int <<FK, UK>>
+  * status : enum('PENDENTE','ACEITO','RECUSADO') <<DEFAULT PENDENTE>>
+  * createdAt : datetime(3) <<DEFAULT CURRENT_TIMESTAMP(3)>>
+  respondidoAt : datetime(3) <<NULL>>
+  tokenResposta : varchar(64) <<NULL, UK>>
+}
+
+entity ReuniaoRegistro {
+  * id : int <<PK, AUTO_INCREMENT>>
+  --
+  * reuniaoId : int <<FK, UK>>
+  * userId : int <<FK, UK>>
+  * entradaAt : datetime(3) <<DEFAULT CURRENT_TIMESTAMP(3)>>
+  saidaAt : datetime(3) <<NULL>>
+}
+
+Organizacao ||--o{ Comissao : organizacaoId
+Comissao ||--o{ ComissaoEquipe : comissaoId
+User ||--o{ ComissaoEquipe : userId
+Comissao ||--o{ Reuniao : comissaoId
+User ||--o{ Reuniao : criadoPorUserId
+Reuniao ||--o{ ConviteReuniao : reuniaoId
+User ||--o{ ConviteReuniao : userId
+Reuniao ||--o{ ReuniaoRegistro : reuniaoId
+User ||--o{ ReuniaoRegistro : userId
+@enduml

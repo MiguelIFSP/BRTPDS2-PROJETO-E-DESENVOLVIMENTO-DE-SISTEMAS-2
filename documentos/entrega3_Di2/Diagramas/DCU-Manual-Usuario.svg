@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="900" height="340" viewBox="0 0 900 340" role="img" aria-labelledby="title description">
+  <title id="title">Diagrama de casos de uso — Acesso ao manual do usuário</title>
+  <desc id="description">O ator Usuário comum acessa e baixa o manual do usuário dentro do sistema Better Meet.</desc>
+  <rect width="900" height="340" fill="#ffffff"/>
+  <g fill="none" stroke="#222222" stroke-width="2">
+    <rect x="250" y="35" width="615" height="270"/>
+    <circle cx="115" cy="105" r="20"/>
+    <path d="M115 125 L115 190 M80 148 L150 148 M115 190 L82 230 M115 190 L148 230"/>
+    <path d="M150 148 L355 148"/>
+    <ellipse cx="590" cy="148" rx="235" ry="62"/>
+  </g>
+  <g fill="#222222" font-family="Arial, Helvetica, sans-serif" text-anchor="middle">
+    <text x="115" y="260" font-size="18">Usuário comum</text>
+    <text x="555" y="61" font-size="18">Better Meet (aplicativo móvel e web)</text>
+    <text x="590" y="143" font-size="19">UC25 — Acessar e baixar</text>
+    <text x="590" y="169" font-size="19">o manual do usuário</text>
+  </g>
+</svg>

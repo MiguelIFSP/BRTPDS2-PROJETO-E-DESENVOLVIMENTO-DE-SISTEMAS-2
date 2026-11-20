@@ -1,0 +1,77 @@
+@startuml DS-Registrar-Entrada
+' UC27. Arquivos: (reunioes)/reuniao/[id].tsx, components/ReuniaoCheckIn.tsx,
+' services/reuniaoService.ts (app e API), reuniaoRoutes.ts, authMiddleware.ts,
+' reuniaoController.ts, parseId.ts, errorMiddleware.ts.
+!pragma layout smetana
+skinparam shadowing false
+skinparam monochrome true
+skinparam defaultFontName Arial
+
+actor "Membro da comissão" as Ator
+participant "ReuniaoCheckIn" as Tela
+participant "reuniaoService\n(app)" as App
+participant "requireAuth" as Auth
+participant "reuniaoController" as Ctrl
+participant "reuniaoService\n(API)" as Svc
+database "prisma" as Db
+
+Ator -> Tela : toca em "Entrar na Reunião"
+Tela -> Tela : handleCheckIn()\nignora se há requisição pendente,\nregistro ou status diferente de AGENDADA
+Tela -> App : checkIn(token, reuniaoId)
+App -> Auth : POST /api/reunioes/:id/entrar
+alt token ausente, inválido ou conta excluída
+  Auth --> App : 401 { error }
+else sessão válida
+  Auth -> Ctrl : next()
+  Ctrl -> Ctrl : parseId(request.params.id, 'da reunião')
+  alt id não é inteiro positivo
+    Ctrl --> App : 400 "Identificador da reunião inválido."
+  else
+    Ctrl -> Svc : checkIn(userId, reuniaoId)
+    Svc -> Db : reuniao.findUnique\n(comissaoId, status, criadoPorUserId, convites)
+    alt reunião inexistente
+      Svc --> App : 404 "Reunião não encontrada."
+    else
+      Svc -> Db : comissao.findUnique\n(organizacao.status, equipe) em assertMembroDaComissao
+      alt comissão inexistente
+        Svc --> App : 404 "Comissão não encontrada."
+      else organização diferente de ACEITA
+        Svc --> App : 409 "A organização da comissão ainda não foi aprovada."
+      else usuário fora da equipe
+        Svc --> App : 403 "Você não é membro desta comissão."
+      else não é o criador e não tem convite ACEITO
+        Svc --> App : 403 "Aceite o convite antes de registrar\nsua entrada na reunião."
+      else
+        Svc -> Db : reuniaoRegistro.findUnique\n(reuniaoId_userId)
+        alt registro já existe
+          Db --> Svc : registro
+          Svc --> Ctrl : { registro, jaRegistrado: true }
+          Ctrl --> App : 200 + message "Sua presença já está\nregistrada nesta reunião."
+        else status diferente de AGENDADA
+          Svc --> App : 409 "Esta reunião não está disponível para entrada."
+        else
+          Svc -> Db : reuniaoRegistro.create\n({ reuniaoId, userId })
+          alt unique violada por requisição simultânea
+            Db --> Svc : erro P2002
+            Svc -> Db : reuniaoRegistro.findUnique\n(reuniaoId_userId)
+            Svc --> Ctrl : { registro, jaRegistrado: true }
+            Ctrl --> App : 200
+          else gravou
+            Db --> Svc : registro com entradaAt do banco
+            Svc --> Ctrl : { registro, jaRegistrado: false }
+            Ctrl --> App : 201 + message "Presença confirmada."
+          end
+        end
+      end
+    end
+  end
+end
+alt resposta 200 ou 201
+  App --> Tela : EntradaReuniaoResponse
+  Tela -> Tela : setRegistroConfirmado(result.registro)\nonRegistered() recarrega a reunião
+  Tela --> Ator : selo "Presença ativa" e botão "Registrar saída"
+else ApiError (400, 401, 403, 404, 409, 500 ou status 0)
+  App --> Tela : ApiError
+  Tela --> Ator : monitoringService.reportRequestFailure\ne FeedbackBanner com a mensagem
+end
+@enduml

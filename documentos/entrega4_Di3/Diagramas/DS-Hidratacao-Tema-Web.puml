@@ -1,0 +1,49 @@
+@startuml DS-Hidratacao-Tema-Web
+skinparam shadowing false
+skinparam monochrome true
+skinparam sequenceMessageAlign left
+skinparam responseMessageBelowArrow true
+
+title management-better-meet/web: abertura do painel e hidratação do tema
+
+actor "Administrador" as Adm
+participant ":RootLayout (web)" as Root
+participant ":SplashScreen" as Splash
+participant ":useThemeStore" as Tema
+participant ":AsyncStorage" as Disco
+participant ":AppGate (web)" as Gate
+participant ":useAuthStore (web)" as Auth
+participant ":useRouter" as Router
+
+Adm -> Root : abre o painel no navegador
+Root -> Splash : preventAutoHideAsync()
+Root -> Tema : useThemeStore() com theme = 'light' (estado inicial)
+
+note over Root, Tema
+  O primeiro render coincide com o HTML estático,
+  que é sempre claro.
+end note
+
+Root -> Splash : hideAsync(), no useEffect de montagem
+Root -> Tema : rehydrateTheme(), no useEffect de montagem
+Tema -> Disco : getItem('management-better-meet-theme')
+Disco --> Tema : {theme} ou nada
+Tema -> Tema : merge(persistedState, currentState)
+
+alt há tema salvo
+  Tema --> Root : theme = savedTheme
+else não há tema salvo
+  Tema --> Root : theme = getSystemTheme()
+end
+
+Root --> Adm : ThemeProvider com o tema aplicado
+
+Root -> Gate : renderiza AppGate
+Gate -> Auth : useAuthStore() lê isAuthenticated
+
+alt isAuthenticated = false e segments[0] != 'login'
+  Gate -> Router : replace('/login')
+else isAuthenticated = true e segments[0] = 'login'
+  Gate -> Router : replace('/')
+end
+@enduml

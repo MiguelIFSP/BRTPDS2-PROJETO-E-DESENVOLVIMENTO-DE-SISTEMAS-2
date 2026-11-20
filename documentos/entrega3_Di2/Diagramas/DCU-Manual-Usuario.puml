@@ -1,0 +1,15 @@
+@startuml DCU-Manual-Usuario
+!pragma layout smetana
+left to right direction
+skinparam shadowing false
+skinparam monochrome true
+skinparam packageStyle rectangle
+
+actor "Usuário comum" as User
+
+rectangle "Better Meet (aplicativo móvel e web)" {
+  usecase "UC25 — Acessar e baixar\no manual do usuário" as UC25
+}
+
+User -- UC25
+@enduml

@@ -1,5 +1,16 @@
 # Envio de código de recuperação por API HTTP
 
+```text
+Incremento: Entrega 3 — Di2
+Escopo: Envio do código de recuperação de conta por API HTTP; UC02 (recuperação de conta)
+Branch: development
+Commit: [A CONFIRMAR NO CÓDIGO] (último commit do documento: 3dee99e)
+Data de revisão: [A CONFIRMAR] (data do documento: 2026-10-21)
+Responsável(eis): Miguel Augusto Baptista
+Estado: [A CONFIRMAR NO CÓDIGO] (o documento descreve o comportamento como entregue)
+Fontes: sistema/api/src/services/emailService.ts (citado no texto do documento); demais [A CONFIRMAR]
+```
+
 Data: 21/10/2026. Referências: UC02 (recuperação de conta) e EX-13 (configurações e segredos).
 
 ## Comportamento entregue
