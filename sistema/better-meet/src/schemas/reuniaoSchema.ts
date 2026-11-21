@@ -1,5 +1,7 @@
 import * as yup from 'yup';
 
+import { horarioNoPassado } from '@/utils/fusoReuniao';
+
 import { idRule } from './commonSchema';
 
 const DATA_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -17,38 +19,6 @@ const isValidDate = (value: string) => {
     date.getUTCMonth() === month - 1 &&
     date.getUTCDate() === day
   );
-};
-
-// O minuto atual ainda vale: só um horário anterior a ele é passado.
-const isDateTimeInPast = (data: string, hora: string) => {
-  const [year, month, day] = data.split('-').map(Number);
-  const [hour, minute] = hora.split(':').map(Number);
-  if (
-    year === undefined ||
-    month === undefined ||
-    day === undefined ||
-    hour === undefined ||
-    minute === undefined ||
-    Number.isNaN(year) ||
-    Number.isNaN(month) ||
-    Number.isNaN(day) ||
-    Number.isNaN(hour) ||
-    Number.isNaN(minute)
-  ) {
-    return false;
-  }
-  const chosen = new Date(year, month - 1, day, hour, minute, 0, 0);
-  const now = new Date();
-  const currentMinute = new Date(
-    now.getFullYear(),
-    now.getMonth(),
-    now.getDate(),
-    now.getHours(),
-    now.getMinutes(),
-    0,
-    0,
-  );
-  return chosen.getTime() < currentMinute.getTime();
 };
 
 const canCompareDateTime = (data?: string, hora?: string) =>
@@ -133,7 +103,7 @@ export const reuniaoSchema = yup
     if (!data || !horaInicio || !canCompareDateTime(data, horaInicio)) {
       return true;
     }
-    if (!isDateTimeInPast(data, horaInicio)) return true;
+    if (!horarioNoPassado(data, horaInicio)) return true;
     return this.createError({
       path: 'horaInicio',
       message: 'O início da reunião não pode ser no passado.',
@@ -143,7 +113,7 @@ export const reuniaoSchema = yup
     const data = value?.data;
     const horaFim = value?.horaFim;
     if (!data || !horaFim || !canCompareDateTime(data, horaFim)) return true;
-    if (!isDateTimeInPast(data, horaFim)) return true;
+    if (!horarioNoPassado(data, horaFim)) return true;
     return this.createError({
       path: 'horaFim',
       message: 'O término da reunião não pode ser no passado.',

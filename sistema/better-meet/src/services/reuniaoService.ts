@@ -10,6 +10,15 @@ export const STATUS_CONVITE_REUNIAO = [
 ] as const;
 export type StatusConviteReuniao = (typeof STATUS_CONVITE_REUNIAO)[number];
 
+export const ESTADOS_REUNIAO = [
+  'CANCELADA',
+  'AGUARDANDO',
+  'CHECKIN_ABERTO',
+  'EM_ANDAMENTO',
+  'ENCERRADA',
+] as const;
+export type EstadoReuniao = (typeof ESTADOS_REUNIAO)[number];
+
 export type ReuniaoRegistro = {
   id: number;
   reuniaoId: number;
@@ -49,7 +58,11 @@ export type Reuniao = {
   horaInicio: string;
   horaFim: string;
   status: StatusReuniao;
-  criadoPorUserId: number;
+  // Nulo quando a conta de quem criou a reunião foi excluída.
+  criadoPorUserId: number | null;
+  usuario?: string | null;
+  estado?: EstadoReuniao;
+  janelaCheckIn?: { abre: string; fecha: string };
   meuRegistro?: ReuniaoRegistro | null;
   participantes?: ReuniaoParticipante[];
   comissao?: { id: number; nome: string };
@@ -68,7 +81,7 @@ export type ReuniaoItem = {
   data: string;
   horaInicio: string;
   horaFim: string;
-  usuario: string;
+  usuario: string | null;
   status: StatusConviteReuniao;
   pauta?: string;
   descricao?: string | null;
