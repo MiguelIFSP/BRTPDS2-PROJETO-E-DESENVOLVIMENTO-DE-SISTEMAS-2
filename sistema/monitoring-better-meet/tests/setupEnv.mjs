@@ -1,0 +1,19 @@
+Object.assign(process.env, {
+  NODE_ENV: 'test',
+  DATABASE_HOST: 'localhost',
+  DATABASE_PORT: '3307',
+  DATABASE_NAME: 'monitoring_teste',
+  DATABASE_USER: 'usuario_teste',
+  DATABASE_PASSWORD: 'senha-de-teste',
+  APP_DATABASE_HOST: 'localhost',
+  APP_DATABASE_PORT: '3306',
+  APP_DATABASE_NAME: 'app_teste',
+  APP_DATABASE_USER: 'usuario_teste',
+  APP_DATABASE_PASSWORD: 'senha-de-teste',
+  DATA_API_URL: 'http://api.teste',
+  MANAGEMENT_API_URL: 'http://gestao.teste',
+  INTERNAL_API_KEY: 'chave-interna-de-teste',
+  CORS_ORIGINS: 'http://painel.teste',
+});
+delete process.env.TRUST_PROXY;
+delete process.env.RATE_LIMIT_ENABLED;
