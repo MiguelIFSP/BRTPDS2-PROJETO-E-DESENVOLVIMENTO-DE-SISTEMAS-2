@@ -4,7 +4,7 @@ Revisão do app mobile (`sistema/better-meet`), da API de dados (`sistema/api`) 
 
 > **Versão analisada:** branch `development`, commit `e992493`. Linhas citadas valem para esse commit; confira antes de corrigir.
 >
-> **Situação (atualizada em 2026-11-21):** os onze itens foram tratados na refatoração da branch `feature/refatoracao-ultima-entrega` (base `aed2702`). Cada um está marcado como "corrigido na refatoração de 2026-11-21 (sem commit ainda)": a alteração está no working tree, ainda sem commit, e a coluna de commit fica `[a preencher após o commit]` até o usuário commitar. Nenhum hash foi inventado. O que continua aberto está listado em "Pendências que continuam abertas", no fim deste arquivo.
+> **Situação (atualizada em 2026-11-21):** os onze itens foram tratados na refatoração da branch `feature/refatoracao-ultima-entrega` (base `aed2702`). Cada um está marcado como "corrigido na refatoração de 2026-11-21" e a correção já está commitada na branch, com os hashes indicados em cada item (conferidos com o git; o relatório em si foi commitado em `ad4dd58`). O que continua aberto está listado em "Pendências que continuam abertas", no fim deste arquivo.
 
 ## Resumo por gravidade
 
@@ -28,7 +28,7 @@ Revisão do app mobile (`sistema/better-meet`), da API de dados (`sistema/api`) 
 
 ### 1. Exclusão de conta falha para quem criou reunião ou votação (crítica)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U7: `Reuniao.criadoPorUserId` e `Votacao.criadoPorUserId` ficaram opcionais com `onDelete: SetNull` (migration `20261121110000_autoria_opcional`); `usuarioService.deleteUser` e `reuniaoService` toleram autoria nula (`utils/autoria.ts`); a decisão sobre a autoria era a que faltava. Teste: `tests/autoriaBanco.test.mjs`, `tests/reuniaoAutoria.test.mjs`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U7: `Reuniao.criadoPorUserId` e `Votacao.criadoPorUserId` ficaram opcionais com `onDelete: SetNull` (migration `20261121110000_autoria_opcional`); `usuarioService.deleteUser` e `reuniaoService` toleram autoria nula (`utils/autoria.ts`); a decisão sobre a autoria era a que faltava. Teste: `tests/autoriaBanco.test.mjs`, `tests/reuniaoAutoria.test.mjs`. (commits: `827f53d`, `e78d70f`, `d7760a8`.)
 
 > **Histórico (superado pela correção acima):** na branch `feature/correcao-exclusao-conta-autoria` (commit: _a preencher_) a correção era parcial. A API agora responde **409** com a mensagem "Não foi possível excluir sua conta porque ainda existem reuniões ou votações criadas por você…", desfaz a transação e não registra erro inesperado; o `errorMiddleware.ts` também converte qualquer outro P2003 em 409. A exclusão de quem criou reunião ou votação ainda é recusada: falta decidir a regra de autoria (ver "Direção da correção").
 
@@ -47,7 +47,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 2. Recuperação de senha sem verificação de posse do e-mail (crítica)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U1: recuperação pelo Better Auth, com token enviado ao e-mail cadastrado, uso único e validade de 30 min; `POST /api/auth/forgot-password` e `authService.forgotPassword` foram removidos; a tabela `PasswordResetToken` saiu na migration `20261121103000_better_auth`. Testes: `tests/recuperacaoSenha.test.mjs`, `tests/authSenhaEmail.test.mjs`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U1: recuperação pelo Better Auth, com token enviado ao e-mail cadastrado, uso único e validade de 30 min; `POST /api/auth/forgot-password` e `authService.forgotPassword` foram removidos; a tabela `PasswordResetToken` saiu na migration `20261121103000_better_auth`. Testes: `tests/recuperacaoSenha.test.mjs`, `tests/authSenhaEmail.test.mjs`. (commits: `54bdaa9`, `827f53d`.)
 
 **Onde:** `sistema/api/src/services/authService.ts` (função `forgotPassword`, linha 34) e rota pública `POST /api/auth/forgot-password`.
 
@@ -57,7 +57,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 5. Check-in permitido dias antes da reunião (média)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U7: `checkIn` recusa fora da janela (abre 15 min antes do início; `janelaCheckIn` devolvida pela API), com 409; U5: `ReuniaoCheckIn.tsx` usa a janela. Teste: `api/tests/reuniaoCheckIn.test.mjs`, `api/tests/fusoHorario.test.mjs`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U7: `checkIn` recusa fora da janela (abre 15 min antes do início; `janelaCheckIn` devolvida pela API), com 409; U5: `ReuniaoCheckIn.tsx` usa a janela. Teste: `api/tests/reuniaoCheckIn.test.mjs`, `api/tests/fusoHorario.test.mjs`. (commits: `d7760a8`, `2ca335a`.)
 
 **Onde:** `sistema/api/src/services/reuniaoService.ts` (função `checkIn`, linha 500) e `sistema/better-meet/src/app/(tabs)/(reunioes)/reuniao/[id].tsx` (linhas 147 a 150 e 350 a 368).
 
@@ -67,7 +67,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 6. Validação de horário passado usa o fuso da máquina (média)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U7: `isDateTimeInPast` removida; o schema usa `inicioNaoPassadoRule(env.TZ_REUNIOES)`. U9: `TZ` definido no `ecosystem.config.js` (três processos), no `docker-compose.yml` (dois bancos) e nos `.env.example`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U7: `isDateTimeInPast` removida; o schema usa `inicioNaoPassadoRule(env.TZ_REUNIOES)`. U9: `TZ` definido no `ecosystem.config.js` (três processos), no `docker-compose.yml` (dois bancos) e nos `.env.example`. (commits: `d7760a8`, `68c458b`.)
 
 **Onde:** `sistema/api/src/schemas/reuniaoSchema.ts` (função `isDateTimeInPast`, linha 40).
 
@@ -79,7 +79,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 8. Membro removido da organização continua nas comissões (média)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U7: `organizacaoService.removeMember` remove a pessoa das comissões da organização na mesma transação e exige sucessor quando ela é a única administradora (409 com `details`). Teste: `api/tests/organizacaoRemoverMembro.test.mjs`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U7: `organizacaoService.removeMember` remove a pessoa das comissões da organização na mesma transação e exige sucessor quando ela é a única administradora (409 com `details`). Teste: `api/tests/organizacaoRemoverMembro.test.mjs`. (commit: `e78d70f`.)
 
 **Onde:** `sistema/api/src/services/organizacaoService.ts` (função `removeMember`, linha 416).
 
@@ -89,7 +89,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 9. Login pelo nome é ambíguo (baixa)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U1: login só por e-mail (`POST /api/auth/sign-in/email`); a ponte `POST /login` que aceitava `identifier` foi removida na U9 (RF-R22). (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U1: login só por e-mail (`POST /api/auth/sign-in/email`); a ponte `POST /login` que aceitava `identifier` foi removida na U9 (RF-R22). (commit: `54bdaa9`.)
 
 **Onde:** `sistema/api/src/services/authService.ts` (linha 14).
 
@@ -99,7 +99,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 10. Administrador padrão é promovido de novo a cada inicialização (baixa)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U1: `ensureDefaultAdmin` só cria a conta quando não existe nenhum `ADMIN` e não mexe em contas existentes. Teste: `api/tests/ensureDefaultAdmin.test.mjs`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U1: `ensureDefaultAdmin` só cria a conta quando não existe nenhum `ADMIN` e não mexe em contas existentes. Teste: `api/tests/ensureDefaultAdmin.test.mjs`. (commit: `e78d70f`.)
 
 **Onde:** `sistema/api/src/services/usuarioService.ts` (função `ensureDefaultAdmin`, linha 337).
 
@@ -113,7 +113,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 3. Perfil de administrador lido do token, não do banco (alta)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U3: `requireAuth` da gestão valida a sessão e lê o papel atual na API de Dados (`GET /api/usuarios/me`); rebaixado recebe 403 e conta excluída 401. Teste: `management-better-meet/server/tests/authMiddleware.test.mjs`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U3: `requireAuth` da gestão valida a sessão e lê o papel atual na API de Dados (`GET /api/usuarios/me`); rebaixado recebe 403 e conta excluída 401. Teste: `management-better-meet/server/tests/authMiddleware.test.mjs`. (commit: `6f5de9e`.)
 
 **Onde:** `sistema/management-better-meet/server/src/middlewares/auth.ts` (linha 31).
 
@@ -123,7 +123,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 4. Chave interna da monitoring embutida no código cliente (alta)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U2, U3, U4 e U8 tiraram a chave do código cliente (app e painel reportam por rota autenticada com o token de sessão); a U9 removeu `EXPO_PUBLIC_MONITORING_API_KEY` dos `.env.example`, do `jest.setup.ts` do app e do `start-all.ps1`. A chave interna (`INTERNAL_API_KEY`) fica só entre servidores. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U2, U3, U4 e U8 tiraram a chave do código cliente (app e painel reportam por rota autenticada com o token de sessão); a U9 removeu `EXPO_PUBLIC_MONITORING_API_KEY` dos `.env.example`, do `jest.setup.ts` do app e do `start-all.ps1`. A chave interna (`INTERNAL_API_KEY`) fica só entre servidores. (commits: `2f658fe`, `c1b434f`, `9e3c90f`, `6f5de9e`, `68c458b`, `c853abb`.)
 
 **Onde:** `sistema/management-better-meet/web/src/config/api.ts` e `sistema/better-meet/src/config/api.ts` (`EXPO_PUBLIC_MONITORING_API_KEY`).
 
@@ -133,7 +133,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 11. Sem a monitoring, o painel não mostra os subsistemas (baixa)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U4: o painel mostra os cartões com status "desconhecido" e libera a ação de iniciar a monitoring quando a busca falha. Teste: `subsistemaStatus` no painel (U4). (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U4: o painel mostra os cartões com status "desconhecido" e libera a ação de iniciar a monitoring quando a busca falha. Teste: `subsistemaStatus` no painel (U4). (commit: `c1b434f`.)
 
 **Onde:** `sistema/management-better-meet/web/src/app/index.tsx` (renderização condicionada a `statusList`).
 
@@ -147,7 +147,7 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 
 ### 7. Sessão expirada não desloga o usuário (média)
 
-> **Situação: corrigido na refatoração de 2026-11-21 (sem commit ainda).** U8: `apiRequest` chama `expireSession()` em 401 de requisição com token; o `AppGate` leva ao login com o aviso "Sua sessão expirou. Entre novamente.". Teste: `better-meet/src/utils/__tests__/apiClient.test.ts`. (alteração no working tree da branch `feature/refatoracao-ultima-entrega`; commit: [a preencher após o commit].)
+> **Situação: corrigido na refatoração de 2026-11-21.** U8: `apiRequest` chama `expireSession()` em 401 de requisição com token; o `AppGate` leva ao login com o aviso "Sua sessão expirou. Entre novamente.". Teste: `better-meet/src/utils/__tests__/apiClient.test.ts`. (commit: `2f658fe`.)
 
 **Onde:** `sistema/better-meet/src/utils/apiClient.ts` (função `apiRequest`, linha 68).
 
@@ -179,7 +179,7 @@ Os números atuais por subsistema estão em `sistema/better-meet/aidlc-docs/cons
 
 > **Versão analisada:** branch `feature/refatoracao-ultima-entrega`, commit `704478f`. A verificação usou leitura de arquivos e busca textual; não executou testes, typecheck nem o aplicativo.
 >
-> **Atualização de 2026-11-21:** a coluna "Situação" foi reescrita com base nos resumos de código das unidades U1 a U8 e nas buscas da U9, no working tree da branch `feature/refatoracao-ultima-entrega`; nenhuma correção tem commit ainda (`[a preencher após o commit]`).
+> **Atualização de 2026-11-21:** a coluna "Situação" foi reescrita com base nos resumos de código das unidades U1 a U8 e nas buscas da U9, e as correções estão commitadas na branch `feature/refatoracao-ultima-entrega`, com os hashes indicados em cada linha.
 >
 > **Origem:** em 2026-11-20, os avisos "Divergência atual" e "Situação atual" saíram do `GUIA_DE_CODIFICACAO.md` e do `PROMPT_AGENTES_IA.md`, para que os guias descrevam só o padrão. Os avisos que ainda valem, os parciais e os que não foram verificados ficam registrados aqui, cada um com a regra do guia que o código ainda não cumpre. Ao corrigir, marque o item com o commit ou PR da correção.
 
@@ -187,28 +187,28 @@ A tabela lista as pendências na ordem das regras do guia. A coluna "Situação"
 
 | # | Regra | Pendência | Evidência | Situação |
 |---|---|---|---|---|
-| P1 | TS-01 | `monitoring-better-meet` com `exactOptionalPropertyTypes: false` | `sistema/monitoring-better-meet/tsconfig.json:25` | Corrigido (U2): `exactOptionalPropertyTypes: true`; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P2 | NM-04 | Arquivos de camada da monitoring fora do padrão `<dominio><Camada>.ts`: `status.routes.ts`, `status.controller.ts`, `apiKey.ts` e `jwtAuth.ts` | `sistema/monitoring-better-meet/src/` | Corrigido (U2): arquivos renomeados para `<dominio><Camada>.ts`; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P3 | EX-02 | Monitoring exporta funções soltas (`createStatusCheck`) e usa `req`/`res` | `sistema/monitoring-better-meet/src/controllers/status.controller.ts` | Corrigido (U2): `statusController` é objeto literal com `request`/`response`; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P4 | EX-06 | Monitoring devolve `(error as Error).message` no 500 | `status.controller.ts:22` e `:30` | Corrigido (U2): 500 genérico pelo `errorMiddleware`; sem `(error as Error).message`; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P5 | EX-12 | Exceções temporárias: `POST /login` fora de `/api` na API de Dados; rotas da monitoring sob `/monitoring-better-meet` | `sistema/api/src/server.ts:71`; `sistema/monitoring-better-meet/src/server.ts:18` | Corrigido (U1, U2, U9): ponte `POST /login` removida da API de Dados; rotas da monitoring sob `/api`; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P6 | EX-13 | Chave interna da monitoring em `EXPO_PUBLIC_MONITORING_API_KEY` no app e no painel web (item 4 deste relatório) | `sistema/better-meet/src/config/api.ts`; `sistema/management-better-meet/web/src/config/api.ts` | Corrigido (U2, U3, U4, U8, U9): sem `EXPO_PUBLIC_MONITORING_API_KEY`; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P7 | EX-14 | Sem Better Auth; senha com SHA-256 sem sal; recuperação só com e-mail e nova senha (item 2) | `sistema/api/src/utils/passwordHash.ts:7`; `sistema/api/src/services/authService.ts:34`; `sistema/api/package.json` | Corrigido (U1, U9): Better Auth com `scrypt`; `jsonwebtoken` e `JWT_SECRET` removidos. Resta a pendência `senhaLegada.ts` (ver abaixo); corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P8 | EX-17 | Login aceita nome ou e-mail (item 9) | `sistema/api/src/services/authService.ts:15` | Corrigido (U1): login só por e-mail; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P9 | PR-07 | Monitoring com o script `prisma:push` e sem pasta de migrations | `sistema/monitoring-better-meet/package.json` | Corrigido (U2): migrations `0_init` e `20261121000000_message_500`; sem `prisma:push`; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P10 | RN-01 | `AGENTS.md` do painel web cita a documentação da v57 | `sistema/management-better-meet/web/AGENTS.md` | Corrigido (U4): `AGENTS.md` do painel aponta para a v58.0.0; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P11 | RN-04 | `fetch` direto na tela de login do painel web | `sistema/management-better-meet/web/src/app/login.tsx` | Corrigido (U4): o login do painel usa `authService`, sem `fetch` na tela; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P12 | RN-07 | Opacidade `0.7` escrita à mão no lugar de `PressedOpacity` | `sistema/better-meet/src/components/presenca/ListaPresencaEditor.tsx` | Corrigido (U5): `ListaPresencaEditor.tsx` sem opacidade escrita à mão; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P13 | UI-08 | Perfil mostra "ID do usuário" (retorno da Di1) | `sistema/better-meet/src/app/(tabs)/mais/perfil.tsx:216` | Corrigido (U5): o perfil não mostra mais o ID (teste em `perfil.test.tsx`); corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P14 | GT-03 | `sistema/AGENTS.md` e `sistema/CLAUDE.md` não existem | `sistema/` | Corrigido (U6): `sistema/AGENTS.md` e `sistema/CLAUDE.md` criados; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P15 | EX-16 | Só a API de Dados tem `docs/openapi.yaml` | — | Corrigido (U2, U3): `docs/openapi.yaml` na monitoring e na gestão; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
+| P1 | TS-01 | `monitoring-better-meet` com `exactOptionalPropertyTypes: false` | `sistema/monitoring-better-meet/tsconfig.json:25` | Corrigido (U2): `exactOptionalPropertyTypes: true`; corrigido na refatoração de 2026-11-21 (commit: `dd937cb`) |
+| P2 | NM-04 | Arquivos de camada da monitoring fora do padrão `<dominio><Camada>.ts`: `status.routes.ts`, `status.controller.ts`, `apiKey.ts` e `jwtAuth.ts` | `sistema/monitoring-better-meet/src/` | Corrigido (U2): arquivos renomeados para `<dominio><Camada>.ts`; corrigido na refatoração de 2026-11-21 (commit: `9e3c90f`) |
+| P3 | EX-02 | Monitoring exporta funções soltas (`createStatusCheck`) e usa `req`/`res` | `sistema/monitoring-better-meet/src/controllers/status.controller.ts` | Corrigido (U2): `statusController` é objeto literal com `request`/`response`; corrigido na refatoração de 2026-11-21 (commit: `9e3c90f`) |
+| P4 | EX-06 | Monitoring devolve `(error as Error).message` no 500 | `status.controller.ts:22` e `:30` | Corrigido (U2): 500 genérico pelo `errorMiddleware`; sem `(error as Error).message`; corrigido na refatoração de 2026-11-21 (commit: `9e3c90f`) |
+| P5 | EX-12 | Exceções temporárias: `POST /login` fora de `/api` na API de Dados; rotas da monitoring sob `/monitoring-better-meet` | `sistema/api/src/server.ts:71`; `sistema/monitoring-better-meet/src/server.ts:18` | Corrigido (U1, U2, U9): ponte `POST /login` removida da API de Dados; rotas da monitoring sob `/api`; corrigido na refatoração de 2026-11-21 (commits: `54bdaa9`, `9e3c90f`) |
+| P6 | EX-13 | Chave interna da monitoring em `EXPO_PUBLIC_MONITORING_API_KEY` no app e no painel web (item 4 deste relatório) | `sistema/better-meet/src/config/api.ts`; `sistema/management-better-meet/web/src/config/api.ts` | Corrigido (U2, U3, U4, U8, U9): sem `EXPO_PUBLIC_MONITORING_API_KEY`; corrigido na refatoração de 2026-11-21 (commits: `2f658fe`, `c1b434f`, `9e3c90f`, `68c458b`) |
+| P7 | EX-14 | Sem Better Auth; senha com SHA-256 sem sal; recuperação só com e-mail e nova senha (item 2) | `sistema/api/src/utils/passwordHash.ts:7`; `sistema/api/src/services/authService.ts:34`; `sistema/api/package.json` | Corrigido (U1, U9): Better Auth com `scrypt`; `jsonwebtoken` e `JWT_SECRET` removidos. Resta a pendência `senhaLegada.ts` (ver abaixo); corrigido na refatoração de 2026-11-21 (commits: `54bdaa9`, `827f53d`) |
+| P8 | EX-17 | Login aceita nome ou e-mail (item 9) | `sistema/api/src/services/authService.ts:15` | Corrigido (U1): login só por e-mail; corrigido na refatoração de 2026-11-21 (commit: `54bdaa9`) |
+| P9 | PR-07 | Monitoring com o script `prisma:push` e sem pasta de migrations | `sistema/monitoring-better-meet/package.json` | Corrigido (U2): migrations `0_init` e `20261121000000_message_500`; sem `prisma:push`; corrigido na refatoração de 2026-11-21 (commits: `a9911ad`, `dd937cb`) |
+| P10 | RN-01 | `AGENTS.md` do painel web cita a documentação da v57 | `sistema/management-better-meet/web/AGENTS.md` | Corrigido (U4): `AGENTS.md` do painel aponta para a v58.0.0; corrigido na refatoração de 2026-11-21 (commit: `ad4dd58`) |
+| P11 | RN-04 | `fetch` direto na tela de login do painel web | `sistema/management-better-meet/web/src/app/login.tsx` | Corrigido (U4): o login do painel usa `authService`, sem `fetch` na tela; corrigido na refatoração de 2026-11-21 (commit: `c1b434f`) |
+| P12 | RN-07 | Opacidade `0.7` escrita à mão no lugar de `PressedOpacity` | `sistema/better-meet/src/components/presenca/ListaPresencaEditor.tsx` | Corrigido (U5): `ListaPresencaEditor.tsx` sem opacidade escrita à mão; corrigido na refatoração de 2026-11-21 (commit: `2ca335a`) |
+| P13 | UI-08 | Perfil mostra "ID do usuário" (retorno da Di1) | `sistema/better-meet/src/app/(tabs)/mais/perfil.tsx:216` | Corrigido (U5): o perfil não mostra mais o ID (teste em `perfil.test.tsx`); corrigido na refatoração de 2026-11-21 (commit: `e7ca27a`) |
+| P14 | GT-03 | `sistema/AGENTS.md` e `sistema/CLAUDE.md` não existem | `sistema/` | Corrigido (U6): `sistema/AGENTS.md` e `sistema/CLAUDE.md` criados; corrigido na refatoração de 2026-11-21 (commit: `c278db1`) |
+| P15 | EX-16 | Só a API de Dados tem `docs/openapi.yaml` | — | Corrigido (U2, U3): `docs/openapi.yaml` na monitoring e na gestão; corrigido na refatoração de 2026-11-21 (commits: `9e3c90f`, `6f5de9e`) |
 | P16 | YP-03 | Regra de senha forte copiada em schemas da API e nas telas | `sistema/api/src/schemas/commonSchema.ts` existe | Não verificado nesta rodada (as três cópias de `commonSchema.ts` não foram comparadas) |
 | P17 | YP-04 | Controllers e telas com `abortEarly: false` lendo só `errors[0]` | — | Não verificado nesta rodada |
-| P18 | RN-14 | Sobras do template no painel web (`use-theme.ts`, `use-color-scheme*.ts`, `reset-project.js`) e dependências sem uso | — | Corrigido (U4): arquivos do template e dependências sem uso removidos do painel; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
+| P18 | RN-14 | Sobras do template no painel web (`use-theme.ts`, `use-color-scheme*.ts`, `reset-project.js`) e dependências sem uso | — | Corrigido (U4): arquivos do template e dependências sem uso removidos do painel; corrigido na refatoração de 2026-11-21 (commits: `c1b434f`, `dd937cb`) |
 | P19 | UI-01 | Na opção "Sistema", o `Appearance.setColorScheme` do `themeStore` fixa o tema atual do aparelho | `sistema/better-meet/src/store/themeStore.ts` | Aberto: só se confirma em aparelho (tema "Sistema") |
 | P20 | GT-02 | Commits antigos feitos direto na `main` pelo GitHub | Histórico do Git | Registro histórico, sem ação (RF-R85) |
-| P21 | GT-04 | Monitoring e gestão sem testes automatizados | Seção "Verificação feita na revisão" acima (gestão, 2026-11-17) | Corrigido (U2, U3): monitoring e gestão com testes automatizados; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
-| P22 | EX-11 | Monitoring converte o id da URL com `Number()` e testa `!subSystemId`, sem `parseId` | `sistema/monitoring-better-meet/src/controllers/status.controller.ts:71-75` | Corrigido (U2): `parseId` na monitoring; corrigido na refatoração de 2026-11-21 (sem commit ainda) |
+| P21 | GT-04 | Monitoring e gestão sem testes automatizados | Seção "Verificação feita na revisão" acima (gestão, 2026-11-17) | Corrigido (U2, U3): monitoring e gestão com testes automatizados; corrigido na refatoração de 2026-11-21 (commits: `9e3c90f`, `6f5de9e`) |
+| P22 | EX-11 | Monitoring converte o id da URL com `Number()` e testa `!subSystemId`, sem `parseId` | `sistema/monitoring-better-meet/src/controllers/status.controller.ts:71-75` | Corrigido (U2): `parseId` na monitoring; corrigido na refatoração de 2026-11-21 (commit: `9e3c90f`) |
 
 Os avisos resolvidos no código não foram listados. A conferência completa está em `sistema/better-meet/aidlc-docs/construction/revisao-padroes-entrega-final/verificacao_codigo.md`.
 
