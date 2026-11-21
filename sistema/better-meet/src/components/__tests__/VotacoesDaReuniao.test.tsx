@@ -12,12 +12,10 @@ import type * as VotacaoModule from '@/services/votacaoService';
 import { useAuthStore } from '@/store/authStore';
 
 const mockPush = jest.fn();
+const mockCreate = jest.fn<(...args: unknown[]) => Promise<unknown>>();
 const mockList =
   jest.fn<
-    (
-      token: string,
-      reuniaoId: number,
-    ) => Promise<VotacaoModule.VotacaoResumo[]>
+    (token: string, reuniaoId: number) => Promise<VotacaoModule.VotacaoResumo[]>
   >();
 
 jest.mock('expo-router', () => ({
@@ -43,6 +41,7 @@ jest.mock('@/services/votacaoService', () => {
     ...actual,
     votacaoService: {
       ...actual.votacaoService,
+      create: (...args: unknown[]) => mockCreate(...args),
       listByReuniao: (token: string, reuniaoId: number) =>
         mockList(token, reuniaoId),
     },
@@ -52,6 +51,7 @@ jest.mock('@/services/votacaoService', () => {
 const votacao = {
   id: 4,
   titulo: 'Aprovar a pauta',
+  tipo: 'ABERTA' as const,
   encerrada: false,
   createdAt: '2026-11-07T12:00:00.000Z',
   totalVotos: 2,
@@ -62,6 +62,7 @@ describe('VotacoesDaReuniao', () => {
   beforeEach(() => {
     mockPush.mockClear();
     mockList.mockReset();
+    mockCreate.mockReset().mockResolvedValue({});
     mockList.mockResolvedValue([votacao]);
     useAuthStore.getState().logout();
     useAuthStore.getState().markHydrated();

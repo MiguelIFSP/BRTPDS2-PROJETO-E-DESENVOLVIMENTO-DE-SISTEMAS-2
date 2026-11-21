@@ -6,6 +6,7 @@ import ReportLinkCard from '@/components/relatorio/ReportLinkCard';
 import ReportSection from '@/components/relatorio/ReportSection';
 import StatTile from '@/components/relatorio/StatTile';
 import { Spacing } from '@/constants/theme';
+import { ORIGEM_RELATORIO } from '@/utils/navegacaoOrigem';
 import {
   PAPEIS_ORGANIZACAO,
   papelLabel,
@@ -74,7 +75,10 @@ export default function OrganizacaoReportView({
         icon="business-outline"
         label="Ver organizações"
         description="Abre a aba Organizações, com a lista e os detalhes de cada uma"
-        href="/organizacao"
+        href={{
+          pathname: '/organizacao',
+          params: { origem: ORIGEM_RELATORIO },
+        }}
       />
     </>
   );

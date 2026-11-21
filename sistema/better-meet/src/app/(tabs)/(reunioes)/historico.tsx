@@ -1,6 +1,12 @@
 import { useCallback, useState } from 'react';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
@@ -126,18 +132,23 @@ export default function HistoricoReunioesScreen() {
               <Text style={[styles.meetingTitle, { color: colors.text }]}>
                 {reuniao.titulo}
               </Text>
-              <Text style={[styles.meetingMeta, { color: colors.textSecondary }]}>
+              <Text
+                style={[styles.meetingMeta, { color: colors.textSecondary }]}
+              >
                 {formatReuniaoDate(reuniao.data)} às {reuniao.horaInicio} até{' '}
                 {reuniao.horaFim}
               </Text>
               {reuniao.comissao ? (
-                <Text style={[styles.meetingMeta, { color: colors.textSecondary }]}>
+                <Text
+                  style={[styles.meetingMeta, { color: colors.textSecondary }]}
+                >
                   Comissão: {reuniao.comissao.nome}
                 </Text>
               ) : null}
               {reuniao.meuRegistro ? (
                 <Text style={[styles.meetingMeta, { color: colors.primary }]}>
-                  Presença registrada em {formatDateTime(reuniao.meuRegistro.entradaAt)}
+                  Presença registrada em{' '}
+                  {formatDateTime(reuniao.meuRegistro.entradaAt)}
                 </Text>
               ) : null}
             </Pressable>

@@ -7,6 +7,7 @@ import ReportSection from '@/components/relatorio/ReportSection';
 import StatTile from '@/components/relatorio/StatTile';
 import { Spacing, Typography } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
+import { ORIGEM_RELATORIO } from '@/utils/navegacaoOrigem';
 import {
   PAPEIS_COMISSAO,
   papelComissaoLabel,
@@ -89,7 +90,7 @@ export default function ComissaoReportView({
         icon="people-outline"
         label="Ver comissões"
         description="Abre a aba Comissões, com a lista e os detalhes de cada uma"
-        href="/comissao"
+        href={{ pathname: '/comissao', params: { origem: ORIGEM_RELATORIO } }}
       />
     </>
   );

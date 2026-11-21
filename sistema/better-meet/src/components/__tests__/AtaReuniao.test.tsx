@@ -78,9 +78,15 @@ const initialAta: Ata = {
   podeVotar: true,
   meuVoto: null,
   votos: { aprovados: 0, reprovados: 0 },
+  presentes: 3,
+  aprovada: true,
+  exportada: true,
+  exportadaAt: '2026-11-11T15:00:00.000Z',
+  podeExportar: true,
 };
 const save = jest.spyOn(ataService, 'save');
 const vote = jest.spyOn(ataService, 'vote');
+const exportar = jest.spyOn(ataService, 'exportar');
 const reload = jest.fn();
 const updated = jest.fn();
 const show = (overrides: Partial<Ata> = {}) =>
@@ -96,6 +102,7 @@ beforeEach(() => {
   jest.clearAllMocks();
   exportPdf.mockReset().mockResolvedValue(undefined);
   save.mockReset().mockResolvedValue({ ...initialAta, versaoAta: 2 });
+  exportar.mockReset().mockResolvedValue({ ...initialAta, exportada: true });
   vote.mockReset().mockResolvedValue({
     ...initialAta,
     meuVoto: 'APROVADO',
@@ -133,6 +140,64 @@ describe('AtaReuniao', () => {
       expect(vote).not.toHaveBeenCalled();
     },
   );
+  it('desabilita a exportação enquanto a ata não foi aprovada e explica o motivo', async () => {
+    await show({
+      exportada: false,
+      aprovada: false,
+      podeExportar: false,
+      exportadaAt: null,
+      votos: { aprovados: 1, reprovados: 1 },
+    });
+    expect(screen.getByLabelText('Exportar PDF')).toBeDisabled();
+    expect(screen.getByText(/1 aprovações de 3 presentes/)).toBeTruthy();
+    expect(exportar).not.toHaveBeenCalled();
+  });
+  it('confirma, exporta e só depois gera o PDF quando a ata foi aprovada', async () => {
+    await show({ exportada: false, exportadaAt: null });
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    expect(exportar).not.toHaveBeenCalled();
+    await fireEvent.press(
+      screen.getByLabelText('Exportar e tornar definitiva'),
+    );
+    await waitFor(() => expect(exportPdf).toHaveBeenCalledTimes(1));
+    expect(exportar).toHaveBeenCalledWith('jwt', 31);
+    expect(updated).toHaveBeenCalledWith(
+      expect.objectContaining({ exportada: true }),
+    );
+  });
+  it('mostra a aprovação como definitiva e sem voto depois de exportada', async () => {
+    await show({ podeVotar: false, podeEditar: false });
+    expect(screen.getByText('Aprovação definitiva')).toBeTruthy();
+    expect(screen.getByText(/aprovação é definitiva/)).toBeTruthy();
+    expect(screen.getByLabelText('Aprovar')).toBeDisabled();
+  });
+  it('integrante comum vota quando a API autoriza', async () => {
+    await show({
+      papelNaComissao: 'MEMBRO',
+      podeEditar: false,
+      podeVotar: true,
+      exportada: false,
+      exportadaAt: null,
+    });
+    await fireEvent.press(screen.getByLabelText('Aprovar'));
+    await waitFor(() =>
+      expect(vote).toHaveBeenCalledWith('jwt', 31, 'APROVADO', 1),
+    );
+  });
+  it('exibe a mensagem do 409 de exportação antes da aprovação', async () => {
+    exportar.mockRejectedValueOnce(
+      new ApiError('A ata ainda não foi aprovada.', 409),
+    );
+    await show({ exportada: false, exportadaAt: null });
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    await fireEvent.press(
+      screen.getByLabelText('Exportar e tornar definitiva'),
+    );
+    expect(
+      await screen.findByText('A ata ainda não foi aprovada.'),
+    ).toBeTruthy();
+    expect(exportPdf).not.toHaveBeenCalled();
+  });
   it('exporta o conteúdo salvo e informa que o rascunho não será incluído', async () => {
     await show();
     await fireEvent.changeText(

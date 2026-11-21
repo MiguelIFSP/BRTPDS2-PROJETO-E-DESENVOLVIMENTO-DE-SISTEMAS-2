@@ -1,5 +1,5 @@
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import { Pressable, StyleSheet, Text } from 'react-native';
 
 import {
@@ -11,7 +11,12 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 
-export default function BackButton() {
+type BackButtonProps = {
+  // Destino quando não há tela anterior na pilha (ex.: aba aberta por atalho).
+  fallbackHref?: Href;
+};
+
+export default function BackButton({ fallbackHref }: BackButtonProps) {
   const router = useRouter();
   const { colors } = useTheme();
 
@@ -19,7 +24,10 @@ export default function BackButton() {
     <Pressable
       accessibilityRole="button"
       accessibilityLabel="Voltar"
-      onPress={() => router.back()}
+      onPress={() => {
+        if (fallbackHref && !router.canGoBack()) router.replace(fallbackHref);
+        else router.back();
+      }}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}
     >
       <Ionicons name="arrow-back" size={20} color={colors.textSecondary} />

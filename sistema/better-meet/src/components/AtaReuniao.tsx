@@ -5,6 +5,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import AtaEditor from '@/components/ata/AtaEditor';
 import type { AtaEditorHandle } from '@/components/ata/AtaEditor.types';
 import AtaLeitura from '@/components/ata/AtaLeitura';
+import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
 import ConfirmDialog from '@/components/ui/ConfirmDialog';
@@ -40,6 +41,7 @@ export default function AtaReuniao({
   const [conflict, setConflict] = useState(false);
   const [pendingHtml, setPendingHtml] = useState<string | null>(null);
   const [confirmReload, setConfirmReload] = useState(false);
+  const [confirmExport, setConfirmExport] = useState(false);
   const [pendingLeave, setPendingLeave] = useState<(() => void) | null>(null);
   const [discarded, setDiscarded] = useState(false);
   const [feedback, setFeedback] = useFeedback();
@@ -123,10 +125,17 @@ export default function AtaReuniao({
     exportInProgress.current = true;
     setIsExportingPdf(true);
     try {
+      let versao = ata;
+      if (!ata.exportada) {
+        if (!token) return;
+        // Exportar grava a versão e torna a aprovação definitiva.
+        versao = await ataService.exportar(token, ata.reuniaoId);
+        onUpdated(versao);
+      }
       await exportAtaPdf({
-        titulo: ata.titulo,
-        dataReuniao: ata.dataReuniao,
-        conteudoAta: ata.conteudoAta,
+        titulo: versao.titulo,
+        dataReuniao: versao.dataReuniao,
+        conteudoAta: versao.conteudoAta ?? ata.conteudoAta,
       });
     } catch (error) {
       setFeedback({
@@ -183,10 +192,24 @@ export default function AtaReuniao({
           variant="secondary"
           isLoading={isExportingPdf}
           loadingLabel="Gerando PDF..."
-          disabled={busy || !ata.conteudoAta}
-          accessibilityHint="Exporta a versão salva da ata para guardar ou compartilhar."
-          onPress={() => void handleExportPdf()}
+          disabled={
+            busy || !ata.conteudoAta || (!ata.exportada && !ata.podeExportar)
+          }
+          accessibilityHint={
+            ata.exportada || ata.podeExportar
+              ? 'Exporta a versão salva da ata para guardar ou compartilhar.'
+              : 'Disponível depois que a maioria dos presentes aprovar a ata.'
+          }
+          onPress={() =>
+            ata.exportada ? void handleExportPdf() : setConfirmExport(true)
+          }
         />
+        {!ata.exportada && !ata.podeExportar ? (
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            A exportação é liberada quando a maioria dos presentes aprovar a ata
+            ({ata.votos.aprovados} aprovações de {ata.presentes} presentes).
+          </Text>
+        ) : null}
         {ata.podeEditar && dirty && ata.conteudoAta ? (
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
             O PDF usa a versão salva. Salve as alterações para incluí-las na
@@ -196,6 +219,11 @@ export default function AtaReuniao({
       </Card>
       <Card>
         <SectionLabel label="Votação da ata" />
+        {ata.exportada ? (
+          <Badge label="Aprovação definitiva" tone="success" showDot />
+        ) : ata.aprovada ? (
+          <Badge label="Aprovada pela maioria" tone="success" showDot />
+        ) : null}
         <Text style={[styles.body, { color: colors.text }]}>
           Aprovações: {ata.votos.aprovados} · Reprovações:{' '}
           {ata.votos.reprovados}
@@ -208,9 +236,11 @@ export default function AtaReuniao({
         ) : null}
         {!ata.podeVotar || dirty ? (
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            {dirty
-              ? 'Salve as alterações antes de votar.'
-              : 'A votação será liberada quando a ata estiver salva.'}
+            {ata.exportada
+              ? 'A ata foi exportada e a aprovação é definitiva: não é mais possível votar ou alterar.'
+              : dirty
+                ? 'Salve as alterações antes de votar.'
+                : 'A votação será liberada quando a ata estiver salva.'}
           </Text>
         ) : null}
         <View style={styles.actions}>
@@ -257,6 +287,18 @@ export default function AtaReuniao({
         onCancel={() => setPendingHtml(null)}
         onConfirm={() => {
           if (pendingHtml !== null) void save(pendingHtml);
+        }}
+      />
+      <ConfirmDialog
+        visible={confirmExport}
+        title="Exportar a ata?"
+        message="Ao exportar, a aprovação passa a ser definitiva: a ata não poderá mais ser editada nem receber votos."
+        confirmLabel="Exportar e tornar definitiva"
+        variant="warning"
+        onCancel={() => setConfirmExport(false)}
+        onConfirm={() => {
+          setConfirmExport(false);
+          void handleExportPdf();
         }}
       />
       <ConfirmDialog

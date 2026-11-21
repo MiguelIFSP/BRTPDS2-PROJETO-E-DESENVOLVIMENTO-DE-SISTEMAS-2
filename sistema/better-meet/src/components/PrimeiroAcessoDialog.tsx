@@ -106,7 +106,7 @@ export default function PrimeiroAcessoDialog() {
           </Text>
           <Text style={[styles.message, { color: colors.textSecondary }]}>
             Olá! Este é o seu primeiro cadastro. Você gostaria de entender como
-            o site funciona?
+            o aplicativo funciona?
           </Text>
           <View style={styles.actions}>
             <Button

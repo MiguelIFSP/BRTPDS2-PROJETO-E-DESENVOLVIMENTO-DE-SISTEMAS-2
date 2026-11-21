@@ -20,6 +20,7 @@ import {
   rotuloDeVotos,
   votacaoService,
   type VotacaoDetalhe,
+  type VotoInput,
 } from '@/services/votacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
@@ -90,16 +91,20 @@ export default function VotacaoDetalheScreen() {
     }, [load]),
   );
 
-  const handleVote = async (opcaoId: number) => {
+  const handleVote = async (voto: VotoInput) => {
     if (!token || !votacao || votingRef.current) return;
-    if (opcaoId === votacao.meuVotoOpcaoId) {
+    const mesmoVoto =
+      'nulo' in voto
+        ? votacao.meuVotoNulo
+        : voto.opcaoId === votacao.meuVotoOpcaoId;
+    if (mesmoVoto) {
       setTrocando(false);
       return;
     }
     votingRef.current = true;
     setIsVoting(true);
     try {
-      setVotacao(await votacaoService.vote(token, votacao.id, opcaoId));
+      setVotacao(await votacaoService.vote(token, votacao.id, voto));
       setTrocando(false);
     } catch (error) {
       monitoringService.reportRequestFailure(
@@ -180,28 +185,32 @@ export default function VotacaoDetalheScreen() {
     );
   }
 
+  // Sem resultado parcial a API não envia os totais até o encerramento.
+  const temTotais = votacao.opcoes.every((opcao) => opcao.votos !== undefined);
   const totalVotos = votacao.opcoes.reduce(
-    (sum, opcao) => sum + opcao.votos,
+    (sum, opcao) => sum + (opcao.votos ?? 0),
     0,
   );
-  const mostrarResultado =
-    votacao.encerrada ||
-    !votacao.podeVotar ||
-    (votacao.meuVotoOpcaoId != null && !trocando);
+  const votou = votacao.meuVotoOpcaoId != null || votacao.meuVotoNulo;
+  const escolhendo = votacao.podeVotar && (!votou || trocando);
+  const mostrarResultado = !escolhendo;
   const choices: IChoice[] = votacao.opcoes.map((opcao) => ({
     id: opcao.id,
     choice: opcao.texto,
-    votes: opcao.votos,
+    votes: opcao.votos ?? 0,
   }));
+  const secreta = votacao.tipo === 'SECRETA';
   const dica = votacao.encerrada
     ? 'Votação encerrada. O resultado não muda mais.'
     : trocando
       ? 'Toque na nova opção.'
-      : votacao.podeVotar && votacao.meuVotoOpcaoId == null
+      : votacao.podeVotar && !votou
         ? 'Toque numa opção para votar.'
-        : votacao.podeVotar
+        : votou && votacao.podeVotar
           ? 'Seu voto está registrado.'
-          : 'Só participantes da reunião podem votar.';
+          : votou
+            ? 'Seu voto está registrado e esta votação não permite trocá-lo.'
+            : 'Só participantes com entrada registrada podem votar.';
 
   return (
     <Screen onRefresh={load}>
@@ -216,34 +225,68 @@ export default function VotacaoDetalheScreen() {
           tone={votacao.encerrada ? 'success' : 'info'}
           showDot
         />
+        <Badge
+          label={secreta ? 'Votação secreta' : 'Votação aberta'}
+          tone="textSecondary"
+        />
       </DetailHeader>
       <FeedbackBanner feedback={feedback} />
 
       <Card>
         <Text style={[styles.total, { color: colors.textSecondary }]}>
-          {rotuloDeVotos(totalVotos)}
+          {rotuloDeVotos(votacao.totalVotos)}
         </Text>
-        <Poll
-          key={`${votacao.meuVotoOpcaoId ?? 'novo'}-${trocando}-${pollReset}-${choices.map((choice) => choice.votes).join('.')}`}
-          totalVotes={totalVotos}
-          choices={choices}
-          hasBeenVoted={mostrarResultado}
-          votedChoiceByID={
-            trocando ? undefined : (votacao.meuVotoOpcaoId ?? undefined)
-          }
-          disableBuiltInIncreaseVote
-          onChoicePress={(choice) => void handleVote(choice.id)}
-          style={{ minHeight: 48 + choices.length * 78 }}
-          pollContainerStyle={styles.poll}
-          borderColor={colors.border}
-          fillBackgroundColor={colors.primaryLight}
-          choiceTextStyle={[styles.choice, { color: colors.text }]}
-          percentageTextStyle={[styles.percentage, { color: colors.text }]}
-        />
+        {escolhendo || temTotais ? (
+          <Poll
+            key={`${votacao.meuVotoOpcaoId ?? 'novo'}-${trocando}-${pollReset}-${choices.map((choice) => choice.votes).join('.')}`}
+            totalVotes={totalVotos}
+            choices={choices}
+            hasBeenVoted={mostrarResultado}
+            votedChoiceByID={
+              trocando ? undefined : (votacao.meuVotoOpcaoId ?? undefined)
+            }
+            disableBuiltInIncreaseVote
+            onChoicePress={(choice) => void handleVote({ opcaoId: choice.id })}
+            style={{ minHeight: 48 + choices.length * 78 }}
+            pollContainerStyle={styles.poll}
+            borderColor={colors.border}
+            fillBackgroundColor={colors.primaryLight}
+            choiceTextStyle={[styles.choice, { color: colors.text }]}
+            percentageTextStyle={[styles.percentage, { color: colors.text }]}
+          />
+        ) : (
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            O resultado aparece quando a votação for encerrada.
+          </Text>
+        )}
+        {escolhendo ? (
+          <Button
+            variant="secondary"
+            label="Voto nulo"
+            icon="remove-circle-outline"
+            disabled={isVoting}
+            onPress={() => void handleVote({ nulo: true })}
+          />
+        ) : null}
+        {votacao.nulos !== undefined ? (
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Votos nulos: {votacao.nulos}
+          </Text>
+        ) : null}
+        {votacao.meuVotoNulo ? (
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Você votou nulo.
+          </Text>
+        ) : null}
+        {secreta ? (
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Votação secreta: ninguém vê quem votou em cada opção.
+          </Text>
+        ) : null}
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
           {dica}
         </Text>
-        {votacao.podeVotar && votacao.meuVotoOpcaoId != null && !trocando ? (
+        {votacao.podeVotar && votou && !trocando ? (
           <Button
             variant="secondary"
             label="Trocar voto"
@@ -259,7 +302,9 @@ export default function VotacaoDetalheScreen() {
         ) : null}
       </Card>
 
-      {votacao.podeGerir ? (
+      {votacao.podeGerir &&
+      !secreta &&
+      votacao.opcoes.some((opcao) => opcao.votantes !== undefined) ? (
         <Card>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>
             Quem votou

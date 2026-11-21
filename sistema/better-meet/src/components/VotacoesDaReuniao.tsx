@@ -1,13 +1,14 @@
 import { useCallback, useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useRouter } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { ValidationError } from 'yup';
 
 import SummaryCard from '@/components/ui/SummaryCard';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import Chip from '@/components/ui/Chip';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
@@ -26,7 +27,11 @@ import {
   votacaoService,
   type VotacaoResumo,
 } from '@/services/votacaoService';
-import { MAX_OPCOES_VOTACAO, votacaoSchema } from '@/schemas/votacaoSchema';
+import {
+  MAX_OPCOES_VOTACAO,
+  votacaoSchema,
+  type TipoVotacao,
+} from '@/schemas/votacaoSchema';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 
@@ -39,6 +44,7 @@ type VotacoesDaReuniaoProps = {
 type FormErrors = {
   titulo?: string;
   opcoes?: string;
+  tipo?: string;
 };
 
 const OPCOES_INICIAIS = ['', ''];
@@ -47,6 +53,7 @@ const errosDoFormulario = (error: ValidationError): FormErrors => {
   const errors: FormErrors = {};
   for (const item of error.inner.length > 0 ? error.inner : [error]) {
     if (item.path === 'titulo' && !errors.titulo) errors.titulo = item.message;
+    if (item.path === 'tipo' && !errors.tipo) errors.tipo = item.message;
     if (item.path?.startsWith('opcoes') && !errors.opcoes) {
       errors.opcoes = item.message;
     }
@@ -57,7 +64,8 @@ const errosDoFormulario = (error: ValidationError): FormErrors => {
 const resumoDaVotacao = (votacao: VotacaoResumo) => {
   const estado = votacao.encerrada ? 'Encerrada' : 'Aberta';
   const voto = votacao.votei ? ' · Você votou' : '';
-  return `${estado} · ${rotuloDeVotos(votacao.totalVotos)}${voto}`;
+  const tipo = votacao.tipo === 'SECRETA' ? ' · Secreta' : '';
+  return `${estado}${tipo} · ${rotuloDeVotos(votacao.totalVotos)}${voto}`;
 };
 
 // Lista de votações da reunião. Criar abre o mesmo tipo de modal dos convites.
@@ -75,6 +83,9 @@ export default function VotacoesDaReuniao({
   const [isCreateOpen, setIsCreateOpen] = useState(false);
   const [titulo, setTitulo] = useState('');
   const [opcoes, setOpcoes] = useState(OPCOES_INICIAIS);
+  const [tipo, setTipo] = useState<TipoVotacao>('ABERTA');
+  const [mostrarParcial, setMostrarParcial] = useState(false);
+  const [permiteTrocaVoto, setPermiteTrocaVoto] = useState(false);
   const [formErrors, setFormErrors] = useState<FormErrors>({});
   const [isSaving, setIsSaving] = useState(false);
 
@@ -112,6 +123,9 @@ export default function VotacoesDaReuniao({
   const resetForm = () => {
     setTitulo('');
     setOpcoes(OPCOES_INICIAIS);
+    setTipo('ABERTA');
+    setMostrarParcial(false);
+    setPermiteTrocaVoto(false);
     setFormErrors({});
   };
 
@@ -124,7 +138,10 @@ export default function VotacoesDaReuniao({
   const handleCreate = async () => {
     if (!token) return;
     try {
-      votacaoSchema.validateSync({ titulo, opcoes }, { abortEarly: false });
+      votacaoSchema.validateSync(
+        { titulo, opcoes, tipo, mostrarParcial, permiteTrocaVoto },
+        { abortEarly: false },
+      );
     } catch (error) {
       if (error instanceof ValidationError)
         setFormErrors(errosDoFormulario(error));
@@ -136,6 +153,9 @@ export default function VotacoesDaReuniao({
       await votacaoService.create(token, reuniaoId, {
         titulo: titulo.trim(),
         opcoes: opcoes.map((opcao) => opcao.trim()),
+        tipo,
+        mostrarParcial,
+        permiteTrocaVoto,
       });
       setIsCreateOpen(false);
       resetForm();
@@ -219,8 +239,7 @@ export default function VotacoesDaReuniao({
         }}
       >
         <Text style={[styles.hint, { color: colors.textSecondary }]}>
-          Os participantes votam e podem trocar o voto até a votação ser
-          encerrada.
+          Só quem está presente na reunião pode votar.
         </Text>
         <TextField
           label="Título"
@@ -234,6 +253,29 @@ export default function VotacoesDaReuniao({
           }}
           maxLength={120}
         />
+        <Text style={[styles.label, { color: colors.text }]}>Tipo</Text>
+        <View style={styles.chips}>
+          <Chip
+            label="Aberta"
+            selected={tipo === 'ABERTA'}
+            onPress={() => setTipo('ABERTA')}
+          />
+          <Chip
+            label="Secreta"
+            selected={tipo === 'SECRETA'}
+            onPress={() => setTipo('SECRETA')}
+          />
+        </View>
+        <Text style={[styles.hint, { color: colors.textSecondary }]}>
+          {tipo === 'SECRETA'
+            ? 'Na votação secreta ninguém vê quem votou em cada opção.'
+            : 'Na votação aberta quem gere a reunião vê quem votou em cada opção.'}
+        </Text>
+        {formErrors.tipo ? (
+          <Text style={[styles.error, { color: colors.danger }]}>
+            {formErrors.tipo}
+          </Text>
+        ) : null}
         {opcoes.map((opcao, index) => (
           <View key={index} style={styles.optionRow}>
             <TextField
@@ -290,6 +332,30 @@ export default function VotacoesDaReuniao({
             }}
           />
         ) : null}
+        <View style={styles.switchRow}>
+          <Text style={[styles.switchLabel, { color: colors.text }]}>
+            Mostrar resultado parcial
+          </Text>
+          <Switch
+            accessibilityLabel="Mostrar resultado parcial"
+            accessibilityRole="switch"
+            value={mostrarParcial}
+            onValueChange={setMostrarParcial}
+            trackColor={{ true: colors.primary, false: colors.border }}
+          />
+        </View>
+        <View style={styles.switchRow}>
+          <Text style={[styles.switchLabel, { color: colors.text }]}>
+            Permitir trocar o voto
+          </Text>
+          <Switch
+            accessibilityLabel="Permitir trocar o voto"
+            accessibilityRole="switch"
+            value={permiteTrocaVoto}
+            onValueChange={setPermiteTrocaVoto}
+            trackColor={{ true: colors.primary, false: colors.border }}
+          />
+        </View>
         <Button
           label="Criar votação"
           isLoading={isSaving}
@@ -324,6 +390,16 @@ const styles = StyleSheet.create({
     gap: Spacing.sm,
   },
   optionField: { flex: 1 },
+  label: { ...Typography.body, fontFamily: FontFamily.semiBold },
+  chips: { flexDirection: 'row', gap: Spacing.sm },
+  switchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: Spacing.md,
+    minHeight: TouchTarget.min,
+  },
+  switchLabel: { ...Typography.body, flex: 1 },
   removeButton: {
     width: TouchTarget.min,
     height: TouchTarget.button,
