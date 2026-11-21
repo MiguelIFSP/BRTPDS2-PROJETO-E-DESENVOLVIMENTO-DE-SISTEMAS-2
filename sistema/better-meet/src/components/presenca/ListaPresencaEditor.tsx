@@ -3,7 +3,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import Card from '@/components/ui/Card';
 import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
-import { Radius, Spacing, TouchTarget, Typography } from '@/constants/theme';
+import {
+  PressedOpacity,
+  Radius,
+  Spacing,
+  TouchTarget,
+  Typography,
+} from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { papelComissaoLabel } from '@/services/comissaoService';
 import type {
@@ -206,5 +212,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   disabled: { opacity: 0.5 },
-  pressed: { opacity: 0.75 },
+  pressed: { opacity: PressedOpacity },
 });

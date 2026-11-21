@@ -35,6 +35,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import { formatReuniaoDate } from '@/utils/format';
+import { podeGerirReuniao } from '@/utils/permissaoReuniao';
 
 const STATUS_REUNIAO_UI = {
   AGENDADA: { label: 'Agendada', tone: 'info' },
@@ -148,9 +149,7 @@ export default function ReuniaoDetalheScreen() {
     (reuniao?.data && reuniao?.horaFim
       ? new Date(`${reuniao.data}T${reuniao.horaFim}:00`) < new Date()
       : false);
-  const canManage =
-    !isHistorical &&
-    (user?.role === 'ADMIN' || user?.id === reuniao?.criadoPorUserId);
+  const canManage = !isHistorical && podeGerirReuniao(user, reuniao);
   const papelDoUsuario = reuniao?.participantes?.find(
     (participante) => participante.userId === user?.id,
   )?.papel;
@@ -364,6 +363,7 @@ export default function ReuniaoDetalheScreen() {
             token={token}
             status={reuniao.status}
             meuRegistro={reuniao.meuRegistro}
+            horario={reuniao}
             onRegistered={() => void reload()}
           />
         </Card>

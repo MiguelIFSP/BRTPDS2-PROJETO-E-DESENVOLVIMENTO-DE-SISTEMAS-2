@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from 'react';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
@@ -29,6 +35,7 @@ import {
   withAlpha,
 } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { useTheme } from '@/hooks/useTheme';
 import { reuniaoSchema } from '@/schemas/reuniaoSchema';
 import {
@@ -46,6 +53,7 @@ import { useNotificacaoStore } from '@/store/notificacaoStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import { formatReuniaoDate, toDateValue, toTimeValue } from '@/utils/format';
 import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
+import { hojeNoFusoComoDataLocal } from '@/utils/fusoReuniao';
 
 type ReuniaoItem = ReuniaoCardData;
 
@@ -129,9 +137,11 @@ export default function ReunioesScreen() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [feedback, setFeedback] = useFeedback();
   const [step, setStep] = useState(0);
-  const [formErrors, setFormErrors] = useState<FieldErrors<ReuniaoFormFields>>(
-    {},
-  );
+  const {
+    errors: formErrors,
+    setErrors: setFormErrors,
+    clearFieldError,
+  } = useFieldErrors<ReuniaoFormFields>();
 
   const [titulo, setTitulo] = useState('');
   const [pauta, setPauta] = useState('');
@@ -222,6 +232,7 @@ export default function ReunioesScreen() {
 
   // A página da reunião pede a edição voltando para cá com ?editar=<id>,
   // onde o formulário em etapas já está.
+  const abrirEdicao = useEffectEvent(openEditMeeting);
   const editarAberto = useRef<string | null>(null);
   useEffect(() => {
     if (!editar) {
@@ -235,22 +246,12 @@ export default function ReunioesScreen() {
     const podeEditar =
       user?.role === 'ADMIN' || user?.id === reuniao.criadoPorUserId;
     queueMicrotask(() => {
-      if (podeEditar) openEditMeeting(reuniao);
+      if (podeEditar) abrirEdicao(reuniao);
       router.setParams({ editar: undefined });
     });
   }, [editar, reunioes, router, user?.id, user?.role]);
 
-  const clearFieldError = (...fields: (keyof ReuniaoFormFields)[]) => {
-    setFormErrors((current) => {
-      if (!fields.some((field) => current[field])) return current;
-      const next = { ...current };
-      for (const field of fields) next[field] = undefined;
-      return next;
-    });
-  };
-
-  const inicioDeHoje = new Date();
-  inicioDeHoje.setHours(0, 0, 0, 0);
+  const inicioDeHoje = hojeNoFusoComoDataLocal();
   const dataDoSeletor =
     datePickerValue.getTime() < inicioDeHoje.getTime()
       ? inicioDeHoje

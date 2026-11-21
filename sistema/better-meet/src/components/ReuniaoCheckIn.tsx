@@ -1,10 +1,11 @@
 import { useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
+import { useTheme } from '@/hooks/useTheme';
 import { monitoringService } from '@/services/monitoringService';
 import {
   reuniaoService,
@@ -12,12 +13,18 @@ import {
   type StatusReuniao,
 } from '@/services/reuniaoService';
 import { getErrorMessage } from '@/utils/apiClient';
+import {
+  calcularJanelaCheckIn,
+  formatarHoraDaReuniao,
+} from '@/utils/janelaCheckIn';
 
 type ReuniaoCheckInProps = {
   reuniaoId: number;
   token: string;
   status: StatusReuniao;
   meuRegistro?: ReuniaoRegistro | null;
+  // Sem o horário, o botão aparece sempre e a API decide (409 fora da janela).
+  horario?: { data: string; horaInicio: string; horaFim: string };
   // a página da reunião recarrega participantes depois da entrada ou da saída.
   onRegistered?: () => void;
 };
@@ -27,8 +34,10 @@ export default function ReuniaoCheckIn({
   token,
   status,
   meuRegistro,
+  horario,
   onRegistered,
 }: ReuniaoCheckInProps) {
+  const { colors } = useTheme();
   const [registroConfirmado, setRegistroConfirmado] =
     useState<ReuniaoRegistro | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -128,6 +137,19 @@ export default function ReuniaoCheckIn({
 
   if (status !== 'AGENDADA') return null;
 
+  const janela = horario ? calcularJanelaCheckIn(horario) : null;
+  if (janela && janela.estado !== 'aberta') {
+    return (
+      <View style={styles.container}>
+        <Text style={[styles.motivo, { color: colors.textSecondary }]}>
+          {janela.estado === 'antes'
+            ? `A entrada abre às ${formatarHoraDaReuniao(janela.abreEm)}.`
+            : 'A entrada nesta reunião já foi encerrada.'}
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <View style={styles.container}>
       <Button
@@ -144,4 +166,5 @@ export default function ReuniaoCheckIn({
 
 const styles = StyleSheet.create({
   container: { gap: Spacing.sm },
+  motivo: { ...Typography.body },
 });

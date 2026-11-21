@@ -17,7 +17,7 @@ export type ReuniaoCardData = {
   descricao?: string;
   local?: string;
   comissaoId: number;
-  criadoPorUserId: number;
+  criadoPorUserId: number | null;
   status: StatusReuniao;
   meuRegistro?: ReuniaoRegistro | null;
   participantes?: ReuniaoParticipante[];

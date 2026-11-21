@@ -1,4 +1,11 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import {
+  afterEach,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals';
 import { act, fireEvent, render, screen } from '@testing-library/react-native';
 
 import ReuniaoCheckIn from '@/components/ReuniaoCheckIn';
@@ -43,6 +50,88 @@ beforeEach(() => {
   checkIn.mockResolvedValue(response);
   checkOut.mockReset();
   checkOut.mockResolvedValue(saidaResponse);
+});
+
+// 10:00 a 11:00 em São Paulo = 13:00 a 14:00 UTC; a entrada abre às 09:45.
+const horario = { data: '2026-06-15', horaInicio: '10:00', horaFim: '11:00' };
+const agoraEm = (iso: string) => {
+  jest.useFakeTimers({
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'clearImmediate',
+      'setInterval',
+      'clearInterval',
+      'setTimeout',
+      'clearTimeout',
+      'queueMicrotask',
+      'requestAnimationFrame',
+      'cancelAnimationFrame',
+      'performance',
+    ],
+    now: new Date(iso),
+  });
+};
+
+describe('ReuniaoCheckIn: janela de entrada', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('antes da abertura esconde o botão e mostra a hora em que a entrada abre', async () => {
+    agoraEm('2026-06-15T12:00:00Z');
+    await render(<ReuniaoCheckIn {...props} horario={horario} />);
+    expect(
+      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
+    ).toBeNull();
+    expect(screen.getByText('A entrada abre às 09:45.')).toBeOnTheScreen();
+  });
+
+  it('1 segundo antes da abertura ainda não mostra o botão', async () => {
+    agoraEm('2026-06-15T12:44:59Z');
+    await render(<ReuniaoCheckIn {...props} horario={horario} />);
+    expect(
+      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
+    ).toBeNull();
+  });
+
+  it('dentro da janela mostra o botão', async () => {
+    agoraEm('2026-06-15T12:45:00Z');
+    await render(<ReuniaoCheckIn {...props} horario={horario} />);
+    expect(
+      screen.getByRole('button', { name: 'Entrar na Reunião' }),
+    ).toBeOnTheScreen();
+  });
+
+  it('depois do fim esconde o botão e avisa que a entrada foi encerrada', async () => {
+    agoraEm('2026-06-15T14:00:00Z');
+    await render(<ReuniaoCheckIn {...props} horario={horario} />);
+    expect(
+      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
+    ).toBeNull();
+    expect(
+      screen.getByText('A entrada nesta reunião já foi encerrada.'),
+    ).toBeOnTheScreen();
+  });
+
+  it('exibe a mensagem do 409 quando a API recusa a entrada', async () => {
+    agoraEm('2026-06-15T13:30:00Z');
+    checkIn.mockRejectedValue(
+      new ApiError(
+        'Esta reunião já terminou; não é possível registrar entrada.',
+        409,
+      ),
+    );
+    await render(<ReuniaoCheckIn {...props} horario={horario} />);
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Entrar na Reunião' }),
+    );
+    expect(
+      await screen.findByText(
+        'Esta reunião já terminou; não é possível registrar entrada.',
+      ),
+    ).toBeOnTheScreen();
+  });
 });
 
 describe('ReuniaoCheckIn', () => {

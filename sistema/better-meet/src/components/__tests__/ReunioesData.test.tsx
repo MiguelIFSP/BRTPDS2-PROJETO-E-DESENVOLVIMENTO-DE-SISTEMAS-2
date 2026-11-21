@@ -277,3 +277,16 @@ it('não avança com início e término no passado e limpa o erro ao corrigir', 
     screen.queryByText('O término da reunião não pode ser no passado.'),
   ).toBeNull();
 });
+
+it('remove o erro do campo ao digitar, sem novo envio', async () => {
+  await openCreate();
+  await fireEvent.press(screen.getByRole('button', { name: 'Continuar' }));
+  expect(
+    await screen.findByText('O título da reunião é obrigatório.'),
+  ).toBeOnTheScreen();
+  await fireEvent.changeText(
+    screen.getByLabelText('Título da reunião'),
+    'Planejamento',
+  );
+  expect(screen.queryByText('O título da reunião é obrigatório.')).toBeNull();
+});

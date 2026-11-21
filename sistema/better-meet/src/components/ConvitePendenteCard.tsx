@@ -19,7 +19,7 @@ export type ConvitePendente = {
   data: string;
   horaInicio: string;
   horaFim: string;
-  usuario: string;
+  usuario: string | null;
   status: StatusConviteReuniao;
   local?: string;
   comissaoNome?: string;
@@ -48,8 +48,9 @@ export default function ConvitePendenteCard({
         {convite.titulo}
       </Text>
       <Text style={[styles.inviteMeta, { color: colors.textSecondary }]}>
-        {convite.usuario} · {formatReuniaoDate(convite.data)} ·{' '}
-        {convite.horaInicio} às {convite.horaFim}
+        {convite.usuario ?? 'usuário removido'} ·{' '}
+        {formatReuniaoDate(convite.data)} · {convite.horaInicio} às{' '}
+        {convite.horaFim}
       </Text>
       {convite.comissaoNome ? (
         <Text style={[styles.inviteMeta, { color: colors.textSecondary }]}>
