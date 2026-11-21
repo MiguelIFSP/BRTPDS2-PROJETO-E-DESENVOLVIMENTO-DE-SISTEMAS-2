@@ -1,0 +1,170 @@
+openapi: 3.0.3
+info:
+  title: API de Gestão do Better Meet
+  version: 1.0.0
+  description: |
+    Serviço de gestão: liga, desliga e reinicia os subsistemas (API de Dados,
+    monitoring e bancos) e serve o painel de administração em `/admin`.
+
+    Observação sobre o prefixo: as rotas desta API ainda não ficam sob `/api`
+    (`/health`, `/subsystems/...`, `/admin`). A troca para `/api` é decisão da
+    unidade de infraestrutura (U9, RF-R76); o painel web chama estes caminhos.
+servers:
+  - url: http://localhost:3335
+    description: Desenvolvimento
+tags:
+  - name: Subsistemas
+  - name: Saúde
+  - name: Painel
+paths:
+  /health:
+    get:
+      tags: [Saúde]
+      summary: Verifica se a gestão está de pé
+      description: Rota pública, usada pela monitoring.
+      responses:
+        '200':
+          description: Serviço no ar.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /subsystems/{name}/{action}:
+    post:
+      tags: [Subsistemas]
+      summary: Executa uma ação em um subsistema
+      description: |
+        Somente administrador. O limite é de 10 chamadas por minuto por IP
+        (ligado em produção). Para `management` (a própria gestão) a resposta
+        é 202 e o comando roda logo depois, porque o processo reinicia.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: name
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [api, monitoring, management, database, monitoring-database]
+        - name: action
+          in: path
+          required: true
+          schema:
+            type: string
+            enum: [start, stop, restart]
+      responses:
+        '200':
+          description: Ação executada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcaoResultado'
+        '202':
+          description: Ação aceita (somente para `management`).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AcaoResultado'
+        '400':
+          description: Ação inválida ou JSON malformado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '401':
+          description: Token ausente ou sessão inválida, vencida ou de conta excluída.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '403':
+          description: Acesso restrito ao administrador.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '503':
+          description: A API de Dados não respondeu; a sessão não pôde ser validada e o acesso não é liberado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '404':
+          description: Subsistema desconhecido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '413':
+          description: Corpo da requisição maior que o permitido (10 kb).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '429':
+          description: Muitas tentativas. Aguarde um minuto.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '500':
+          description: Falha ao executar a ação (mensagem genérica).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+  /admin/{caminho}:
+    get:
+      tags: [Painel]
+      summary: Arquivos estáticos do painel de administração
+      description: |
+        Build web do painel (`management-better-meet/web/dist`). Resposta 404
+        em JSON quando o arquivo não existe.
+      parameters:
+        - name: caminho
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Arquivo do painel.
+        '404':
+          description: Arquivo não encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: |
+        Token de sessão do Better Auth (o mesmo da API de Dados). A sessão e o
+        papel são conferidos a cada chamada em `GET /api/usuarios/me` da API de
+        Dados (resposta guardada por até 30 s): administrador rebaixado ou
+        excluído perde o acesso mesmo com o token ainda válido.
+  schemas:
+    Erro:
+      type: object
+      properties:
+        error:
+          type: string
+          example: Acesso restrito ao administrador.
+    AcaoResultado:
+      type: object
+      properties:
+        subsystem:
+          type: string
+          example: api
+        action:
+          type: string
+          example: restart
+        status:
+          type: string
+          enum: [ok, accepted]
