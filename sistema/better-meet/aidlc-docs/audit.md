@@ -779,3 +779,183 @@ No momento, não vamos fazer código ou documentação, apenas ajustar esses arq
 **Context**: Build and Test; unidade encerrada.
 
 ---
+
+---
+## Nova alteração — refatoração para a última entrega (unidade refatoracao-ultima-entrega)
+**Timestamp**: 2026-11-20T16:35:32Z
+**User Input**: "Vamos executar agora a refatoração para a última entrega, corrigindo bugs, debitos técnicos, entre outras pendências vistas nas alterações que fizemos até o momento. Faça isso usando o AI-DLC no fluxo médio e usando sub-agentes para não poluir o contexto desse agente, que deve atuar somente como orquestrador dos demais. Caso não seja vantajoso mais de um agente atuando ao mesmo tempo, não tem problema, pode realizar a orquestração para eles atuarem de forma sucessiva, se necessário. Não faça commits, merge, nem nada assim. Referente ao git execute comandos somente de consulta. Não altere a Wiki na origem. Você pode alterar a pasta wiki-local caso precise atualizar as documentações. Docker e os conteiners referentes às aplicações desse repositório já estão rodando, e você pode aplicar migrações do prisma, e executar comandos do docker para parar/iniciar/reiniciar esses conteiners."
+**AI Response / ação**: pedido de outra alteração; AI-DLC reiniciado (regra 83) com a unidade refatoracao-ultima-entrega; aidlc-state.md reescrito (estado anterior preservado neste audit.md e nas pastas das unidades anteriores). Containers mysql_better_meet_dev e mysql_monitoring_better_meet_dev ativos; HEAD aed2702. Decisões do usuário por caixas de diálogo: autenticação Better Auth completo; escopo = bugs 1 a 11, P1 a P22, retornos funcionais Di2/Di3 e proteção da API e interface; verificações = npm test, lint e typecheck (sem servidores de desenvolvimento nem expo export); sub-agentes em paralelo onde independentes. Sub-agente de análise acionado para produzir o requirements.md.
+**Context**: Requirements Analysis.
+
+---
+
+---
+## Requirements Analysis (refatoracao-ultima-entrega) — requisitos e respostas
+**Timestamp**: 2026-11-20T16:46:23Z
+**AI Response / ação**: sub-agente de análise (somente leitura) gerou inception/requirements/refatoracao-ultima-entrega/requirements.md: 85 requisitos (api 25, better-meet 26, monitoring 12, gestão server 6, gestão web 7, documentação 9), dependências, riscos e corte obrigatório/se der tempo; 6 trilhas paralelas propostas (T1 api autenticação e proteção; T2 monitoring; T3 gestão server; T4 gestão web; T5 telas do app independentes; T6 documentação). Achados: better-auth já em dependencies da monitoring sem uso; sessão do app em AsyncStorage; bug 1 parcial; faltam LICENSE, documentos/consolidado e TZ; monitoring e gestão sem scripts de lint, typecheck e teste.
+**Respostas do usuário** (caixas de diálogo): autoria na exclusão de conta = "SetNull + 'usuário removido' (Recomendado)"; login social = "Google (Recomendado)"; F37 e F40 = "Ficam de fora (Recomendado)".
+**AI Prompt**: pedido de aprovação dos requisitos (Request Changes, Add User Stories, Approve & Continue para Workflow Planning). Aguardando resposta.
+**Context**: Requirements Analysis.
+
+---
+
+---
+## Requirements Analysis (refatoracao-ultima-entrega) — aprovação e Workflow Planning
+**Timestamp**: 2026-11-20T16:50:26Z
+**User Input**: "Approve & Continue"
+**Status**: Requirements Analysis aprovada; User Stories não incluída.
+**AI Response / ação**: criado inception/plans/refatoracao-ultima-entrega-execution-plan.md. Executar: Units Generation, Functional Design (U1, U7, U8), Code Generation por unidade e Build and Test; demais dispensadas com motivo. Nove unidades em três ondas (U1 a U6 na onda 1; U7 e U8 na onda 2; U9 na onda 3). Risco alto.
+**AI Prompt**: mensagem de conclusão do Workflow Planning. Aguardando resposta.
+**Context**: Workflow Planning.
+
+---
+
+---
+## Workflow Planning (refatoracao-ultima-entrega) — aprovação e Units Generation
+**Timestamp**: 2026-11-20T16:55:12Z
+**User Input**: "Approve & Continue"
+**Status**: Workflow Planning aprovado.
+**AI Response / ação**: sub-agente (somente documentos) gerou inception/application-design/refatoracao-ultima-entrega/unit-of-work.md, unit-of-work-dependency.md e unit-of-work-story-map.md: 85 requisitos atribuídos sem repetição (U1 9, U2 11, U3 6, U4 6, U5 15, U6 4, U7 14, U8 11, U9 9); contratos C1 a C7; regras de migration (U1 depois U7). Desvios propostos em relação ao plano de execução: U5 com fase 2 (RF-R35 a R40 e R44); RF-R34 para U8; RF-R25 e R83 para U9; RF-R79 e R80 na U6 na onda 3; RF-R22, R61 e R76 na U9 como obrigatório condicional; RF-R23, R25, R34 e R62 classificados como obrigatório inferido; RF-R24 na U7; RF-R50 e R51 na U8; biometria na presença e na votação só se a U8 entregar o hook da RF-R31 (primeira a cortar).
+**AI Prompt**: mensagem de conclusão da Units Generation (Request Changes ou Approve & Continue para Functional Design). Aguardando resposta.
+**Context**: Units Generation.
+
+---
+
+---
+## Units Generation (refatoracao-ultima-entrega) — aprovação e Functional Design
+**Timestamp**: 2026-11-20T16:56:26Z
+**User Input**: "Approve & Continue"
+**Status**: Units Generation aprovada, incluindo os cinco desvios do plano de execução apresentados.
+**AI Response / ação**: acionados em paralelo três sub-agentes de Functional Design (somente documentos), um por unidade: U1 api-auth-protecao, U7 api-dominio e U8 app-auth-integracao, cada um escrevendo em construction/<unidade>/functional-design/ (business-logic-model.md, business-rules.md, domain-entities.md). Aguardando os relatórios.
+**Context**: Functional Design.
+
+---
+
+---
+## Functional Design (U1, U7, U8) — documentos e decisões
+**Timestamp**: 2026-11-20T19:26:45Z
+**AI Response / ação**: os três sub-agentes concluíram (somente documentos) em construction/u1-api-auth-protecao, u7-api-dominio e u8-app-auth-integracao (functional-design/). U1: expo() e bearer() montados juntos; BR-01 a BR-50; migration 1 com Session, Account, Verification e RateLimit e remoção de User.password e PasswordResetToken; ponte POST /login e /api/login até a U9; rate limit por rota. U7: função única estadoDaReuniao em TZ_REUNIOES; SetNull na autoria; removeMember com sucessão (sucessaoService); votação aberta/secreta, voto nulo e troca opcional; ata aprovada calculada e exportada imutável; 4 migrations aditivas. U8: token só em memória no authStore, sessão em expo-secure-store; 401 chama expireSession; cadastro sem sessão; U1 ainda sem contrato no momento da escrita, dependências marcadas [DEP-U1].
+**Respostas do usuário** (caixa de diálogo, enviadas depois): SHA-256 = "Conferir e regravar no 1º login (Recomendado)"; contas existentes = "Antigas não confirmadas, exceto ADMIN (Recomendado)"; tolerância da presença = "15 min antes e 30 min depois (Recomendado)"; ata aprovada = "Maioria simples dos presentes (Recomendado)".
+**Demais pontos a decidir**: adotadas as recomendações dos sub-agentes (Administrador da comissão gere reuniões e votações; editar reunião encerrada responde 409; sigilo da votação secreta só pela API, limitação registrada; ids Int; U8 cria as rotas redefinir-senha e email-confirmado; guard fica no _layout.tsx; a U1 mexe também em usuarioController e usuarioRoutes). Google exige HTTPS público no redirecionamento: risco do item "se der tempo".
+**AI Prompt**: pedido de aprovação do Functional Design (Request Changes ou Continue to Next Stage). Aguardando resposta.
+**Context**: Functional Design.
+
+---
+
+---
+## Functional Design (refatoracao-ultima-entrega) — aprovação e Code Generation parte 1
+**Timestamp**: 2026-11-20T19:27:37Z
+**User Input**: "Continue"
+**Status**: Functional Design aprovado (U1, U7 e U8), com as decisões já registradas.
+**AI Response / ação**: acionados em paralelo quatro sub-agentes de planejamento (somente documentos) para a parte 1 da Code Generation: plano da U1; planos de U2, U3 e U4; planos de U5 e U6; plano da U7. Saída em construction/plans/<unidade>-code-generation-plan.md. O plano da U8 e o da U9 serão feitos na onda 2 (dependem do contrato da U1). Aguardando os relatórios.
+**Context**: Code Generation, parte 1 (onda 1).
+
+---
+
+---
+## Code Generation parte 1 (onda 1) — planos prontos
+**Timestamp**: 2026-11-20T19:35:08Z
+**AI Response / ação**: quatro sub-agentes (somente documentos) gravaram em construction/plans/: u1-api-auth-protecao (16 passos em 5 fases, mais S1 a S4 se der tempo), u2-monitoring (20 passos), u3-gestao-server (14), u4-gestao-web (14), u5-app-telas (21), u6-documentacao (12) e u7-api-dominio (24: fase 1 com 7 e fase 2 com 17). Planos de U8 e U9 ficam para a onda 2. Decisões propostas nos planos: arquivos novos da U1 (src/app.ts, src/lib/auth.ts, src/middlewares/betterAuthMiddleware.ts, src/utils/senhaLegada.ts) entram na lista de donos; backup mysqldump antes das migrations (coberto pela autorização de docker e migrations); campo janelaCheckIn na resposta da reunião já na fase 1 da U7; monitoring e gestão-server convertidos para ESM com `node --experimental-strip-types` (Node >= 24.9; plano B CommonJS com ts-jest); monitoring mantém x-api-key em POST /status e check até a U9 restringir; fases 2 de U2 e U3 dependem de GET /api/usuarios/me (503 se a API cair); LICENSE e catálogo ficam com a U9 e a U6 só os faz se a U9 não fizer; wiki-local pode ser alterada.
+**AI Prompt**: pedido de aprovação dos planos da onda 1 (Request Changes ou Approve & Continue). Aguardando resposta.
+**Context**: Code Generation, parte 1.
+
+---
+
+---
+## Code Generation parte 1 — aprovação dos planos da onda 1; parte 2 (onda 1)
+**Timestamp**: 2026-11-21T10:29:41Z
+**User Input**: "Approve & Continue"
+**Status**: planos de U1 a U7 aprovados com as oito decisões embutidas (arquivos novos da U1; backup mysqldump coberto pela autorização; janelaCheckIn na fase 1 da U7; ESM com strip-types na monitoring e gestão-server; x-api-key mantida até a U9; fase 2 de U2 e U3 dependente de GET /api/usuarios/me; LICENSE e catálogo na U9 sem licença escolhida, portanto sem criar o arquivo; wiki-local liberada).
+**AI Response / ação**: acionados em paralelo seis sub-agentes de execução, cada um restrito aos arquivos que a sua unidade possui: U1 (api-auth-protecao, passos obrigatórios), U2 (monitoring, fase 1), U3 (gestao-server, fase 1), U4 (gestao-web, fase 1), U5 (app-telas, fase 1), U6 (documentacao, fase 1). A fase 1 da U7 fica para depois da U1, porque as duas editam sistema/api e a U1 deixa o typecheck vermelho durante parte do trabalho. Regras dadas: sem git de escrita, sem Wiki de origem, sem dev/start/build, só npm test/lint/typecheck, backups antes de migrations, sem reset do banco, passos marcados [x] nos planos, code-summary por unidade. Aguardando os relatórios.
+**Context**: Code Generation, parte 2, onda 1.
+
+---
+
+---
+## Code Generation parte 2 (refatoracao-ultima-entrega) — onda 1, resultados
+**Timestamp**: 2026-11-21T11:03:14Z
+**AI Response / ação**: relatórios dos sub-agentes. U1: 26 suítes e 386 testes verdes (antes 13 e 263), lint, typecheck e prisma validate limpos; migration 20261121103000_better_auth aplicada no banco de desenvolvimento com backup e ensaio em banco descartável; Better Auth 1.7.27 com expo() e bearer(); contratos C1 e C2 entregues; ponte POST /login mantida. Ajustes fora do plano: globalSetup no jest.config.mjs, banco better_meet_test criado, autenticação adaptada em 5 suítes de outras unidades, Docker Desktop iniciado para a U1, variáveis BETTER_AUTH_SECRET, BETTER_AUTH_URL e CORS_ORIGINS acrescentadas ao .env local (ignorado pelo git). U2 (fase 1): 13 suítes, 96 testes; migration 20261121000000_message_500 aplicada na monitoring (6 SubSystem e 401 StatusCheck antes e depois; backup feito); contrato C3. U3 (fase 1): 10 suítes, 58 testes. U4 (fase 1): 4 suítes, 24 testes; bug 11 corrigido; dependências do template removidas sem validação por build. U5 (fase 1): 29 suítes, 215 testes. U6 (fase 1): sistema/AGENTS.md, sistema/CLAUDE.md, plano-manual.md. Pendências abertas pelos sub-agentes: segredo do Better Auth em contexto-api-monitoramento.md continua no histórico do git (rotacionar); npm audit com 31 vulnerabilidades na monitoring; 2 contas comuns antigas precisam confirmar o e-mail. Disparados: fase 1 da U7 e os planos de U8 e U9.
+**Context**: Code Generation, parte 2, onda 1.
+
+---
+
+---
+## Onda 1 concluída; proposta da onda 2
+**Timestamp**: 2026-11-21T11:10:14Z
+**AI Response / ação**: U7 fase 1 concluída (28 suítes e 421 testes verdes, lint e typecheck limpos, também com TZ=UTC; contrato C6: `estado` e `janelaCheckIn` nas respostas da reunião, entrada com 409 fora da janela, removeMember com sucessão em transação, datas validadas em TZ_REUNIOES). Planos de U8 (17 passos obrigatórios, 4 se der tempo) e U9 (11 passos, 4 se der tempo) gravados em construction/plans/. Proposta da onda 2: (2a, em paralelo) fases 2 de U2, U3 e U4 e fase 2 da U7; (2b) fase 2 da U5, depois de a U7 entregar o contrato; (2c) U8; (3) U9, build and test e fechamento. Itens abertos para decisão do usuário: rotação do segredo do Better Auth que consta no histórico do git; 2 contas comuns antigas que precisam confirmar o e-mail; 31 vulnerabilidades do npm audit na monitoring.
+**AI Prompt**: pedido de aprovação da execução da onda 2. Aguardando resposta.
+**Context**: Code Generation, parte 2.
+
+---
+
+---
+## Onda 2a — aprovação e execução
+**Timestamp**: 2026-11-21T15:12:27Z
+**User Input**: "Approve & Continue"
+**Status**: onda 1 aprovada e onda 2a autorizada.
+**AI Response / ação**: acionados em paralelo quatro sub-agentes: fase 2 da U2 (passos 15 a 20), fase 2 da U3 (passos 11 a 14), fase 2 da U4 (passos 8 a 14) e fase 2 da U7 (passos 2.0 a 2.17, com 4 migrations no banco de desenvolvimento, backup antes, --create-only e sem reset). Mesmas regras: arquivos próprios, sem git de escrita, sem Wiki, sem dev/start/build, só npm test/lint/typecheck. Pendente de decisão do usuário e não tratada: rotação do segredo do Better Auth do histórico do git; 2 contas antigas sem e-mail confirmado; npm audit da monitoring.
+**Context**: Code Generation, parte 2, onda 2a.
+
+---
+
+---
+## Onda 2a concluída; onda 2b (U5 fase 2)
+**Timestamp**: 2026-11-21T15:45:54Z
+**User Input**: "Approve & Continue"
+**Status**: onda 2a aprovada; autorizada a fase 2 da U5.
+**AI Response / ação**: resultados da onda 2a. U2 fase 2: 14 suítes, 104 testes; monitoring valida Bearer via GET /api/usuarios/me (timeout 3 s, cache 30 s); removidos jsonwebtoken, better-auth e JWT_SECRET; JWT da ponte dá 401. U3 fase 2: 11 suítes, 65 testes; bug 3 resolvido (papel do banco; 403 rebaixado, 401 excluído, 503 sem API); removidos jsonwebtoken e JWT_SECRET. U4 fase 2: 6 suítes, 40 testes; chave EXPO_PUBLIC_MONITORING_API_KEY removida do painel; login por e-mail via Better Auth, só ADMIN. U7 fase 2: 31 suítes, 497 testes; migrations 20261121110000_autoria_opcional, 20261121110100_votacao_tipo_e_voto_nulo e 20261121110200_ata_exportada aplicadas no banco de desenvolvimento com backup (better_meet_antes_u7_20261121.sql no scratchpad) e ensaio em banco descartável; contrato C6 de votação, ata e autoria. Acionado o sub-agente da fase 2 da U5 (passos 8 a 13).
+**Context**: Code Generation, parte 2, onda 2b.
+
+---
+
+---
+## Onda 2b concluída; onda 2c (U8)
+**Timestamp**: 2026-11-21T16:54:17Z
+**User Input**: "Continue"
+**Status**: onda 2b aprovada; autorizada a execução da U8.
+**AI Response / ação**: U5 fase 2: 34 suítes, 250 testes; fuso das reuniões no app, janela de entrada, ata exportável só após aprovação, votação aberta/secreta com voto nulo e autoria nula; pendência canManage sem Administrador da comissão repassada à U8. Acionado o sub-agente da U8 (17 passos obrigatórios; instala dependências do plano com expo install; sem biometria, Google nem expo-doctor).
+**Context**: Code Generation, parte 2, onda 2c.
+
+---
+
+---
+## Onda 2c concluída; onda 3 (U9 e U6 fase 2)
+**Timestamp**: 2026-11-21T17:10:37Z
+**User Input**: "1. Sim 2. primeiro login Approive & Continue"
+**Status**: onda 2c aprovada; decisões: o ajuste canManage com o Administrador da comissão entra na U9; a boas-vindas do primeiro acesso dispara no primeiro login.
+**AI Response / ação**: U8 concluída (45 suítes, 312 testes; expo-secure-store ~58.0.3 MIT; Bearer manual no lugar do cliente do Better Auth, que é ESM puro e quebra no Jest; sessão em memória e SecureStore; 401 desloga; login por e-mail; recuperação em duas etapas; monitoring com Bearer). Pendências repassadas: canManage, boas-vindas, 429 sem X-Retry-After, telas sem teste de Jest. Em resposta à pergunta do usuário sobre completude, estimei 80 a 85% do trabalho obrigatório e 55 a 65% do total de 85 requisitos (estimativa, não medição). Acionados em paralelo: U9 (11 passos obrigatórios, sem LICENSE) e U6 fase 2 (wiki-local e plano manual).
+**Context**: Code Generation, parte 2, onda 3.
+
+---
+
+---
+## Code Generation concluída (onda 3) e pedido de aprovação
+**Timestamp**: 2026-11-21T17:25:57Z
+**AI Response / ação**: U6 fase 2 concluída (wiki-local atualizada em wiki/ e preview/, reverse-engineering do app, plano manual com PM-08 a PM-10). U9 concluída (11 passos obrigatórios; sem LICENSE): resultados por subsistema de npm test/lint/typecheck: api 30 suítes e 488 testes; better-meet 46 e 320; monitoring 14 e 105; gestão server 11 e 65; gestão web 6 e 40; todos verdes. expo install --check e expo-doctor falharam nos dois apps por patches de SDK pendentes (expo, expo-router; no app também expo-file-system e jest-expo), não corrigidos (npx expo install --fix em commit próprio, regra 49). Ponte POST /login e JWT_SECRET removidos da api; monitoring sob /api; canManage com Administrador da comissão; boas-vindas no primeiro login; catálogo documentos/consolidado/softwares_e_licencas.md; RELATORIO_BUGS.md atualizado; .env.example, ecosystem e docker-compose atualizados; start-all.ps1 editado como desvio. Pendências: licença do projeto; segredo antigo do Better Auth no histórico do git; consulta SHA-256 antes de remover senhaLegada.ts; README de sistema/ desatualizado; exceções das regras 29 e 30 dos guias e prompts já não refletem o código (POST /login, prefixo, chave); pm2 é AGPL-3.0 e mariadb LGPL no catálogo.
+**AI Prompt**: mensagem de conclusão da Code Generation (Request Changes ou Continue to Next Stage: Build and Test). Aguardando resposta.
+**Context**: Code Generation.
+
+---
+
+## Build and Test Stage
+**Timestamp**: 2026-11-21T18:30:00Z
+**Build Status**: Sucesso (verificação estática; sem build, servidores nem expo export, por restrição do usuário)
+**Test Status**: Pass. api 30 suítes e 488 testes; better-meet 46 e 320; monitoring 14 e 105; gestão server 11 e 65; gestão web 6 e 40 (total 107 suítes, 1018 testes, 0 falhas); lint e typecheck com código 0 nos cinco subsistemas. Na primeira rodada, em paralelo, um teste da api (autoriaBanco) estourou o limite de 5 s por carga; sozinha a api passou inteira, sem mudança de código.
+**AI Response / ação**: git status e diff --stat somente leitura sem surpresas (nenhum .env real, backup ou segredo alterado; .env só ignorados); 46 arquivos .md conferidos, 0 links quebrados; exceções das regras 29 e 30 (PROMPT_AGENTES_IA.md e sistema/AGENTS.md) e EX-12 e EX-13 (GUIA_DE_CODIFICACAO.md) atualizadas para o código atual, CRLF preservado, sem renumerar.
+**Files Generated**:
+- construction/build-and-test/refatoracao-ultima-entrega-build-instructions.md
+- construction/build-and-test/refatoracao-ultima-entrega-unit-test-instructions.md
+- construction/build-and-test/refatoracao-ultima-entrega-integration-test-instructions.md
+- construction/build-and-test/refatoracao-ultima-entrega-build-and-test-summary.md
+**AI Prompt**: pedido de aprovação final (Request Changes ou Approve & Continue). Aguardando resposta.
+**Context**: Build and Test.
+
+---
+
+## Aprovação final - Build and Test
+**Timestamp**: 2026-11-21T19:17:46Z
+**User Input**: "Approve & Close"
+**AI Response**: Build and Test aprovado; unidade refatoracao-ultima-entrega encerrada.
+**Context**: Fechamento da unidade.
+
+---
