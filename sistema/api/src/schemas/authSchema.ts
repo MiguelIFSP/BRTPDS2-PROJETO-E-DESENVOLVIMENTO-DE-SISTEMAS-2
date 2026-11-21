@@ -1,18 +1,15 @@
 import * as yup from 'yup';
-import { emailRule, senhaForteRule } from './commonSchema.ts';
+import { nomeRule, senhaForteRule } from './commonSchema.ts';
 
-export const loginSchema = yup.object({
-  // aceita o e-mail ou o nome do usuário
-  identifier: yup
-    .string()
-    .trim()
-    .lowercase()
-    .required('Informe seu usuário ou e-mail.')
-    .min(2, 'Informe seu usuário ou e-mail válido.'),
-  password: yup.string().required('A senha é obrigatória.'),
+// Corpos que passam pelo Better Auth e são conferidos antes dele (hooks.before),
+// para as mensagens saírem no padrão do projeto.
+export const cadastroAuthSchema = yup.object({
+  name: nomeRule(),
+  password: senhaForteRule(),
 });
 
-export const recuperacaoSenhaSchema = yup.object({
-  email: emailRule(),
+export const redefinicaoSenhaSchema = yup.object({
   newPassword: senhaForteRule('A nova senha'),
 });
+
+export const nomeAuthSchema = yup.object({ name: nomeRule() });

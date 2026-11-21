@@ -1,9 +1,9 @@
-import { Role } from '@prisma/client';
+import type { Role } from '@prisma/client';
 import type { NextFunction, Request, Response } from 'express';
-import jwt from 'jsonwebtoken';
+import { fromNodeHeaders } from 'better-auth/node';
 import prisma from '../config/database.ts';
-import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
+import { auth } from '../lib/auth.ts';
 import { parseId } from '../utils/parseId.ts';
 
 export type AuthenticatedUser = {
@@ -16,57 +16,37 @@ export type AuthenticatedRequest = Request & {
   user: AuthenticatedUser;
 };
 
-const ROLES: readonly string[] = Object.values(Role);
+// Credencial enviada pelo cliente: app e serviços mandam Authorization: Bearer;
+// o navegador manda o cookie de sessão.
+const temCredencial = (request: Request) =>
+  Boolean(request.headers.authorization || request.headers.cookie);
 
-const getToken = (request: Request) => {
-  const authorization = request.headers.authorization;
-  if (!authorization?.startsWith('Bearer ')) return null;
-  return authorization.slice(7);
-};
-
-const isRole = (value: unknown): value is Role =>
-  typeof value === 'string' && ROLES.includes(value);
-
-const verifyToken = (token: string) => {
-  try {
-    return jwt.verify(token, env.JWT_SECRET);
-  } catch {
-    throw new AppError(401, 'Token inválido ou expirado.');
-  }
-};
-
-// O token comprova quem é a pessoa; o perfil (role) é lido do banco a cada
-// requisição. O token vale 7 dias, e sem essa leitura quem fosse rebaixado
-// continuaria administrador (e quem fosse promovido não seria) até ele vencer.
+// A sessão comprova quem é a pessoa; o perfil (role) é lido do banco a cada
+// requisição, sem cache. Sem essa leitura, quem fosse rebaixado continuaria
+// administrador até a sessão vencer.
 export const requireAuth = async (
   request: Request,
   _response: Response,
   next: NextFunction,
 ) => {
-  const token = getToken(request);
-  if (!token) {
+  if (!temCredencial(request)) {
     throw new AppError(401, 'Autenticação necessária.');
   }
 
-  const payload = verifyToken(token);
-  if (
-    typeof payload !== 'object' ||
-    !payload.sub ||
-    !isRole(payload.role) ||
-    !payload.email
-  ) {
-    throw new AppError(401, 'Token inválido.');
+  const session = await auth.api.getSession({
+    headers: fromNodeHeaders(request.headers),
+  });
+  const id = Number(session?.user.id);
+  if (!session || !Number.isInteger(id) || id <= 0) {
+    throw new AppError(401, 'Sessão inválida. Entre novamente.');
   }
 
-  const id = Number(payload.sub);
-  if (!Number.isInteger(id) || id <= 0) {
-    throw new AppError(401, 'Token inválido.');
-  }
   const user = await prisma.user.findUnique({
     where: { id },
     select: { role: true, email: true },
   });
-  // conta excluída depois do login: o token continua assinado, mas não vale mais.
+  // conta excluída depois do login: a sessão some junto, mas a checagem
+  // protege contra a leitura de uma sessão em trânsito.
   if (!user) {
     throw new AppError(401, 'Sessão inválida. Entre novamente.');
   }

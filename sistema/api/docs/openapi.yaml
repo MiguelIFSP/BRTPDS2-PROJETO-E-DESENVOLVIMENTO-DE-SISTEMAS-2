@@ -5,11 +5,23 @@ info:
   description: |
     API de dados do Better Meet: usuários, organizações e comissões.
 
-    **Autenticação:** as rotas marcadas com o cadeado exigem o header
-    `Authorization: Bearer <token>`, com o token devolvido por `POST /login`
-    (validade de 7 dias).
+    **Autenticação (Better Auth, em `/auth/*`):** cadastro, confirmação de
+    e-mail, login, recuperação de senha, logout e sessão. As rotas marcadas com
+    o cadeado exigem `Authorization: Bearer <token>`, com o valor do cabeçalho
+    `set-auth-token` devolvido por `POST /auth/sign-in/email` (sessão de 7
+    dias). No navegador vale também o cookie de sessão. `GET /usuarios/me`
+    valida a sessão e devolve o perfil atual.
 
-    **Erros:** toda resposta de erro tem o corpo `{ "error": "mensagem" }`.
+    **Limite de tentativas:** o excesso responde 429 com o cabeçalho
+    `X-Retry-After` (segundos) e `{ "error": "Muitas tentativas. Tente
+    novamente em N segundos." }`. Fica ligado em produção (ou com
+    `RATE_LIMIT_ENABLED=true`).
+
+    **Corpo da requisição:** até 1 MB (maior responde 413).
+
+    **Erros:** toda resposta de erro tem o corpo `{ "error": "mensagem" }`;
+    as rotas `/auth/*` acrescentam `message` (igual) e `code` (código do
+    Better Auth, como `EMAIL_NOT_VERIFIED`).
     Ids de URL malformados devolvem 400 antes de qualquer checagem de
     permissão (ordem: 400 → 403 → 404).
 
@@ -29,6 +41,7 @@ tags:
   - name: Organizações
   - name: Comissões
   - name: Reuniões
+  - name: Votações
   - name: Notificações
 
 components:
@@ -36,7 +49,7 @@ components:
     bearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
+      description: Valor do cabeçalho `set-auth-token` do login (token de sessão do Better Auth).
 
   parameters:
     UsuarioId:
@@ -76,6 +89,15 @@ components:
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
+    TooManyRequests:
+      description: Limite de tentativas excedido. O cabeçalho `X-Retry-After` traz os segundos de espera.
+      headers:
+        X-Retry-After:
+          description: Segundos até poder tentar de novo.
+          schema: { type: integer }
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
     Unauthorized:
       description: Sem token, token inválido ou expirado.
       content:
@@ -88,6 +110,11 @@ components:
           schema: { $ref: '#/components/schemas/Error' }
     NotFound:
       description: Recurso não encontrado.
+      content:
+        application/json:
+          schema: { $ref: '#/components/schemas/Error' }
+    Gone:
+      description: O recurso já terminou e não aceita mais a ação (votação encerrada, convite de reunião encerrada).
       content:
         application/json:
           schema: { $ref: '#/components/schemas/Error' }
@@ -105,8 +132,18 @@ components:
   schemas:
     Ata:
       type: object
-      required: [reuniaoId, titulo, dataReuniao, conteudoAta, versaoAta, papelNaComissao, podeEditar, podeVotar, meuVoto, votos]
+      required: [reuniaoId, titulo, dataReuniao, conteudoAta, versaoAta, papelNaComissao, podeEditar, podeVotar, meuVoto, votos, presentes, aprovada, exportada, exportadaAt, podeExportar]
       properties:
+        presentes:
+          type: integer
+          minimum: 0
+          description: Pessoas com entrada registrada na reunião (base da maioria simples).
+        aprovada:
+          type: boolean
+          description: Calculada, nunca gravada. Mais da metade dos presentes aprovou a versão atual; a metade exata não aprova.
+        exportada: { type: boolean }
+        exportadaAt: { type: string, format: date-time, nullable: true }
+        podeExportar: { type: boolean, description: Verdadeiro com a ata aprovada. }
         reuniaoId: { type: integer }
         titulo: { type: string }
         dataReuniao:
@@ -125,8 +162,8 @@ components:
         papelNaComissao:
           type: string
           enum: [ADMINISTRADOR, FACILITADOR, SECRETARIO, MEMBRO]
-        podeEditar: { type: boolean }
-        podeVotar: { type: boolean }
+        podeEditar: { type: boolean, description: Falso depois da exportação. }
+        podeVotar: { type: boolean, description: Falso sem ata salva e depois da exportação. }
         meuVoto:
           type: string
           nullable: true
@@ -142,6 +179,45 @@ components:
       required: [error]
       properties:
         error: { type: string, example: Organização não encontrada. }
+    ErroAuth:
+      type: object
+      required: [error]
+      properties:
+        error: { type: string, example: E-mail ou senha inválidos. }
+        message: { type: string, description: Igual a `error`. }
+        code: { type: string, example: INVALID_EMAIL_OR_PASSWORD, description: Código do Better Auth. }
+    UsuarioAuth:
+      type: object
+      description: Usuário no formato do Better Auth (o id vem como texto).
+      properties:
+        id: { type: string, example: '12' }
+        name: { type: string }
+        email: { type: string, format: email }
+        emailVerified: { type: boolean }
+        image: { type: string, nullable: true }
+        role: { $ref: '#/components/schemas/Role' }
+        themePreference: { $ref: '#/components/schemas/Tema' }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+    SessaoAuth:
+      type: object
+      properties:
+        redirect: { type: boolean, example: false }
+        token: { type: string, description: Valor bruto da sessão; use o cabeçalho `set-auth-token` como Bearer. }
+        user: { $ref: '#/components/schemas/UsuarioAuth' }
+    UsuarioMe:
+      type: object
+      required: [id, name, email, role, emailVerified, themePreference, createdAt]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        email: { type: string, format: email }
+        role: { $ref: '#/components/schemas/Role' }
+        emailVerified: { type: boolean }
+        themePreference:
+          allOf: [{ $ref: '#/components/schemas/Tema' }]
+          nullable: true
+        createdAt: { type: string, format: date-time }
     Message:
       type: object
       required: [message]
@@ -187,7 +263,21 @@ components:
         horaInicio: { type: string, example: '14:00' }
         horaFim: { type: string, example: '15:00' }
         status: { $ref: '#/components/schemas/StatusReuniao' }
-        criadoPorUserId: { type: integer }
+        criadoPorUserId:
+          type: integer
+          nullable: true
+          description: Nulo quando a conta de quem criou foi excluída; o app mostra "usuário removido".
+        usuario:
+          type: string
+          nullable: true
+          description: Nome de quem criou; nulo quando a conta foi excluída. Presente em GET /reunioes/{id} e /reunioes/minhas.
+        estado: { $ref: '#/components/schemas/EstadoReuniao' }
+        janelaCheckIn:
+          type: object
+          description: Instantes em UTC. `abre` é 15 minutos antes do início; `fecha` é o limite da saída (30 minutos depois do fim).
+          properties:
+            abre: { type: string, format: date-time }
+            fecha: { type: string, format: date-time }
         comissao:
           type: object
           properties:
@@ -257,9 +347,89 @@ components:
         data: { type: string, format: date }
         horaInicio: { type: string, example: '14:00' }
         horaFim: { type: string, example: '15:00' }
-        usuario: { type: string }
+        usuario:
+          type: string
+          nullable: true
+          description: Nome de quem criou a reunião; nulo quando a conta foi excluída.
         status: { $ref: '#/components/schemas/StatusConviteReuniao' }
         comissao: { type: string }
+    EstadoReuniao:
+      type: string
+      enum: [CANCELADA, AGUARDANDO, CHECKIN_ABERTO, EM_ANDAMENTO, ENCERRADA]
+      description: Calculado pelo horário no fuso das reuniões. A entrada abre 15 minutos antes do início.
+    TipoVotacao:
+      type: string
+      enum: [ABERTA, SECRETA]
+      description: ABERTA mostra quem votou em quê a quem gere; SECRETA nunca liga voto e pessoa.
+    VotacaoCriacao:
+      type: object
+      required: [titulo, opcoes, tipo]
+      properties:
+        titulo: { type: string, minLength: 3, maxLength: 120 }
+        opcoes:
+          type: array
+          minItems: 2
+          maxItems: 6
+          items: { type: string, maxLength: 80 }
+        tipo: { $ref: '#/components/schemas/TipoVotacao' }
+        mostrarParcial: { type: boolean, default: false, description: Falso esconde os totais por opção até o encerramento. }
+        permiteTrocaVoto: { type: boolean, default: false }
+    VotacaoResumo:
+      type: object
+      properties:
+        id: { type: integer }
+        titulo: { type: string }
+        tipo: { $ref: '#/components/schemas/TipoVotacao' }
+        encerrada: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        totalVotos: { type: integer, minimum: 0 }
+        votei: { type: boolean }
+    Votacao:
+      type: object
+      properties:
+        id: { type: integer }
+        reuniaoId: { type: integer }
+        titulo: { type: string }
+        tipo: { $ref: '#/components/schemas/TipoVotacao' }
+        mostrarParcial: { type: boolean }
+        permiteTrocaVoto: { type: boolean }
+        encerrada: { type: boolean, description: Verdadeiro também quando a reunião terminou ou foi cancelada. }
+        createdAt: { type: string, format: date-time }
+        reuniao:
+          type: object
+          properties:
+            id: { type: integer }
+            titulo: { type: string }
+        podeGerir: { type: boolean }
+        totalVotos: { type: integer, minimum: 0 }
+        votei: { type: boolean }
+        meuVotoOpcaoId: { type: integer, nullable: true }
+        meuVotoNulo: { type: boolean }
+        podeVotar:
+          type: boolean
+          description: Participante presente, reunião em andamento, votação aberta e, se já votou, com troca de voto permitida.
+        nulos:
+          type: integer
+          minimum: 0
+          description: Votos nulos. Ausente enquanto o parcial está oculto.
+        opcoes:
+          type: array
+          items:
+            type: object
+            properties:
+              id: { type: integer }
+              texto: { type: string }
+              votos:
+                type: integer
+                description: Ausente enquanto o parcial está oculto (`mostrarParcial` falso e votação aberta).
+              votantes:
+                type: array
+                description: Só em votação ABERTA, para quem gere e com o resultado visível. Nunca em SECRETA.
+                items:
+                  type: object
+                  properties:
+                    userId: { type: integer }
+                    nome: { type: string }
     TipoNotificacao:
       type: string
       enum: [REUNIAO_ATUALIZADA, REUNIAO_EXCLUIDA]
@@ -290,16 +460,11 @@ components:
         name: { type: string }
         email: { type: string, format: email }
         role: { $ref: '#/components/schemas/Role' }
+        emailVerified: { type: boolean }
         themePreference:
           allOf: [{ $ref: '#/components/schemas/Tema' }]
           nullable: true
         createdAt: { type: string, format: date-time }
-    Sessao:
-      allOf:
-        - $ref: '#/components/schemas/Usuario'
-        - type: object
-          properties:
-            token: { type: string, description: JWT com validade de 7 dias. }
     OrganizacaoMembro:
       type: object
       properties:
@@ -416,53 +581,216 @@ components:
               membros: { type: integer, description: Tamanho da equipe. }
 
 paths:
-  /login:
+  /auth/sign-up/email:
     post:
       tags: [Autenticação]
-      summary: Autentica e devolve o token
-      description: Pública. Aceita o e-mail ou o nome do usuário.
+      summary: Cadastra uma conta (Better Auth)
+      description: |
+        Pública. Cria a conta como `USER`, com o e-mail **não confirmado**, e
+        envia o link de confirmação (vale 1 hora). **Não abre sessão**: o
+        `token` da resposta é sempre nulo e o login só funciona depois da
+        confirmação.
+
+        Cadastro com e-mail já existente responde **igual** (200, mesmo
+        formato), sem revelar a conta; o dono recebe um aviso por e-mail.
+        O campo `role` não é aceito: enviá-lo devolve 400. Limite: 5 por hora
+        por IP.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [identifier, password]
+              required: [name, email, password]
               properties:
-                identifier:
-                  { type: string, minLength: 2, description: E-mail ou nome. }
+                name: { type: string, minLength: 2, maxLength: 80 }
+                email: { type: string, format: email, maxLength: 160 }
+                password:
+                  type: string
+                  minLength: 8
+                  maxLength: 72
+                  description: Precisa de maiúscula, minúscula e número.
+                callbackURL:
+                  type: string
+                  description: |
+                    Para onde o link de confirmação redireciona (por exemplo
+                    `bettermeet://`); precisa ser uma origem confiável.
+      responses:
+        '200':
+          description: Conta criada (ou resposta idêntica, se o e-mail já existia).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token: { type: string, nullable: true, example: null }
+                  user: { $ref: '#/components/schemas/UsuarioAuth' }
+        '400':
+          description: Nome ou senha inválidos, ou campo não permitido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/sign-in/email:
+    post:
+      tags: [Autenticação]
+      summary: Entra com e-mail e senha (Better Auth)
+      description: |
+        Pública. Só o e-mail identifica a conta (o nome não funciona). Conta
+        com e-mail não confirmado recebe 403 e um novo link. Limite: 5 por
+        minuto por IP.
+
+        O token de sessão vem **no cabeçalho `set-auth-token`** (assinado) e
+        deve ser enviado nas próximas chamadas como
+        `Authorization: Bearer <valor de set-auth-token>`. O `token` do corpo
+        é o valor bruto da sessão e não deve ser usado como Bearer. A sessão
+        dura 7 dias, renovada se usada depois de 1 dia.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email, password]
+              properties:
+                email: { type: string, format: email }
                 password: { type: string }
       responses:
         '200':
           description: Autenticado.
+          headers:
+            set-auth-token:
+              description: 'Token de sessão para o `Authorization: Bearer`.'
+              schema: { type: string }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Sessao' }
-        '400': { $ref: '#/components/responses/BadRequest' }
+              schema: { $ref: '#/components/schemas/SessaoAuth' }
+        '400':
+          description: E-mail inválido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
         '401':
-          description: Usuário/e-mail ou senha inválidos.
+          description: E-mail ou senha inválidos.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '403':
+          description: E-mail não confirmado (`EMAIL_NOT_VERIFIED`); um novo link foi enviado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/InternalError' }
 
-  /auth/forgot-password:
+  /auth/send-verification-email:
     post:
       tags: [Autenticação]
-      summary: Redefine a senha pelo e-mail (UC02)
+      summary: Reenvia o link de confirmação do e-mail
       description: |
-        Pública. **Não há verificação de posse do e-mail**: qualquer pessoa que
-        saiba o e-mail de uma conta consegue trocar a senha. Será substituída
-        na migração para o Better Auth.
+        Pública. Responde 200 igual para e-mail cadastrado, inexistente ou já
+        confirmado. Limite: 3 por 5 minutos por IP.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [email, newPassword]
+              required: [email]
               properties:
-                email: { type: string, format: email, maxLength: 160 }
+                email: { type: string, format: email }
+                callbackURL: { type: string }
+      responses:
+        '200':
+          description: Pedido recebido.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: boolean, example: true }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/verify-email:
+    get:
+      tags: [Autenticação]
+      summary: Confirma o e-mail pelo link recebido
+      description: |
+        Pública; é o link do e-mail. Com `callbackURL`, redireciona (302) para
+        ele e, se o token for inválido ou vencido, acrescenta `?error=invalid_token`.
+        Sem `callbackURL`, responde 200 ou 400. Vale também para a confirmação
+        de troca de e-mail (`PATCH /usuarios/{id}`). Limite: 20 por minuto por IP.
+      parameters:
+        - { name: token, in: query, required: true, schema: { type: string } }
+        - { name: callbackURL, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: E-mail confirmado.
+        '302':
+          description: Redireciona para o `callbackURL`.
+        '400':
+          description: Link inválido ou vencido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/request-password-reset:
+    post:
+      tags: [Autenticação]
+      summary: Pede o e-mail de redefinição de senha (UC02)
+      description: |
+        Pública. Responde sempre o mesmo corpo e status, exista a conta ou não,
+        e o e-mail sai fora do caminho da resposta. O e-mail traz o botão e o
+        **token em texto** (vale 30 minutos, uso único) para colar no app. Conta
+        que só entra com o Google recebe um aviso, sem token. Limite: 3 por 15
+        minutos por IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [email]
+              properties:
+                email: { type: string, format: email }
+                redirectTo:
+                  type: string
+                  description: Para onde o link do e-mail redireciona com `?token=`.
+      responses:
+        '200':
+          description: Pedido recebido.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status: { type: boolean, example: true }
+                  message: { type: string }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /auth/reset-password:
+    post:
+      tags: [Autenticação]
+      summary: Redefine a senha com o token do e-mail
+      description: |
+        Pública. Exige o token enviado ao e-mail cadastrado; sem token (ou com
+        token vencido ou já usado) responde 400. Ao concluir, encerra todas as
+        sessões e envia o aviso "sua senha foi alterada". Limite: 5 por 15
+        minutos por IP.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token, newPassword]
+              properties:
+                token: { type: string }
                 newPassword:
                   type: string
                   minLength: 8
@@ -473,47 +801,127 @@ paths:
           description: Senha redefinida.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Message' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '404':
-          description: E-mail não cadastrado.
+              schema:
+                type: object
+                properties:
+                  status: { type: boolean, example: true }
+        '400':
+          description: Token inválido, vencido ou já usado, ou senha fraca.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/InternalError' }
 
-  /usuarios:
+  /auth/reset-password/{token}:
+    get:
+      tags: [Autenticação]
+      summary: Link do e-mail de redefinição
+      description: |
+        Pública. Valida o token e redireciona (302) para `callbackURL` com
+        `?token=` ou, se inválido, com `?error=INVALID_TOKEN`. Limite: 20 por
+        minuto por IP.
+      parameters:
+        - { name: token, in: path, required: true, schema: { type: string } }
+        - { name: callbackURL, in: query, required: true, schema: { type: string } }
+      responses:
+        '302':
+          description: Redireciona para o `callbackURL`.
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/sign-in/social:
     post:
-      tags: [Usuários]
-      summary: Cadastra um usuário
-      description: Pública. Sempre cria com papel USER.
+      tags: [Autenticação]
+      summary: Entra com o Google
+      description: |
+        Pública. Só existe com `GOOGLE_CLIENT_ID` e `GOOGLE_CLIENT_SECRET`
+        configurados; sem eles responde 404. A conta é ligada pelo e-mail
+        verificado do Google. Limite: 10 por minuto por IP.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [nome, email, password]
+              required: [provider]
               properties:
-                nome: { type: string, minLength: 2, maxLength: 80 }
-                email: { type: string, format: email, maxLength: 160 }
-                password:
-                  type: string
-                  minLength: 8
-                  maxLength: 72
-                  description: Precisa de maiúscula, minúscula e número.
-                role:
-                  type: string
-                  enum: [USER]
-                  description: Qualquer outro valor devolve 400.
+                provider: { type: string, enum: [google] }
+                callbackURL: { type: string }
       responses:
-        '201':
-          description: Usuário criado.
+        '200':
+          description: Endereço de login do Google (`url`) ou, com `idToken`, a sessão.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Usuario' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '409': { $ref: '#/components/responses/Conflict' }
+              schema: { type: object }
+        '404':
+          description: Login social desligado (sem as chaves do Google).
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/sign-out:
+    post:
+      tags: [Autenticação]
+      summary: Encerra a sessão
+      description: Remove a sessão do token enviado. É idempotente.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Sessão encerrada.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean, example: true }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/get-session:
+    get:
+      tags: [Autenticação]
+      summary: Devolve a sessão do token
+      description: |
+        Sessão e usuário do Better Auth (ids como texto). Para validar uma
+        sessão e saber o perfil atual use `GET /usuarios/me`.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Sessão atual, ou `null` se não houver.
+          content:
+            application/json:
+              schema: { type: object, nullable: true }
+
+  /usuarios/me:
+    get:
+      tags: [Usuários]
+      summary: Perfil de quem está logado
+      description: |
+        Exige `requireAuth`, com `Authorization: Bearer <set-auth-token>` ou o
+        cookie de sessão. É a rota que monitoring e gestão usam para validar a
+        sessão e ler o `role` atual (lido do banco a cada requisição; o
+        consumidor pode guardar a resposta por até 30 segundos). Nunca devolve
+        senha nem token.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Perfil atual.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/UsuarioMe' }
+        '401':
+          description: |
+            Sem credencial ("Autenticação necessária.") ou sessão inválida,
+            vencida, revogada ou de conta excluída ("Sessão inválida. Entre novamente.").
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /usuarios/busca:
@@ -609,7 +1017,11 @@ paths:
     patch:
       tags: [Usuários]
       summary: Altera nome e e-mail (UC03)
-      description: Exige `requireAuth` + `requireSelf`.
+      description: |
+        Exige `requireAuth` + `requireSelf`. O nome é gravado na hora. O e-mail
+        novo só vale depois de confirmado pelo link enviado a ele (vale 1 hora,
+        `GET /auth/verify-email`): até lá a resposta traz o e-mail antigo e
+        `emailConfirmacaoPendente: true`, e o antigo continua sendo o login.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
       requestBody:
@@ -627,13 +1039,18 @@ paths:
           description: Perfil atualizado.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Usuario' }
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/Usuario'
+                  - type: object
+                    properties:
+                      emailConfirmacaoPendente: { type: boolean }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          description: E-mail já em uso por outra conta.
+          description: E-mail já cadastrado em outra conta.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
@@ -643,7 +1060,11 @@ paths:
     patch:
       tags: [Usuários]
       summary: Troca a senha (UC01)
-      description: Exige `requireAuth` + `requireSelf`.
+      description: |
+        Exige `requireAuth` + `requireSelf`. Encerra todas as sessões, inclusive
+        a atual, e abre uma nova: o token novo vem no cabeçalho `set-auth-token`
+        e no campo `token` e **precisa substituir** o antigo no cliente. Envia
+        o aviso "sua senha foi alterada" por e-mail.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/UsuarioId' }]
       requestBody:
@@ -663,9 +1084,17 @@ paths:
       responses:
         '200':
           description: Senha alterada.
+          headers:
+            set-auth-token:
+              description: Token da nova sessão.
+              schema: { type: string }
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Message' }
+              schema:
+                type: object
+                properties:
+                  message: { type: string, example: Senha alterada com sucesso. }
+                  token: { type: string, nullable: true, description: Token da nova sessão. }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401':
           description: Sem token, token inválido ou senha atual incorreta.
@@ -1156,21 +1585,67 @@ paths:
       summary: Remove um membro
       description: |
         Exige `requireAuth`. Só CRIADOR, GERENTE ou o ADMIN da plataforma. O
-        criador não pode ser removido.
+        criador não pode ser removido. Tudo na mesma transação: remove a pessoa
+        da equipe de todas as comissões da organização e apaga os convites
+        pendentes dela em reuniões não encerradas. Comissão em que ela é o único
+        ADMINISTRADOR exige um sucessor (`sucessoresComissao`) ou, se só ela
+        compõe a equipe, é apagada (`comissoesApagadas`).
       security: [{ bearerAuth: [] }]
       parameters:
         - $ref: '#/components/parameters/OrganizacaoId'
         - $ref: '#/components/parameters/MembroUserId'
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                sucessoresComissao:
+                  type: object
+                  description: 'Id da comissão para o id do membro que vira ADMINISTRADOR.'
+                  additionalProperties: { type: integer, minimum: 1 }
+            example: { sucessoresComissao: { '4': 21 } }
       responses:
         '200':
           description: Membro removido.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Message' }
+              schema:
+                type: object
+                properties:
+                  message: { type: string }
+                  comissoesApagadas:
+                    type: array
+                    items: { type: integer }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Falta indicar quem assume uma comissão. Nada é gravado; o corpo traz `comissoesPendentes` com os membros que podem assumir.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  error: { type: string }
+                  comissoesPendentes:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        nome: { type: string }
+                        organizacaoId: { type: integer }
+                        membros:
+                          type: array
+                          items:
+                            type: object
+                            properties:
+                              id: { type: integer }
+                              name: { type: string }
+                              email: { type: string, format: email }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /organizacoes/{organizacaoId}/comissoes:
@@ -1590,7 +2065,9 @@ paths:
       tags: [Reuniões]
       summary: Atualiza uma reunião
       description: |
-        Apenas o criador da reunião ou um administrador do sistema pode editar seus dados.
+        Pode editar o criador (se a conta ainda existir), o Administrador atual da
+        comissão e o ADMIN da plataforma. Reunião já encerrada pelo horário não é
+        alterada (409).
         Se a data ou o horário mudarem, o criador e os convidados que não recusaram
         recebem a notificação "Reunião remarcada"; se só os detalhes mudarem,
         "Reunião atualizada". Quem fez a edição não é notificado, e salvar sem
@@ -1629,12 +2106,18 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A reunião já terminou e não pode mais ser alterada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '500': { $ref: '#/components/responses/InternalError' }
     delete:
       tags: [Reuniões]
       summary: Remove uma reunião
       description: |
-        Apenas o criador da reunião ou um administrador do sistema pode removê-la.
+        Pode remover o criador (se a conta ainda existir), o Administrador atual
+        da comissão e o ADMIN da plataforma, mesmo com a reunião encerrada.
         Na mesma transação, antes de apagar, o criador e os convidados que não
         recusaram recebem a notificação "Reunião excluída". A reunião, os convites
         e os registros de presença são apagados; as notificações permanecem.
@@ -1659,7 +2142,7 @@ paths:
     post:
       tags: [Reuniões]
       summary: Convida membros para uma reunião existente
-      description: Apenas o criador ou um administrador pode convidar membros da comissão. Convites já existentes são ignorados.
+      description: Pode convidar o criador (se a conta ainda existir), o Administrador atual da comissão e o ADMIN da plataforma. Convites já existentes são ignorados.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id
@@ -1699,6 +2182,8 @@ paths:
         Exige participação na comissão de uma organização aprovada e, para
         convidados, aceite prévio do convite.
         A identidade vem exclusivamente do JWT; não aceita horário ou usuário do cliente.
+        Novas entradas só na janela: de 15 minutos antes do início até o fim da
+        reunião (409 com a hora de abertura antes dela, 409 depois do fim).
         Novas entradas exigem reunião AGENDADA. Repetições devolvem o registro
         original, sem alterar entradaAt ou saidaAt, inclusive após o encerramento.
       security: [{ bearerAuth: [] }]
@@ -1722,7 +2207,11 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: Antes da abertura da entrada, reunião encerrada ou reunião cancelada. A mensagem diz o motivo e, antes da abertura, a hora.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /reunioes/{id}/sair:
@@ -1772,6 +2261,8 @@ paths:
         A saída registrada não revoga o acesso. Os quatro cargos podem ler.
         ADMIN da plataforma não ignora as restrições. A resposta informa o cargo,
         permissões e o voto do solicitante, sem expor os votos individuais de terceiros.
+        Traz `presentes`, `aprovada` (maioria simples dos presentes, calculada),
+        `exportada`, `exportadaAt` e `podeExportar`.
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -1799,7 +2290,8 @@ paths:
         e colspan/rowspan de 1 a 10. Fontes legadas do editor móvel são normalizadas.
         Scripts, outros estilos, eventos e recursos externos são removidos.
         Alterar o texto incrementa versaoAta e remove os votos na mesma transação.
-        Salvar conteúdo idêntico preserva a versão e os votos. Versão desatualizada recebe 409.
+        Salvar conteúdo idêntico preserva a versão e os votos. Versão desatualizada
+        e ata já exportada recebem 409.
       security: [{ bearerAuth: [] }]
       requestBody:
         required: true
@@ -1835,6 +2327,8 @@ paths:
         A ata precisa estar salva. Identidade vem do JWT, nunca do corpo.
         Há um voto por usuário e reunião; repetir ou trocar o voto atualiza esse registro.
         A versão enviada precisa ser a atual, inclusive sob edição concorrente.
+        Qualquer integrante com entrada registrada vota, não só quem preside.
+        Depois da exportação a ata não aceita mais voto (409).
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id
@@ -1867,6 +2361,214 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/ata/exportar:
+    post:
+      tags: [Reuniões]
+      summary: Exporta a ata aprovada e a torna imutável
+      description: |
+        Exige JWT, vínculo atual com a comissão e entrada registrada na reunião.
+        Só com a ata aprovada: mais da metade dos presentes (maioria simples; a
+        metade exata não aprova) votou APROVADO na versão atual. Grava
+        `ataExportadaAt` e `ataVersaoExportada`. Depois disso, editar a ata e
+        votar respondem 409. Repetir a chamada é idempotente e não altera a data.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Ata exportada (ou já exportada antes), com `exportada` = true.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Ata' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A ata ainda não foi aprovada, ou a versão mudou durante a exportação.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/votacoes:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [Votações]
+      summary: Lista as votações da reunião
+      description: |
+        Exige `requireAuth`. Participantes da reunião (criador ou convite aceito) e
+        quem a gere (criador, Administrador atual da comissão e ADMIN) veem a lista.
+        Nenhuma estrutura traz `userId` de quem votou. `encerrada` é verdadeiro
+        também quando a reunião terminou ou foi cancelada.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Votações da reunião, da mais recente para a mais antiga.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/VotacaoResumo' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [Votações]
+      summary: Cria uma votação na reunião
+      description: |
+        Exige `requireAuth`. Só quem gere a reunião: criador, Administrador atual
+        da comissão ou ADMIN da plataforma. Pode ser criada antes ou durante a
+        reunião, mas não depois do fim nem em reunião cancelada (409). O `tipo`,
+        `mostrarParcial` e `permiteTrocaVoto` não mudam depois. O voto nulo está
+        sempre disponível.
+      security: [{ bearerAuth: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: '#/components/schemas/VotacaoCriacao' }
+      responses:
+        '201':
+          description: Votação criada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Votacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A reunião já terminou ou foi cancelada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /votacoes/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [Votações]
+      summary: Consulta uma votação e o resultado
+      description: |
+        Exige `requireAuth`. Com `mostrarParcial` falso, os totais por opção e
+        `nulos` só aparecem depois do encerramento; antes só `totalVotos` e
+        `votei`. Em votação ABERTA, `votantes` (quem votou em quê) só vai para quem
+        gere. Em votação SECRETA nenhuma rota devolve a ligação entre voto e
+        pessoa, nem ao Administrador da comissão; `meuVotoOpcaoId` e
+        `meuVotoNulo` só dizem respeito a quem pede.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Votação.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Votacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [Votações]
+      summary: Exclui uma votação
+      description: Exige `requireAuth`. Só quem gere a reunião. Permitido mesmo com a votação encerrada.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Votação removida.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /votacoes/{id}/voto:
+    post:
+      tags: [Votações]
+      summary: Vota ou troca o voto
+      description: |
+        Exige `requireAuth`. Só participantes (criador ou convite aceito) que
+        registraram entrada, ainda não registraram saída e com a reunião em
+        andamento. ADMIN da plataforma que não participa não vota. Corpo: uma
+        opção (`opcaoId`) ou o voto nulo (`nulo: true`), nunca os dois. Trocar o
+        voto só com `permiteTrocaVoto`; sem ele o segundo voto recebe 409. A
+        votação encerrada (gravada ou pelo fim da reunião) recebe 410.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                opcaoId: { type: integer, minimum: 1 }
+                nulo: { type: boolean, description: 'Verdadeiro registra voto nulo; não envie junto com `opcaoId`.' }
+            examples:
+              opcao: { value: { opcaoId: 12 } }
+              nulo: { value: { nulo: true } }
+      responses:
+        '200':
+          description: Voto registrado, com a votação atualizada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Votacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Sem entrada registrada, saída já registrada, reunião ainda não começou ou troca de voto não permitida.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '410': { $ref: '#/components/responses/Gone' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /votacoes/{id}/encerrar:
+    post:
+      tags: [Votações]
+      summary: Encerra a votação
+      description: Exige `requireAuth`. Só quem gere a reunião. Encerrar de novo é idempotente e não há volta.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Votação encerrada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Votacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /notificacoes:

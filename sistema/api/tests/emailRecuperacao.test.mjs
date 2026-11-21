@@ -10,19 +10,20 @@ jest.unstable_mockModule('nodemailer', () => ({
   default: { createTransport: () => ({ sendMail }) },
 }));
 jest.unstable_mockModule('../src/config/env.ts', () => ({ env }));
-const { AppError } = await import('../src/errors/AppError.ts');
 const { emailService } = await import('../src/services/emailService.ts');
-
-const MENSAGEM_ERRO =
-  'Não foi possível enviar o código de recuperação. Tente novamente mais tarde.';
 
 const consoleError = jest.spyOn(console, 'error');
 const consoleWarn = jest.spyOn(console, 'warn');
 const consoleLog = jest.spyOn(console, 'log');
 
+const ana = { nome: 'Ana', email: 'ana@exemplo.test' };
+const URL_LINK =
+  'http://localhost:3333/api/auth/reset-password/abc?callbackURL=x';
+const TOKEN = 'tokenDeUsoUnico123';
+
 const mensagemEnviada = () => sendMail.mock.calls[0][0];
 
-// Nada do que vai para o log pode conter o código ou a senha de app.
+// Nada do que vai para o log pode conter o token nem a senha de app.
 const expectSemDadosSensiveis = (valores) => {
   const registros = [
     ...consoleError.mock.calls,
@@ -47,99 +48,85 @@ beforeEach(() => {
   env.GMAIL_APP_PASSWORD = 'senha-de-app-ficticia';
 });
 
-describe('emailService.enviarCodigoRecuperacao', () => {
-  test('envia o código pela conta do Gmail configurada', async () => {
+describe('emailService.enviarRedefinicaoSenha', () => {
+  test('traz o botão e o token escritos, pela conta do Gmail configurada', async () => {
     await expect(
-      emailService.enviarCodigoRecuperacao('ana@exemplo.test', '123456'),
-    ).resolves.toBeUndefined();
+      emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN),
+    ).resolves.toBe(true);
 
     expect(sendMail).toHaveBeenCalledTimes(1);
-    expect(mensagemEnviada()).toEqual({
-      from: { name: 'Better Meet', address: 'bettermeet@example.test' },
-      to: 'ana@exemplo.test',
-      subject: expect.any(String),
-      html: expect.stringContaining('123456'),
-      text: expect.stringContaining('123456'),
-    });
-    expectSemDadosSensiveis([env.GMAIL_APP_PASSWORD, '123456']);
-  });
-
-  test('preserva os zeros iniciais do código no HTML e no texto', async () => {
-    await emailService.enviarCodigoRecuperacao('ana@exemplo.test', '001234');
-
     expect(mensagemEnviada()).toMatchObject({
-      html: expect.stringContaining('001234'),
-      text: expect.stringContaining('001234'),
+      from: { name: 'Better Meet', address: 'bettermeet@example.test' },
+      to: { name: 'Ana', address: 'ana@exemplo.test' },
+      html: expect.stringContaining(`href="${URL_LINK}"`),
+      text: expect.stringContaining(TOKEN),
     });
+    expect(mensagemEnviada().html).toContain(TOKEN);
+    expect(mensagemEnviada().text).toContain('30 minutos');
   });
 
-  test('usa o e-mail normalizado pela regra compartilhada de validação', async () => {
-    await emailService.enviarCodigoRecuperacao(
-      '  Ana@Exemplo.TEST  ',
-      '123456',
-    );
+  test('não traz senha nenhuma e não grava dados sensíveis no log', async () => {
+    await emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN);
 
-    expect(mensagemEnviada()).toMatchObject({ to: 'ana@exemplo.test' });
+    expect(mensagemEnviada().text).not.toMatch(/senha (é|nova):/i);
+    expectSemDadosSensiveis([env.GMAIL_APP_PASSWORD, TOKEN]);
   });
 
-  test('converte falha do envio em erro genérico sem expor a mensagem interna', async () => {
+  test('falha do envio não lança e não expõe o erro do provedor', async () => {
     const detalheInterno = 'detalhe-interno-da-conexao';
     sendMail.mockRejectedValueOnce(
       new Error(`${detalheInterno}: ${env.GMAIL_APP_PASSWORD}`),
     );
 
-    const envio = emailService.enviarCodigoRecuperacao(
-      'ana@exemplo.test',
-      '123456',
-    );
-
-    await expect(envio).rejects.toBeInstanceOf(AppError);
-    await expect(envio).rejects.toMatchObject({
-      statusCode: 500,
-      message: MENSAGEM_ERRO,
-      details: undefined,
-    });
-    expectSemDadosSensiveis([detalheInterno, env.GMAIL_APP_PASSWORD, '123456']);
+    await expect(
+      emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN),
+    ).resolves.toBe(false);
   });
 
-  test('recusa com erro genérico quando o e-mail está desligado', async () => {
+  test('com o e-mail desligado não lança no caminho assíncrono', async () => {
     env.GMAIL_USER = undefined;
     env.GMAIL_APP_PASSWORD = undefined;
+    const envio = jest.fn();
 
+    expect(() => emailService.runInBackground(envio)).not.toThrow();
     await expect(
-      emailService.enviarCodigoRecuperacao('ana@exemplo.test', '123456'),
-    ).rejects.toMatchObject({ statusCode: 500, message: MENSAGEM_ERRO });
+      emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN),
+    ).resolves.toBe(false);
+    expect(envio).not.toHaveBeenCalled();
     expect(sendMail).not.toHaveBeenCalled();
   });
+});
 
-  test.each([
-    '',
-    '12345',
-    '1234567',
-    'abcdef',
-    '12 456',
-    '123456\n',
-    ' 123456 ',
-    '１２３４５６',
-    '<script>alert(1)</script>',
-  ])('recusa o código malformado %j antes de enviar', async (codigo) => {
-    await expect(
-      emailService.enviarCodigoRecuperacao('ana@exemplo.test', codigo),
-    ).rejects.toThrow();
+describe('demais e-mails de conta', () => {
+  test('a confirmação de e-mail traz o link e a validade de 1 hora', async () => {
+    await emailService.enviarVerificacaoEmail(ana, 'http://api.test/v?token=1');
 
-    expect(sendMail).not.toHaveBeenCalled();
+    expect(mensagemEnviada().html).toContain('http://api.test/v?token=1');
+    expect(mensagemEnviada().text).toContain('1 hora');
   });
 
-  test.each([
-    '',
-    'sem-arroba',
-    'ana@exemplo.test\r\nBcc: outro@exemplo.test',
-    '<script>@exemplo.test',
-  ])('recusa o destinatário inválido %j antes de enviar', async (email) => {
-    await expect(
-      emailService.enviarCodigoRecuperacao(email, '123456'),
-    ).rejects.toThrow();
+  test('o link do e-mail é escapado no HTML', async () => {
+    await emailService.enviarVerificacaoEmail(
+      ana,
+      'http://api.test/v?a=1&b="2"',
+    );
 
-    expect(sendMail).not.toHaveBeenCalled();
+    expect(mensagemEnviada().html).toContain('a=1&amp;b=&quot;2&quot;');
+  });
+
+  test('conta só com Google recebe aviso sem link de senha', async () => {
+    await emailService.enviarRedefinicaoContaSocial(ana);
+
+    expect(mensagemEnviada().text).toContain('Google');
+    expect(mensagemEnviada().html).not.toContain('href=');
+  });
+
+  test('aviso de senha alterada e de cadastro existente são enviados ao dono', async () => {
+    await emailService.enviarAvisoSenhaAlterada(ana);
+    await emailService.enviarAvisoCadastroExistente(ana);
+
+    expect(sendMail).toHaveBeenCalledTimes(2);
+    expect(sendMail.mock.calls[0][0].subject).toMatch(/senha foi alterada/);
+    expect(sendMail.mock.calls[1][0].to.address).toBe('ana@exemplo.test');
   });
 });

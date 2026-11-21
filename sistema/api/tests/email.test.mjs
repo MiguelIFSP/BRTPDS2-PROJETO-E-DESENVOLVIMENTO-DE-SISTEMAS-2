@@ -528,6 +528,9 @@ describe('expiração do convite ao fim da reunião', () => {
       reuniaoService.isConviteExpirado(reuniao, em('2026-10-22T13:59:00Z')),
     ).toBe(false);
     expect(
+      reuniaoService.isConviteExpirado(reuniao, em('2026-10-22T13:59:59Z')),
+    ).toBe(false);
+    expect(
       reuniaoService.isConviteExpirado(reuniao, em('2026-10-22T14:00:00Z')),
     ).toBe(true);
   });

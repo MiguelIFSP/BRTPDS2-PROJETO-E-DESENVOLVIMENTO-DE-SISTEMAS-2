@@ -1,8 +1,6 @@
 import type { TipoLembrete } from '@prisma/client';
 import nodemailer, { type Transporter } from 'nodemailer';
 import { env } from '../config/env.ts';
-import { AppError } from '../errors/AppError.ts';
-import { codigoRecuperacaoEmailSchema } from '../schemas/emailSchema.ts';
 import { instanteNoFuso } from '../utils/fusoHorario.ts';
 import { buildIcs, type MetodoIcs } from '../utils/ics.ts';
 import {
@@ -11,19 +9,48 @@ import {
   type ReuniaoEmail,
 } from '../utils/emailTemplates.ts';
 
-const EMAIL_ERROR_MESSAGE =
-  'Não foi possível enviar o código de recuperação. Tente novamente mais tarde.';
+const escapeHtml = (texto: string) =>
+  texto
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
 
-const buildCodigoRecuperacaoEmail = (codigo: string) => ({
-  subject: 'Código de recuperação de senha — Better Meet',
-  html: `<html lang="pt-BR"><body>
-      <h1>Recuperação de senha</h1>
-      <p>Seu código de recuperação do Better Meet é:</p>
-      <p><strong>${codigo}</strong></p>
-      <p>Não compartilhe este código. Se você não solicitou a recuperação, ignore este e-mail.</p>
-    </body></html>`,
-  text: `Seu código de recuperação do Better Meet é: ${codigo}. Não compartilhe este código. Se você não solicitou a recuperação, ignore este e-mail.`,
-});
+type ConteudoConta = {
+  assunto: string;
+  paragrafos: string[];
+  botao?: { rotulo: string; url: string };
+  // token em texto, para colar no app quando o botão não abre o app.
+  codigo?: string;
+};
+
+const RODAPE_CONTA =
+  'Se você não fez esta solicitação, ignore este e-mail. Ele é automático.';
+
+// E-mails de conta nunca levam senha, só o link ou o token de uso único.
+const montarEmailConta = ({
+  assunto,
+  paragrafos,
+  botao,
+  codigo,
+}: ConteudoConta): EmailMontado => {
+  const texto = [
+    ...paragrafos,
+    ...(botao ? [`${botao.rotulo}: ${botao.url}`] : []),
+    ...(codigo ? [`Código: ${codigo}`] : []),
+    RODAPE_CONTA,
+  ].join('\n\n');
+  const html = `<!doctype html>
+<html lang="pt-BR"><body style="margin:0;padding:24px;background:#f4f6f6;font-family:Arial,Helvetica,sans-serif;color:#1b1f20">
+<div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #dfe5e5;border-radius:12px;padding:24px">
+<h1 style="margin:0 0 16px;font-size:20px">${escapeHtml(assunto)}</h1>
+${paragrafos.map((paragrafo) => `<p style="margin:0 0 12px;font-size:15px">${escapeHtml(paragrafo)}</p>`).join('\n')}
+${botao ? `<p style="margin:16px 0"><a href="${escapeHtml(botao.url)}" style="display:inline-block;padding:12px 24px;border-radius:8px;background:#00796b;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none">${escapeHtml(botao.rotulo)}</a></p>` : ''}
+${codigo ? `<p style="margin:0 0 12px;font-size:13px;color:#5b6566">Se o botão não abrir o app, copie este código: <strong style="font-family:monospace;word-break:break-all">${escapeHtml(codigo)}</strong></p>` : ''}
+<p style="margin:24px 0 0;font-size:12px;color:#5b6566">${escapeHtml(RODAPE_CONTA)}</p>
+</div></body></html>`;
+  return { assunto, texto, html };
+};
 
 export type Destinatario = {
   nome: string;
@@ -136,31 +163,69 @@ const sendToEach = async (
 };
 
 export const emailService = {
-  /** Envia um código já gerado; a validade e o consumo pertencem à recuperação. */
-  async enviarCodigoRecuperacao(
-    emailDestinatario: string,
-    codigo: string,
-  ): Promise<void> {
-    const values = await codigoRecuperacaoEmailSchema.validate(
-      { emailDestinatario, codigo },
-      { stripUnknown: true },
-    );
+  // Os e-mails de conta devolvem false quando o envio está desligado ou falhou;
+  // quem chama roda em segundo plano para a resposta não denunciar a conta (BR-11, BR-19).
+  enviarVerificacaoEmail: (destinatario: Destinatario, url: string) =>
+    send(
+      destinatario,
+      montarEmailConta({
+        assunto: 'Confirme seu e-mail — Better Meet',
+        paragrafos: [
+          `Olá, ${destinatario.nome}. Confirme que este e-mail é seu para entrar no Better Meet. O link vale por 1 hora.`,
+        ],
+        botao: { rotulo: 'Confirmar e-mail', url },
+      }),
+    ),
 
-    // Mesma conta do Gmail dos convites; sem ela o código não tem como sair.
-    const transporte = getTransporter();
-    if (!transporte) throw new AppError(500, EMAIL_ERROR_MESSAGE);
+  enviarRedefinicaoSenha: (
+    destinatario: Destinatario,
+    url: string,
+    token: string,
+  ) =>
+    send(
+      destinatario,
+      montarEmailConta({
+        assunto: 'Redefinição de senha — Better Meet',
+        paragrafos: [
+          `Olá, ${destinatario.nome}. Recebemos um pedido para redefinir sua senha. O link e o código valem por 30 minutos e só podem ser usados uma vez.`,
+        ],
+        botao: { rotulo: 'Redefinir senha', url },
+        codigo: token,
+      }),
+    ),
 
-    try {
-      await transporte.sendMail({
-        from: { name: env.MAIL_FROM_NAME, address: env.GMAIL_USER! },
-        to: values.emailDestinatario,
-        ...buildCodigoRecuperacaoEmail(values.codigo),
-      });
-    } catch {
-      // Erros do provedor podem conter dados pessoais ou credenciais.
-      throw new AppError(500, EMAIL_ERROR_MESSAGE);
-    }
-  },
+  enviarRedefinicaoContaSocial: (destinatario: Destinatario) =>
+    send(
+      destinatario,
+      montarEmailConta({
+        assunto: 'Recuperação de senha — Better Meet',
+        paragrafos: [
+          `Olá, ${destinatario.nome}. Sua conta entra com o Google e não tem senha do Better Meet. Use o botão de entrar com o Google no app.`,
+        ],
+      }),
+    ),
+
+  enviarAvisoSenhaAlterada: (destinatario: Destinatario) =>
+    send(
+      destinatario,
+      montarEmailConta({
+        assunto: 'Sua senha foi alterada — Better Meet',
+        paragrafos: [
+          `Olá, ${destinatario.nome}. A senha da sua conta foi alterada e as outras sessões foram encerradas. Se não foi você, redefina a senha pelo app e fale com o administrador.`,
+        ],
+      }),
+    ),
+
+  enviarAvisoCadastroExistente: (destinatario: Destinatario) =>
+    send(
+      destinatario,
+      montarEmailConta({
+        assunto: 'Tentativa de cadastro com seu e-mail — Better Meet',
+        paragrafos: [
+          `Olá, ${destinatario.nome}. Alguém tentou criar uma conta com o seu e-mail, que já está cadastrado. Se foi você, entre normalmente ou use "Esqueci minha senha".`,
+        ],
+      }),
+    ),
 
   isEnabled: () => Boolean(env.GMAIL_USER && env.GMAIL_APP_PASSWORD),
 

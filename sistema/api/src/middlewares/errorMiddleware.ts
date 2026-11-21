@@ -20,6 +20,16 @@ export const handleError = (
       .json({ ...error.details, error: error.message });
     return;
   }
+  // corpo maior que o limite do express.json()
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'type' in error &&
+    error.type === 'entity.too.large'
+  ) {
+    response.status(413).json({ error: 'Corpo da requisição grande demais.' });
+    return;
+  }
   // corpo da requisição com JSON malformado (lançado pelo express.json())
   if (error instanceof SyntaxError && 'body' in error) {
     response.status(400).json({ error: 'JSON inválido.' });

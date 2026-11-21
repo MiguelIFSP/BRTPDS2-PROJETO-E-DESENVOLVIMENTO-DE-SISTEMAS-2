@@ -16,7 +16,7 @@ export const monitoringService = {
     const timeout = setTimeout(() => controller.abort(), REPORT_TIMEOUT_MS);
 
     try {
-      await fetch(`${env.MONITORING_API_URL}/monitoring-better-meet/status`, {
+      await fetch(`${env.MONITORING_API_URL}/api/status`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
