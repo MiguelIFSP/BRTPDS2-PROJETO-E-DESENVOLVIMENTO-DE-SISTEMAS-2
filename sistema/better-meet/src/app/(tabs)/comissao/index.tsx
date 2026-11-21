@@ -1,9 +1,10 @@
 import { useCallback, useState } from 'react';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 
 import ComissaoCard from '@/components/ComissaoCard';
+import BackButton from '@/components/ui/BackButton';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
 import Chip from '@/components/ui/Chip';
@@ -15,6 +16,7 @@ import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
 import { Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { useTheme } from '@/hooks/useTheme';
 import { comissaoSchema } from '@/schemas/comissaoSchema';
 import { comissaoService, type Comissao } from '@/services/comissaoService';
@@ -26,7 +28,8 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import { countLabel } from '@/utils/format';
-import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
+import { ORIGEM_RELATORIO } from '@/utils/navegacaoOrigem';
+import { toFieldErrors } from '@/utils/formErrors';
 
 type ComissaoForm = { nome: string; descricao: string };
 
@@ -34,6 +37,7 @@ const EMPTY_FORM: ComissaoForm = { nome: '', descricao: '' };
 
 export default function ComissaoScreen() {
   const router = useRouter();
+  const { origem } = useLocalSearchParams<{ origem?: string }>();
   const { colors } = useTheme();
   const token = useAuthStore((state) => state.token);
   const [feedback, setFeedback] = useFeedback();
@@ -49,7 +53,11 @@ export default function ComissaoScreen() {
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [form, setForm] = useState<ComissaoForm>(EMPTY_FORM);
-  const [formErrors, setFormErrors] = useState<FieldErrors<ComissaoForm>>({});
+  const {
+    errors: formErrors,
+    setErrors: setFormErrors,
+    clearFieldError,
+  } = useFieldErrors<ComissaoForm>();
   const [isCreating, setIsCreating] = useState(false);
 
   const organizacaoAtual = organizacoes.find(
@@ -112,7 +120,7 @@ export default function ComissaoScreen() {
 
   const updateFormField = (field: keyof ComissaoForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
-    setFormErrors((current) => ({ ...current, [field]: undefined }));
+    clearFieldError(field);
   };
 
   const openCreate = () => {
@@ -205,6 +213,9 @@ export default function ComissaoScreen() {
 
   return (
     <Screen hasForm>
+      {origem === ORIGEM_RELATORIO ? (
+        <BackButton fallbackHref="/mais/relatorios" />
+      ) : null}
       <PageIntro
         title="Suas comissões"
         onAdd={organizacaoAtual ? openCreate : undefined}

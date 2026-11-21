@@ -19,6 +19,7 @@ import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
 import { Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
 import { useTheme } from '@/hooks/useTheme';
 import { comissaoSchema } from '@/schemas/comissaoSchema';
 import {
@@ -35,7 +36,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import { countLabel, formatDate } from '@/utils/format';
-import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
+import { toFieldErrors } from '@/utils/formErrors';
 
 type ComissaoForm = { nome: string; descricao: string };
 
@@ -69,7 +70,11 @@ export default function ComissaoDetalheScreen() {
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [form, setForm] = useState<ComissaoForm>({ nome: '', descricao: '' });
-  const [formErrors, setFormErrors] = useState<FieldErrors<ComissaoForm>>({});
+  const {
+    errors: formErrors,
+    setErrors: setFormErrors,
+    clearFieldError,
+  } = useFieldErrors<ComissaoForm>();
   const [formFeedback, setFormFeedback] = useFeedback();
   const [isSaving, setIsSaving] = useState(false);
 
@@ -145,7 +150,7 @@ export default function ComissaoDetalheScreen() {
 
   const updateFormField = (field: keyof ComissaoForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
-    setFormErrors((current) => ({ ...current, [field]: undefined }));
+    clearFieldError(field);
   };
 
   const openEdit = () => {
@@ -307,7 +312,8 @@ export default function ComissaoDetalheScreen() {
           }
           onRequestChangeRole={(memberId, name, papel, direction) =>
             setPendingAction({
-              type: direction === 'promote' ? 'promote-member' : 'demote-member',
+              type:
+                direction === 'promote' ? 'promote-member' : 'demote-member',
               userId: memberId,
               name,
               papel,

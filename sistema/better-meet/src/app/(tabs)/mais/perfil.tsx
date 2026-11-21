@@ -18,9 +18,11 @@ import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
 import { perfilSchema, trocaSenhaSchema } from '@/schemas/usuarioSchema';
 import { monitoringService } from '@/services/monitoringService';
+import { authService } from '@/services/authService';
 import { usuarioService } from '@/services/usuarioService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
+import { textoEmailPendente } from '@/utils/authMensagens';
 import { formatDate } from '@/utils/format';
 import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
 
@@ -123,8 +125,15 @@ export default function PerfilScreen() {
         user.id,
         values,
       );
+      // com e-mail pendente a API devolve o endereço antigo: o novo só vale
+      // depois da confirmação.
       updateUser({ name: updated.name, email: updated.email });
-      setToast({ type: 'success', message: 'Dados atualizados com sucesso.' });
+      setToast({
+        type: 'success',
+        message: updated.emailConfirmacaoPendente
+          ? textoEmailPendente(values.email)
+          : 'Dados atualizados com sucesso.',
+      });
       setShowProfileForm(false);
     } catch (error) {
       monitoringService.reportRequestFailure(
@@ -186,7 +195,8 @@ export default function PerfilScreen() {
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    await authService.signOut();
     logout();
     router.replace('/login');
   };
@@ -213,7 +223,6 @@ export default function PerfilScreen() {
           </Text>
         </View>
 
-        <InfoRow label="ID do usuário" value={String(user.id)} />
         <InfoRow label="E-mail" value={user.email} />
         <InfoRow
           label="Função"
@@ -323,7 +332,11 @@ export default function PerfilScreen() {
           label="Excluir meus dados"
           onPress={() => router.push('/mais/excluir-conta')}
         />
-        <Button icon="log-out-outline" label="Sair" onPress={handleLogout} />
+        <Button
+          icon="log-out-outline"
+          label="Sair"
+          onPress={() => void handleLogout()}
+        />
       </Card>
     </Screen>
   );

@@ -28,6 +28,7 @@ import {
 } from '@/services/usuarioService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
+import { AVISO_AUTORIA, mensagemExclusaoPendente } from '@/utils/exclusaoConta';
 
 type Acao = 'personal' | 'full';
 type Etapa = 'administrador' | 'sucessores' | 'avisoComissoes' | 'confirmar';
@@ -230,7 +231,9 @@ export default function ExcluirContaScreen() {
       );
       setFeedback({
         type: 'error',
-        message: getErrorMessage(error, 'Não foi possível excluir seus dados.'),
+        message:
+          mensagemExclusaoPendente(error) ??
+          getErrorMessage(error, 'Não foi possível excluir seus dados.'),
       });
     } finally {
       setIsSubmitting(false);
@@ -472,7 +475,7 @@ export default function ExcluirContaScreen() {
             : minhasOrgsCriador.length === 0
               ? 'Sua conta e o cache salvo neste dispositivo serão removidos permanentemente. Você precisará criar uma conta nova para voltar a usar o sistema.'
               : 'Cada organização que você criou passará para quem você escolheu e, em seguida, sua conta e o cache salvo neste dispositivo serão removidos permanentemente.'
-        }${confirmacaoAdministrador}`}
+        } ${AVISO_AUTORIA}${confirmacaoAdministrador}`}
         isLoading={isSubmitting}
         onCancel={() => setFluxo(null)}
         onConfirm={() => advance(acaoAtual, 'confirmar')}

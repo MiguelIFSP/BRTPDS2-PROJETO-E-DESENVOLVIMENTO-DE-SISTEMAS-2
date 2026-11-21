@@ -1,57 +1,50 @@
-// =====================================================================
-// recuperar-senha.tsx — Recuperação de conta
-// Tela única: e-mail + nova senha + confirmar senha.
-// Em caso de sucesso, mostra o toast e volta pro login quando ele termina.
-// =====================================================================
-
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import * as yup from 'yup';
 
+import BackButton from '@/components/ui/BackButton';
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
+import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import TextField from '@/components/ui/TextField';
-import Toast from '@/components/ui/Toast';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
+import { useReenvioComEspera } from '@/hooks/useReenvioComEspera';
+import { useTheme } from '@/hooks/useTheme';
 import { recuperacaoSenhaSchema } from '@/schemas/authSchema';
 import { authService } from '@/services/authService';
 import { monitoringService } from '@/services/monitoringService';
 import { getErrorMessage } from '@/utils/apiClient';
-import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
+import { MENSAGEM_RECUPERACAO_ENVIADA } from '@/utils/authMensagens';
+import { toFieldErrors } from '@/utils/formErrors';
 
-type RecuperacaoForm = {
-  email: string;
-  newPassword: string;
-  confirmPassword: string;
-};
-
-const INITIAL_VALUES: RecuperacaoForm = {
-  email: '',
-  newPassword: '',
-  confirmPassword: '',
-};
+type RecuperacaoForm = { email: string };
 
 export default function RecuperarSenhaScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
 
-  const [form, setForm] = useState<RecuperacaoForm>(INITIAL_VALUES);
-  const [errors, setErrors] = useState<FieldErrors<RecuperacaoForm>>({});
+  const [form, setForm] = useState<RecuperacaoForm>({ email: '' });
+  const { errors, setErrors, clearFieldError, clearAllErrors } =
+    useFieldErrors<RecuperacaoForm>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useFeedback();
-  const [toast, setToast] = useState<Feedback | null>(null);
+  // A mensagem é a mesma exista ou não conta com o e-mail (RF-R27).
+  const [isSent, setIsSent] = useState(false);
+  const resend = useReenvioComEspera();
 
-  const updateField = (field: keyof RecuperacaoForm, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined }));
+  const updateEmail = (value: string) => {
+    setForm({ email: value });
+    clearFieldError('email');
     setFeedback(null);
   };
 
   const handleSubmit = async () => {
+    if (isSent && !resend.canResend) return;
     setFeedback(null);
 
     let values: RecuperacaoForm;
@@ -60,7 +53,7 @@ export default function RecuperarSenhaScreen() {
         abortEarly: false,
         stripUnknown: true,
       });
-      setErrors({});
+      clearAllErrors();
     } catch (error) {
       if (error instanceof yup.ValidationError) {
         setErrors(toFieldErrors<RecuperacaoForm>(error));
@@ -70,12 +63,9 @@ export default function RecuperarSenhaScreen() {
 
     setIsSubmitting(true);
     try {
-      const { message } = await authService.forgotPassword(
-        values.email,
-        values.newPassword,
-      );
-      setToast({ type: 'success', message });
-      setForm(INITIAL_VALUES);
+      await authService.requestPasswordReset(values.email);
+      setIsSent(true);
+      resend.start();
     } catch (error) {
       monitoringService.reportRequestFailure(
         error,
@@ -83,7 +73,7 @@ export default function RecuperarSenhaScreen() {
       );
       setFeedback({
         type: 'error',
-        message: getErrorMessage(error, 'Não foi possível redefinir a senha.'),
+        message: getErrorMessage(error, 'Não foi possível enviar o link.'),
       });
     } finally {
       setIsSubmitting(false);
@@ -91,59 +81,72 @@ export default function RecuperarSenhaScreen() {
   };
 
   return (
-    <Screen
-      hasForm
-      showHeader
-      toast={<Toast toast={toast} onFinish={() => router.replace('/login')} />}
-    >
+    <Screen hasForm showHeader>
+      <BackButton fallbackHref="/login" />
       <ScreenHeader
+        showBack={false}
         icon="lock-closed-outline"
         title="Recuperar conta"
-        subtitle="Informe seu e-mail e defina uma nova senha. Mínimo 8 caracteres, com 1 letra maiúscula, 1 minúscula e 1 número."
+        subtitle="Informe seu e-mail e enviaremos um link para você criar uma nova senha."
       />
 
       <Card>
         <TextField
           label="E-mail"
           autoCapitalize="none"
+          autoComplete="email"
           autoCorrect={false}
           keyboardType="email-address"
+          textContentType="emailAddress"
           value={form.email}
-          onChangeText={(value) => updateField('email', value)}
+          onChangeText={updateEmail}
           placeholder="seuemail@exemplo.com"
           error={errors.email}
-        />
-        <TextField
-          label="Nova senha"
-          isPassword
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={form.newPassword}
-          onChangeText={(value) => updateField('newPassword', value)}
-          placeholder="Digite a nova senha"
-          error={errors.newPassword}
-        />
-        <TextField
-          label="Confirmar senha"
-          isPassword
-          autoCapitalize="none"
-          autoCorrect={false}
-          value={form.confirmPassword}
-          onChangeText={(value) => updateField('confirmPassword', value)}
-          placeholder="Digite novamente"
-          error={errors.confirmPassword}
+          onSubmitEditing={() => void handleSubmit()}
         />
 
-        <FeedbackBanner feedback={feedback} />
+        <FeedbackBanner
+          feedback={
+            isSent
+              ? { type: 'success', message: MENSAGEM_RECUPERACAO_ENVIADA }
+              : feedback
+          }
+        />
+        {isSent ? <FeedbackBanner feedback={feedback} /> : null}
 
         <Button
-          label="Redefinir senha"
-          loadingLabel="Salvando..."
-          icon="save-outline"
+          label={
+            !isSent
+              ? 'Enviar link'
+              : resend.canResend
+                ? 'Reenviar link'
+                : `Reenviar em ${resend.secondsLeft} s`
+          }
+          loadingLabel="Enviando..."
+          icon="mail-outline"
           isLoading={isSubmitting}
-          disabled={Boolean(toast)}
+          disabled={isSent && !resend.canResend}
           onPress={() => void handleSubmit()}
           style={styles.submit}
+        />
+        {isSent ? (
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Sem abrir o link? Use o código que vem no e-mail na tela de nova
+            senha.
+          </Text>
+        ) : null}
+        {isSent ? (
+          <Button
+            variant="secondary"
+            icon="key-outline"
+            label="Tenho um código"
+            onPress={() => router.push('/redefinir-senha')}
+          />
+        ) : null}
+        <Button
+          variant="tertiary"
+          label="Voltar ao login"
+          onPress={() => router.replace('/login')}
         />
       </Card>
     </Screen>
@@ -152,4 +155,5 @@ export default function RecuperarSenhaScreen() {
 
 const styles = StyleSheet.create({
   submit: { marginTop: Spacing.sm },
+  hint: { ...Typography.bodySmall },
 });

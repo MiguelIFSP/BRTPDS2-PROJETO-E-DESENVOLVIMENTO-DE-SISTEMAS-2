@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { StyleSheet, Text, View } from 'react-native';
 import * as yup from 'yup';
 import { useShallow } from 'zustand/react/shallow';
 
 import OrganizacaoCard from '@/components/OrganizacaoCard';
+import BackButton from '@/components/ui/BackButton';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
 import Chip from '@/components/ui/Chip';
@@ -33,6 +34,7 @@ import {
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import { countLabel } from '@/utils/format';
+import { ORIGEM_RELATORIO } from '@/utils/navegacaoOrigem';
 
 // filtros do admin, que vê todas as organizações da plataforma.
 type Filtro = 'minhas' | 'pendentes' | 'todas';
@@ -44,6 +46,7 @@ type Filtro = 'minhas' | 'pendentes' | 'todas';
  */
 export default function OrganizacaoScreen() {
   const router = useRouter();
+  const { origem } = useLocalSearchParams<{ origem?: string }>();
   const { colors } = useTheme();
   const { token, user } = useAuthStore(
     useShallow((state) => ({ token: state.token, user: state.user })),
@@ -224,6 +227,9 @@ export default function OrganizacaoScreen() {
 
   return (
     <Screen hasForm>
+      {origem === ORIGEM_RELATORIO ? (
+        <BackButton fallbackHref="/mais/relatorios" />
+      ) : null}
       <PageIntro
         title={isAdmin ? 'Organizações' : 'Suas organizações'}
         onAdd={openCreate}

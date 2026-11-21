@@ -1,23 +1,25 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Text } from 'react-native';
 import * as yup from 'yup';
 
 import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
-import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
+import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import ScreenHeader from '@/components/ui/ScreenHeader';
 import TextField from '@/components/ui/TextField';
-import Toast from '@/components/ui/Toast';
-import { Spacing } from '@/constants/theme';
+import { Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
+import { useFieldErrors } from '@/hooks/useFieldErrors';
+import { useReenvioComEspera } from '@/hooks/useReenvioComEspera';
+import { useTheme } from '@/hooks/useTheme';
 import { cadastroUsuarioSchema } from '@/schemas/usuarioSchema';
+import { authService } from '@/services/authService';
 import { monitoringService } from '@/services/monitoringService';
-import { usuarioService } from '@/services/usuarioService';
 import { getErrorMessage } from '@/utils/apiClient';
-import { markFirstAccessWelcomePending } from '@/utils/firstAccessWelcome';
-import { toFieldErrors, type FieldErrors } from '@/utils/formErrors';
+import { textoConfirmacao } from '@/utils/authMensagens';
+import { toFieldErrors } from '@/utils/formErrors';
 
 type CadastroForm = {
   nome: string;
@@ -35,16 +37,22 @@ const INITIAL_VALUES: CadastroForm = {
 
 export default function UsuarioScreen() {
   const router = useRouter();
+  const { colors } = useTheme();
 
   const [form, setForm] = useState<CadastroForm>(INITIAL_VALUES);
-  const [errors, setErrors] = useState<FieldErrors<CadastroForm>>({});
+  const { errors, setErrors, clearFieldError, clearAllErrors } =
+    useFieldErrors<CadastroForm>();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [feedback, setFeedback] = useFeedback();
-  const [toast, setToast] = useState<Feedback | null>(null);
+  // A API responde igual para e-mail novo e repetido: a tela sempre pede a
+  // confirmação e nunca diz se o e-mail já tinha conta.
+  const [sentTo, setSentTo] = useState<string | null>(null);
+  const [isResending, setIsResending] = useState(false);
+  const resend = useReenvioComEspera();
 
   const updateField = (field: keyof CadastroForm, value: string) => {
     setForm((current) => ({ ...current, [field]: value }));
-    setErrors((current) => ({ ...current, [field]: undefined }));
+    clearFieldError(field);
     setFeedback(null);
   };
 
@@ -57,7 +65,7 @@ export default function UsuarioScreen() {
         abortEarly: false,
         stripUnknown: true,
       });
-      setErrors({});
+      clearAllErrors();
     } catch (error) {
       if (error instanceof yup.ValidationError) {
         setErrors(toFieldErrors<CadastroForm>(error));
@@ -67,27 +75,14 @@ export default function UsuarioScreen() {
 
     setIsSubmitting(true);
     try {
-      const createdUser = await usuarioService.create({
-        nome: values.nome,
+      await authService.signUp({
+        name: values.nome,
         email: values.email,
         password: values.password,
       });
-      try {
-        await markFirstAccessWelcomePending(createdUser.id);
-      } catch (error) {
-        // O cadastro já foi concluído; uma falha de armazenamento local não
-        // deve mostrá-lo como erro nem impedir a pessoa de entrar na conta.
-        console.warn(
-          'Não foi possível preparar a apresentação inicial.',
-          error,
-        );
-      }
+      setSentTo(values.email);
+      resend.start();
       setForm(INITIAL_VALUES);
-      setToast({
-        type: 'success',
-        message:
-          'Cadastro realizado com sucesso! Agora você pode entrar na sua conta.',
-      });
     } catch (error) {
       monitoringService.reportRequestFailure(
         error,
@@ -95,42 +90,101 @@ export default function UsuarioScreen() {
       );
       setFeedback({
         type: 'error',
-        message: getErrorMessage(error, 'Não foi possível criar o usuário.'),
+        message: getErrorMessage(error, 'Não foi possível criar a conta.'),
       });
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleResend = async () => {
+    if (!sentTo || !resend.canResend) return;
+    setIsResending(true);
+    setFeedback(null);
+    try {
+      await authService.resendVerification(sentTo);
+      resend.start();
+      setFeedback({
+        type: 'success',
+        message: `Link reenviado para ${sentTo}.`,
+      });
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'Não foi possível reenviar o e-mail.'),
+      });
+    } finally {
+      setIsResending(false);
+    }
+  };
+
+  if (sentTo) {
+    return (
+      <Screen showHeader>
+        <ScreenHeader
+          icon="mail-outline"
+          title="Confirme seu e-mail"
+          subtitle="Falta só um passo para ativar sua conta."
+        />
+        <FeedbackBanner feedback={feedback} />
+        <Card>
+          <Text style={[styles.notice, { color: colors.text }]}>
+            {textoConfirmacao(sentTo)}
+          </Text>
+          <Button
+            variant="secondary"
+            icon="mail-outline"
+            label={
+              resend.canResend
+                ? 'Reenviar e-mail'
+                : `Reenviar em ${resend.secondsLeft} s`
+            }
+            loadingLabel="Reenviando..."
+            isLoading={isResending}
+            disabled={!resend.canResend}
+            onPress={() => void handleResend()}
+          />
+          <Button
+            label="Já confirmei, entrar"
+            icon="log-in-outline"
+            onPress={() => router.replace('/login')}
+          />
+        </Card>
+      </Screen>
+    );
+  }
+
   return (
-    <Screen
-      hasForm
-      showHeader
-      toast={<Toast toast={toast} onFinish={() => router.replace('/login')} />}
-    >
+    <Screen hasForm showHeader>
       <ScreenHeader
         icon="person-add-outline"
-        title="Cadastro de usuário"
+        title="Criar conta"
         subtitle="Crie sua conta para acessar reuniões, organizações e acompanhar o melhor fluxo de trabalho da sua equipe."
       />
 
       <Card>
         <TextField
-          label="Nome de usuário"
+          label="Nome completo"
           autoCapitalize="words"
+          autoComplete="name"
           autoCorrect={false}
           maxLength={80}
+          returnKeyType="next"
+          textContentType="name"
           onChangeText={(value) => updateField('nome', value)}
-          placeholder="Ex.: maria_souza"
+          placeholder="Ex.: Maria Souza"
           value={form.nome}
           error={errors.nome}
         />
         <TextField
           label="E-mail"
           autoCapitalize="none"
+          autoComplete="email"
           autoCorrect={false}
           keyboardType="email-address"
           maxLength={160}
+          returnKeyType="next"
+          textContentType="emailAddress"
           onChangeText={(value) => updateField('email', value)}
           placeholder="seuemail@exemplo.com"
           value={form.email}
@@ -140,7 +194,10 @@ export default function UsuarioScreen() {
           label="Senha"
           isPassword
           autoCapitalize="none"
+          autoComplete="new-password"
           autoCorrect={false}
+          returnKeyType="next"
+          textContentType="newPassword"
           onChangeText={(value) => updateField('password', value)}
           placeholder="Crie uma senha segura"
           value={form.password}
@@ -150,21 +207,23 @@ export default function UsuarioScreen() {
           label="Confirmar senha"
           isPassword
           autoCapitalize="none"
+          autoComplete="new-password"
           autoCorrect={false}
+          textContentType="newPassword"
           onChangeText={(value) => updateField('confirmPassword', value)}
           placeholder="Digite novamente a senha"
           value={form.confirmPassword}
           error={errors.confirmPassword}
+          onSubmitEditing={() => void handleCreateUser()}
         />
 
         <FeedbackBanner feedback={feedback} />
 
         <Button
-          label="Cadastrar usuário"
-          loadingLabel="Cadastrando..."
+          label="Criar conta"
+          loadingLabel="Criando..."
           icon="person-add-outline"
           isLoading={isSubmitting}
-          disabled={Boolean(toast)}
           onPress={() => void handleCreateUser()}
           style={styles.submit}
         />
@@ -174,5 +233,6 @@ export default function UsuarioScreen() {
 }
 
 const styles = StyleSheet.create({
+  notice: { ...Typography.body },
   submit: { marginTop: Spacing.sm },
 });
