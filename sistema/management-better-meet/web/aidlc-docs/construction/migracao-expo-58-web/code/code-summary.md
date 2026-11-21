@@ -1,3 +1,8 @@
+- **Commit:** aed2702 (alterações da refatoração da apresentação final ainda sem commit)
+- **Data de revisão:** 2026-11-21
+- **Estado:** migração para o SDK 58 concluída; seção final acrescentada sobre alterações posteriores do painel
+- **Fontes:** `sistema/management-better-meet/web/src/`; `sistema/better-meet/aidlc-docs/construction/u4-gestao-web/code/code-summary.md`
+
 # Code Summary - migracao-expo-58-web
 
 ## Arquivos alterados (workspace root: `management-better-meet/web`)
@@ -76,3 +81,12 @@ Funcionalidade nova (o `web` nunca usou `themePreference`), pedida pelo usuário
 | `src/app/index.tsx` | `STOPPED_STATUSES`, `RUNNING_STATUSES` e `isActionAvailable`; botões Iniciar/Parar/Reiniciar desabilitados conforme o status do subsistema |
 
 Regra: `DOWN` e `MAINTENANCE` só habilitam Iniciar; `OPERATIONAL` e `ERROR` habilitam Parar e Reiniciar; `UNKNOWN` habilita as três. Soma-se ao bloqueio existente (ação em andamento ou API de Gestão fora do ar). Funcionalidade nova, não faz parte da migração.
+
+## Alterações posteriores do painel (refatoração da apresentação final, 2026-11-21)
+
+Registro sem alterar o que a migração fez. Conferido em `src/services/authService.ts`, `src/services/monitoringService.ts` e `src/schemas/loginSchema.ts`.
+
+- O login chama `POST /api/auth/sign-in/email` (Better Auth) com `{ email, password }`, lê o token do cabeçalho `set-auth-token`, consulta `GET /api/usuarios/me` e recusa quem não é `ADMIN` (`login.tsx` mostra só o campo "E-mail"). O "Sair" chama `POST /api/auth/sign-out`. O campo que aceitava nome de usuário saiu.
+- O painel não embute mais a chave da monitoring (`EXPO_PUBLIC_MONITORING_API_KEY` removida de `config/api.ts`): relata erros em `POST /status/report` e checa subsistemas em `POST /status/:subSystem/check`, ambos com o token da sessão. Sem token, o erro só vai ao `console.error`.
+- Novos arquivos: `src/schemas/loginSchema.ts`, `src/services/authService.ts`, `src/services/sessaoExpiradaError.ts`, `src/utils/subsistemaStatus.ts`; removidos `src/hooks/` e `scripts/reset-project.js`; testes com Jest (`jest-expo`) e Prettier configurados.
+- Pendente de teste manual em navegador: login e tela autenticada [A CONFIRMAR NO CÓDIGO]. Resultados dos comandos desta unidade: ver o relatório de código da unidade U4.
