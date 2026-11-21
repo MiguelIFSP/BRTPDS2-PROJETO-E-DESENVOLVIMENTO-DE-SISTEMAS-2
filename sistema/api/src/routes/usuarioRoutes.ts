@@ -18,9 +18,8 @@ import {
 
 const routes = Router();
 
-// Cadastro (público)
-// pública porque quem se cadastra ainda não tem conta nem token.
-routes.post('/usuarios', usuarioController.create);
+// Perfil de quem está logado. Declarada antes das rotas com :id.
+routes.get('/usuarios/me', requireAuth, usuarioController.me);
 
 // Relatório de usuários (somente admin)
 routes.get(

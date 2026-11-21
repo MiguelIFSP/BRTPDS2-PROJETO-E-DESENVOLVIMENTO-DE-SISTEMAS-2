@@ -1,10 +1,9 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import { Prisma } from '@prisma/client';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { criarAuthSimulado, tokenDe } from './sessaoSimulada.mjs';
 
-const jwtSecret = 'segredo-ficticio-dos-testes-de-exclusao';
 const sendMail = jest.fn();
 const prisma = {
   user: {
@@ -26,12 +25,12 @@ jest.unstable_mockModule('../src/config/database.ts', () => ({
 }));
 jest.unstable_mockModule('../src/config/env.ts', () => ({
   env: {
-    JWT_SECRET: jwtSecret,
     GMAIL_USER: 'bettermeet@example.test',
     GMAIL_APP_PASSWORD: 'senha-de-app',
     MAIL_FROM_NAME: 'Better Meet',
   },
 }));
+jest.unstable_mockModule('../src/lib/auth.ts', criarAuthSimulado);
 const { default: usuarioRoutes } =
   await import('../src/routes/usuarioRoutes.ts');
 const { handleError } = await import('../src/middlewares/errorMiddleware.ts');
@@ -51,12 +50,7 @@ let usuariosNoBanco;
 const aguardarSegundoPlano = () =>
   new Promise((resolve) => setTimeout(resolve, 0));
 
-const tokenFor = (userId) =>
-  jwt.sign(
-    { role: usuariosNoBanco[userId]?.role ?? 'USER', email: 'x@example.test' },
-    jwtSecret,
-    { subject: String(userId), expiresIn: '1h' },
-  );
+const tokenFor = (userId) => tokenDe(userId);
 const excluir = (userId, rota, body = {}) =>
   request(app)
     .delete(`/api/usuarios/${userId}/${rota}`)
@@ -172,8 +166,15 @@ describe.each(['dados-pessoais', 'dados-completos'])(
       expect(prisma.user.update).not.toHaveBeenCalled();
     });
 
-    test('quem criou reunião ou votação recebe 409 com mensagem amigável', async () => {
-      // o banco recusa o DELETE: Reuniao e Votacao apontam para o criador.
+    test('quem criou reunião ou votação exclui a conta sem 409 por autoria', async () => {
+      // O banco anula a autoria (SetNull): o DELETE do usuário passa.
+      const response = await excluir(USUARIO_ID, rota);
+
+      expect(response.status).toBe(200);
+      expect(prisma.user.delete).toHaveBeenCalled();
+    });
+
+    test('violação inesperada de vínculo vira 409 genérico, nunca 500', async () => {
       prisma.user.delete.mockRejectedValue(
         new Prisma.PrismaClientKnownRequestError(
           'Foreign key constraint violated',
@@ -187,7 +188,7 @@ describe.each(['dados-pessoais', 'dados-completos'])(
       const response = await excluir(USUARIO_ID, rota);
 
       expect(response.status).toBe(409);
-      expect(response.body.error).toMatch(/reuniões ou votações/);
+      expect(response.body.error).toMatch(/dados ainda vinculados/);
       expect(response.body.error).not.toMatch(/P2003|constraint|Prisma/i);
       expect(consoleError).not.toHaveBeenCalled();
       consoleError.mockRestore();

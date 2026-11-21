@@ -5,15 +5,16 @@ import {
   type PapelOrganizacao,
   type Prisma,
 } from '@prisma/client';
+import { APIError } from 'better-auth/api';
 import prisma from '../config/database.ts';
 import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
+import { auth } from '../lib/auth.ts';
 import { emailService } from './emailService.ts';
 import { countByMonth } from '../utils/monthlyGrowth.ts';
-import { hashPassword, verifyPassword } from '../utils/passwordHash.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
+import { hashSenha } from '../utils/senhaLegada.ts';
 
-type CadastroUsuarioData = { nome: string; email: string; password: string };
 type PerfilData = { nome: string; email: string };
 // id da organização/comissão -> id de quem assume no lugar do usuário
 type Sucessores = Record<string, number>;
@@ -41,6 +42,7 @@ export const userPublicSelect = {
   name: true,
   email: true,
   role: true,
+  emailVerified: true,
   themePreference: true,
   createdAt: true,
 } satisfies Prisma.UserSelect;
@@ -305,8 +307,8 @@ const avisarNovoAdministrador = (
   );
 };
 
-const CRIADOR_DE_REUNIAO_OU_VOTACAO =
-  'Não foi possível excluir sua conta porque ainda existem reuniões ou votações criadas por você. Exclua essas reuniões e votações, ou peça a um responsável pela comissão, e tente novamente.';
+const DADOS_VINCULADOS =
+  'Não foi possível excluir sua conta por dados ainda vinculados a ela.';
 
 const deleteUser = async (
   transaction: Prisma.TransactionClient,
@@ -318,11 +320,10 @@ const deleteUser = async (
     if (isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)) {
       throw new AppError(404, 'Usuário não encontrado.');
     }
-    // Reuniao e Votacao guardam o criador sem onDelete: o banco recusa o DELETE
-    // enquanto existir alguma criada por ele (as das organizações apagadas na
-    // exclusão completa já saíram em cascata).
+    // A autoria de reunião e votação vira nula (SetNull), então só um vínculo
+    // inesperado chega aqui: responde 409 em vez de 500.
     if (isPrismaError(error, PRISMA_ERROR.FOREIGN_KEY_VIOLATION)) {
-      throw new AppError(409, CRIADOR_DE_REUNIAO_OU_VOTACAO);
+      throw new AppError(409, DADOS_VINCULADOS);
     }
     throw error;
   }
@@ -330,9 +331,10 @@ const deleteUser = async (
 
 export const usuarioService = {
   /**
-   * Garante que o administrador da plataforma configurado no .env exista.
-   * Só cria a conta (ou devolve o papel ADMIN); nunca sobrescreve a senha de
-   * uma conta existente. Sem ADMIN_EMAIL/ADMIN_PASSWORD, não faz nada.
+   * Cria o administrador da plataforma configurado no .env, mas só quando não
+   * existe nenhum ADMIN. Com ao menos um, não grava nada: quem foi rebaixado
+   * não volta a ser promovido por reiniciar a API. Nunca altera conta existente
+   * nem sobrescreve senha.
    */
   async ensureDefaultAdmin() {
     if (!env.ADMIN_EMAIL || !env.ADMIN_PASSWORD) {
@@ -342,81 +344,142 @@ export const usuarioService = {
       return;
     }
 
-    const email = env.ADMIN_EMAIL.toLowerCase();
-    await prisma.user.upsert({
-      where: { email },
-      update: { role: 'ADMIN' },
-      create: {
-        name: 'Administrador',
-        email,
-        password: hashPassword(env.ADMIN_PASSWORD),
-        role: 'ADMIN',
-      },
-    });
-    console.log(`Administrador padrão verificado: ${email}`);
-  },
+    if ((await prisma.user.count({ where: { role: 'ADMIN' } })) > 0) return;
 
-  async create({ nome, email, password }: CadastroUsuarioData) {
+    const email = env.ADMIN_EMAIL.toLowerCase();
+    const existente = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existente) {
+      console.warn(
+        `Não há administrador e já existe uma conta com ${email}. Promova-a por outro meio: o administrador padrão não altera contas existentes.`,
+      );
+      return;
+    }
+
+    const senhaHash = await hashSenha(env.ADMIN_PASSWORD);
     try {
-      return await prisma.user.create({
-        data: {
-          name: nome,
-          email,
-          password: hashPassword(password),
-          role: 'USER',
-          themePreference: 'system',
-        },
-        select: userPublicSelect,
+      await prisma.$transaction(async (transaction) => {
+        const user = await transaction.user.create({
+          data: {
+            name: 'Administrador',
+            email,
+            role: 'ADMIN',
+            emailVerified: true,
+            themePreference: 'system',
+          },
+          select: { id: true },
+        });
+        await transaction.account.create({
+          data: {
+            userId: user.id,
+            accountId: String(user.id),
+            providerId: 'credential',
+            password: senhaHash,
+          },
+        });
       });
+      console.log(`Administrador padrão criado: ${email}`);
     } catch (error) {
-      if (isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) {
-        throw new AppError(409, 'Este e-mail já está cadastrado.');
-      }
+      // outro processo criou a conta primeiro: nada a fazer.
+      if (isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) return;
       throw error;
     }
+  },
+
+  // Perfil da própria pessoa; é o que monitoring e gestão usam para validar a sessão.
+  async getMe(userId: number) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: userPublicSelect,
+    });
+    if (!user) {
+      throw new AppError(401, 'Sessão inválida. Entre novamente.');
+    }
+    return user;
   },
 
   async updatePassword(
     userId: number,
     currentPassword: string,
     newPassword: string,
+    headers: Headers,
   ) {
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { password: true },
-    });
-    if (!user) {
-      throw new AppError(404, 'Usuário não encontrado.');
-    }
-    if (!verifyPassword(currentPassword, user.password)) {
-      throw new AppError(401, 'Senha atual incorreta.');
-    }
     if (currentPassword === newPassword) {
       throw new AppError(400, 'A nova senha deve ser diferente da atual.');
     }
 
-    await prisma.user.update({
-      where: { id: userId },
-      data: { password: hashPassword(newPassword) },
-    });
-  },
-
-  async updateProfile(userId: number, { nome, email }: PerfilData) {
+    // Trocar a senha encerra todas as sessões e abre uma nova para quem trocou;
+    // o token novo sai em set-auth-token e precisa substituir o antigo no cliente.
+    let novoToken: string | null;
     try {
-      return await prisma.user.update({
-        where: { id: userId },
-        data: { name: nome, email },
-        select: userPublicSelect,
+      const { headers: respostaHeaders } = await auth.api.changePassword({
+        body: { currentPassword, newPassword, revokeOtherSessions: true },
+        headers,
+        returnHeaders: true,
       });
+      novoToken = respostaHeaders.get('set-auth-token');
     } catch (error) {
-      if (isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) {
-        throw new AppError(409, 'Este e-mail já está em uso.');
-      }
-      if (isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)) {
-        throw new AppError(404, 'Usuário não encontrado.');
+      if (
+        error instanceof APIError &&
+        error.body?.code === 'INVALID_PASSWORD'
+      ) {
+        throw new AppError(401, 'Senha atual incorreta.');
       }
       throw error;
     }
+
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: userResumoSelect,
+    });
+    if (user) {
+      emailService.runInBackground(() =>
+        emailService.enviarAvisoSenhaAlterada({
+          nome: user.name,
+          email: user.email,
+        }),
+      );
+    }
+    return { token: novoToken };
+  },
+
+  // O nome é gravado na hora. O e-mail novo só vale depois de confirmado por
+  // link enviado a ele (Better Auth); até lá o antigo continua sendo o login.
+  async updateProfile(
+    userId: number,
+    { nome, email }: PerfilData,
+    headers: Headers,
+  ) {
+    const atual = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true },
+    });
+    if (!atual) {
+      throw new AppError(404, 'Usuário não encontrado.');
+    }
+
+    const trocaEmail = email !== atual.email;
+    if (trocaEmail) {
+      const outraConta = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
+      if (outraConta) {
+        throw new AppError(409, 'Este e-mail já está cadastrado.');
+      }
+    }
+
+    const user = await prisma.user.update({
+      where: { id: userId },
+      data: { name: nome },
+      select: userPublicSelect,
+    });
+    if (trocaEmail) {
+      await auth.api.changeEmail({ body: { newEmail: email }, headers });
+    }
+    return { ...user, emailConfirmacaoPendente: trocaEmail };
   },
 
   async updateTheme(userId: number, theme: Tema) {

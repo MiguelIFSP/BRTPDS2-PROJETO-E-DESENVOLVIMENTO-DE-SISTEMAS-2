@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { criarAuthSimulado, tokenDe } from './sessaoSimulada.mjs';
 
-const jwtSecret = 'segredo-ficticio-dos-testes-de-detalhe';
 const prisma = {
   user: { findUnique: jest.fn() },
   organizacao: { findUnique: jest.fn(), update: jest.fn() },
@@ -13,9 +12,8 @@ const prisma = {
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
 }));
-jest.unstable_mockModule('../src/config/env.ts', () => ({
-  env: { JWT_SECRET: jwtSecret },
-}));
+jest.unstable_mockModule('../src/config/env.ts', () => ({ env: {} }));
+jest.unstable_mockModule('../src/lib/auth.ts', criarAuthSimulado);
 const { default: organizacaoRoutes } =
   await import('../src/routes/organizacaoRoutes.ts');
 const { default: comissaoRoutes } =
@@ -33,11 +31,7 @@ const MEMBRO_ID = 3;
 const FORA_ID = 9;
 const ADMIN_ID = 50;
 
-const tokenFor = (userId, role = 'USER') =>
-  jwt.sign({ role, email: `usuario${userId}@example.test` }, jwtSecret, {
-    subject: String(userId),
-    expiresIn: '1h',
-  });
+const tokenFor = (userId) => tokenDe(userId);
 const auth = (userId, role) => ({
   Authorization: `Bearer ${tokenFor(userId, role)}`,
 });

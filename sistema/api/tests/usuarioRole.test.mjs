@@ -1,9 +1,8 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { criarAuthSimulado, tokenDe } from './sessaoSimulada.mjs';
 
-const jwtSecret = 'segredo-ficticio-dos-testes-de-perfil';
 const prisma = {
   user: {
     findUnique: jest.fn(),
@@ -15,9 +14,8 @@ const prisma = {
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
 }));
-jest.unstable_mockModule('../src/config/env.ts', () => ({
-  env: { JWT_SECRET: jwtSecret },
-}));
+jest.unstable_mockModule('../src/config/env.ts', () => ({ env: {} }));
+jest.unstable_mockModule('../src/lib/auth.ts', criarAuthSimulado);
 const { default: usuarioRoutes } =
   await import('../src/routes/usuarioRoutes.ts');
 const { handleError } = await import('../src/middlewares/errorMiddleware.ts');
@@ -30,21 +28,13 @@ const ADMIN_ID = 1;
 const OUTRO_ADMIN_ID = 2;
 const USUARIO_ID = 3;
 
-// perfil gravado no banco de cada pessoa; o requireAuth confia nele, não no token.
+// perfil gravado no banco de cada pessoa; o requireAuth lê o role daqui a cada requisição.
 let rolesNoBanco;
 
-const tokenFor = (userId, role) =>
-  jwt.sign({ role, email: `usuario${userId}@example.test` }, jwtSecret, {
-    subject: String(userId),
-    expiresIn: '1h',
-  });
-const patchRole = (alvoId, role, { actorId = ADMIN_ID, tokenRole } = {}) =>
+const patchRole = (alvoId, role, { actorId = ADMIN_ID } = {}) =>
   request(app)
     .patch(`/api/usuarios/${alvoId}/role`)
-    .set(
-      'Authorization',
-      `Bearer ${tokenFor(actorId, tokenRole ?? rolesNoBanco[actorId] ?? 'USER')}`,
-    )
+    .set('Authorization', `Bearer ${tokenDe(actorId)}`)
     .send({ role });
 
 beforeEach(() => {
@@ -123,12 +113,11 @@ describe('PATCH /usuarios/:id/role', () => {
     expect(prisma.user.update).not.toHaveBeenCalled();
   });
 
-  test('admin rebaixado perde o acesso mesmo com token antigo de ADMIN', async () => {
+  test('admin rebaixado perde o acesso na hora, sem esperar a sessão vencer', async () => {
     rolesNoBanco[OUTRO_ADMIN_ID] = 'USER';
 
     const response = await patchRole(USUARIO_ID, 'ADMIN', {
       actorId: OUTRO_ADMIN_ID,
-      tokenRole: 'ADMIN',
     });
 
     expect(response.status).toBe(403);
@@ -140,7 +129,6 @@ describe('PATCH /usuarios/:id/role', () => {
 
     const response = await patchRole(USUARIO_ID, 'ADMIN', {
       actorId: OUTRO_ADMIN_ID,
-      tokenRole: 'ADMIN',
     });
 
     expect(response.status).toBe(401);

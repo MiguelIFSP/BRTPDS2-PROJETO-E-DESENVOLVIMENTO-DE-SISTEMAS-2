@@ -4,6 +4,7 @@ import {
   membroOrganizacaoSchema,
   organizacaoSchema,
   papelMembroSchema,
+  remocaoMembroSchema,
   statusOrganizacaoSchema,
 } from '../schemas/organizacaoSchema.ts';
 import { organizacaoService } from '../services/organizacaoService.ts';
@@ -112,12 +113,19 @@ export const organizacaoController = {
     const { id: userId, role } = (request as AuthenticatedRequest).user;
     const organizacaoId = parseId(request.params.id, 'da organização');
     const memberId = parseId(request.params.userId, 'do membro');
-    await organizacaoService.removeMember(
+    const { sucessoresComissao } = await remocaoMembroSchema.validate(
+      request.body ?? {},
+      { stripUnknown: true },
+    );
+    const { comissoesApagadas } = await organizacaoService.removeMember(
       organizacaoId,
       userId,
       role,
       memberId,
+      sucessoresComissao,
     );
-    response.status(200).json({ message: 'Membro removido com sucesso.' });
+    response
+      .status(200)
+      .json({ message: 'Membro removido com sucesso.', comissoesApagadas });
   },
 };

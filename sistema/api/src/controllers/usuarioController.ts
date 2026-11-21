@@ -1,17 +1,16 @@
 // =====================================================================
 // usuarioController.ts
 // Contém os controllers de:
-//   - create         (já existia) - cadastro de usuário
 //   - updatePassword (já existia) - troca de senha  (UC01)
 //   - updateProfile  (NOVO)       - alteração de dados pessoais (UC03)
 //   - updateTheme    (NOVO)       - alteração do tema preferido  (UC04)
 // =====================================================================
 
+import { fromNodeHeaders } from 'better-auth/node';
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/authMiddleware.ts';
 import {
   buscaUsuarioSchema,
-  cadastroUsuarioSchema,
   exclusaoContaSchema,
   perfilSchema,
   roleSchema,
@@ -27,16 +26,11 @@ import { parseId } from '../utils/parseId.ts';
 // As rotas /usuarios/:id/... passam por requireSelf, então o :id já foi
 // validado e é o próprio usuário do token.
 export const usuarioController = {
-  // -------------------------------------------------------------------
-  // create — Cadastro de novo usuário
-  // -------------------------------------------------------------------
-  async create(request: Request, response: Response) {
-    const { nome, email, password } = await cadastroUsuarioSchema.validate(
-      request.body,
-      { stripUnknown: true },
-    );
-    const user = await usuarioService.create({ nome, email, password });
-    response.status(201).json(user);
+  // GET /usuarios/me: perfil de quem está logado, sem :id e sem senha nem token.
+  async me(request: Request, response: Response) {
+    const { id } = (request as AuthenticatedRequest).user;
+    const user = await usuarioService.getMe(id);
+    response.status(200).json(user);
   },
 
   // -------------------------------------------------------------------
@@ -48,8 +42,16 @@ export const usuarioController = {
       request.body,
       { stripUnknown: true },
     );
-    await usuarioService.updatePassword(userId, currentPassword, newPassword);
-    response.status(200).json({ message: 'Senha alterada com sucesso.' });
+    const { token } = await usuarioService.updatePassword(
+      userId,
+      currentPassword,
+      newPassword,
+      fromNodeHeaders(request.headers),
+    );
+    if (token) response.setHeader('set-auth-token', token);
+    response
+      .status(200)
+      .json({ message: 'Senha alterada com sucesso.', token });
   },
 
   // -------------------------------------------------------------------
@@ -60,7 +62,11 @@ export const usuarioController = {
     const perfil = await perfilSchema.validate(request.body, {
       stripUnknown: true,
     });
-    const user = await usuarioService.updateProfile(userId, perfil);
+    const user = await usuarioService.updateProfile(
+      userId,
+      perfil,
+      fromNodeHeaders(request.headers),
+    );
     response.status(200).json(user);
   },
 

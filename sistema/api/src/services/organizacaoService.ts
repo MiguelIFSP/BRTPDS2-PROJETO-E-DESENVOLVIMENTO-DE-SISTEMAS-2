@@ -5,7 +5,9 @@ import {
   type Role,
 } from '@prisma/client';
 import prisma from '../config/database.ts';
+import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
+import { estadoDaReuniao } from '../utils/fusoHorario.ts';
 import { countByMonth } from '../utils/monthlyGrowth.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
 
@@ -31,6 +33,150 @@ const ORDEM_PAPEL = {
 const membroUserSelect = {
   user: { select: { id: true, name: true, email: true } },
 } satisfies Prisma.OrganizacaoMembroInclude;
+
+// comissaoId -> id de quem passa a administrar a comissão.
+type Sucessores = Record<string, number>;
+
+const usuarioResumoSelect = {
+  id: true,
+  name: true,
+  email: true,
+} satisfies Prisma.UserSelect;
+
+// Quem sai da organização sai também das comissões dela. Se era o único
+// ADMINISTRADOR de uma comissão com outras pessoas, alguém precisa assumir; se
+// a equipe era só ele, a comissão é apagada. Sem sucessor escolhido, nada é
+// gravado e a resposta lista as comissões pendentes (mesmo formato da exclusão
+// de conta).
+const removerMembroComSucessao = async (
+  transaction: Prisma.TransactionClient,
+  organizacaoId: number,
+  memberId: number,
+  sucessoresComissao: Sucessores,
+) => {
+  const vinculos = await transaction.comissaoEquipe.findMany({
+    where: { userId: memberId, comissao: { organizacaoId } },
+    include: {
+      comissao: {
+        include: {
+          equipe: { include: { user: { select: usuarioResumoSelect } } },
+        },
+      },
+    },
+  });
+
+  const promocoes: Array<{ comissaoId: number; novoAdministradorId: number }> =
+    [];
+  const comissoesApagadas: number[] = [];
+  const comissoesPendentes: Array<{
+    id: number;
+    nome: string;
+    organizacaoId: number;
+    membros: { id: number; name: string; email: string }[];
+  }> = [];
+
+  for (const { comissao } of vinculos) {
+    const alvo = comissao.equipe.find((membro) => membro.userId === memberId);
+    if (alvo?.papel !== 'ADMINISTRADOR') continue;
+    const outros = comissao.equipe.filter(
+      (membro) => membro.userId !== memberId,
+    );
+    if (outros.some((membro) => membro.papel === 'ADMINISTRADOR')) continue;
+    if (outros.length === 0) {
+      comissoesApagadas.push(comissao.id);
+      continue;
+    }
+    const sucessorId = sucessoresComissao[comissao.id];
+    if (
+      sucessorId !== undefined &&
+      outros.some((membro) => membro.userId === sucessorId)
+    ) {
+      promocoes.push({
+        comissaoId: comissao.id,
+        novoAdministradorId: sucessorId,
+      });
+      continue;
+    }
+    comissoesPendentes.push({
+      id: comissao.id,
+      nome: comissao.nome,
+      organizacaoId: comissao.organizacaoId,
+      membros: outros.map((membro) => membro.user),
+    });
+  }
+
+  if (comissoesPendentes.length > 0) {
+    throw new AppError(
+      409,
+      'Escolha quem vai assumir cada comissão listada antes de continuar.',
+      { comissoesPendentes },
+    );
+  }
+
+  for (const promocao of promocoes) {
+    await transaction.comissaoEquipe.update({
+      where: {
+        comissaoId_userId: {
+          comissaoId: promocao.comissaoId,
+          userId: promocao.novoAdministradorId,
+        },
+      },
+      data: { papel: 'ADMINISTRADOR' },
+    });
+  }
+  if (comissoesApagadas.length > 0) {
+    // a equipe e as reuniões saem junto pelo onDelete: Cascade do schema.
+    await transaction.comissao.deleteMany({
+      where: { id: { in: comissoesApagadas } },
+    });
+  }
+
+  const comissaoIds = vinculos
+    .map(({ comissao }) => comissao.id)
+    .filter((id) => !comissoesApagadas.includes(id));
+  if (comissaoIds.length > 0) {
+    await apagarConvitesPendentes(transaction, memberId, comissaoIds);
+    await transaction.comissaoEquipe.deleteMany({
+      where: { userId: memberId, comissaoId: { in: comissaoIds } },
+    });
+  }
+
+  await transaction.organizacaoMembro.delete({
+    where: { organizacaoId_userId: { organizacaoId, userId: memberId } },
+  });
+  return { comissoesApagadas };
+};
+
+// Convite ainda sem resposta em reunião que não terminou deixa de fazer
+// sentido; ACEITO e RECUSADO e os registros de presença ficam como histórico.
+const apagarConvitesPendentes = async (
+  transaction: Prisma.TransactionClient,
+  userId: number,
+  comissaoIds: number[],
+) => {
+  const convites = await transaction.conviteReuniao.findMany({
+    where: {
+      userId,
+      status: 'PENDENTE',
+      reuniao: { comissaoId: { in: comissaoIds } },
+    },
+    select: {
+      id: true,
+      reuniao: {
+        select: { data: true, horaInicio: true, horaFim: true, status: true },
+      },
+    },
+  });
+  const ids = convites
+    .filter(
+      ({ reuniao }) =>
+        estadoDaReuniao(reuniao, env.TZ_REUNIOES).estado !== 'ENCERRADA',
+    )
+    .map((convite) => convite.id);
+  if (ids.length > 0) {
+    await transaction.conviteReuniao.deleteMany({ where: { id: { in: ids } } });
+  }
+};
 
 // include padrao ao buscar org: membros (com user) e comissoes.
 const organizacaoDetails = {
@@ -387,6 +533,7 @@ export const organizacaoService = {
     actorId: number,
     actorRole: Role,
     memberId: number,
+    sucessoresComissao: Sucessores = {},
   ) {
     const organizacao = await findWithMembros(organizacaoId);
 
@@ -413,8 +560,13 @@ export const organizacaoService = {
       );
     }
 
-    await prisma.organizacaoMembro.delete({
-      where: { organizacaoId_userId: { organizacaoId, userId: memberId } },
-    });
+    return prisma.$transaction(async (transaction) =>
+      removerMembroComSucessao(
+        transaction,
+        organizacaoId,
+        memberId,
+        sucessoresComissao,
+      ),
+    );
   },
 };

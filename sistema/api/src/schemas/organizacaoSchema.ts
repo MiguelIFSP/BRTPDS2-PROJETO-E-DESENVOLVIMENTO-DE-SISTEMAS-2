@@ -1,6 +1,6 @@
 import { PapelOrganizacao, StatusOrganizacao } from '@prisma/client';
 import * as yup from 'yup';
-import { emailRule } from './commonSchema.ts';
+import { emailRule, idRule } from './commonSchema.ts';
 
 export const organizacaoSchema = yup.object({
   nome: yup
@@ -32,4 +32,25 @@ export const statusOrganizacaoSchema = yup.object({
       'Status inválido.',
     )
     .required('Informe o status.'),
+});
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+// Corpo opcional do DELETE de membro: comissaoId -> id de quem assume a
+// administração. As chaves dependem do membro, então o formato sai do próprio
+// valor (yup.lazy); um yup.object() sem campos apagaria o mapa no stripUnknown.
+export const remocaoMembroSchema = yup.object({
+  sucessoresComissao: yup.lazy((value: unknown) =>
+    yup
+      .object(
+        Object.fromEntries(
+          Object.keys(isRecord(value) ? value : {}).map((chave) => [
+            chave,
+            idRule('Sucessor inválido.').required('Sucessor inválido.'),
+          ]),
+        ),
+      )
+      .default({}),
+  ),
 });
