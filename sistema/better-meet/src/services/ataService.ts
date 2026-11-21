@@ -12,6 +12,13 @@ export type Ata = {
   podeEditar: boolean;
   podeVotar: boolean;
   meuVoto: StatusAtaVoto | null;
+  // Aprovada = maioria simples dos presentes aprovou a versão atual.
+  presentes: number;
+  aprovada: boolean;
+  // Depois de exportada a aprovação é definitiva: edição e voto são bloqueados.
+  exportada: boolean;
+  exportadaAt: string | null;
+  podeExportar: boolean;
   votos: { aprovados: number; reprovados: number };
 };
 
@@ -33,6 +40,14 @@ export const ataService = {
       token,
       body: { conteudoAta, versaoAta },
       fallbackError: 'Não foi possível salvar a ata.',
+    });
+  },
+  // 409 se a ata ainda não foi aprovada pela maioria dos presentes.
+  exportar(token: string, reuniaoId: number) {
+    return apiRequest<Ata>(`/reunioes/${reuniaoId}/ata/exportar`, {
+      method: 'POST',
+      token,
+      fallbackError: 'Não foi possível exportar a ata.',
     });
   },
   vote(

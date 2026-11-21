@@ -1,8 +1,10 @@
+import type { TipoVotacao } from '@/schemas/votacaoSchema';
 import { apiRequest } from '@/utils/apiClient';
 
 export type VotacaoResumo = {
   id: number;
   titulo: string;
+  tipo: TipoVotacao;
   encerrada: boolean;
   createdAt: string;
   totalVotos: number;
@@ -17,8 +19,9 @@ export type Votante = {
 export type VotacaoOpcao = {
   id: number;
   texto: string;
-  votos: number;
-  // Só vem para quem criou a reunião ou para o admin da plataforma.
+  // Ausente enquanto o resultado parcial está oculto.
+  votos?: number;
+  // Só vem em votação aberta, para quem gere a reunião.
   votantes?: Votante[];
 };
 
@@ -26,19 +29,32 @@ export type VotacaoDetalhe = {
   id: number;
   reuniaoId: number;
   titulo: string;
+  tipo: TipoVotacao;
+  mostrarParcial: boolean;
+  permiteTrocaVoto: boolean;
   encerrada: boolean;
   createdAt: string;
+  totalVotos: number;
   reuniao: { id: number; titulo: string };
   podeGerir: boolean;
   podeVotar: boolean;
   meuVotoOpcaoId: number | null;
+  meuVotoNulo: boolean;
+  // Votos nulos; ausente enquanto o resultado parcial está oculto.
+  nulos?: number;
   opcoes: VotacaoOpcao[];
 };
 
 export type VotacaoCreateInput = {
   titulo: string;
   opcoes: string[];
+  tipo: TipoVotacao;
+  mostrarParcial: boolean;
+  permiteTrocaVoto: boolean;
 };
+
+// Uma opção ou o voto nulo, nunca os dois.
+export type VotoInput = { opcaoId: number } | { nulo: true };
 
 export const rotuloDeVotos = (total: number) => {
   if (total === 0) return 'Nenhum voto';
@@ -70,11 +86,11 @@ export const votacaoService = {
     });
   },
 
-  vote(token: string, votacaoId: number, opcaoId: number) {
+  vote(token: string, votacaoId: number, voto: VotoInput) {
     return apiRequest<VotacaoDetalhe>(`/votacoes/${votacaoId}/voto`, {
       method: 'POST',
       token,
-      body: { opcaoId },
+      body: voto,
       fallbackError: 'Não foi possível registrar o voto.',
     });
   },

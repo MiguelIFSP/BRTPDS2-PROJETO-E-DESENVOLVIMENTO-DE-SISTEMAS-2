@@ -1,5 +1,8 @@
 import * as yup from 'yup';
 
+export const TIPOS_VOTACAO = ['ABERTA', 'SECRETA'] as const;
+export type TipoVotacao = (typeof TIPOS_VOTACAO)[number];
+
 const MIN_OPCOES = 2;
 const MAX_OPCOES = 6;
 
@@ -10,8 +13,22 @@ const opcaoRule = () =>
     .required('Preencha todas as opções.')
     .max(80, 'Cada opção deve ter no máximo 80 caracteres.');
 
-// Mesma regra da API.
+// Mesma regra da API: resultado parcial e troca de voto ficam desligados por
+// padrão, e o tipo (aberta ou secreta) é escolhido na criação.
 export const votacaoSchema = yup.object({
+  tipo: yup
+    .string()
+    .trim()
+    .oneOf([...TIPOS_VOTACAO], 'Escolha se a votação é aberta ou secreta.')
+    .required('Escolha se a votação é aberta ou secreta.'),
+  mostrarParcial: yup
+    .boolean()
+    .typeError('Informe se o resultado parcial aparece.')
+    .default(false),
+  permiteTrocaVoto: yup
+    .boolean()
+    .typeError('Informe se a troca de voto é permitida.')
+    .default(false),
   titulo: yup
     .string()
     .trim()

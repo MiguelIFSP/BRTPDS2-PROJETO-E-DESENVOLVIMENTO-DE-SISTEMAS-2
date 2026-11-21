@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   clearFirstAccessWelcomePending,
   isFirstAccessWelcomePending,
+  markFirstAccessWelcomeOnFirstLogin,
   markFirstAccessWelcomePending,
 } from '@/utils/firstAccessWelcome';
 
@@ -24,5 +25,27 @@ describe('aviso de primeiro acesso', () => {
     await clearFirstAccessWelcomePending(17);
 
     await expect(isFirstAccessWelcomePending(17)).resolves.toBe(false);
+  });
+
+  it('no primeiro login da conta fica pendente', async () => {
+    await markFirstAccessWelcomeOnFirstLogin(21);
+
+    await expect(isFirstAccessWelcomePending(21)).resolves.toBe(true);
+  });
+
+  it('depois de fechada, o login seguinte não mostra a boas-vindas de novo', async () => {
+    await markFirstAccessWelcomeOnFirstLogin(21);
+    await clearFirstAccessWelcomePending(21);
+    await markFirstAccessWelcomeOnFirstLogin(21);
+
+    await expect(isFirstAccessWelcomePending(21)).resolves.toBe(false);
+  });
+
+  it('login repetido antes de fechar mantém a pendência e não afeta outra conta', async () => {
+    await markFirstAccessWelcomeOnFirstLogin(21);
+    await markFirstAccessWelcomeOnFirstLogin(21);
+
+    await expect(isFirstAccessWelcomePending(21)).resolves.toBe(true);
+    await expect(isFirstAccessWelcomePending(22)).resolves.toBe(false);
   });
 });

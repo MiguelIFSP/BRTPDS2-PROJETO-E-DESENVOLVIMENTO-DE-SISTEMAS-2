@@ -8,10 +8,20 @@ export function markFirstAccessWelcomePending(userId: number) {
   return AsyncStorage.setItem(keyFor(userId), 'pending');
 }
 
+/**
+ * O cadastro não devolve o id nem abre sessão, então a boas-vindas dispara no
+ * primeiro login da conta neste aparelho. Quem já viu (ou fechou) a
+ * apresentação fica com o valor 'done' e não a recebe de novo.
+ */
+export async function markFirstAccessWelcomeOnFirstLogin(userId: number) {
+  const current = await AsyncStorage.getItem(keyFor(userId));
+  if (current === null) await markFirstAccessWelcomePending(userId);
+}
+
 export async function isFirstAccessWelcomePending(userId: number) {
   return (await AsyncStorage.getItem(keyFor(userId))) === 'pending';
 }
 
 export function clearFirstAccessWelcomePending(userId: number) {
-  return AsyncStorage.removeItem(keyFor(userId));
+  return AsyncStorage.setItem(keyFor(userId), 'done');
 }
