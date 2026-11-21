@@ -1,0 +1,429 @@
+Fonte única das instruções para agentes de IA (GT-03). Ao mudar [`GUIA_DE_CODIFICACAO.md`](../GUIA_DE_CODIFICACAO.md), atualize [`PROMPT_AGENTES_IA.md`](../PROMPT_AGENTES_IA.md) e este arquivo no mesmo PR. Em caso de divergência, o guia vale. Pendências conhecidas do código: [`RELATORIO_BUGS.md`](../RELATORIO_BUGS.md), seção "Pendências de padrão". Regra específica do app: ver `better-meet/AGENTS.md` (documentação do Expo SDK 58).
+
+# Padrões de código do projeto Better Meet
+
+Você está escrevendo código para o Better Meet, um sistema de gerenciamento de reuniões. O repositório tem estes subsistemas em `sistema/`:
+
+- `api/`: API de Dados (Node + Express 5 + Prisma 7 + MySQL, TypeScript, ESM)
+- `better-meet/`: app mobile/web (Expo 58 + React Native 0.88 + Expo Router + Zustand)
+- `monitoring-better-meet/`: API de Monitoramento (Node + Express 5 + Prisma)
+- `management-better-meet/server/` e `management-better-meet/web/`: painel de gestão (Express e Expo 58)
+
+Siga as regras abaixo em todo código que você criar ou alterar. Elas são obrigatórias. Se uma regra impedir o que foi pedido, pare e explique o conflito em vez de quebrá-la. As regras 91 a 101, no fim, completam as seções temáticas; cada seção indica quais delas leu junto.
+
+## TypeScript
+
+1. **Mantenha o modo estrito.**
+   - Todo `tsconfig.json` tem `"strict": true`.
+   - Nos serviços Node, também `noUncheckedIndexedAccess: true` e `exactOptionalPropertyTypes: true`.
+   - Nunca desligue essas opções para o código compilar; corrija o código.
+   - Com `noUncheckedIndexedAccess`, trate o `undefined` de acessos por índice (ex.: `error.errors[0] ?? 'Dados inválidos.'`).
+
+2. **Nunca use `any`**, nem como `: any`, `<any>` ou `as any`.
+   - Para valores desconhecidos, use `unknown` e estreite com `instanceof`, `typeof` ou validação.
+   - Em `catch`, escreva `catch (error)` e use `error instanceof Error ? error.message : '<mensagem padrão em pt-BR>'`.
+   - Para props de componentes de bibliotecas, use o tipo exportado pela biblioteca (ex.: `ScrollViewProps` do `react-native`).
+   - Para rotas do Expo Router, use as rotas tipadas; nunca `as any`.
+
+3. **Importe tipos com `import type`.**
+   - Se todos os nomes importados são tipos: `import type { Request, Response } from 'express';`
+   - Se o mesmo módulo fornece valores e tipos, use um único import com `type` inline: `import { organizacaoService, type Organizacao } from '@/services/organizacaoService';`
+   - Não crie dois imports separados para o mesmo módulo.
+
+4. **Não use `enum` do TypeScript.**
+   - Para conjuntos fixos de valores, declare uma lista com `as const` e derive a união:
+     `export const PAPEIS_ORGANIZACAO = ['CRIADOR', 'GERENTE', 'MODERADOR', 'MEMBRO'] as const;`
+     `export type PapelMembro = (typeof PAPEIS_ORGANIZACAO)[number];`
+   - Reaproveite a lista na validação (`yup.string().oneOf([...PAPEIS_ORGANIZACAO])`).
+   - Os enums do `schema.prisma` são permitidos e são o padrão para estados fixos gravados no banco; no backend, importe o tipo e os valores gerados de `@prisma/client`.
+
+5. **Use `satisfies` em objetos de configuração**, no lugar de anotar o tipo com `:`.
+   - Exemplos: `select`/`include` do Prisma (`} satisfies Prisma.OrganizacaoInclude;`), mapas de rótulos ou cores por chave (`} satisfies Record<PapelOrganizacao, string>;`) e listas de configuração.
+
+6. **Use `type`, não `interface`.**
+   - Declare objetos, props, respostas de API e uniões com `type`.
+   - Combine tipos com `&`.
+   - Use `interface` somente para estender um tipo declarado por uma biblioteca (declaration merging, ex.: `declare module 'express-serve-static-core' { interface Request { … } }`), sempre com um comentário explicando o motivo.
+
+7. **Use aspas simples** em strings e imports TypeScript.
+   - Template literals (crases) para interpolação.
+   - Aspas duplas são aceitas apenas: em atributos JSX (`<Ionicons name="menu" />`), em arquivos `.json` e quando a string contém uma aspa simples.
+
+8. **O código deve passar no ESLint e no Prettier do subsistema.**
+   - Formatação Prettier: `singleQuote: true`, `semi: true`, `trailingComma: 'all'`, `tabWidth: 2`.
+   - Não desative regras do ESLint. Se for inevitável, use `// eslint-disable-next-line <regra> -- <motivo>` em uma única linha.
+
+9. **Use sempre ES Modules.**
+   - Proibido em código novo: `require`, `module.exports`, `exports.x`, `import x = require('...')`, `__dirname` e `__filename`.
+   - Use `import`/`export`, `import.meta.dirname`, `import.meta.filename` e `await import()` para carregamento dinâmico.
+   - Nos serviços Node (`api`, `monitoring-better-meet`, `management-better-meet/server`), imports relativos levam a extensão `.ts` (ex.: `import prisma from '../config/database.ts';`), e o `package.json` tem `"type": "module"`.
+   - No app Expo (`better-meet`, `management-better-meet/web`), não coloque extensão nos imports; use o alias `@/` (ex.: `import { Colors } from '@/constants/theme';`).
+   - Única exceção: arquivos de configuração de ferramentas que só aceitam CommonJS (`ecosystem.config.js`, `eslint.config.js`).
+
+## Nomenclatura e idioma
+
+10. **Substantivos do domínio em português; verbos e termos técnicos em inglês.**
+    - Português: entidades, papéis, status e campos do negócio, com os mesmos nomes do `schema.prisma` (`organizacao`, `comissao`, `usuario`, `membros`, `papel`, `nome`, tipos `Organizacao`, `OrganizacaoMembro`, `PapelComissao`).
+    - Inglês: verbos de funções e termos técnicos (`create`, `getById`, `listMine`, `addMember`, `removeMember`, `Service`, `Controller`, `Report`, `Error`, `Props`, `token`).
+    - Certo: `organizacaoService.addMember(...)`, `type Organizacao`, `class OrganizacaoError`.
+    - Errado: `adicionarMembro`, `listarPorOrganizacao`, `type Organization`.
+
+11. **Todo texto visível ao usuário é em português do Brasil, com vocabulário de aplicativo.**
+    - Vale para textos de tela, botões, placeholders, mensagens de erro e sucesso do app e das APIs, mensagens do Yup, `accessibilityLabel`, `accessibilityHint`, conteúdo do manual, mensagens de log e comentários.
+    - Não use inglês nem português de Portugal: escreva "tela" (não "ecrã"), "usuário" (não "utilizador"), "registro" (não "registo"), "celular" (não "telemóvel").
+    - O Better Meet é um aplicativo: escreva "aplicativo" ou "app" (não "site" ou "sistema web"), "tela" (não "página") e "tocar" (não "clicar"). A Di3 criticou "Site" na mensagem de boas-vindas.
+
+12. **Padrões de caixa.**
+    - camelCase: variáveis, funções, parâmetros, propriedades, objetos de service/controller e hooks (`organizacaoId`, `organizacaoService`, `useAppColorScheme`).
+    - PascalCase: componentes React, tipos e classes (`ConfirmDialog`, `PapelOrganizacao`, `OrganizacaoError`).
+    - UPPER_SNAKE_CASE: só para constantes de módulo com valor fixo e variáveis de ambiente (`MESES_CRESCIMENTO`, `PAPEIS_ORGANIZACAO`, `API_URL`). Valores calculados em tempo de execução ficam em camelCase, mesmo com `const`.
+    - Funções começam com verbo; booleanos são escritos como pergunta (`isAuthenticated`, `hasHydrated`); hooks começam com `use`.
+
+13. **Arquivos de camada se chamam `<dominio><Camada>.ts`.** O domínio vai em camelCase e a camada em PascalCase, sem pontos nem hífens.
+    - `organizacaoRoutes.ts`, `organizacaoController.ts`, `organizacaoService.ts`, `organizacaoSchema.ts`, `authMiddleware.ts`, `healthCheckJob.ts`, `authStore.ts`.
+    - Nunca use `status.controller.ts`, `pm2.service.ts` ou `auth.ts` dentro de `middlewares/`.
+    - Use o mesmo domínio em todas as camadas de um assunto.
+    - Hooks ficam em `hooks/`, em um arquivo com o nome do hook: `useTheme.ts`, `useAppColorScheme.ts`.
+
+14. **Componentes React ficam em `PascalCase.tsx`**, com o mesmo nome do componente exportado (ex.: `ConfirmDialog.tsx`). Variantes por plataforma mantêm o sufixo: `AnimatedIcon.web.tsx`.
+
+15. **Rotas do Expo Router (`src/app/`) ficam em kebab-case com palavras em português** (ex.: `excluir-conta.tsx`, `recuperar-senha.tsx`).
+    - Exceções: os arquivos reservados `_layout.tsx`, `index.tsx` e `+not-found.tsx`.
+    - Ao criar ou renomear uma rota, atualize `router.push`/`router.replace`, `<NativeTabs.Trigger name="…">` no `(tabs)/_layout.tsx` (quando for uma aba) e a lista `PUBLIC_ROUTES` do `AppGate`.
+
+16. **Comentários explicam o porquê, não o quê.**
+    - Comente decisões não óbvias, regras de negócio, restrições de ordem e armadilhas evitadas.
+    - Não escreva comentários que só repetem o código (ex.: `// Middlewares globais` acima de `app.use(express.json())`). Prefira um nome melhor a um comentário.
+    - Use JSDoc em funções exportadas cujo comportamento não fica claro pela assinatura.
+    - Ao mudar um trecho, atualize ou remova o comentário que deixou de ser verdade.
+
+17. **Não escreva comentários de histórico.**
+    - Proibido: "NOVO", "já existia", "Incremento N", "antes era assim" e índices manuais das funções do arquivo.
+    - Referências a casos de uso (`UC02`) são permitidas.
+    - **Não remova nem altere comentários de histórico que já existem no repositório.** Só quem fez o commit pode removê-los. Se encontrar um, deixe-o como está e informe arquivo e linha na sua resposta.
+
+## Node.js + Express 5 (`api`, `monitoring-better-meet`, `management-better-meet/server`)
+
+Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/AppError.ts`, `src/middlewares/`, `src/routes/`, `src/controllers/`, `src/schemas/`, `src/services/`, `src/utils/` (`parseId.ts`, `prismaErrors.ts`), `src/server.ts` e `docs/openapi.yaml`. Leia junto as regras 91 a 94 (proteção da API, ciclo de vida, verificação de e-mail e login social).
+
+18. **Camadas routes → controller → service**, como em organizações.
+    - Routes: só caminho, middlewares e handler. Nenhuma rota declarada direto no `server.ts`.
+    - Controller: lê `request` (params, body, usuário do token), valida com o schema Yup, chama o service e responde. Não acessa o Prisma e não tem regra de negócio.
+    - Service: regras de negócio, permissões por papel e Prisma. Não conhece `request`/`response`.
+
+19. **Controllers e services são objetos literais exportados**: `export const organizacaoController = { async create(request, response) { … } }` e `export const organizacaoService = { … }`. Não exporte funções soltas. Parâmetros dos handlers: `request` e `response` (não `req`/`res`). Auxiliares internos ficam fora do objeto, sem `export`.
+
+20. **Erros de negócio são lançados com `AppError`** (`src/errors/AppError.ts`): `throw new AppError(404, 'Organização não encontrada.');`.
+    - Não crie classes de erro por domínio e não monte `response.status(4xx).json(...)` no meio da lógica.
+    - Declare a propriedade `statusCode` no corpo da classe; não use `constructor(public statusCode …)`, que o Node não executa ao rodar `.ts` direto.
+    - Se o cliente precisar de dados para resolver o erro, passe-os no terceiro parâmetro, `details` (ex.: `throw new AppError(409, '…', { organizacoesPendentes })`); eles saem no mesmo corpo do `error`. Nunca coloque detalhes internos ali.
+
+21. **Validação em `schemas/` e tratamento de erro central.**
+    - Schemas Yup ficam em `src/schemas/<dominio>Schema.ts` (no backend e no app), nunca dentro de controllers, telas ou componentes.
+    - Use sempre `schema.validate(request.body, { stripUnknown: true })`.
+    - Controllers **não têm `try/catch`**: o Express 5 envia os erros ao middleware `handleError` (`src/middlewares/errorMiddleware.ts`), registrado por último no `server.ts`, logo depois de um 404 em JSON para rotas inexistentes. Ele converte Yup → 400, `AppError` → status próprio (com `details`), JSON malformado → 400, Prisma `P2025` → 404, `P2002` → 409 e o resto → 500 genérico.
+    - Exceção: as rotas públicas `/api/convites/:token`, abertas no navegador pelos botões do e-mail, respondem HTML também nos erros. Só no `conviteRespostaController` há `try/catch`, que converte `yup.ValidationError` e `AppError` em página (via `utils/paginaResposta.ts`) e relança o resto. A validação continua em `schemas/conviteRespostaSchema.ts`. Não crie outras rotas HTML sem que sejam abertas direto no navegador.
+
+22. **Formato das respostas.**
+    - Erro: `{ "error": "mensagem em pt-BR" }`.
+    - Sucesso com dados: o recurso ou a lista.
+    - Sucesso sem dados: `{ "message": "mensagem em pt-BR" }`.
+    - Status: 200, 201 (criação), 202 (aceito), 400, 401, 403, 404, 409 (conflito, inclusive estado que não permite a ação — regra 92), 410 (recurso que não aceita mais a ação, ex.: convite de reunião encerrada, votação encerrada), 429 (limite de tentativas — regra 91) e 500, cada um no seu caso.
+
+23. **Nunca devolva `error.message` interno no 500.** A resposta é genérica (`'Erro interno. Tente novamente mais tarde.'`) e os detalhes vão para o `console.error`.
+
+24. **O usuário da requisição vem só do token**: `(request as AuthenticatedRequest).user`. Nunca leia id, e-mail ou papel do usuário de headers próprios, body ou query.
+
+25. **Rotas `/usuarios/:id/...` usam o middleware `requireSelf`** depois de `requireAuth`. Ele valida o id com `parseId` (400) e compara com o usuário do token (403).
+
+26. **Proteção declarada na rota**: `requireAuth`, `requireAdmin` (sempre depois de `requireAuth`) e `requireSelf` aparecem na declaração da rota. Permissões por papel em organização ou comissão ficam no service. Rotas públicas recebem um comentário dizendo por que são públicas.
+
+27. **Rotas fixas antes de rotas com parâmetro**: `/organizacoes/relatorio` é declarada antes de `/organizacoes/:id`.
+
+28. **Ids de URL passam por `parseId`** (`src/utils/parseId.ts`): `const organizacaoId = parseId(request.params.id, 'da organização');`.
+    - Aceita só inteiro > 0; senão lança `AppError(400, 'Identificador da organização inválido.')`.
+    - Nunca use `Number(request.params.x)` sem validar. `parseId` é usado no controller ou em middleware, nunca no service.
+    - Ordem das checagens: 400 → 403 → 404.
+
+29. **Todos os endpoints ficam sob `/api`.** O prefixo é aplicado uma vez no `server.ts` (`app.use('/api', apiRouter)`), e os arquivos de rotas declaram caminhos sem ele. Só `/health` fica fora. No app, a URL base do `.env` já inclui `/api`, e os services do app não acrescentam `/api` à mão. Não há exceções: a ponte `POST /login` da API de Dados foi removida (o painel de gestão usa o Better Auth em `/api/auth/*`), e a monitoring e o servidor de gestão também ficam sob `/api`.
+
+30. **Segredos e configuração só via `.env`.**
+    - Leia as variáveis apenas em `src/config/env.ts`, que lança erro no boot se faltar uma obrigatória. No resto do código use `env.X`, nunca `process.env.X`.
+    - Nunca escreva senha, chave, segredo ou URL de conexão no código, nem como valor padrão. Nunca imprima segredos no log.
+    - Ao criar uma variável, adicione-a ao `.env.example` com valor fictício e comentário.
+    - No app Expo, variáveis `EXPO_PUBLIC_*` são públicas: nunca coloque chaves ou segredos nelas. A antiga exceção `EXPO_PUBLIC_MONITORING_API_KEY` não existe mais: a monitoring aceita do app e do painel só chamadas com token de sessão, e a chave interna (`INTERNAL_API_KEY`) circula apenas entre servidores.
+
+31. **Autenticação e senhas pelo Better Auth.**
+    - Cadastro, login, sessão, troca e recuperação de senha, verificação de e-mail e login social usam o Better Auth (`better-auth` na API e `@better-auth/expo` na API e no app), com o adaptador Prisma, montado em `/api/auth/*`, com o plugin `expo()` e o esquema `bettermeet://` no `trustedOrigins`. Consulte a documentação da versão instalada e confira a compatibilidade com o Expo SDK 58.
+    - Nunca implemente hash de senha, token ou sessão à mão, e nunca use `crypto.createHash('sha256')` ou outro hash sem sal para senha.
+    - Garanta e teste estas propriedades: senha com sal e custo (padrão `scrypt`); recuperação só com token enviado ao e-mail cadastrado (`emailAndPassword.sendResetPassword`), de uso único e validade curta configurada explicitamente; mesma resposta para e-mail cadastrado ou não; limite de tentativas (`rateLimit`, que fica desligado em desenvolvimento por padrão); e-mail confirmado antes do uso (regra 93). Nunca aceite "e-mail + nova senha" sem token. Onde a documentação da versão instalada não confirmar o nome da opção, marque `[A CONFIRMAR]` e avise.
+    - Senhas antigas em SHA-256: na migração, confira o hash antigo no primeiro login e regrave no formato do Better Auth, ou exija a redefinição.
+
+32. **Encerramento gracioso**: mantenha os handlers de `SIGINT`/`SIGTERM` que fecham o servidor e chamam `prisma.$disconnect()`. Tarefas no encerramento têm timeout curto.
+
+33. **Documente na OpenAPI todo endpoint que criar ou alterar**, no mesmo trabalho, em `docs/openapi.yaml` (OpenAPI 3, servido em `/api/docs`).
+    - Inclua: método e caminho, parâmetros, headers, corpo, respostas de sucesso e de erro com status, e a regra de autenticação/permissão.
+    - Textos em pt-BR.
+
+34. **Login e identificação de pessoas só pelo e-mail**, que é único. Nunca use o nome como login nem para localizar alguém (`where: { OR: [{ email }, { name }] }` é proibido). O schema de login usa `emailRule()`, e a tela pede só "E-mail".
+
+35. **Plataforma, organização e comissão nunca ficam sem responsável.**
+    - Antes de excluir a conta de um `ADMIN` ou rebaixar o papel dele, o service confere, dentro da mesma transação, se existe outro `ADMIN`. Se não existir, lança `AppError(409, '<mensagem dizendo para promover outra pessoa antes>')`. O `ensureDefaultAdmin` não substitui essa regra.
+    - Toda organização mantém o seu `CRIADOR`, e toda comissão mantém pelo menos um `ADMINISTRADOR`. Excluir a conta, sair, ser removido ou ser rebaixado exige indicar quem assume (grupos pendentes em `details`, como as `organizacoesPendentes`) ou é recusado com 409, na mesma transação.
+    - Remover alguém da organização também o remove das comissões dela, na mesma transação.
+
+## Prisma 7 + MySQL (`api`, `monitoring-better-meet`)
+
+36. **Um único `PrismaClient` por serviço**, criado em `src/config/database.ts`. Nunca crie outra instância.
+
+37. **Mais de uma escrita que precisa acontecer junta vai em `prisma.$transaction(async (transaction) => { … })`.** Dentro dela, use só `transaction`; auxiliares recebem `Prisma.TransactionClient` como parâmetro.
+
+38. **Converta os erros do Prisma no service, com a mensagem do domínio.**
+    - Use `isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)` / `PRISMA_ERROR.UNIQUE_VIOLATION` (`src/utils/prismaErrors.ts`) e lance `AppError(404 | 409, '<mensagem específica>')`.
+    - Termine o `catch` com `throw error`.
+    - Nunca teste `'code' in error` à mão.
+    - Para duplicidade garantida por `@unique`/`@@id`, grave direto e trate o `P2002`, sem consultar antes.
+
+39. **Formatos de consulta reutilizáveis** ficam em constantes com `satisfies Prisma.XSelect`/`Prisma.XInclude`, e o tipo do resultado é derivado com `Prisma.XGetPayload<{ select: typeof constante }>`.
+
+40. **Nunca devolva `password` nem outro dado sensível, e devolva só o que o papel pode ver.** Consultas de `User` que saem na resposta usam `select` explícito. O `select` da resposta depende do papel de quem pede e da regra de negócio: em votação secreta, nenhuma rota devolve a ligação entre voto e pessoa, nem ao Administrador da comissão.
+
+41. **Estados fixos são `enum` no `schema.prisma`**, nunca `String`.
+    - No código, use o tipo e os valores gerados (`Object.values(StatusOrganizacao)`) em vez de repetir a lista.
+    - Antes de trocar `String` por enum, confira se todos os valores gravados pertencem ao enum.
+
+42. **Mudança de schema só com `npx prisma migrate dev --name <descricao_em_snake_case>`**, e a pasta `prisma/migrations/` é commitada junto.
+    - Nunca use `prisma db push`.
+    - Revise o `migration.sql`: renomear model ou campo gera `DROP` + `CREATE` e apaga dados. Troque por `RENAME TABLE`/`RENAME COLUMN`.
+    - Nunca altere uma migration já commitada.
+
+43. **Nomes no banco iguais aos do schema**: models em PascalCase no singular, campos em camelCase, enums em PascalCase e valores em UPPER_SNAKE_CASE.
+    - Não use `@@map` nem `@map`.
+    - Models e campos novos do domínio em português.
+    - Não renomeie `User` nem seus campos.
+
+44. **Comente no `schema.prisma`** as regras que o banco não expressa (limites por papel, unicidade de negócio, transições de estado permitidas) e o significado de cada valor de enum, sem comentários de histórico.
+
+## Validação com Yup
+
+Leia junto a regra 95 (datas e horários).
+
+45. **Schemas em `src/schemas/<dominio>Schema.ts`**, exportados como constantes. Nunca declare schema em controller, tela ou componente. Use os valores devolvidos pelo `validate`, não o objeto original.
+
+46. **`.trim()` em todo texto livre e mensagem em pt-BR, terminada em ponto, em toda regra** (`required`, `min`, `max`, `email`, `matches`, `oneOf`, `integer`, `positive`). Nunca deixe a mensagem padrão do Yup.
+
+47. **Nome, e-mail e senha forte vêm de `src/schemas/commonSchema.ts`** (`nomeRule()`, `emailRule()`, `senhaForteRule('A nova senha')`). Nunca copie essas regras. Cada pacote (`api`, `better-meet`, `management-better-meet/web`) tem o seu `commonSchema.ts`, e os três precisam ficar idênticos: ao mudar um, mude os outros.
+
+48. **`abortEarly` e erros dos campos:**
+    - Na API, não passe `abortEarly` (o padrão é `true`); valide com `{ stripUnknown: true }` e a resposta tem uma única mensagem.
+    - Nos formulários do app, use sempre `{ abortEarly: false }` e monte os erros por campo a partir de `error.inner` (`item.path` → `item.message`).
+    - O erro de um campo é removido no handler de alteração daquele campo, sem esperar novo envio (modelo: `clearFieldError` da tela de reuniões). Campos dependentes (início e término) limpam os dois erros juntos.
+
+## React Native + Expo (`better-meet`, `management-better-meet/web`)
+
+Leia junto as regras 96 a 98 (manual no app, biometria e "Voltar").
+
+49. **Use a documentação do Expo SDK 58** (https://docs.expo.dev/versions/v58.0.0/), versão dos dois apps (`better-meet` e `management-better-meet/web`), para qualquer API do Expo ou do Expo Router. Não use a versão mais recente nem exemplos antigos (SDK 57 ou anteriores). O `AGENTS.md` de cada app aponta para a versão em uso; atualize-o junto com o SDK.
+    - `NativeTabs` vem de `expo-router/native-tabs`, nunca de `expo-router/unstable-native-tabs`.
+    - Refs de `ScrollView` e `TextInput` usam `ScrollViewInstance` e `TextInputInstance` (React Native 0.88). `useColorScheme` não devolve mais `'unspecified'`.
+    - Nos testes dos apps (Jest 30 + `jest-expo` 58), use `globalThis.fetch = mockFetch as typeof fetch`, e não `global.fetch`. O `package.json` mantém o `resolver` `react-native-reanimated/jest/resolver`.
+    - Mantenha `web.output: "static"` no `app.json`.
+    - **Antes de cada entrega**, nos dois apps: `npx expo install --check` sem atualização pendente de pacote do SDK e `npx expo-doctor` com todas as checagens aprovadas; registre o resultado. Atualização de patch do SDK é feita com `npx expo install --fix`, em commit próprio. (A Di2 perdeu nota por Expo desatualizado.)
+
+50. **Telas são arquivos em `src/app/`** com `export default function <Rota em PascalCase>Screen` (`excluir-conta.tsx` → `ExcluirContaScreen`). A tela coordena estado e layout; lógica vai para hooks, HTTP para services e pedaços de interface para componentes.
+    - A tela fica no próprio arquivo da rota; não crie a tela em `src/components/` só para a rota reexportar.
+    - O app logado fica no grupo `src/app/(tabs)/`: barra inferior com `NativeTabs` no `(tabs)/_layout.tsx` e um `Stack` por aba (`_layout.tsx` com `unstable_settings = { anchor: 'index' }`). Aba nova é registrada como `<NativeTabs.Trigger name="…">`; tela nova de uma aba entra na pasta dela. Telas públicas ficam fora de `(tabs)`.
+    - `_layout.tsx` exporta uma função nomeada terminada em `Layout`.
+
+51. **Estilo de export.**
+    - Telas (`src/app/`) e componentes (`src/components/`): `export default function NomeDoArquivo`, sempre com função nomeada, nunca anônima. Importe com o nome do arquivo: `import ConfirmDialog from '@/components/ConfirmDialog';`. Tipos do componente podem ser exportados como named no mesmo arquivo.
+    - Services, stores, hooks, constants, schemas, utils e todo o backend: named.
+
+52. **Nenhum `fetch` em tela ou componente.** Toda chamada HTTP fica em `src/services/<dominio>Service.ts`.
+
+53. **Services usam o cliente único `apiRequest`** de `src/utils/apiClient.ts`:
+    `apiRequest<T>(path, { method, token, body, baseUrl, fallbackError })`.
+    - Ele monta os headers, converte o JSON e lança `Error` com a mensagem da API.
+    - Não repita `authHeaders`, `readError` ou `parseJson` em services.
+    - `API_URL` já inclui `/api`. Para outra API (monitoring), passe `baseUrl`.
+    - Resposta 401 de requisição com token: o `apiRequest` invoca `useAuthStore.getState().logout()`, e o `AppGate` leva ao login com aviso. As telas não tratam 401 uma a uma.
+
+54. **Telas que carregam dados usam `useFocusEffect(useCallback(() => { let cancelled = false; … return () => { cancelled = true; }; }, [deps]))`**, não `useEffect` de montagem: as abas e as pilhas mantêm as telas montadas e os dados ficariam velhos. Se a carga está numa função reaproveitada (botão "Tentar novamente"), ela recebe `isActive: () => boolean` e o `useFocusEffect` passa `() => !cancelled`.
+
+55. **Use `Pressable`, nunca `TouchableOpacity`.** O efeito de toque vem do componente base `Button` ou de `style={({ pressed }) => [styles.x, pressed && styles.pressed]}` com `pressed: { opacity: PressedOpacity }` (constante do `theme.ts`); nunca escreva o valor da opacidade no arquivo.
+
+56. **Todo elemento clicável** tem `accessibilityRole` (`button`, `link`, `switch`…), `accessibilityLabel` em pt-BR e área de toque de pelo menos 44 × 44 px (use `hitSlop` se o visual for menor). Botões desabilitados têm `accessibilityState={{ disabled: true }}`.
+
+57. **Estilos**: estilos fixos em `StyleSheet.create` no fim do arquivo; cores do tema aplicadas na renderização (`style={[styles.card, { backgroundColor: colors.backgroundElement }]}`). Sem objetos de estilo grandes inline.
+
+58. **Confirmações usam o componente `ConfirmDialog`.** Nunca use `Alert.alert`, `window.alert` ou `window.confirm`.
+
+59. **Feedback ao usuário:**
+    - erro de validação: texto embaixo do campo (estado `errors`), removido assim que o campo é alterado (regra 48);
+    - resultado de ação: `<FeedbackBanner feedback={feedback} />` com `const [feedback, setFeedback] = useFeedback();` (`src/hooks/useFeedback.ts`), importando o tipo `Feedback` do componente. O sucesso some depois de `SUCCESS_FEEDBACK_MS` (4000); o erro fica até a próxima ação;
+    - sucesso que termina saindo da tela (login, cadastro, recuperação de senha, salvar o perfil): `<Screen toast={<Toast toast={toast} onFinish={…} />}>`, navegando só no `onFinish`. Nunca use `setTimeout` para navegar depois de uma mensagem;
+    - confirmação: `ConfirmDialog`;
+    - aviso que encerra um fluxo: variante de um botão do `ConfirmDialog`.
+
+60. **Imports**: `@/` para tudo fora da pasta atual, `./` só para a mesma pasta, **nunca `../`**. Ordem: bibliotecas externas, linha em branco, `@/`, linha em branco, `./`. (Nos serviços Node continua valendo o import relativo com `.ts`.)
+
+61. **Não crie nem reaproveite arquivos do template do Expo** (`explore.tsx`, `app-tabs`, `hint-row`, `web-badge`, `animated-icon`, `external-link`, `use-color-scheme*.ts`, `reset-project.js`). Se encontrar um em uso no que estiver alterando, informe na resposta.
+
+62. **React Compiler está ativo.**
+    - Componentes e hooks são puros, sem alterar props, estado ou objetos recebidos.
+    - Não use `ref.current` durante a renderização. Hooks só no nível de cima.
+    - Não use `useMemo`, `useCallback` nem `React.memo` só para desempenho; a exceção é quando a API exige função estável (`useFocusEffect`).
+
+63. **Login é checado só no `AppGate`** do `_layout.tsx`, que espera `hasHydrated`. Rotas públicas ficam na lista `PUBLIC_ROUTES`. Restrição por papel pode redirecionar na tela com `router.replace`, mas a proteção real é a da API.
+
+64. **Ícones só de `@react-native-vector-icons/ionicons`**: `import { Ionicons, type IoniconsIconName } from '@react-native-vector-icons/ionicons';`.
+    - Tipe nomes de ícone com `IoniconsIconName`, não com `ComponentProps<typeof Ionicons>['name']`.
+    - Proibido: `@expo/vector-icons` (será descontinuado pelo Expo), `react-native-vector-icons` e outro pacote com a mesma fonte.
+    - Um só conjunto no app (Ionicons, de preferência a variante `-outline`).
+    - Exceção: os ícones da barra de abas (`<NativeTabs.Trigger.Icon>`) usam `expo-symbols` (`sf` para SF Symbols no iOS, `md` para Material Symbols no Android), porque o `NativeTabs` só aceita ícones do sistema. Fora da barra de abas, `expo-symbols` não é usado.
+    - Emojis nunca substituem ícones (títulos, status, botões, mensagens).
+
+65. **Identidade visual do app instalado**: no `app.json`, `name` é `Better Meet`. Ícone, ícone adaptativo (fundo `primaryLight`), splash (fundo `background` claro e escuro) e favicon são gerados da arte oficial `assets/images/better-meet-icon.png`. Nenhum asset do template do Expo. O `app.json` é o único lugar fora do `theme.ts` com cores do tema em hex; mantenha os dois iguais.
+
+## Estado com Zustand
+
+66. **Um store por assunto** em `src/store/<dominio>Store.ts`, exportado como `use<Dominio>Store`.
+    - Estado que precisa sobreviver ao fechamento do app usa `persist` + `createJSONStorage(() => AsyncStorage)` com a chave `better-meet-<assunto>`.
+    - Dados da API (listas, relatórios) ficam no estado da tela, não no store.
+    - A sessão fica fora do `AsyncStorage`: com o Better Auth, ela é guardada pelo cliente Expo do Better Auth no `expo-secure-store` (Android e iOS; no web, o mecanismo da documentação, `[A CONFIRMAR]`). O `authStore` guarda só o necessário para a interface, nunca o token. Até a migração para o Better Auth, o token atual continua no `authStore`.
+
+67. **Use `partialize`** para persistir só os dados; flags de execução (`hasHydrated`, `isLoading`) e funções ficam fora.
+
+68. **Toda decisão de navegação baseada no store espera `hasHydrated`.**
+
+69. **Leia o store com seletor**: `useAuthStore((state) => state.token)`. Para vários valores, use `useShallow` (`zustand/react/shallow`). Nunca desestruture o store inteiro (`const { token } = useAuthStore()`). Fora de componentes, use `useAuthStore.getState()`.
+
+70. **Alterações só por ações declaradas no store**, com nome de verbo (`login`, `logout`, `setTheme`). Não chame `useXStore.setState` fora do arquivo do store.
+
+## Interface e design system
+
+Referência oficial: paleta do `documentos/entrega1_AP/design_system.md` e fonte Plus Jakarta Sans do `documentos/entrega1_AP/padroes_interface_e_nomenclatura.md`. Leia junto a regra 99 (convenções de aplicativo móvel).
+
+71. **Tema e cores só por `const { colorScheme, colors } = useTheme();`** (`src/hooks/useTheme.ts`, construído sobre `useAppColorScheme`).
+    - Nunca importe `useColorScheme` do `react-native`: ele ignora a escolha do usuário no web.
+    - Nunca importe um hook com o nome trocado (`useAppColorScheme as useColorScheme`).
+
+72. **Nenhuma cor em hex fora de `src/constants/theme.ts`.** Use os tokens: `background`, `backgroundElement`, `text`, `textSecondary`, `primary`, `primaryLight`, `onPrimary`, `border`, `success`, `warning`, `danger`, `info`.
+    - Mapas de cor por status ou papel apontam para tokens.
+    - Cores de estado (`success`, `warning`) em texto sobre fundo claro podem não ter contraste suficiente; prefira usá-las em ícones, bordas e badges.
+
+73. **Texto com `Typography.*`, espaçamento com `Spacing.*` (`xs` 4, `sm` 8, `md` 12, `lg` 16, `xl` 24, `xxl` 32, `xxxl` 48) e cantos com `Radius.*`** (`sm` 4, `md` 8, `lg` 12, `xl` 16, `full`).
+    - Nunca escreva `fontSize`, `fontWeight`, margens ou raios com números soltos.
+    - A fonte é Plus Jakarta Sans: cada estilo de `Typography` define o `fontFamily` do peso (`PlusJakartaSans_700Bold`), não só o `fontWeight`.
+
+74. **Use os componentes base de `src/components/ui/`** em vez de recriar botão, campo, card ou cabeçalho com estilos próprios: `Screen`, `Button`, `TextField`, `PickerField`, `Card`, `ScreenHeader`, `FeedbackBanner`, `Toast`, `ConfirmDialog`, `Chip`, `Badge`, `Avatar`, `AvatarStack`, `BottomSheet`, `PersonPickerSheet`, `BackButton`, `DetailHeader`, `PageIntro`, `SummaryCard`, `SectionLabel`, `DashedButton` e `KeyboardAwareScrollView`. Um padrão visual repetido em duas telas vira componente base.
+
+75. **Estrutura de tela**: toda tela usa o componente `Screen` (`src/components/ui/Screen.tsx`), que monta `SafeAreaView` (com `colors.background`) → `Header` opcional → `ScrollView` com conteúdo de largura máxima `MaxContentWidth`, centralizado, com padding `Spacing.lg`. Props: `showHeader` (só na tela inicial e nas públicas), `hasForm` (telas com campo de texto), `toast`, `refreshing`/`onRefresh`. Não monte `SafeAreaView`/`ScrollView` à mão.
+
+76. **Ids internos nunca aparecem na interface** (texto, rótulo ou mensagem), e o usuário nunca digita um id. Pessoas aparecem por nome (e e-mail, quando precisa diferenciar). Para escolher alguém, use o `PersonPickerSheet` (busca por nome ou e-mail) ou uma lista de opções (`Chip`, rádio); se a pessoa não está em nenhuma lista, peça o e-mail.
+
+## Git, agentes de IA e testes
+
+Leia junto a regra 100 (dependências e licenças).
+
+77. **Mensagens de commit** no formato `<tipo>(<escopo opcional>): <descrição>`, em pt-BR, minúscula, verbo no presente e sem ponto final (`feat(api): adiciona cadastro de reuniões`). Tipos: `feat`, `fix`, `refactor`, `docs`, `test`, `style`, `chore`. Um assunto por commit.
+
+78. **Branches**: trabalhe em `feature/<nome-em-kebab-case>` criada a partir da `development`. Nunca faça commit nem push direto na `main`.
+
+79. **Instruções para agentes**: este prompt é a fonte única; não crie cópias de regras ou skills por ferramenta. Ao alterar o `GUIA_DE_CODIFICACAO.md`, atualize também o `PROMPT_AGENTES_IA.md`.
+
+80. **Testes**:
+    - Toda regra de negócio nova ou alterada em um service vem com teste, inclusive as transições de estado recusadas (regra 92).
+    - Serviços Node usam Jest 30 (unitário) e Supertest 7 (rotas); apps usam Jest 30 com `jest-expo` 58 e React Native Testing Library 14. Na API, os testes ficam em `tests/<assunto>.test.mjs` e simulam o banco com `jest.unstable_mockModule` antes do `await import`; no app, em `__tests__/` ao lado do código. Siga os exemplos da seção 9.4 do guia.
+    - Todo defeito corrigido ganha um teste que falharia antes da correção.
+    - Testes nunca rodam contra o banco de desenvolvimento.
+    - Cada entrega tem, na pasta dela em `documentos/` e conforme o `GUIA_DE_DOCUMENTACAO.md`, o plano de testes (escrito antes da execução) e o registro do que foi testado (com IDs `CT-…` ligados a casos de uso e requisitos), como rodar e o resultado (data, quantidade, falhas, defeitos encontrados, aparelho nos testes manuais).
+
+## Atualização de SDK do Expo
+
+81. **Atualizar o SDK é uma mudança própria**, em `feature/migracao-expo-<versao>`, conduzida pelo AI-DLC (regras 83 a 90). Não misture com funcionalidade nova. A atualização de patch antes de cada entrega segue a regra 49.
+    - Leia o changelog do SDK, o guia de migração do Expo Router e `versions/v<N>.0.0/` antes de alterar. Registre em `aidlc-docs/construction/<unidade>/code/migration-notes.md` o que afeta o app.
+    - Use `npx expo install --fix`. Se o `npm install` interno falhar com `ERESOLVE`, **não use `--force` nem `--legacy-peer-deps`**: grave à mão as versões indicadas, apague `node_modules` e o `package-lock.json` e rode `npm install`. Depois, devolva à versão anterior as bibliotecas fora da migração que mudaram no lock (ex.: `zustand`).
+    - Antes de entregar, rode e informe o resultado de `npm run lint`, `npm run typecheck`, `npm test`, `npx expo-doctor` e `npx expo export` (Android e iOS). Nunca diga que a migração está pronta sem dizer o que não foi testado em aparelho (gestos, abas nativas, navegação) e entregue a lista de verificação manual.
+    - Vulnerabilidades do `npm audit` ficam para outra branch.
+
+82. **Exceção temporária: o ESLint do `management-better-meet/web` ainda não aplica as regras do guia** (só a base `eslint-config-expo`). Mesmo assim, o código novo ou alterado no `web` segue todas as regras deste prompt. Não ligue regras novas nem refatore código antigo do `web` sem o pedido.
+
+## Fluxo de trabalho com AI-DLC v1
+
+O AI-DLC v1 (https://github.com/awslabs/aidlc-workflows/tree/v1) define o **processo**; este prompt define o **código**. Se houver conflito, valem as regras deste prompt. Quando o pedido começar com **"Using AI-DLC, ..."**, ou quando uma mudança for grande (migração, funcionalidade nova, refatoração), siga o fluxo abaixo. Para correção pequena e isolada, não abra um fluxo: faça a correção seguindo as regras anteriores.
+
+83. **Leia as regras do AI-DLC antes de agir**: `sistema/better-meet/.aidlc-rule-details/core-workflow.md` e os arquivos de etapa que ele indicar (`common/`, `inception/`, `construction/`). Não copie nem edite essa pasta. Se existir `aidlc-docs/aidlc-state.md` no app, compare o pedido atual com o campo `Request` e com a unidade de trabalho registrados nele:
+    - Se for a **mesma alteração** e o fluxo estiver incompleto, retome a partir da última etapa registrada.
+    - Se o estado for de **outra alteração** (ex.: o fluxo anterior é a migração do Expo e o pedido agora é uma funcionalidade nova), ou se o fluxo anterior já estiver concluído, **reinicie o AI-DLC por conta própria**, sem esperar que a pessoa mande: comece pelo Workspace Detection, crie uma nova unidade em `aidlc-docs/construction/` e reescreva o `aidlc-state.md` para o novo pedido. Não aproveite etapas, planos, respostas de perguntas nem aprovações de outra alteração.
+    - Preserve os documentos antigos: não apague nem edite as pastas das unidades anteriores, e continue **acrescentando** ao `audit.md`, registrando ali o motivo do reinício e o pedido anterior que foi encerrado.
+    - Se não der para saber se o pedido é a mesma alteração ou outra, pergunte à pessoa em um arquivo de perguntas (regra 87), e não decida sozinho.
+84. **Trabalhe na pasta do app** (`sistema/better-meet` ou `sistema/management-better-meet/web`). Código fica na raiz do app e **nunca** dentro de `aidlc-docs/`. Documentação fica **só** em `aidlc-docs/` do app, em pt-BR.
+85. **Etapas, em ordem.** Inception: Workspace Detection → Reverse Engineering (só em código existente, se ainda não houver) → Requirements Analysis → User Stories (só para funcionalidade nova visível ao usuário) → Workflow Planning → Application Design e Units Generation (só se necessário). Construction, por unidade: Functional Design, NFR Requirements, NFR Design e Infrastructure Design (só se necessário) → Code Generation → Build and Test. Operations não é usada. Ajuste a profundidade ao tamanho do pedido (mínima, padrão, abrangente) e registre no Workflow Planning o que será pulado e por quê.
+86. **Pare e espere a aprovação explícita** ao fim de cada etapa (exceto Workspace Detection). Apresente os arquivos para revisão e as opções "Request Changes" e "Continue to Next Stage". Não avance, não invente um terceiro menu e não presuma aprovação.
+87. **Perguntas só em arquivo**, nunca no chat: `aidlc-docs/inception/requirements/requirement-verification-questions.md` (ou `<fase>-questions.md`). Formato: `## Question N`, texto, alternativas `A)`, `B)`… (de 2 a 5 com sentido de verdade) e a última sempre `X) Other (please describe after [Answer]: tag below)`, depois `[Answer]:` em branco. Espere a pessoa dizer que terminou. Se houver respostas ausentes, inválidas ou contraditórias, crie um arquivo `<fase>-clarification-questions.md` e não prossiga até resolver.
+88. **`aidlc-docs/audit.md`**: a cada interação, **acrescente** (nunca reescreva o arquivo) o pedido completo da pessoa, sem resumir, com data e hora ISO 8601 (`YYYY-MM-DDTHH:MM:SSZ`), a resposta ou ação e o contexto da etapa. **`aidlc-docs/aidlc-state.md`** guarda o progresso: marque `[x]` assim que cada etapa termina. Registre ali, em "Project Standards", o `GUIA_DE_CODIFICACAO.md` e o `AGENTS.md` do app, e, em "Extension Configuration", as extensões opcionais (Security Baseline, Resiliency Baseline, Property-Based Testing), que hoje estão desligadas.
+89. **Code Generation em duas partes.** Parte 1: crie `aidlc-docs/construction/plans/<unidade>-code-generation-plan.md`, com passos numerados e caixas `[ ]`, e peça aprovação. Parte 2: execute **só** o que está no plano, marque cada passo `[x]` assim que o concluir e escreva o resumo em `aidlc-docs/construction/<unidade>/code/code-summary.md`. Se o escopo mudar, atualize o plano e peça nova aprovação. Em código existente, **altere o arquivo no lugar**: nunca crie `Arquivo_novo.ts` ou `Arquivo_modified.ts`.
+90. **Build and Test no fim**: gere as instruções em `aidlc-docs/construction/build-and-test/` (build, testes unitários, integração, desempenho, segurança quando couber, resumo e lista de verificação manual) e informe o resultado real de cada comando. Diagramas em `aidlc-docs/` usam Mermaid (com alternativa em texto) ou ASCII só com `+ - | ^ v < >`. O AI-DLC não substitui o Pull Request revisado, os commits da regra 77 nem o registro de testes da entrega em `documentos/` (regra 80).
+
+## Regras complementares (91 a 101)
+
+Estas regras vieram dos retornos do professor nas entregas Di1, Di2 e Di3 e dos slides das aulas. Cada uma completa a seção temática indicada.
+
+91. **Proteção da API** (Node; EX-19). `helmet()` antes das rotas; CORS só para as origens de `CORS_ORIGINS` (nunca `cors({ origin: true })` nem `cors()` sem opções); limite de tentativas nas rotas públicas (o `rateLimit` do Better Auth nas rotas dele e `express-rate-limit` nas demais, como `/api/convites/:token`), com 429 em pt-BR; limite do `express.json()` declarado, com o motivo quando passar de 100 kB; e conferência, no service, do vínculo **atual** de quem pede com a reunião, comissão ou organização. Quem foi removido de um grupo perde na hora o acesso aos recursos dele.
+
+92. **Ciclo de vida e janelas de horário validados na API** (Node; EX-20). Reunião, convite, presença, votação, voto e ata têm os estados como enum no schema e as transições comentadas. O service confere estado e horário **antes** de cada ação, com o relógio do servidor e `TZ_REUNIOES` (`utils/fusoHorario.ts`), e recusa com 409 (estado não permite) ou 410 (encerrado), com mensagem que diz o motivo. Estado que depende do horário é calculado por uma única função do service ou gravado por um job. Depois de encerrar ou aprovar (reunião, votação, ata aprovada ou exportada), os dados dependentes não mudam mais, salvo ação prevista no requisito. O app só reflete a regra. Toda transição recusada tem teste, incluindo os horários de borda.
+
+93. **Verificação da posse do e-mail** (Node; EX-21). O cadastro envia link ou código de uso único (`emailVerification.sendVerificationEmail`, `sendOnSignUp: true`), e `emailAndPassword.requireEmailVerification: true` recusa o login de conta não confirmada (403); o app explica e oferece o reenvio. A troca de e-mail confirma o novo endereço (recurso do Better Auth `[A CONFIRMAR]`). O envio usa o serviço de e-mail configurado no `.env`.
+
+94. **Login social** (Node e app; EX-22). Só pelo Better Auth (`socialProviders`), nunca com OAuth próprio. Provedor gratuito e sem assinatura, registrado no catálogo de softwares. A conta é ligada pelo e-mail verificado do provedor, sem duplicar contas. No app, use o fluxo do cliente Expo do Better Auth com `expo-web-browser`, `expo-linking` e o esquema `bettermeet://`. O `clientSecret` nunca vai para o app.
+
+95. **Datas e horários** (Yup; YP-05). Regras de data compartilhadas no `commonSchema.ts` dos três pacotes, iguais nos três: início no futuro e término depois do início. Na API, compare com "agora" usando `instanteNoFuso(data, hora, env.TZ_REUNIOES)`, nunca `new Date(ano, mês, dia, …)`. No app, data e hora usam o `PickerField`. Regras que dependem do estado da ação ficam no service (regra 92).
+
+96. **Ajuda e manual dentro do aplicativo** (app; RN-20). O manual é uma área do app (aba Mais → Ajuda), com os componentes base e o tema, em Android, iOS e web. O conteúdo fica versionado no repositório, separado das telas (por exemplo, `src/content/manual/` com `as const`), escrito para quem usa o app e com vocabulário de aplicativo. O PDF, se mantido, é só exportação opcional.
+
+97. **Biometria** (app; RN-21). `expo-local-authentication` (SDK 58), opcional por pessoa e disponível só depois de um login com e-mail e senha ou login social, quando `hasHardwareAsync()` e `isEnrolledAsync()` confirmam o recurso. A biometria só libera a sessão já guardada no aparelho; nunca guarda, envia nem substitui a senha, e a API não aceita "biometria aprovada" como prova de identidade. Ações sensíveis (presença, voto, exclusão de conta) podem pedir `authenticateAsync()` com mensagem em pt-BR. Declare o plugin com `faceIDPermission` em pt-BR. O Face ID não funciona no Expo Go: teste no iOS com build de desenvolvimento.
+
+98. **"Voltar" retorna à tela de origem** (app; RN-22). Atalhos para telas de outra aba garantem que o "Voltar" devolva à origem (destino na pilha da aba atual ou troca de aba que preserva a pilha). Toda tela empilhada tem botão de voltar (`BackButton`), com o mesmo efeito do botão Voltar do Android e do gesto do iOS. Depois de salvar ou excluir, use `router.back()` ou `router.replace()`. Confira o "Voltar" de todo atalho entre abas no Android e no iOS.
+
+99. **Convenções de aplicativo móvel** (interface; UI-09). Uma tarefa por tela: criar e editar abrem tela própria na pilha (ou `BottomSheet` para formulários curtos), nunca formulário embutido na lista. Formulário com mais de cerca de seis campos é dividido em etapas ou seções (`KeyboardAwareScrollView` com `scrollToTopKey`). Ação principal visível sem rolar. Seletores nativos, `keyboardType`, `autoComplete` e `textContentType` adequados e "próximo" do teclado levando ao campo seguinte. Listas com puxar para atualizar, estado vazio que orienta e indicador de carregamento. Nenhum padrão de site: link sublinhado para navegar, menu no topo, hover, rodapé de página, "clique aqui". Identidade própria do Better Meet, igual em Android e iOS, respeitando as convenções de cada um. Confira toda tela nova ou alterada em Android e iPhone.
+
+100. **Dependências gratuitas e com licença registrada** (Git; GT-06). Toda dependência ou serviço novo é gratuito, sem assinatura (aula 1, slide 19) e com licença compatível com projeto open-source. Incluir, remover ou trocar a versão de uma dependência atualiza o catálogo `documentos/consolidado/softwares_e_licencas.md` no mesmo PR. Nos apps, instale com `npx expo install <pacote>`. Prefira o que o projeto já usa. Credenciais de serviços externos seguem a regra 30.
+
+101. **Situações do dia a dia** (GT-07). Para tarefas comuns, siga a receita do guia (seção 9.7) em vez de improvisar: criar endpoint (schema → service → controller → rota → OpenAPI → teste), criar tela (`Screen`, service com `apiRequest`, `useFocusEffect`, `FeedbackBanner`, tema), criar tabela e migration (`migrate dev`, revisar o SQL, atualizar o relacional e o dicionário), adicionar campo (opcional ou com padrão), tratar erro de negócio (`AppError`; 409 ou 410 para estado e horário), proteger rota (`requireAuth` e depois `requireAdmin` ou `requireSelf`), escrever teste, enviar e-mail (`emailService`, erro do provedor sem detalhes) e documentar um requisito. Se a tarefa não tiver receita, avise na resposta.
+
+## Antes de entregar
+
+Confira cada item e corrija o que falhar antes de responder:
+
+- [ ] Nenhuma opção de `strict` desligada no `tsconfig.json`.
+- [ ] Nenhum `any` no código que você escreveu.
+- [ ] Imports de tipo com `import type` ou `type` inline.
+- [ ] Nenhum `enum` do TypeScript; `as const` + união derivada.
+- [ ] `satisfies` em `select`/`include` do Prisma e mapas de configuração.
+- [ ] Nenhuma `interface`, exceto para estender biblioteca, com comentário.
+- [ ] Strings com aspas simples.
+- [ ] Nenhum `require`, `module.exports` ou `__dirname`.
+- [ ] Imports relativos com `.ts` nos serviços Node, e sem extensão (com `@/`) no app Expo.
+- [ ] Domínio em português e verbos/termos técnicos em inglês.
+- [ ] Todo texto visível ao usuário em pt-BR, com vocabulário de aplicativo ("tela", "tocar"; nunca "site" ou "clicar").
+- [ ] camelCase, PascalCase e UPPER_SNAKE_CASE usados nos lugares certos.
+- [ ] Arquivos de camada em `<dominio><Camada>.ts`, componentes em `PascalCase.tsx` e rotas em kebab-case pt-BR.
+- [ ] Comentários explicam o porquê; nenhum comentário de histórico novo, e nenhum existente removido.
+- [ ] Ícones só de `@react-native-vector-icons/ionicons` (exceto os da barra de abas, com `expo-symbols`); nenhum emoji no lugar de ícone.
+- [ ] Nenhum id interno exibido na interface; pessoas escolhidas pelo `PersonPickerSheet`, em lista ou pelo e-mail.
+- [ ] Login e identificação de pessoas pelo e-mail, nunca pelo nome.
+- [ ] Autenticação pelo Better Auth, com as propriedades da regra 31 testadas; e-mail confirmado (regra 93).
+- [ ] Plataforma, organização e comissão nunca ficam sem responsável (regra 35).
+- [ ] `helmet`, CORS restrito, limite de tentativas e limite do corpo nos serviços Node (regra 91).
+- [ ] Estado e horário conferidos no service antes de cada ação, com 409 ou 410 e teste (regra 92).
+- [ ] Resposta só com o que o papel pode ver (regra 40).
+- [ ] Erro de cada campo removido ao alterar o campo; datas pelas regras compartilhadas, no fuso `TZ_REUNIOES` (regras 48 e 95).
+- [ ] 401 com token leva ao logout pelo `apiRequest` (regra 53).
+- [ ] Uma tarefa por tela, formulários curtos, "Voltar" correto e nenhum padrão de site; conferido no Android e no iOS (regras 98 e 99).
+- [ ] APIs do Expo conferidas no SDK 58; `NativeTabs` de `expo-router/native-tabs`; antes da entrega, `npx expo install --check` e `npx expo-doctor` aprovados (regra 49).
+- [ ] Dependência nova gratuita, sem assinatura e registrada no catálogo de softwares (regra 100).
+- [ ] Teste nas ferramentas e convenções da regra 80, com simulação do banco e exemplo igual ao do guia.
+- [ ] Tarefa comum feita pela receita da regra 101.
+- [ ] Em atualização de SDK: lint, typecheck, testes, `expo-doctor` e `expo export` executados e informados; lock sem versões alteradas por acaso; o que ficou sem teste em aparelho informado.
+- [ ] Em fluxo AI-DLC: `aidlc-state.md` e `audit.md` atualizados (acréscimo, sem reescrever), etapa aprovada pela pessoa, perguntas em arquivo, nenhum código dentro de `aidlc-docs/`.

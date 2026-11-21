@@ -1,3 +1,8 @@
+- **Commit:** aed2702 (alterações da refatoração da apresentação final ainda sem commit)
+- **Data de revisão:** 2026-11-21
+- **Estado:** Atualizado apenas nos pontos de autenticação e services; a árvore de pastas e os demais trechos não foram reconferidos [A CONFIRMAR NO CÓDIGO]
+- **Fontes:** `sistema/better-meet/src/`; relatório de código da unidade U8
+
 # Code Structure
 
 ## Build System
@@ -28,7 +33,7 @@ Tamanhos aproximados em linhas. Arquivos marcados com (*) são candidatos a modi
 - `(tabs)/organizacao/index.tsx`, `[id].tsx` - lista e detalhe de organizações.
 - `(tabs)/comissao/index.tsx`, `[id].tsx` - lista e detalhe de comissões.
 - `(tabs)/mais/index.tsx`, `perfil.tsx`, `excluir-conta.tsx`, `status.tsx`, `relatorios/index.tsx`, `relatorios/usuarios.tsx`.
-- `login.tsx`, `usuario.tsx` (cadastro), `recuperar-senha.tsx`, `lista-presenca.tsx`.
+- `login.tsx`, `usuario.tsx` (cadastro), `recuperar-senha.tsx`, `redefinir-senha.tsx`, `email-confirmado.tsx`, `lista-presenca.tsx`.
 - `_layout.tsx` de cada aba (Stack, 9 a 10 linhas).
 
 **Componentes de domínio (`src/components/`)**
@@ -43,7 +48,7 @@ Tamanhos aproximados em linhas. Arquivos marcados com (*) são candidatos a modi
 - `Avatar`, `AvatarStack`, `BackButton`, `Badge`, `Button`, `Card`, `Chip`, `ConfirmDialog`, `DashedButton`, `DetailHeader`, `FeedbackBanner`, `KeyboardAwareScrollView`, `PageIntro`, `PersonPickerSheet`, `PickerField`, `ScreenHeader`, `SectionLabel`, `SummaryCard`, `TextField`, `Toast`.
 
 **Lógica**
-- `services/`: `authService`, `comissaoService`, `listaPresencaService`, `managementService`, `monitoringService`, `notificacaoService`, `organizacaoService`, `reuniaoService`, `usuarioService`.
+- `services/`: `authService`, `comissaoService`, `listaPresencaService`, `managementService`, `monitoringService`, `notificacaoService`, `organizacaoService`, `reuniaoService`, `usuarioService`, além de `ataService` e `votacaoService`.
 - `store/`: `authStore`, `themeStore` (*, usa `Appearance.setColorScheme`), `notificacaoStore`.
 - `hooks/`: `useAppColorScheme` (*, usa `Appearance`), `useTheme`, `useThemePreference`, `useFeedback`, `useKeyboard`, `useOrganizacaoActions`, `useListaPresencaPreview`.
 - `schemas/`: `authSchema`, `comissaoSchema`, `commonSchema`, `listaPresencaSchema`, `organizacaoSchema`, `reuniaoSchema`, `usuarioSchema`.
@@ -57,13 +62,13 @@ Tamanhos aproximados em linhas. Arquivos marcados com (*) são candidatos a modi
 ## Design Patterns
 ### Camadas tela, service, apiRequest
 - **Location**: `src/app`, `src/services`, `src/utils/apiClient.ts`.
-- **Purpose**: Telas nunca chamam `fetch`; toda chamada passa por `apiRequest`, que injeta o token, trata JSON e converte erros em `ApiError`.
+- **Purpose**: Telas nunca chamam `fetch`; toda chamada passa por `apiRequest`, que injeta o token da sessão, trata JSON e converte erros em `ApiError`.
 - **Implementation**: objeto literal por domínio (`organizacaoService`, etc.), nomes de verbos em inglês e substantivos em português.
 
 ### Store Zustand persistido
 - **Location**: `src/store`.
 - **Purpose**: Sessão e tema sobrevivem ao fechamento do app.
-- **Implementation**: `persist` com `AsyncStorage` e `partialize`; flag `hasHydrated` para o `AppGate` esperar a leitura.
+- **Implementation**: `persist` com `AsyncStorage` e `partialize`; flag `hasHydrated` para o `AppGate` esperar a leitura; o `authStore` persiste só o `user` e `restoreSession` lê o token do armazenamento seguro (`src/lib/sessionStorage.ts`, `src/lib/authClient.ts`) antes de marcar `hasHydrated`.
 
 ### Uniões literais com `as const`
 - **Location**: `PAPEIS_*`, `STATUS_*` nos services.

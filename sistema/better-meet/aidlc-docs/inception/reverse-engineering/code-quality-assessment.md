@@ -1,10 +1,15 @@
+- **Commit:** aed2702 (alterações da refatoração da apresentação final ainda sem commit)
+- **Data de revisão:** 2026-11-21
+- **Estado:** Apenas os itens da chave da monitoring e da contagem de testes foram atualizados; as demais medições são de 2026-11-07 e não foram refeitas (lint, tipos e `expo-doctor`) [A CONFIRMAR NO CÓDIGO]
+- **Fontes:** relatório de código da unidade U8
+
 # Code Quality Assessment
 
 Medido em 2026-11-07, no estado atual do repositório (antes de qualquer alteração de código).
 
 ## Test Coverage
 - **Overall**: Boa para o que o Jest cobre; sem relatório de cobertura configurado.
-- **Unit Tests**: 155 testes passando, 18 suítes, cerca de 30 s. Cobrem componentes base, componentes de domínio, hooks, schemas, services e stores.
+- **Unit Tests**: 312 testes passando em 45 suítes em 2026-11-21 (relatório da unidade U8; na medição de 2026-11-07 eram 155 testes em 18 suítes, cerca de 30 s). Cobrem componentes base, componentes de domínio, hooks, schemas, services e stores.
 - **Integration Tests**: Não há. Arquivos de teste não podem ficar em `src/app/` (`testPathIgnorePatterns`), mas testes em `src/components/` importam duas telas: reuniões (`ReunioesData.test.tsx`) e lista de presença (`listaPresencaScreen.test.tsx`). Os testes mockam `expo-router` por completo. Sem teste automatizado: `AppGate`, `NativeTabs`, a raiz de navegação e as telas de organização, comissão, "mais" e login.
 
 ## Code Quality Indicators
@@ -19,7 +24,7 @@ Medido em 2026-11-07, no estado atual do repositório (antes de qualquer altera�
 - Tela `src/app/(tabs)/(reunioes)/index.tsx` com 988 linhas (maior arquivo); `excluir-conta.tsx` com 507.
 - `jest.setup.ts` mocka `react-native-worklets/src/mock`. Esse é o caminho que a documentação do Worklets (versão 0.13, guia de testes) indica; a ressalva é que um caminho em `src/` pode mudar entre versões.
 - `NativeTabs` importado de `expo-router/unstable-native-tabs` (API instável no SDK 57).
-- `config/api.ts` embute `EXPO_PUBLIC_MONITORING_API_KEY` no app (exceção temporária registrada em comentário).
+- Resolvido na refatoração: `EXPO_PUBLIC_MONITORING_API_KEY` saiu do app (o `monitoringService` usa o token da sessão); sobra o valor de teste em `jest.setup.ts`.
 - `.gitignore` contém a linha `example` solta (resíduo).
 
 ## Patterns and Anti-patterns

@@ -933,7 +933,7 @@ app.get('/health', (_request, response) => {
 ```
 
 - No app, a variável de ambiente da URL base já inclui o prefixo (ex.: `EXPO_PUBLIC_API_URL=http://localhost:3333/api`), e os services do app **não** acrescentam `/api` à mão.
-- **Exceções temporárias:** a `api` também responde `POST /login` fora do `/api`, porque o web da gestão ainda chama essa rota; as rotas da monitoring ficam sob `/monitoring-better-meet/...` até a refatoração dela. Ao mudar a monitoring para `/api/...`, atualize também quem a chama (`monitoringReporter.ts` da `api` e da gestão e `monitoringService.ts` do app e do web). As duas exceções estão no `RELATORIO_BUGS.md` (P5).
+- **Sem exceções:** a ponte `POST /login` da `api` foi removida (o painel de gestão autentica pelo Better Auth, em `/api/auth/*`), e a monitoring e o servidor de gestão também ficam sob `/api`. Só `/health` fica fora. Os chamadores (`monitoringReporter` da `api` e da gestão, `monitoringService` do app e do web) usam o prefixo `/api`.
 
 ---
 
@@ -967,7 +967,7 @@ export const env = {
 
 - Segredos nunca são impressos no log.
 - **No app Expo**, toda variável `EXPO_PUBLIC_*` é embutida no aplicativo e qualquer pessoa pode lê-la. Use apenas para valores públicos (URLs). Nunca coloque chave ou segredo em `EXPO_PUBLIC_*`.
-- **Exceção temporária:** a chave interna da monitoring fica exposta no app em `EXPO_PUBLIC_MONITORING_API_KEY`, porque a monitoring ainda exige essa chave no `POST /status`, usado pelo app para reportar os próprios erros, e no `POST /status/:subSystem/check`, usado pela tela de status para pedir uma checagem na hora. Cada uso da chave no app é marcado no código com o comentário `EXCEÇÃO TEMPORÁRIA ao EX-13`. A exceção sai quando a monitoring for refatorada (`RELATORIO_BUGS.md`, P6).
+- **Sem exceções:** `EXPO_PUBLIC_MONITORING_API_KEY` não existe mais no app nem no painel. A monitoring aceita deles só chamadas com token de sessão; a chave interna (`INTERNAL_API_KEY`) circula apenas entre servidores (`api`, gestão e monitoring) e fica no `.env` de cada um.
 
 ---
 

@@ -150,13 +150,13 @@ Estrutura de um serviço: `src/config/` (`database.ts`, `env.ts`), `src/errors/A
     - Nunca use `Number(request.params.x)` sem validar. `parseId` é usado no controller ou em middleware, nunca no service.
     - Ordem das checagens: 400 → 403 → 404.
 
-29. **Todos os endpoints ficam sob `/api`.** O prefixo é aplicado uma vez no `server.ts` (`app.use('/api', apiRouter)`), e os arquivos de rotas declaram caminhos sem ele. Só `/health` fica fora. No app, a URL base do `.env` já inclui `/api`, e os services do app não acrescentam `/api` à mão. Exceções temporárias: `POST /login` fora de `/api` na API de Dados, porque o web da gestão ainda o chama, e as rotas da monitoring sob `/monitoring-better-meet/...`, até a refatoração dela.
+29. **Todos os endpoints ficam sob `/api`.** O prefixo é aplicado uma vez no `server.ts` (`app.use('/api', apiRouter)`), e os arquivos de rotas declaram caminhos sem ele. Só `/health` fica fora. No app, a URL base do `.env` já inclui `/api`, e os services do app não acrescentam `/api` à mão. Não há exceções: a ponte `POST /login` da API de Dados foi removida (o painel de gestão usa o Better Auth em `/api/auth/*`), e a monitoring e o servidor de gestão também ficam sob `/api`.
 
 30. **Segredos e configuração só via `.env`.**
     - Leia as variáveis apenas em `src/config/env.ts`, que lança erro no boot se faltar uma obrigatória. No resto do código use `env.X`, nunca `process.env.X`.
     - Nunca escreva senha, chave, segredo ou URL de conexão no código, nem como valor padrão. Nunca imprima segredos no log.
     - Ao criar uma variável, adicione-a ao `.env.example` com valor fictício e comentário.
-    - No app Expo, variáveis `EXPO_PUBLIC_*` são públicas: nunca coloque chaves ou segredos nelas. Única exceção temporária: `EXPO_PUBLIC_MONITORING_API_KEY`, que a monitoring ainda exige no `POST /status` e no `POST /status/:subSystem/check`; cada uso é marcado com o comentário `EXCEÇÃO TEMPORÁRIA ao EX-13`. Não use essa chave em nenhuma outra rota.
+    - No app Expo, variáveis `EXPO_PUBLIC_*` são públicas: nunca coloque chaves ou segredos nelas. A antiga exceção `EXPO_PUBLIC_MONITORING_API_KEY` não existe mais: a monitoring aceita do app e do painel só chamadas com token de sessão, e a chave interna (`INTERNAL_API_KEY`) circula apenas entre servidores.
 
 31. **Autenticação e senhas pelo Better Auth.**
     - Cadastro, login, sessão, troca e recuperação de senha, verificação de e-mail e login social usam o Better Auth (`better-auth` na API e `@better-auth/expo` na API e no app), com o adaptador Prisma, montado em `/api/auth/*`, com o plugin `expo()` e o esquema `bettermeet://` no `trustedOrigins`. Consulte a documentação da versão instalada e confira a compatibilidade com o Expo SDK 58.

@@ -1,3 +1,8 @@
+- **Commit:** aed2702 (alterações da refatoração da apresentação final ainda sem commit)
+- **Data de revisão:** 2026-11-21
+- **Estado:** Atualizado apenas nos pontos de autenticação, sessão e monitoring; o restante do diagrama não foi reconferido nesta revisão [A CONFIRMAR NO CÓDIGO]
+- **Fontes:** `sistema/better-meet/src/store/authStore.ts`, `src/lib/`, `src/config/api.ts`; relatório de código da unidade U8
+
 # System Architecture
 
 ## System Overview
@@ -9,7 +14,7 @@ Aplicativo cliente único, em TypeScript, feito com Expo (SDK 57) e React Native
 flowchart TD
     subgraph Rotas["src/app (Expo Router)"]
         Layout["_layout.tsx: fontes, tema, AppGate"]
-        Publicas["login, usuario, recuperar-senha"]
+        Publicas["login, usuario, recuperar-senha, redefinir-senha, email-confirmado"]
         Tabs["(tabs): NativeTabs com 4 abas"]
         Presenca["lista-presenca"]
     end
@@ -60,7 +65,7 @@ flowchart TD
 - **Type**: Application
 
 ### src/store
-- **Purpose**: `authStore` (sessão), `themeStore` (preferência de tema), `notificacaoStore`. Persistência via `AsyncStorage` e `partialize`.
+- **Purpose**: `authStore` (sessão), `themeStore` (preferência de tema), `notificacaoStore`. Persistência via `AsyncStorage` e `partialize`; o token da sessão não é persistido no `AsyncStorage` (fica em memória e no armazenamento seguro).
 - **Type**: Application
 
 ### Testes
@@ -86,8 +91,8 @@ sequenceDiagram
 ```
 
 ## Integration Points
-- **External APIs**: API de Dados (`EXPO_PUBLIC_API_URL`, prefixo `/api`), API de Monitoramento (`EXPO_PUBLIC_MONITORING_API_URL`, chave `x-api-key` em `POST /status` e `POST /status/:sub/check`), API de Gestão (`EXPO_PUBLIC_MANAGEMENT_API_URL`, só ADMIN).
-- **Databases**: nenhum; só `AsyncStorage` no aparelho (chave `better-meet-auth`, preferência de tema).
+- **External APIs**: API de Dados (`EXPO_PUBLIC_API_URL`, prefixo `/api`; autenticação pelo Better Auth em `/api/auth/*`), API de Monitoramento (`EXPO_PUBLIC_MONITORING_API_URL`, com o token da sessão em `POST /status/report` e `POST /status/:sub/check`; o app não embute mais chave), API de Gestão (`EXPO_PUBLIC_MANAGEMENT_API_URL`, só ADMIN).
+- **Databases**: nenhum; no aparelho, `AsyncStorage` (chave `better-meet-auth` só com o `user`, preferência de tema) e o token da sessão no armazenamento seguro (`expo-secure-store` no Android e iOS; `localStorage` no web).
 - **Third-party Services**: nenhum serviço de terceiros em tempo de execução. Fontes via pacote `@expo-google-fonts/plus-jakarta-sans`.
 
 ## Infrastructure Components
