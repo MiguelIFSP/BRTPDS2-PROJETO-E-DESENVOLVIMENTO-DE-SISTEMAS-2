@@ -3,6 +3,7 @@ import { View, Text, TouchableOpacity, StyleSheet, Switch, Modal, Pressable } fr
 import { Colors } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
+import { authService } from '@/services/authService';
 import { usuarioService } from '@/services/usuarioService';
 
 export default function Header() {
@@ -24,6 +25,12 @@ export default function Header() {
     usuarioService.updateTheme(token, user.id, nextTheme).catch((error: unknown) => {
       console.error('Não foi possível salvar o tema na conta:', error);
     });
+  };
+
+  // Encerra a sessão no servidor sem esperar: sair do painel não depende da resposta.
+  const handleLogout = () => {
+    if (token) void authService.logout(token);
+    logout();
   };
 
   const initials = user
@@ -72,7 +79,7 @@ export default function Header() {
                 <Text style={[styles.avatarText, { color: themeColors.text }]}>{initials}</Text>
               </View>
             </TouchableOpacity>
-            <TouchableOpacity accessibilityRole="button" onPress={logout}>
+            <TouchableOpacity accessibilityRole="button" onPress={handleLogout}>
               <Text style={[styles.logoutText, { color: themeColors.backgroundSelected }]}>Sair</Text>
             </TouchableOpacity>
           </>

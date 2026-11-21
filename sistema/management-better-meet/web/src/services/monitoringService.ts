@@ -1,6 +1,10 @@
-import { MONITORING_API_URL, MONITORING_API_KEY } from '../config/api';
+import { MONITORING_API_URL } from '../config/api';
+import { useAuthStore } from '../store/authStore';
+import { SessaoExpiradaError } from './sessaoExpiradaError';
 
-const STATUS_BASE = `${MONITORING_API_URL}/monitoring-better-meet`;
+export { SessaoExpiradaError };
+
+const STATUS_BASE = `${MONITORING_API_URL}/api`;
 
 type ReportOptions = {
   status?: 'DOWN' | 'ERROR';
@@ -11,25 +15,29 @@ type ReportOptions = {
 let lastReportTime = 0;
 const MIN_INTERVAL_MS = 5000;
 
-// Mesmo padrão do reportMobileError do better-meet — só que reportando como
-// "management" em vez de "mobile-app".
+// Relato do painel à monitoring: exige sessão de administrador (POST /status/report,
+// Bearer). Antes do login não há token, então só registramos no console; falhas de
+// conexão com a API a própria monitoring detecta pelo cron.
 export async function reportManagementError(message: string, stack?: string, options: ReportOptions = {}) {
+  const token = useAuthStore.getState().token;
+  if (!token) {
+    console.error('Erro do painel não relatado (sem sessão):', message, stack);
+    return;
+  }
+
   const now = Date.now();
   if (now - lastReportTime < MIN_INTERVAL_MS) return;
   lastReportTime = now;
 
   const { status = 'ERROR', context, isBlocking = false } = options;
+  // A rota limita a mensagem a 500 caracteres.
+  const fullMessage = (context ? `[${context}] ${message}` : message).slice(0, 500);
 
   try {
-    await fetch(`${STATUS_BASE}/status`, {
+    await fetch(`${STATUS_BASE}/status/report`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': MONITORING_API_KEY },
-      body: JSON.stringify({
-        subSystem: 'management',
-        status,
-        message: context ? `[${context}] ${message}` : message,
-        isBlocking,
-      }),
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ subSystem: 'management', status, message: fullMessage, isBlocking }),
     });
   } catch {
     // sem internet ou API fora do ar — não relança erro pra evitar loop
@@ -50,7 +58,7 @@ export async function getCurrentStatus(token: string): Promise<SubSystemStatus[]
   });
 
   if (response.status === 401) {
-    throw new Error('Sessão expirada, faça login novamente.');
+    throw new SessaoExpiradaError();
   }
   if (!response.ok) {
     throw new Error('Não foi possível carregar o status atual.');
@@ -61,10 +69,10 @@ export async function getCurrentStatus(token: string): Promise<SubSystemStatus[]
 
 // Dispara a checagem de UM subsistema agora na monitoring (fora do horário do
 // cron de 6h) e devolve o status recém-gravado.
-export async function checkSubSystemNow(subSystem: string): Promise<SubSystemStatus> {
+export async function checkSubSystemNow(subSystem: string, token: string): Promise<SubSystemStatus> {
   const response = await fetch(`${STATUS_BASE}/status/${subSystem}/check`, {
     method: 'POST',
-    headers: { 'x-api-key': MONITORING_API_KEY },
+    headers: { Authorization: `Bearer ${token}` },
   });
 
   if (!response.ok) {
@@ -99,7 +107,7 @@ export async function getSubSystemHistory(
   });
 
   if (response.status === 401) {
-    throw new Error('Sessão expirada, faça login novamente.');
+    throw new SessaoExpiradaError();
   }
   if (!response.ok) {
     throw new Error('Não foi possível carregar o histórico.');

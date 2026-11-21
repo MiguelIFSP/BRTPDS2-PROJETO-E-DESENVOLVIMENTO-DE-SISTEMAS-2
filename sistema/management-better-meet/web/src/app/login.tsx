@@ -18,25 +18,11 @@ import Header from '../components/Header';
 import { Colors, Spacing, Typography } from '../constants/theme';
 import { useAuthStore } from '../store/authStore';
 import { useThemeStore } from '../store/themeStore';
-import { reportManagementError } from '../services/monitoringService';
-import { API_URL } from '../config/api';
-
-const loginSchema = yup.object({
-  identifier: yup
-    .string()
-    .trim()
-    .required('Informe seu usuário ou e-mail.')
-    .min(2, 'Informe seu usuário ou e-mail válido.'),
-  password: yup.string().required('Informe sua senha.'),
-});
-
-type LoginForm = {
-  identifier: string;
-  password: string;
-};
+import { authService } from '@/services/authService';
+import { loginSchema, type LoginForm } from '@/schemas/loginSchema';
 
 const initialValues: LoginForm = {
-  identifier: '',
+  email: '',
   password: '',
 };
 
@@ -95,57 +81,15 @@ export default function LoginScreen() {
     setIsSubmitting(true);
 
     try {
-      let response: Response;
-
-      try {
-        response = await fetch(`${API_URL}/login`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            identifier: form.identifier.trim(),
-            password: form.password,
-          }),
-        });
-      } catch (networkError) {
-        // Não deu nem pra conectar na API — falha de infra de verdade, vale reportar.
-        reportManagementError(
-          networkError instanceof Error ? networkError.message : 'Falha de rede ao tentar logar.',
-          networkError instanceof Error ? networkError.stack : undefined,
-          { context: 'LoginScreen.handleLogin', isBlocking: true }
-        );
-        throw new Error('Não foi possível conectar com a API.');
-      }
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        const message = data.error ?? 'Não foi possível entrar.';
-
-        // 401 aqui é credencial errada — comportamento normal do usuário, não bug.
-        if (response.status !== 401) {
-          reportManagementError(message, undefined, { context: 'LoginScreen.handleLogin', isBlocking: true });
-        }
-
-        throw new Error(message);
-      }
-
-      if (data.role !== 'ADMIN') {
-        throw new Error('Este painel é restrito a administradores.');
-      }
-
-      login(
-        {
-          id: data.id,
-          name: data.name,
-          email: data.email,
-          role: data.role,
-          createdAt: data.createdAt,
-        },
-        data.token
+      const { user, token, themePreference } = await authService.login(
+        form.email.trim().toLowerCase(),
+        form.password,
       );
-      applyAccountTheme(data.themePreference);
 
-      setFeedback({ type: 'success', message: `Login realizado. Bem-vindo(a), ${data.name ?? 'admin'}!` });
+      login(user, token);
+      applyAccountTheme(themePreference);
+
+      setFeedback({ type: 'success', message: `Login realizado. Bem-vindo(a), ${user.name}!` });
       setForm(initialValues);
       setTimeout(() => router.replace('/'), 400);
     } catch (error) {
@@ -174,25 +118,27 @@ export default function LoginScreen() {
           </View>
 
           <View style={[styles.form, { backgroundColor: themeColors.backgroundElement }]}>
-            <Text style={[styles.label, { color: themeColors.text }]}>Usuário ou e-mail</Text>
+            <Text style={[styles.label, { color: themeColors.text }]}>E-mail</Text>
             <TextInput
-              accessibilityLabel="Usuário ou e-mail"
+              accessibilityLabel="E-mail"
               autoCapitalize="none"
+              autoComplete="email"
               autoCorrect={false}
-              onChangeText={(value) => updateField('identifier', value)}
-              placeholder="Digite seu usuário ou e-mail"
+              keyboardType="email-address"
+              onChangeText={(value) => updateField('email', value)}
+              placeholder="Digite seu e-mail"
               placeholderTextColor={themeColors.textSecondary + '99'}
               style={[
                 styles.input,
                 {
                   backgroundColor: themeColors.background,
-                  borderColor: errors.identifier ? '#dc2626' : themeColors.textSecondary + '55',
+                  borderColor: errors.email ? '#dc2626' : themeColors.textSecondary + '55',
                   color: themeColors.text,
                 },
               ]}
-              value={form.identifier}
+              value={form.email}
             />
-            {errors.identifier ? <Text style={styles.errorText}>{errors.identifier}</Text> : null}
+            {errors.email ? <Text style={styles.errorText}>{errors.email}</Text> : null}
 
             <Text style={[styles.label, { color: themeColors.text, marginTop: Spacing.three }]}>Senha</Text>
             <View

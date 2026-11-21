@@ -12,6 +12,17 @@ import { getCurrentStatus, getSubSystemHistory, checkSubSystemNow, reportManagem
 import type { SubSystemStatus, SubSystemHistoryDay } from '../services/monitoringService';
 import { runSubsystemAction } from '../services/managementService';
 import type { SubsystemAction, SubsystemName } from '../services/managementService';
+import { SessaoExpiradaError } from '../services/sessaoExpiradaError';
+import {
+  ACTION_LABELS,
+  STATUS_COLORS,
+  STATUS_LABELS,
+  areActionsDisabled,
+  isActionAvailable,
+  resolveStatus,
+  toStatusSubsistema,
+  type StatusSubsistema,
+} from '@/utils/subsistemaStatus';
 
 const HISTORY_DAYS = 30;
 
@@ -32,44 +43,9 @@ const SUBSYSTEMS: SubsystemEntry[] = [
   { name: null, label: 'Aplicativo (Better Meet)', monitoringKey: 'mobile-app' },
 ];
 
-const STATUS_LABELS: Record<string, string> = {
-  OPERATIONAL: 'Operacional',
-  MAINTENANCE: 'Em manutenção',
-  ERROR: 'Instabilidade',
-  DOWN: 'Fora do ar',
-  UNKNOWN: 'Sem monitoramento ainda',
-};
-
-const STATUS_COLORS: Record<string, string> = {
-  OPERATIONAL: '#4CAF50',
-  MAINTENANCE: '#2196F3',
-  ERROR: '#FFC107',
-  DOWN: '#F44336',
-  UNKNOWN: '#557B88',
-};
-
-const ACTION_LABELS: Record<SubsystemAction, string> = {
-  start: 'Iniciar',
-  stop: 'Parar',
-  restart: 'Reiniciar',
-};
-
-// Ao parar, o próprio subsistema grava MAINTENANCE ("Parada solicitada"); o health
-// check grava DOWN quando ele não responde. Instabilidade (ERROR) ainda é um
-// processo rodando. UNKNOWN não diz nada, então libera as três ações.
-const STOPPED_STATUSES: readonly SubSystemStatus['status'][] = ['DOWN', 'MAINTENANCE'];
-const RUNNING_STATUSES: readonly SubSystemStatus['status'][] = ['OPERATIONAL', 'ERROR'];
-
-// Parado: só iniciar. Rodando: só parar e reiniciar. Mesma regra do better-meet.
-function isActionAvailable(action: SubsystemAction, status: SubSystemStatus['status']): boolean {
-  if (STOPPED_STATUSES.includes(status)) return action === 'start';
-  if (RUNNING_STATUSES.includes(status)) return action !== 'start';
-  return true;
-}
-
 // Mesma lógica do status.tsx do better-meet — só que trabalhando direto com os
 // status em maiúsculas da API (OPERATIONAL/...), sem precisar de um segundo enum.
-function resolveDayStatus(day: SubSystemHistoryDay): { status: string; message: string } {
+function resolveDayStatus(day: SubSystemHistoryDay): { status: StatusSubsistema; message: string } {
   if (day.uptimePercentage == null) {
     return { status: 'UNKNOWN', message: 'Não houve checagem de status nesse dia' };
   }
@@ -82,8 +58,8 @@ function resolveDayStatus(day: SubSystemHistoryDay): { status: string; message: 
 
   const endedOperational = day.lastStatus === 'OPERATIONAL' ? ' (finalizou o dia operacional)' : '';
   return {
-    status: day.worstStatus,
-    message: `${STATUS_LABELS[day.worstStatus] ?? day.worstStatus}${endedOperational} — ${uptimeText}`,
+    status: toStatusSubsistema(day.worstStatus),
+    message: `${STATUS_LABELS[toStatusSubsistema(day.worstStatus)]}${endedOperational} — ${uptimeText}`,
   };
 }
 
@@ -144,7 +120,7 @@ export default function DashboardScreen() {
   const router = useRouter();
   const { token } = useAuthStore();
 
-  const [statusList, setStatusList] = useState<SubSystemStatus[] | null>(null);
+  const [statusList, setStatusList] = useState<SubSystemStatus[]>([]);
   const [historyMap, setHistoryMap] = useState<Record<string, SubSystemHistoryDay[]>>({});
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState<string | null>(null);
@@ -190,7 +166,7 @@ export default function DashboardScreen() {
         setMonitoringUnreachable(true);
       }
 
-      if (message.includes('Sessão expirada')) {
+      if (err instanceof SessaoExpiradaError) {
         router.replace('/login');
         return;
       }
@@ -224,14 +200,14 @@ export default function DashboardScreen() {
       const monitoringKey = SUBSYSTEMS.find((subsystem) => subsystem.name === name)?.monitoringKey;
       if (monitoringKey) {
         await new Promise((resolve) => setTimeout(resolve, 5000));
-        await checkSubSystemNow(monitoringKey).catch(() => {});
+        await checkSubSystemNow(monitoringKey, token).catch(() => {});
         await new Promise((resolve) => setTimeout(resolve, 5000));
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Não foi possível executar a ação.';
       setError(message);
 
-      if (message.includes('Sessão expirada')) {
+      if (err instanceof SessaoExpiradaError) {
         router.replace('/login');
       } else {
         reportManagementError(message, err instanceof Error ? err.stack : undefined, {
@@ -246,22 +222,16 @@ export default function DashboardScreen() {
     }
   };
 
-  const resolveStatus = (monitoringKey?: string) => {
-    if (!monitoringKey || !statusList) return 'UNKNOWN';
-    return statusList.find((item) => item.subSystem === monitoringKey)?.status ?? 'UNKNOWN';
-  };
-
   // Toda ação (start/stop/restart, de qualquer subsistema) passa pela API da
-  // própria management — se ela não estiver operacional, nenhum botão vai
-  // funcionar mesmo, então desabilita tudo de uma vez em vez de deixar clicar
-  // e falhar um por um.
-  const managementStatus = resolveStatus('management');
-  const actionsDisabled = managementStatus !== 'OPERATIONAL';
+  // própria management — se ela sabidamente não estiver operacional, desabilita
+  // tudo de uma vez. Sem dado (UNKNOWN) as ações ficam liberadas.
+  const managementStatus = resolveStatus(statusList, 'management');
+  const actionsDisabled = areActionsDisabled(managementStatus);
 
   // Status/histórico vêm da monitoring — se ela ou o banco dela não estiverem
   // operacionais, o que está na tela pode ser só o último dado conhecido, não o atual.
-  const monitoringStatus = resolveStatus('monitoring');
-  const monitoringDatabaseStatus = resolveStatus('monitoring-database');
+  const monitoringStatus = resolveStatus(statusList, 'monitoring');
+  const monitoringDatabaseStatus = resolveStatus(statusList, 'monitoring-database');
   const dataMayBeStale =
     monitoringUnreachable || monitoringStatus !== 'OPERATIONAL' || monitoringDatabaseStatus !== 'OPERATIONAL';
 
@@ -293,20 +263,21 @@ export default function DashboardScreen() {
               {monitoringUnreachable
                 ? 'Não foi possível conectar à API de monitoramento agora'
                 : 'A API de monitoramento ou o banco dela não está operacional agora'}
-              {statusList
+              {statusList.length > 0
                 ? ' — status e histórico abaixo podem ser só o último dado conhecido, não o atual.'
                 : ' — não foi possível carregar o status dos subsistemas.'}{' '}
-              Se necessário, religue manualmente: <Text style={{ fontWeight: '700' }}>pm2 start monitoring</Text>{' '}
+              Use o botão Iniciar do cartão da API de monitoramento. Se a gestão também estiver parada, religue
+              manualmente: <Text style={{ fontWeight: '700' }}>pm2 start monitoring</Text>{' '}
               (API) ou <Text style={{ fontWeight: '700' }}>docker start mysql_monitoring_better_meet_dev</Text> (banco).
             </Text>
           </View>
         ) : null}
 
-        {!statusList ? (
+        {!hasLoadedOnce ? (
           <ActivityIndicator color={themeColors.text} style={{ marginTop: 32 }} />
         ) : (
           SUBSYSTEMS.map((subsystem) => {
-            const status = resolveStatus(subsystem.monitoringKey);
+            const status = resolveStatus(statusList, subsystem.monitoringKey);
             const name = subsystem.name;
 
             return (

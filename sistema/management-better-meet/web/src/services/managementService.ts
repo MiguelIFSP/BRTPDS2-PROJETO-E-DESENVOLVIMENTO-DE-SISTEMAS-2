@@ -1,4 +1,7 @@
 import { MANAGEMENT_API_URL } from '../config/api';
+import { SessaoExpiradaError } from './sessaoExpiradaError';
+
+export { SessaoExpiradaError };
 
 export type SubsystemName = 'api' | 'monitoring' | 'management' | 'database' | 'monitoring-database';
 export type SubsystemAction = 'start' | 'stop' | 'restart';
@@ -14,7 +17,7 @@ export async function runSubsystemAction(
   });
 
   if (response.status === 401) {
-    throw new Error('Sessão expirada, faça login novamente.');
+    throw new SessaoExpiradaError();
   }
   if (response.status === 403) {
     throw new Error('Ação restrita ao administrador.');
