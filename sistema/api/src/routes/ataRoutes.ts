@@ -11,5 +11,6 @@ routes.put(
   requireAtaEditor,
   ataController.save,
 );
+routes.post('/reunioes/:id/ata/exportar', requireAuth, ataController.exportar);
 routes.post('/reunioes/:id/ata/votar', requireAuth, ataController.vote);
 export default routes;

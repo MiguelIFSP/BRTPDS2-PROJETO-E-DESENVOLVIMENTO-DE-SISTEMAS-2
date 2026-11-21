@@ -6,6 +6,16 @@ import { sanitizeAtaHtml, validateAtaHtml } from '../utils/ataHtml.ts';
 const podeEditar = (papel: PapelComissao) =>
   papel === 'ADMINISTRADOR' || papel === 'SECRETARIO';
 
+/**
+ * Maioria simples dos presentes: mais da metade deles aprovou a versão atual
+ * (a metade exata não aprova). Calculada a cada leitura, nunca gravada.
+ */
+export const ataAprovada = (aprovados: number, presentes: number) =>
+  presentes > 0 && aprovados > presentes / 2;
+
+const MENSAGEM_EXPORTADA =
+  'A ata já foi exportada e não pode mais ser alterada.';
+
 const loadAccess = async (
   database: Prisma.TransactionClient,
   userId: number,
@@ -19,6 +29,8 @@ const loadAccess = async (
       data: true,
       conteudoAta: true,
       versaoAta: true,
+      ataExportadaAt: true,
+      _count: { select: { registros: true } },
       comissao: {
         select: {
           equipe: { where: { userId }, select: { papel: true } },
@@ -63,6 +75,11 @@ const present = async (
     where: { reuniaoId, versaoAta: reuniao.versaoAta },
     select: { userId: true, status: true },
   });
+  const aprovados = votos.filter((voto) => voto.status === 'APROVADO').length;
+  const presentes = reuniao._count.registros;
+  const exportada = reuniao.ataExportadaAt !== null;
+  const aprovada =
+    Boolean(reuniao.conteudoAta) && ataAprovada(aprovados, presentes);
   return {
     reuniaoId,
     titulo: reuniao.titulo,
@@ -72,11 +89,16 @@ const present = async (
       : null,
     versaoAta: reuniao.versaoAta,
     papelNaComissao: papel,
-    podeEditar: podeEditar(papel),
-    podeVotar: Boolean(reuniao.conteudoAta),
+    podeEditar: podeEditar(papel) && !exportada,
+    podeVotar: Boolean(reuniao.conteudoAta) && !exportada,
+    presentes,
+    aprovada,
+    exportada,
+    exportadaAt: reuniao.ataExportadaAt,
+    podeExportar: aprovada,
     meuVoto: votos.find((voto) => voto.userId === userId)?.status ?? null,
     votos: {
-      aprovados: votos.filter((voto) => voto.status === 'APROVADO').length,
+      aprovados,
       reprovados: votos.filter((voto) => voto.status === 'REPROVADO').length,
     },
   };
@@ -108,6 +130,7 @@ export const ataService = {
         reuniaoId,
       );
       assertEditor(papel);
+      if (reuniao.ataExportadaAt) throw new AppError(409, MENSAGEM_EXPORTADA);
       if (reuniao.versaoAta !== versaoAta) throw conflict();
       const changed = reuniao.conteudoAta !== sanitized;
       // A escrita condicional também bloqueia a linha até votos e texto ficarem consistentes.
@@ -133,6 +156,7 @@ export const ataService = {
   ) {
     return prisma.$transaction(async (transaction) => {
       const { reuniao } = await loadAccess(transaction, userId, reuniaoId);
+      if (reuniao.ataExportadaAt) throw new AppError(409, MENSAGEM_EXPORTADA);
       if (!reuniao.conteudoAta)
         throw new AppError(
           409,
@@ -150,6 +174,46 @@ export const ataService = {
         create: { reuniaoId, userId, status, versaoAta },
         update: { status, versaoAta },
       });
+      return present(transaction, userId, reuniaoId);
+    });
+  },
+
+  /** Exportar grava a versão e torna a ata imutável; repetir não muda nada. */
+  exportar(userId: number, reuniaoId: number) {
+    return prisma.$transaction(async (transaction) => {
+      const { reuniao } = await loadAccess(transaction, userId, reuniaoId);
+      if (reuniao.ataExportadaAt) {
+        return present(transaction, userId, reuniaoId);
+      }
+      const votos = await transaction.ataVoto.count({
+        where: {
+          reuniaoId,
+          versaoAta: reuniao.versaoAta,
+          status: 'APROVADO',
+        },
+      });
+      if (
+        !reuniao.conteudoAta ||
+        !ataAprovada(votos, reuniao._count.registros)
+      ) {
+        throw new AppError(
+          409,
+          'A ata só pode ser exportada depois de aprovada.',
+        );
+      }
+      // A condição na escrita impede exportar uma versão que acabou de mudar.
+      const gravada = await transaction.reuniao.updateMany({
+        where: {
+          id: reuniaoId,
+          versaoAta: reuniao.versaoAta,
+          ataExportadaAt: null,
+        },
+        data: {
+          ataExportadaAt: new Date(),
+          ataVersaoExportada: reuniao.versaoAta,
+        },
+      });
+      if (gravada.count === 0) throw conflict();
       return present(transaction, userId, reuniaoId);
     });
   },

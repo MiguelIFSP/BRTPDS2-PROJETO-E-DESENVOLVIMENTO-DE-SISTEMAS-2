@@ -1,21 +1,24 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { criarAuthSimulado, tokenDe } from './sessaoSimulada.mjs';
 
-const jwtSecret = 'segredo-ficticio-testes-ata';
 const prisma = {
   user: { findUnique: jest.fn() },
   reuniao: { findUnique: jest.fn(), updateMany: jest.fn() },
-  ataVoto: { findMany: jest.fn(), deleteMany: jest.fn(), upsert: jest.fn() },
+  ataVoto: {
+    findMany: jest.fn(),
+    count: jest.fn(),
+    deleteMany: jest.fn(),
+    upsert: jest.fn(),
+  },
   $transaction: jest.fn(),
 };
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
 }));
-jest.unstable_mockModule('../src/config/env.ts', () => ({
-  env: { JWT_SECRET: jwtSecret },
-}));
+jest.unstable_mockModule('../src/config/env.ts', () => ({ env: {} }));
+jest.unstable_mockModule('../src/lib/auth.ts', criarAuthSimulado);
 const { default: routes } = await import('../src/routes/ataRoutes.ts');
 const { handleError } = await import('../src/middlewares/errorMiddleware.ts');
 const { ataService } = await import('../src/services/ataService.ts');
@@ -28,11 +31,8 @@ let papel;
 let presente;
 let reuniao;
 let votos;
-const token = jwt.sign(
-  { role: 'ADMIN', email: 'participante@example.test', papel: 'ADMINISTRADOR' },
-  jwtSecret,
-  { subject: '7' },
-);
+let presentes;
+const token = tokenDe(7);
 const call = (method, suffix = '', id = '31') =>
   request(app)
     [method](`/api/reunioes/${id}/ata${suffix}`)
@@ -60,7 +60,9 @@ beforeEach(() => {
     data: '2026-11-11',
     conteudoAta: '<p>Ata original.</p>',
     versaoAta: 1,
+    ataExportadaAt: null,
   };
+  presentes = 4;
   votos = [];
   prisma.user.findUnique.mockResolvedValue({
     role: 'ADMIN',
@@ -68,18 +70,31 @@ beforeEach(() => {
   });
   prisma.reuniao.findUnique.mockImplementation(async () => ({
     ...reuniao,
+    _count: { registros: presentes },
     comissao: { equipe: papel ? [{ papel }] : [] },
     registros: presente ? [{ id: 12, saidaAt: '2026-11-09T13:00:00Z' }] : [],
   }));
   prisma.$transaction.mockImplementation((callback) => callback(prisma));
   prisma.reuniao.updateMany.mockImplementation(async ({ where, data }) => {
     if (where.versaoAta !== reuniao.versaoAta) return { count: 0 };
+    if (data.ataExportadaAt) {
+      if (reuniao.ataExportadaAt) return { count: 0 };
+      reuniao.ataExportadaAt = data.ataExportadaAt;
+      return { count: 1 };
+    }
     if (data.conteudoAta !== undefined) reuniao.conteudoAta = data.conteudoAta;
     reuniao.versaoAta += data.versaoAta.increment;
     return { count: 1 };
   });
   prisma.ataVoto.findMany.mockImplementation(async ({ where }) =>
     votos.filter((voto) => voto.versaoAta === where.versaoAta),
+  );
+  prisma.ataVoto.count.mockImplementation(
+    async ({ where }) =>
+      votos.filter(
+        (voto) =>
+          voto.versaoAta === where.versaoAta && voto.status === where.status,
+      ).length,
   );
   prisma.ataVoto.deleteMany.mockImplementation(async () => {
     votos = [];
@@ -354,5 +369,94 @@ describe('conteúdo e votação', () => {
     expect(
       (await call('post', '/votar').send({ status: 'APROVADO' })).status,
     ).toBe(400);
+  });
+});
+
+describe('aprovação por maioria simples dos presentes e exportação', () => {
+  const votar = (...status) => {
+    votos = status.map((s, indice) => ({
+      userId: 20 + indice,
+      status: s,
+      versaoAta: 1,
+    }));
+  };
+
+  test('integrante que não é presidente vota e o voto vale', async () => {
+    papel = 'MEMBRO';
+    const response = await vote();
+    expect(response.status).toBe(200);
+    expect(response.body.meuVoto).toBe('APROVADO');
+  });
+
+  test.each([
+    [4, ['APROVADO', 'APROVADO'], false],
+    [4, ['APROVADO', 'APROVADO', 'APROVADO'], true],
+    [5, ['APROVADO', 'APROVADO'], false],
+    [5, ['APROVADO', 'APROVADO', 'APROVADO'], true],
+    [3, ['APROVADO', 'REPROVADO', 'REPROVADO'], false],
+  ])(
+    'com %i presentes e votos %j, aprovada = %s (metade exata não aprova)',
+    async (total, lista, esperado) => {
+      presentes = total;
+      votar(...lista);
+      const response = await call('get');
+      expect(response.body).toMatchObject({
+        presentes: total,
+        aprovada: esperado,
+        podeExportar: esperado,
+        exportada: false,
+      });
+    },
+  );
+
+  test('exportar antes da aprovação responde 409 e não grava', async () => {
+    votar('APROVADO', 'REPROVADO');
+    const response = await call('post', '/exportar');
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe(
+      'A ata só pode ser exportada depois de aprovada.',
+    );
+    expect(prisma.reuniao.updateMany).not.toHaveBeenCalled();
+  });
+
+  test('exportar ata aprovada grava a versão e é idempotente', async () => {
+    votar('APROVADO', 'APROVADO', 'APROVADO');
+    const primeira = await call('post', '/exportar');
+    expect(primeira.status).toBe(200);
+    expect(primeira.body).toMatchObject({ exportada: true, podeEditar: false });
+    expect(prisma.reuniao.updateMany).toHaveBeenCalledWith({
+      where: { id: 31, versaoAta: 1, ataExportadaAt: null },
+      data: { ataExportadaAt: expect.any(Date), ataVersaoExportada: 1 },
+    });
+    const segunda = await call('post', '/exportar');
+    expect(segunda.status).toBe(200);
+    expect(prisma.reuniao.updateMany).toHaveBeenCalledTimes(1);
+  });
+
+  test('depois da exportação editar e votar respondem 409', async () => {
+    votar('APROVADO', 'APROVADO', 'APROVADO');
+    await call('post', '/exportar');
+    const edicao = await save();
+    expect(edicao.status).toBe(409);
+    expect(edicao.body.error).toBe(
+      'A ata já foi exportada e não pode mais ser alterada.',
+    );
+    expect((await vote()).status).toBe(409);
+    expect(prisma.ataVoto.upsert).not.toHaveBeenCalled();
+  });
+
+  test('ausente não exporta', async () => {
+    presente = false;
+    votar('APROVADO', 'APROVADO', 'APROVADO');
+    expect((await call('post', '/exportar')).status).toBe(403);
+  });
+
+  test('editar apaga os votos da versão anterior e a aprovação some', async () => {
+    votar('APROVADO', 'APROVADO', 'APROVADO');
+    const response = await save();
+    expect(response.body).toMatchObject({
+      aprovada: false,
+      podeExportar: false,
+    });
   });
 });

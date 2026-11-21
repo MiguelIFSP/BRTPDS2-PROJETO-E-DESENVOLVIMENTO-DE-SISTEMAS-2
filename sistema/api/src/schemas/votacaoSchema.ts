@@ -1,3 +1,4 @@
+import { TipoVotacao } from '@prisma/client';
 import * as yup from 'yup';
 import { idRule } from './commonSchema.ts';
 
@@ -11,8 +12,25 @@ const opcaoRule = () =>
     .required('Preencha todas as opções.')
     .max(80, 'Cada opção deve ter no máximo 80 caracteres.');
 
-// Mesma regra do app: título e de 2 a 6 opções, sem repetir o texto.
+// Título, de 2 a 6 opções sem repetir o texto, tipo e as duas opções de
+// resultado parcial e troca de voto (desligadas por padrão).
 export const votacaoSchema = yup.object({
+  tipo: yup
+    .string()
+    .trim()
+    .oneOf(
+      Object.values(TipoVotacao),
+      'Escolha se a votação é aberta ou secreta.',
+    )
+    .required('Escolha se a votação é aberta ou secreta.'),
+  mostrarParcial: yup
+    .boolean()
+    .typeError('Informe se o resultado parcial aparece.')
+    .default(false),
+  permiteTrocaVoto: yup
+    .boolean()
+    .typeError('Informe se a troca de voto é permitida.')
+    .default(false),
   titulo: yup
     .string()
     .trim()
@@ -32,10 +50,19 @@ export const votacaoSchema = yup.object({
     }),
 });
 
-export const votoSchema = yup.object({
-  opcaoId: idRule('Informe a opção escolhida.').required(
-    'Informe a opção escolhida.',
-  ),
-});
+const MENSAGEM_VOTO = 'Escolha uma opção ou o voto nulo.';
+
+// Exatamente um dos dois: uma opção ou o voto nulo.
+export const votoSchema = yup
+  .object({
+    opcaoId: idRule(MENSAGEM_VOTO),
+    nulo: yup.boolean().typeError(MENSAGEM_VOTO),
+  })
+  .test('opcao-ou-nulo', MENSAGEM_VOTO, (voto) =>
+    voto.nulo === true
+      ? voto.opcaoId === undefined
+      : voto.opcaoId !== undefined,
+  );
 
 export type VotacaoInput = yup.InferType<typeof votacaoSchema>;
+export type VotoInput = yup.InferType<typeof votoSchema>;

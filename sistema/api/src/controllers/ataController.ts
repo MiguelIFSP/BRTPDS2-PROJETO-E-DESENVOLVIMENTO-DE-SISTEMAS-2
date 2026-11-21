@@ -24,6 +24,15 @@ export const ataController = {
       await ataService.save(userId, reuniaoId, conteudoAta, versaoAta),
     );
   },
+  async exportar(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    response.json(
+      await ataService.exportar(
+        userId,
+        parseId(request.params.id, 'da reunião'),
+      ),
+    );
+  },
   async vote(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');

@@ -36,10 +36,10 @@ export const votacaoController = {
   async vote(request: Request, response: Response) {
     const { id: userId, role } = (request as AuthenticatedRequest).user;
     const votacaoId = parseId(request.params.id, 'da votação');
-    const { opcaoId } = await votoSchema.validate(request.body, {
+    const voto = await votoSchema.validate(request.body, {
       stripUnknown: true,
     });
-    const votacao = await votacaoService.vote(userId, role, votacaoId, opcaoId);
+    const votacao = await votacaoService.vote(userId, role, votacaoId, voto);
     response.status(200).json(votacao);
   },
 
