@@ -1,6 +1,6 @@
 import type { PapelComissao } from '@/services/comissaoService';
 import type { PapelOrganizacao } from '@/services/organizacaoService';
-import type { AuthUser, Role } from '@/store/authStore';
+import { useAuthStore, type AuthUser, type Role } from '@/store/authStore';
 import type { Tema } from '@/store/themeStore';
 import { apiRequest } from '@/utils/apiClient';
 
@@ -53,10 +53,15 @@ export type ComissaoAdministrada = {
 // id da organização/comissão -> id de quem assume no lugar do usuário.
 export type Sucessores = Record<number, number>;
 
-export type CadastroUsuarioData = {
-  nome: string;
-  email: string;
-  password: string;
+// GET /usuarios/me: perfil atual, lido do banco a cada chamada.
+export type PerfilAtual = AuthUser & {
+  emailVerified: boolean;
+  themePreference: string | null;
+};
+
+// A API devolve o perfil com o e-mail antigo até o novo ser confirmado.
+export type PerfilAtualizado = AuthUser & {
+  emailConfirmacaoPendente?: boolean;
 };
 
 export type PerfilData = { nome: string; email: string };
@@ -64,12 +69,10 @@ export type PerfilData = { nome: string; email: string };
 type MessageResponse = { message: string };
 
 export const usuarioService = {
-  // pública: quem se cadastra ainda não tem token.
-  create(usuario: CadastroUsuarioData) {
-    return apiRequest<AuthUser>('/usuarios', {
-      method: 'POST',
-      body: usuario,
-      fallbackError: 'Não foi possível criar o usuário.',
+  getMe(token?: string | null) {
+    return apiRequest<PerfilAtual>('/usuarios/me', {
+      token,
+      fallbackError: 'Não foi possível carregar seu perfil.',
     });
   },
 
@@ -85,7 +88,7 @@ export const usuarioService = {
 
   // UC03 — alterar dados pessoais.
   updateProfile(token: string, userId: number, perfil: PerfilData) {
-    return apiRequest<AuthUser>(`/usuarios/${userId}`, {
+    return apiRequest<PerfilAtualizado>(`/usuarios/${userId}`, {
       method: 'PATCH',
       token,
       body: perfil,
@@ -93,19 +96,25 @@ export const usuarioService = {
     });
   },
 
-  // UC01 — troca de senha.
-  updatePassword(
+  // UC01 — troca de senha. A API encerra todas as sessões, inclusive esta, e
+  // devolve um token novo: sem gravá-lo o próximo pedido cairia em 401.
+  async updatePassword(
     token: string,
     userId: number,
     currentPassword: string,
     newPassword: string,
   ) {
-    return apiRequest<MessageResponse>(`/usuarios/${userId}/senha`, {
-      method: 'PATCH',
-      token,
-      body: { currentPassword, newPassword },
-      fallbackError: 'Não foi possível alterar a senha.',
-    });
+    const result = await apiRequest<MessageResponse & { token?: string }>(
+      `/usuarios/${userId}/senha`,
+      {
+        method: 'PATCH',
+        token,
+        body: { currentPassword, newPassword },
+        fallbackError: 'Não foi possível alterar a senha.',
+      },
+    );
+    if (result.token) useAuthStore.getState().replaceToken(result.token);
+    return result;
   },
 
   // UC04 — tema preferido.

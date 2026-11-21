@@ -1,4 +1,5 @@
-import { MONITORING_API_KEY, MONITORING_API_URL } from '@/config/api';
+import { MONITORING_API_URL } from '@/config/api';
+import { getSessionToken } from '@/lib/authClient';
 import { ApiError, apiRequest, getErrorMessage } from '@/utils/apiClient';
 
 // Mesmos valores do status gravado pela API de monitoramento.
@@ -42,34 +43,38 @@ type ReportOptions = {
 
 // Evita inundar a monitoring quando o mesmo erro se repete em sequência.
 const MIN_REPORT_INTERVAL_MS = 5000;
+const MAX_MESSAGE_LENGTH = 500;
 let lastReportTime = 0;
 
 export const monitoringService = {
   /**
    * Registra uma falha do app na monitoring. Nunca lança: o envio falhar (sem
-   * internet, monitoring fora do ar) não pode gerar outro erro na tela.
-   * EXCEÇÃO TEMPORÁRIA ao EX-13: a monitoring só aceita o POST /status (e o
-   * POST /status/:subSystem/check, ver checkSubSystemNow) com a chave interna
-   * (x-api-key), então o app envia a chave do .env até a
-   * monitoring ser refatorada.
+   * internet, monitoring fora do ar) não pode gerar outro erro na tela. Sem
+   * sessão não envia: a monitoring só aceita relato de quem está logado.
    */
   async reportError(
     message: string,
     { status = 'ERROR', context, isBlocking = false }: ReportOptions = {},
   ) {
+    const token = getSessionToken();
+    if (!token) return;
+
     const now = Date.now();
     if (now - lastReportTime < MIN_REPORT_INTERVAL_MS) return;
     lastReportTime = now;
 
+    const text = context ? `[${context}] ${message}` : message;
     try {
-      await apiRequest('/status', {
+      await apiRequest('/status/report', {
         method: 'POST',
         baseUrl: MONITORING_API_URL,
-        headers: { 'x-api-key': MONITORING_API_KEY },
+        token,
+        expireSessionOn401: false,
+        // a monitoring recusa mensagem acima de 500 caracteres.
         body: {
           subSystem: 'mobile-app',
           status,
-          message: context ? `[${context}] ${message}` : message,
+          message: text.slice(0, MAX_MESSAGE_LENGTH),
           isBlocking,
         },
         fallbackError: 'Não foi possível registrar o erro na monitoração.',
@@ -103,13 +108,13 @@ export const monitoringService = {
   },
 
   // Pede pra monitoring checar UM subsistema agora (fora do cron de 6h) e
-  // devolve o status recém-gravado. Também exige a chave interna: mesma
-  // EXCEÇÃO TEMPORÁRIA ao EX-13 do reportError.
+  // devolve o status recém-gravado.
   checkSubSystemNow(subSystem: string) {
     return apiRequest<SubSystemStatus>(`/status/${subSystem}/check`, {
       method: 'POST',
       baseUrl: MONITORING_API_URL,
-      headers: { 'x-api-key': MONITORING_API_KEY },
+      token: getSessionToken(),
+      expireSessionOn401: false,
       fallbackError: 'Não foi possível verificar o status agora.',
     });
   },

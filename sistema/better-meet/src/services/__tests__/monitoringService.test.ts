@@ -7,8 +7,15 @@ import {
   jest,
 } from '@jest/globals';
 
+import { setSessionToken } from '@/lib/authClient';
 import { monitoringService } from '@/services/monitoringService';
 import { ApiError } from '@/utils/apiClient';
+
+jest.mock('@/lib/sessionStorage', () => ({
+  readSession: jest.fn(),
+  writeSession: jest.fn(),
+  clearSession: jest.fn(),
+}));
 
 describe('monitoringService.reportRequestFailure', () => {
   let reportError: ReturnType<typeof jest.spyOn>;
@@ -55,5 +62,66 @@ describe('monitoringService.reportRequestFailure', () => {
       context: 'Teste',
       isBlocking: false,
     });
+  });
+});
+
+describe('monitoringService.reportError (sessão no lugar da chave)', () => {
+  const mockFetch = jest.fn<typeof fetch>();
+  let now = 1_000_000;
+
+  beforeEach(async () => {
+    globalThis.fetch = mockFetch as typeof fetch;
+    mockFetch.mockReset();
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 201,
+      json: () => Promise.resolve({}),
+    } as unknown as Response);
+    // passa do intervalo mínimo entre relatos a cada teste.
+    now += 60_000;
+    jest.spyOn(Date, 'now').mockReturnValue(now);
+    await setSessionToken(null);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('sem sessão não chama a monitoring', async () => {
+    await monitoringService.reportError('Falhou.');
+    expect(mockFetch).not.toHaveBeenCalled();
+  });
+
+  it('com sessão envia Bearer e nunca x-api-key', async () => {
+    await setSessionToken('tok');
+    await monitoringService.reportError('Falhou.', { context: 'Tela' });
+
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toBe(
+      'http://monitoring.teste/api/status/report',
+    );
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer tok' });
+    expect(JSON.stringify(init.headers)).not.toContain('x-api-key');
+    expect(JSON.parse(init.body as string)).toEqual({
+      subSystem: 'mobile-app',
+      status: 'ERROR',
+      message: '[Tela] Falhou.',
+      isBlocking: false,
+    });
+  });
+
+  it('corta a mensagem em 500 caracteres', async () => {
+    await setSessionToken('tok');
+    await monitoringService.reportError('x'.repeat(600));
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(JSON.parse(init.body as string).message).toHaveLength(500);
+  });
+
+  it('checkSubSystemNow usa o token da sessão', async () => {
+    await setSessionToken('tok');
+    await monitoringService.checkSubSystemNow('api');
+    const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
+    expect(url).toContain('/status/api/check');
+    expect(init.headers).toMatchObject({ Authorization: 'Bearer tok' });
   });
 });

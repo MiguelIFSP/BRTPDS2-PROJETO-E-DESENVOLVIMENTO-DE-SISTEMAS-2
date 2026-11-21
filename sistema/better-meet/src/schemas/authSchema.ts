@@ -3,17 +3,17 @@ import * as yup from 'yup';
 import { emailRule, senhaForteRule } from './commonSchema';
 
 export const loginSchema = yup.object({
-  // aceita o e-mail ou o nome do usuário
-  identifier: yup
-    .string()
-    .trim()
-    .required('Informe seu usuário ou e-mail.')
-    .min(2, 'Informe seu usuário ou e-mail válido.'),
+  email: emailRule(),
   password: yup.string().required('A senha é obrigatória.'),
 });
 
 export const recuperacaoSenhaSchema = yup.object({
   email: emailRule(),
+});
+
+// Sem o link, a pessoa digita o código que veio no e-mail (o token em texto).
+export const redefinirSenhaSchema = yup.object({
+  token: yup.string().trim().required('Informe o código do e-mail.'),
   newPassword: senhaForteRule('A nova senha'),
   confirmPassword: yup
     .string()

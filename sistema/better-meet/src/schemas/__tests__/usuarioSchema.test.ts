@@ -1,7 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 import * as yup from 'yup';
 
-import { recuperacaoSenhaSchema } from '@/schemas/authSchema';
+import { redefinirSenhaSchema } from '@/schemas/authSchema';
 import {
   cadastroUsuarioSchema,
   trocaSenhaSchema,
@@ -77,15 +77,46 @@ describe('cadastroUsuarioSchema', () => {
   });
 });
 
-describe('trocaSenhaSchema e recuperacaoSenhaSchema', () => {
+describe('nome do cadastro', () => {
+  const base = {
+    email: 'ana@exemplo.com',
+    password: 'Senha123',
+    confirmPassword: 'Senha123',
+  };
+
+  it('recusa nome com 1 caractere', async () => {
+    const result = await validate(cadastroUsuarioSchema, {
+      ...base,
+      nome: 'A',
+    });
+    expect(result.errors?.nome).toBe(
+      'O nome deve ter pelo menos 2 caracteres.',
+    );
+  });
+
+  it('recusa nome com 81 caracteres e aceita 80', async () => {
+    const longo = await validate(cadastroUsuarioSchema, {
+      ...base,
+      nome: 'a'.repeat(81),
+    });
+    const limite = await validate(cadastroUsuarioSchema, {
+      ...base,
+      nome: 'a'.repeat(80),
+    });
+    expect(longo.errors?.nome).toBe('O nome deve ter no máximo 80 caracteres.');
+    expect(limite.errors).toBeUndefined();
+  });
+});
+
+describe('trocaSenhaSchema e redefinirSenhaSchema', () => {
   it('usam o rótulo "A nova senha" na regra de senha forte', async () => {
     const troca = await validate(trocaSenhaSchema, {
       currentPassword: 'Atual123',
       newPassword: 'curta',
       confirmPassword: 'curta',
     });
-    const recuperacao = await validate(recuperacaoSenhaSchema, {
-      email: 'ana@exemplo.com',
+    const recuperacao = await validate(redefinirSenhaSchema, {
+      token: 'codigo',
       newPassword: 'curta',
       confirmPassword: 'curta',
     });

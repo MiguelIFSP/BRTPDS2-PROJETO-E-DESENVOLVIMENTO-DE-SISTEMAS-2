@@ -1,12 +1,15 @@
 import { API_URL } from '@/config/api';
+import { getSessionToken } from '@/lib/authClient';
+import { useAuthStore } from '@/store/authStore';
 
 type ApiRequestOptions = {
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   token?: string | null;
   body?: unknown;
   baseUrl?: string;
-  // cabeçalhos extras; hoje só a chave da monitoring (ver monitoringService).
-  headers?: Record<string, string>;
+  // 401 com credencial encerra a sessão. Padrão: só na API de Dados; monitoring
+  // e gestão podem recusar por motivos próprios sem deslogar a pessoa.
+  expireSessionOn401?: boolean;
   fallbackError: string;
 };
 
@@ -47,12 +50,13 @@ export async function apiRequest<T>(
     token,
     body,
     baseUrl = API_URL,
-    headers: extraHeaders,
+    expireSessionOn401 = baseUrl === API_URL,
     fallbackError,
   }: ApiRequestOptions,
 ): Promise<T> {
-  const headers: Record<string, string> = { ...extraHeaders };
-  if (token) headers.Authorization = `Bearer ${token}`;
+  const headers: Record<string, string> = {};
+  const credential = token ?? getSessionToken();
+  if (credential) headers.Authorization = `Bearer ${credential}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
 
   let response: Response;
@@ -68,6 +72,10 @@ export async function apiRequest<T>(
 
   const data: unknown = await response.json().catch(() => null);
   if (!response.ok) {
+    // sem credencial, 401 é login errado, não sessão vencida.
+    if (response.status === 401 && credential && expireSessionOn401) {
+      useAuthStore.getState().expireSession();
+    }
     throw new ApiError(
       readErrorMessage(data) ?? fallbackError,
       response.status,
