@@ -1,8 +1,5 @@
 // =====================================================================
 // schema.prisma — BetterMeet API
-// Incremento 1 – Configurações de Usuário:
-//   - Adicionado campo themePreference em User (UC04)
-//   - Criada tabela PasswordResetToken (UC02)
 // =====================================================================
 
 generator client {
@@ -55,6 +52,12 @@ enum StatusAtaVoto {
   REPROVADO // participante solicita revisão do conteúdo salvo
 }
 
+// Tipo da votação, fixado na criação e nunca alterado.
+enum TipoVotacao {
+  ABERTA // quem gere a reunião vê quem votou em quê
+  SECRETA // nenhuma rota liga voto e pessoa, nem ao administrador da comissão
+}
+
 enum TipoLembrete {
   MANHA // às 07h do dia da reunião
   UMA_HORA
@@ -77,9 +80,13 @@ model User {
   id        Int      @id @default(autoincrement())
   name      String
   email     String   @unique
-  password  String
   role      Role     @default(USER)
   createdAt DateTime @default(now())
+
+  // Campos exigidos pelo Better Auth; a senha fica em Account.
+  emailVerified Boolean  @default(false)
+  image         String?
+  updatedAt     DateTime @default(now()) @updatedAt
 
   // -------------------------------------------------------------------
   // Preferência de tema do app mobile (UC04)
@@ -94,18 +101,16 @@ model User {
   comissoes    ComissaoEquipe[]
   organizacoes OrganizacaoMembro[]
 
-  // -------------------------------------------------------------------
-  // NOVO: tokens de recuperação de conta (UC02)
-  // -------------------------------------------------------------------
-  passwordResetTokens PasswordResetToken[]
-  reunioesCriadas     Reuniao[]            @relation("ReuniaoCriador")
-  votacoesCriadas     Votacao[]            @relation("VotacaoCriador")
-  votos               VotacaoVoto[]
-  votosAta            AtaVoto[]
-  convitesReuniao     ConviteReuniao[]
-  registrosReuniao    ReuniaoRegistro[]
-  notificacoes        Notificacao[]
-  lembretes           LembreteEnviado[]
+  sessions         Session[]
+  accounts         Account[]
+  reunioesCriadas  Reuniao[]         @relation("ReuniaoCriador")
+  votacoesCriadas  Votacao[]         @relation("VotacaoCriador")
+  votos            VotacaoVoto[]
+  votosAta         AtaVoto[]
+  convitesReuniao  ConviteReuniao[]
+  registrosReuniao ReuniaoRegistro[]
+  notificacoes     Notificacao[]
+  lembretes        LembreteEnviado[]
 }
 
 model Organizacao {
@@ -157,47 +162,93 @@ model ComissaoEquipe {
   @@id([comissaoId, userId])
 }
 
-// =====================================================================
-// PasswordResetToken (NOVO — UC02 Recuperação de Conta)
-// =====================================================================
-// Tabela separada de User por 3 motivos:
-//   1. Mantém histórico (auditoria) de tokens emitidos
-//   2. Permite múltiplos tokens válidos simultaneamente
-//   3. Não polui a tabela User com colunas de uso temporário
-// =====================================================================
-model PasswordResetToken {
-  id        Int       @id @default(autoincrement())
+// Tabelas do Better Auth (login, sessão, recuperação de senha, e-mail
+// confirmado e limite de tentativas). Os nomes dos campos são os que a
+// biblioteca espera; os ids são inteiros (generateId: 'serial') para casar com
+// User.id.
+model Session {
+  id        Int      @id @default(autoincrement())
   userId    Int
-  token     String    @unique
+  token     String   @unique @db.VarChar(255)
   expiresAt DateTime
-  usedAt    DateTime?
+  ipAddress String?
+  userAgent String?  @db.Text
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
 }
 
+// Uma credencial (providerId "credential", senha em scrypt) e, se houver, uma
+// conta do Google por usuário.
+model Account {
+  id                    Int       @id @default(autoincrement())
+  userId                Int
+  accountId             String // credencial: o id do usuário; Google: o "sub" do provedor
+  providerId            String // "credential" ou "google"
+  accessToken           String?   @db.Text
+  refreshToken          String?   @db.Text
+  idToken               String?   @db.Text
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String? // scrypt "sal:chave"; SHA-256 legado de 64 hexadecimais até o primeiro login
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+}
+
+// Tokens de uso único: confirmação de e-mail, redefinição de senha e troca de e-mail.
+model Verification {
+  id         Int      @id @default(autoincrement())
+  identifier String   @db.VarChar(255)
+  value      String   @db.Text
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @default(now()) @updatedAt
+
+  @@index([identifier])
+}
+
+// Contador do limite de tentativas, que sobrevive a reinício e vale para todos os processos.
+model RateLimit {
+  id          Int    @id @default(autoincrement())
+  key         String @unique @db.VarChar(255)
+  count       Int
+  lastRequest BigInt
+}
+
 model Reuniao {
-  id              Int           @id @default(autoincrement())
-  comissaoId      Int
-  titulo          String
-  pauta           String
-  descricao       String?
-  data            String // Data no formato AAAA-MM-DD para o contrato do app.
-  horaInicio      String // Horário no formato HH:mm.
-  horaFim         String // Horário no formato HH:mm.
+  id                 Int           @id @default(autoincrement())
+  comissaoId         Int
+  titulo             String
+  pauta              String
+  descricao          String?
+  data               String // Data no formato AAAA-MM-DD para o contrato do app.
+  horaInicio         String // Horário no formato HH:mm.
+  horaFim            String // Horário no formato HH:mm.
   // Endereço, link da chamada ou os dois (reunião híbrida), em texto livre.
   // Obrigatório na API; nulo só nas reuniões criadas antes do campo existir.
-  local           String?       @db.VarChar(500)
-  status          StatusReuniao @default(AGENDADA)
-  criadoPorUserId Int
-  createdAt       DateTime      @default(now())
-  conteudoAta     String?       @db.LongText
+  local              String?       @db.VarChar(500)
+  status             StatusReuniao @default(AGENDADA)
+  // Nulo quando a conta de quem criou foi excluída (o app mostra "usuário removido").
+  criadoPorUserId    Int?
+  createdAt          DateTime      @default(now())
+  conteudoAta        String?       @db.LongText
   // Impede sobrescritas e votos sobre um texto que foi alterado por outra pessoa.
-  versaoAta       Int           @default(0)
+  versaoAta          Int           @default(0)
+  // Ata exportada: texto e votos não mudam mais. Transição: nulo -> data, uma vez, sem volta.
+  ataExportadaAt     DateTime?
+  ataVersaoExportada Int?
 
   comissao  Comissao          @relation(fields: [comissaoId], references: [id], onDelete: Cascade)
-  criadoPor User              @relation("ReuniaoCriador", fields: [criadoPorUserId], references: [id])
+  criadoPor User?             @relation("ReuniaoCriador", fields: [criadoPorUserId], references: [id], onDelete: SetNull)
   convites  ConviteReuniao[]
   registros ReuniaoRegistro[]
   lembretes LembreteEnviado[]
@@ -298,15 +349,22 @@ model LembreteEnviado {
 // Uma reunião tem várias votações. Opções e votos ficam em tabelas próprias:
 // um campo na reunião não guarda o voto de cada pessoa nem a troca de opção.
 model Votacao {
-  id              Int      @id @default(autoincrement())
-  reuniaoId       Int
-  titulo          String   @db.VarChar(120)
-  criadoPorUserId Int
-  encerrada       Boolean  @default(false)
-  createdAt       DateTime @default(now())
+  id               Int         @id @default(autoincrement())
+  reuniaoId        Int
+  titulo           String      @db.VarChar(120)
+  // Nulo quando a conta de quem criou foi excluída.
+  criadoPorUserId  Int?
+  tipo             TipoVotacao @default(ABERTA)
+  // false: os totais por opção só aparecem depois do encerramento.
+  mostrarParcial   Boolean     @default(false)
+  // false: o voto dado não muda.
+  permiteTrocaVoto Boolean     @default(false)
+  // Transição: false -> true, sem volta. O fim da reunião também encerra a votação, sem gravar aqui.
+  encerrada        Boolean     @default(false)
+  createdAt        DateTime    @default(now())
 
-  reuniao   Reuniao         @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
-  criadoPor User            @relation("VotacaoCriador", fields: [criadoPorUserId], references: [id])
+  reuniao   Reuniao        @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  criadoPor User?          @relation("VotacaoCriador", fields: [criadoPorUserId], references: [id], onDelete: SetNull)
   opcoes    VotacaoOpcao[]
   votos     VotacaoVoto[]
 
@@ -326,17 +384,19 @@ model VotacaoOpcao {
   @@index([votacaoId])
 }
 
-// Um voto por pessoa na votação. Trocar a opção atualiza opcaoId.
+// Um voto por pessoa na votação. Trocar a opção atualiza opcaoId. A votação secreta
+// só é secreta pela API: o banco guarda o userId para garantir um voto por pessoa.
 model VotacaoVoto {
   id        Int      @id @default(autoincrement())
   votacaoId Int
-  opcaoId   Int
+  // Nulo = voto nulo.
+  opcaoId   Int?
   userId    Int
   createdAt DateTime @default(now())
 
-  votacao Votacao      @relation(fields: [votacaoId], references: [id], onDelete: Cascade)
-  opcao   VotacaoOpcao @relation(fields: [opcaoId], references: [id], onDelete: Cascade)
-  user    User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  votacao Votacao       @relation(fields: [votacaoId], references: [id], onDelete: Cascade)
+  opcao   VotacaoOpcao? @relation(fields: [opcaoId], references: [id], onDelete: Cascade)
+  user    User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([votacaoId, userId])
   @@index([opcaoId])
