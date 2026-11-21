@@ -1,0 +1,441 @@
+openapi: 3.0.3
+info:
+  title: API de Monitoramento do Better Meet
+  version: 1.0.0
+  description: |
+    Registra e consulta o status dos sub-sistemas do Better Meet (aplicativo, API de Dados,
+    bancos, painel de gestão e a própria monitoring).
+
+    **Prefixo:** as rotas de status ficam sob `/api`, como em todos os serviços do Better Meet.
+    Só `/health` fica fora do prefixo.
+
+    **Autenticação:** usuários enviam o token da sessão em `Authorization: Bearer <token>`.
+    A chave interna (`x-api-key`) existe só para comunicação entre servidores e não deve ser
+    embutida em aplicativo ou painel; ela segue aceita em `POST /status/{subSystem}/check`
+    apenas enquanto o aplicativo e o painel migram para o token do usuário.
+servers:
+  - url: http://localhost:3334
+    description: Desenvolvimento local
+tags:
+  - name: Saúde
+  - name: Status
+paths:
+  /health:
+    get:
+      tags: [Saúde]
+      summary: Verifica se o serviço está de pé
+      description: Pública, sem prefixo. Usada pela gestão e por balanceadores.
+      responses:
+        '200':
+          description: Serviço no ar.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+  /api/status:
+    post:
+      tags: [Status]
+      summary: Grava um registro de status (uso entre servidores)
+      description: |
+        Protegida só pela chave interna. Usada pela `management-better-meet/server` para reportar
+        o próprio status. Aplicativo e painel usam `POST /status/report`.
+      security:
+        - apiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusCheckEntrada'
+      responses:
+        '201':
+          description: Registro gravado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusCheck'
+        '400':
+          $ref: '#/components/responses/Invalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '413':
+          $ref: '#/components/responses/CorpoGrande'
+        '429':
+          $ref: '#/components/responses/MuitasTentativas'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+    get:
+      tags: [Status]
+      summary: Status mais recente de cada sub-sistema
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Lista com o último status de cada sub-sistema (`UNKNOWN` se nunca houve checagem).
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/SubSystemStatus'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '503':
+          $ref: '#/components/responses/SessaoIndisponivel'
+        '429':
+          $ref: '#/components/responses/MuitasTentativas'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+  /api/status/report:
+    post:
+      tags: [Status]
+      summary: Relata um erro (aplicativo ou painel)
+      description: |
+        Contrato C3. Qualquer usuário autenticado relata o sub-sistema `mobile-app`; apenas
+        administradores relatam `management`. A mensagem é limpa de quebras de linha e
+        caracteres de controle antes de ser gravada. Limite de 10 chamadas por minuto por IP.
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RelatoEntrada'
+      responses:
+        '201':
+          description: Registro gravado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusCheck'
+        '400':
+          $ref: '#/components/responses/Invalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '503':
+          $ref: '#/components/responses/SessaoIndisponivel'
+        '403':
+          description: Usuário comum tentou relatar o painel de gestão.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '413':
+          $ref: '#/components/responses/CorpoGrande'
+        '429':
+          $ref: '#/components/responses/MuitasTentativas'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+  /api/status/daily:
+    get:
+      tags: [Status]
+      summary: Relatório do dia por sub-sistema
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: date
+          in: query
+          required: false
+          description: Dia no fuso de Brasília (`AAAA-MM-DD`). Sem o parâmetro, vale hoje.
+          schema:
+            type: string
+            example: '2026-03-10'
+      responses:
+        '200':
+          description: Uma entrada por sub-sistema.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/DailyStatus'
+        '400':
+          $ref: '#/components/responses/Invalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '503':
+          $ref: '#/components/responses/SessaoIndisponivel'
+        '429':
+          $ref: '#/components/responses/MuitasTentativas'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+  /api/status/{subSystemId}/history:
+    get:
+      tags: [Status]
+      summary: Histórico diário de um sub-sistema
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: subSystemId
+          in: path
+          required: true
+          description: Identificador do sub-sistema (inteiro maior que zero).
+          schema:
+            type: integer
+            minimum: 1
+        - name: days
+          in: query
+          required: false
+          description: Quantidade de dias, de 1 a 90 (padrão 7).
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 90
+            default: 7
+      responses:
+        '200':
+          description: Todos os dias do período, inclusive os sem checagem.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/History'
+        '400':
+          $ref: '#/components/responses/Invalida'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '503':
+          $ref: '#/components/responses/SessaoIndisponivel'
+        '404':
+          description: Sub-sistema não encontrado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '429':
+          $ref: '#/components/responses/MuitasTentativas'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+  /api/status/{subSystem}/check:
+    post:
+      tags: [Status]
+      summary: Checa um sub-sistema agora
+      description: |
+        Dispara a checagem fora do horário do cron e devolve o status recém-gravado.
+        Aceita o token do usuário **ou** a chave interna (temporário, até a migração de
+        aplicativo e painel). Limite de 10 chamadas por minuto por IP.
+      security:
+        - bearerAuth: []
+        - apiKeyAuth: []
+      parameters:
+        - name: subSystem
+          in: path
+          required: true
+          schema:
+            type: string
+            enum:
+              - database
+              - data-api
+              - mobile-app
+              - monitoring-database
+              - management
+              - monitoring
+      responses:
+        '200':
+          description: Status recém-gravado do sub-sistema.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubSystemStatus'
+        '401':
+          $ref: '#/components/responses/NaoAutenticado'
+        '503':
+          $ref: '#/components/responses/SessaoIndisponivel'
+        '404':
+          description: Sub-sistema desconhecido.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Erro'
+        '429':
+          $ref: '#/components/responses/MuitasTentativas'
+        '500':
+          $ref: '#/components/responses/ErroInterno'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: token de sessão do Better Auth
+      description: >-
+        Token de sessão do Better Auth (cabeçalho `set-auth-token` do login da API de Dados).
+        A monitoring o valida chamando `GET /api/usuarios/me` na API de Dados e usa o
+        `role` atual do banco; a resposta fica em cache por até 30 segundos.
+    apiKeyAuth:
+      type: apiKey
+      in: header
+      name: x-api-key
+      description: Chave interna, só entre servidores.
+  responses:
+    Invalida:
+      description: Dados inválidos.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    NaoAutenticado:
+      description: Autenticação ausente ou inválida.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    SessaoIndisponivel:
+      description: >-
+        Não foi possível validar a sessão porque a API de Dados não respondeu ou
+        respondeu fora do contrato. Não significa que o token seja inválido.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    CorpoGrande:
+      description: Corpo da requisição maior que 10 kB.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    MuitasTentativas:
+      description: Limite de chamadas excedido; veja o cabeçalho `Retry-After`.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+    ErroInterno:
+      description: Erro interno (mensagem genérica; o detalhe fica só no log).
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Erro'
+  schemas:
+    Erro:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          example: Autenticação necessária.
+    StatusType:
+      type: string
+      enum: [OPERATIONAL, MAINTENANCE, ERROR, DOWN, UNKNOWN]
+    StatusCheckEntrada:
+      type: object
+      required: [subSystem, status]
+      properties:
+        subSystem:
+          type: string
+          minLength: 1
+          maxLength: 60
+        status:
+          $ref: '#/components/schemas/StatusType'
+        message:
+          type: string
+          maxLength: 500
+        isBlocking:
+          type: boolean
+          default: false
+    RelatoEntrada:
+      type: object
+      required: [subSystem, status, message]
+      properties:
+        subSystem:
+          type: string
+          enum: [mobile-app, management]
+        status:
+          type: string
+          enum: [ERROR, DOWN]
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+        isBlocking:
+          type: boolean
+          default: false
+    StatusCheck:
+      type: object
+      properties:
+        id:
+          type: integer
+        subSystemId:
+          type: integer
+        status:
+          $ref: '#/components/schemas/StatusType'
+        message:
+          type: string
+          nullable: true
+        isBlocking:
+          type: boolean
+        checkedAt:
+          type: string
+          format: date-time
+    SubSystemStatus:
+      type: object
+      properties:
+        id:
+          type: integer
+        subSystem:
+          type: string
+        status:
+          $ref: '#/components/schemas/StatusType'
+        message:
+          type: string
+          nullable: true
+        checkedAt:
+          type: string
+          format: date-time
+          nullable: true
+    DailyStatus:
+      type: object
+      properties:
+        subSystem:
+          type: string
+        date:
+          type: string
+          example: '2026-03-10'
+        totalChecks:
+          type: integer
+        uptimePercentage:
+          type: number
+          nullable: true
+        lastStatus:
+          $ref: '#/components/schemas/StatusType'
+        checks:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                $ref: '#/components/schemas/StatusType'
+              message:
+                type: string
+                nullable: true
+              checkedAt:
+                type: string
+                format: date-time
+    History:
+      type: object
+      properties:
+        subSystemId:
+          type: integer
+        subSystem:
+          type: string
+        days:
+          type: integer
+        history:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              totalChecks:
+                type: integer
+              uptimePercentage:
+                type: number
+                nullable: true
+              lastStatus:
+                $ref: '#/components/schemas/StatusType'
+              worstStatus:
+                $ref: '#/components/schemas/StatusType'

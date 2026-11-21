@@ -2,19 +2,19 @@
 // mudar. O que muda é o "dia": um check às 22h de Brasília já é o dia
 // seguinte em UTC. Agrupar por dia, então, precisa usar o fuso do negócio,
 // independente do fuso da máquina onde a monitoring roda.
-export const APP_TIME_ZONE = "America/Sao_Paulo";
+export const APP_TIME_ZONE = 'America/Sao_Paulo';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 
-const dateFormatter = new Intl.DateTimeFormat("en-US", {
+const dateFormatter = new Intl.DateTimeFormat('en-US', {
   timeZone: APP_TIME_ZONE,
-  year: "numeric",
-  month: "2-digit",
-  day: "2-digit",
-  hour: "2-digit",
-  minute: "2-digit",
-  second: "2-digit",
-  hourCycle: "h23",
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+  hourCycle: 'h23',
 });
 
 // Data/hora de parede no fuso do negócio, como se fosse UTC (só para contas).
@@ -55,5 +55,7 @@ export function startOfLocalDay(dateKey: string): Date {
 export function isValidDateKey(value: string): boolean {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const parsed = Date.parse(`${value}T00:00:00Z`);
-  return !Number.isNaN(parsed) && new Date(parsed).toISOString().startsWith(value);
+  return (
+    !Number.isNaN(parsed) && new Date(parsed).toISOString().startsWith(value)
+  );
 }

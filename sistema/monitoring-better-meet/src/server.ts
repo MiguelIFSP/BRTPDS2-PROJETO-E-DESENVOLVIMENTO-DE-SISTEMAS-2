@@ -1,37 +1,32 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import statusRoutes from "./routes/status.routes";
-import { startHealthCheckCron } from "./jobs/healthCheck.cron";
-import { recordStatusCheck } from "./services/statusCheck.service";
+import { createApp } from './app.ts';
+import { env } from './config/env.ts';
+import { healthCheckJob } from './jobs/healthCheckJob.ts';
+import { statusCheckService } from './services/statusCheckService.ts';
 
-dotenv.config();
+const app = createApp();
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-app.get("/health", (_req, res) => {
-  res.json({ status: "ok" });
+const server = app.listen(env.PORT, async () => {
+  console.log(`Servidor rodando na porta ${env.PORT}`);
+  await statusCheckService.record(
+    'monitoring',
+    'OPERATIONAL',
+    'Serviço iniciado',
+  );
 });
 
-app.use("/monitoring-better-meet", statusRoutes);
+healthCheckJob.start();
 
-const PORT = process.env.PORT || 3334;
-const server = app.listen(PORT, async () => {
-  console.log(`Server rodando na porta ${PORT}`);
-  await recordStatusCheck("monitoring", "OPERATIONAL", "Serviço iniciado");
-});
-
-startHealthCheckCron();
-
-// Reporta a própria parada (comando do PM2) antes de sair, pra não esperar o
-// cron das próximas 6h pra refletir isso no painel.
+// Reporta a própria parada (comando do PM2) antes de sair, para não esperar o
+// cron seguinte refletir isso no painel.
 const shutdown = async () => {
-  await recordStatusCheck("monitoring", "MAINTENANCE", "Parada solicitada");
+  await statusCheckService.record(
+    'monitoring',
+    'MAINTENANCE',
+    'Parada solicitada',
+  );
   server.close();
   process.exit(0);
 };
 
-process.on("SIGINT", shutdown);
-process.on("SIGTERM", shutdown);
+process.on('SIGINT', shutdown);
+process.on('SIGTERM', shutdown);
