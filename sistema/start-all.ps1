@@ -1,7 +1,8 @@
 ﻿# Sobe tudo com um comando só: instala o pm2 se faltar, roda "npm install" em
 # todos os projetos (com o Prisma fixado em 7.10.0), cria/corrige os .env
 # (segredos reais, IP da máquina), sobe os bancos (Docker, cria na primeira
-# vez / só inicia depois) + as 3 APIs (PM2) + build do painel admin (servido
+# vez / só inicia depois) + as 3 APIs (PM2, direto de src/ por node --experimental-strip-types,
+# sem build) + build do painel admin (servido
 # pela própria management em /admin). Idempotente — pode rodar de novo sem problema.
 #
 # Uso:
@@ -69,8 +70,7 @@ foreach ($project in $npmProjects) {
 }
 
 # --- .env de cada projeto ---------------------------------------------------
-# JWT_SECRET e a chave de API interna (INTERNAL_API_KEY / EXPO_PUBLIC_MONITORING_API_KEY)
-# precisam ser IDÊNTICOS entre os projetos que os usam — por isso são gerados
+# A chave interna (INTERNAL_API_KEY) precisa ser IDÊNTICA entre os projetos que a usam — por isso são gerados
 # uma única vez aqui e reaproveitados, nunca um valor aleatório por arquivo.
 
 function New-Secret {
@@ -127,35 +127,6 @@ function Wait-ForHttp {
     return $false
 }
 
-# api e monitoring-better-meet usam Prisma (management-better-meet/server NÃO usa
-# — é stateless por design). A api já usa migrations (Deploy-PrismaMigrations);
-# a monitoring ainda sincroniza assim até ganhar a migration inicial.
-# "migrate diff --exit-code" só verifica se o banco já
-# bate com o schema (retorna != 0 se houver diferença) — só rodamos "db push" (que
-# pode alterar o banco) quando realmente há divergência, não sempre à toa.
-function Sync-PrismaSchema {
-    param([string]$ProjectPath, [string]$ProjectName)
-
-    Write-Host "Verificando o schema do Prisma em $ProjectName..."
-    Push-Location $ProjectPath
-
-    # Prisma 7 removeu --from-schema-datasource/--to-schema-datamodel — agora é
-    # --from-config-datasource (lê o banco via o datasource do prisma.config.ts)
-    # + --to-schema (o schema.prisma é o "alvo" desejado).
-    npx prisma migrate diff --from-config-datasource --to-schema ./prisma/schema.prisma --exit-code
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "  Schema do banco desatualizado — rodando 'prisma db push'..."
-        npm run prisma:push
-    } else {
-        Write-Host "  Schema já em sincronia com o banco."
-    }
-
-    Write-Host "  Gerando o Prisma Client..."
-    npm run prisma:generate
-
-    Pop-Location
-}
-
 # A api muda o banco só por migration versionada (PR-07 do guia), nunca por
 # "db push". Bancos criados antes pelo "db push" não têm histórico de
 # migrations (o deploy falha com P3005) e já estão no estado das migrations de
@@ -205,7 +176,7 @@ function Read-EnvValues {
 
 # Valor que ainda não é um segredo de verdade: vazio, texto de exemplo tipo
 # "troque-por-..."/"peça-esse-valor...", ou idêntico ao do .env.example (o da
-# api/ traz um JWT_SECRET versionado — não serve como segredo real).
+# api/ traz valores de exemplo versionados — não servem como segredo real).
 function Test-IsPlaceholder {
     param([string]$Value, [string]$ExampleValue)
 
@@ -339,14 +310,12 @@ if ($ipDetected) {
 
 $envProjects = $npmProjects
 
-# JWT_SECRET e a chave de API interna precisam ser IDÊNTICOS entre os projetos —
+# A chave interna precisa ser IDÊNTICA entre api, monitoring e gestão —
 # um valor canônico só, aplicado em todos (e corrigido onde estiver divergente).
-$jwtSecret = Find-SharedSecret -Projects $envProjects -Keys @('JWT_SECRET')
-$apiKey = Find-SharedSecret -Projects $envProjects -Keys @('INTERNAL_API_KEY', 'EXPO_PUBLIC_MONITORING_API_KEY')
+# Nunca vai para o app nem para o painel.
+$apiKey = Find-SharedSecret -Projects $envProjects -Keys @('INTERNAL_API_KEY')
 $sharedValues = @{
-    JWT_SECRET = $jwtSecret
     INTERNAL_API_KEY = $apiKey
-    EXPO_PUBLIC_MONITORING_API_KEY = $apiKey
 }
 
 foreach ($project in $envProjects) {
@@ -370,19 +339,8 @@ $apiBaselineMigrations = @(
     "20261014120000_alinha_schema_atual"
 )
 Deploy-PrismaMigrations -ProjectPath "$root/api" -ProjectName "api" -BaselineMigrations $apiBaselineMigrations
-Sync-PrismaSchema -ProjectPath "$root/monitoring-better-meet" -ProjectName "monitoring-better-meet"
-
-# --- build ---------------------------------------------------------------
-
-Write-Host "Buildando monitoring-better-meet..."
-Push-Location "$root/monitoring-better-meet"
-npm run build
-Pop-Location
-
-Write-Host "Buildando management-better-meet..."
-Push-Location "$root/management-better-meet/server"
-npm run build
-Pop-Location
+# A monitoring usa migrations desde a 0_init; bancos criados antes por "db push" recebem a baseline.
+Deploy-PrismaMigrations -ProjectPath "$root/monitoring-better-meet" -ProjectName "monitoring-better-meet" -BaselineMigrations @("0_init")
 
 # --- PM2 -------------------------------------------------------------------
 
@@ -402,20 +360,22 @@ if ($apiReady -and $monReady) {
     try {
         # Mesmo administrador que a api cria ao subir (ADMIN_EMAIL/ADMIN_PASSWORD do api/.env).
         $apiEnv = Read-EnvValues -Path "$root/api/.env"
-        $loginBody = @{ identifier = $apiEnv['ADMIN_EMAIL']; password = $apiEnv['ADMIN_PASSWORD'] } | ConvertTo-Json
-        $login = Invoke-RestMethod -Uri "http://localhost:3333/api/login" -Method Post -Body $loginBody -ContentType 'application/json'
+        $loginBody = @{ email = $apiEnv['ADMIN_EMAIL']; password = $apiEnv['ADMIN_PASSWORD'] } | ConvertTo-Json
+        # Better Auth: o token de sessão vem no cabeçalho set-auth-token.
+        $login = Invoke-WebRequest -UseBasicParsing -Uri "http://localhost:3333/api/auth/sign-in/email" -Method Post -Body $loginBody -ContentType 'application/json'
+        $sessionToken = @($login.Headers['set-auth-token'])[0]
 
-        $current = Invoke-RestMethod -Uri "http://localhost:3334/monitoring-better-meet/status" -Method Get -Headers @{ Authorization = "Bearer $($login.token)" }
+        $current = Invoke-RestMethod -Uri "http://localhost:3334/api/status" -Method Get -Headers @{ Authorization = "Bearer $sessionToken" }
         $existing = @($current | ForEach-Object { $_.subSystem })
 
-        # Mesmos 6 nomes usados em monitoring-better-meet/src/jobs/healthCheck.cron.ts
+        # Mesmos 6 nomes usados em monitoring-better-meet/src/jobs/healthCheckJob.ts
         $knownSubsystems = @('data-api', 'database', 'mobile-app', 'monitoring-database', 'management', 'monitoring')
 
         foreach ($name in $knownSubsystems) {
             if ($existing -notcontains $name) {
                 Write-Host "  Sem dado pra '$name' — inserindo registro inicial (UNKNOWN)..."
                 $seedBody = @{ subSystem = $name; status = 'UNKNOWN'; message = 'Registro inicial (seed via start-all.ps1)' } | ConvertTo-Json
-                Invoke-RestMethod -Uri "http://localhost:3334/monitoring-better-meet/status" -Method Post -Body $seedBody -ContentType 'application/json' -Headers @{ 'x-api-key' = $apiKey } | Out-Null
+                Invoke-RestMethod -Uri "http://localhost:3334/api/status" -Method Post -Body $seedBody -ContentType 'application/json' -Headers @{ 'x-api-key' = $apiKey } | Out-Null
             }
         }
 
@@ -425,7 +385,7 @@ if ($apiReady -and $monReady) {
         Write-Host "  Executando checagem real de cada subsistema..."
         foreach ($name in $knownSubsystems) {
             try {
-                Invoke-RestMethod -Uri "http://localhost:3334/monitoring-better-meet/status/$name/check" -Method Post -Headers @{ 'x-api-key' = $apiKey } | Out-Null
+                Invoke-RestMethod -Uri "http://localhost:3334/api/status/$name/check" -Method Post -Headers @{ 'x-api-key' = $apiKey } | Out-Null
                 Write-Host "    $name verificado."
             } catch {
                 Write-Host "    Não foi possível verificar '$name' agora: $($_.Exception.Message)"

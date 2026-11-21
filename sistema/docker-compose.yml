@@ -8,6 +8,8 @@ services:
     # Se alguém no grupo usar Mac M1/M2/M3 e der erro de arquitetura, descomente a linha abaixo:
     # platform: linux/amd64
     environment:
+      # Mesmo fuso das APIs (TZ_REUNIOES): datas e horários de reunião não podem divergir entre banco e servidor.
+      TZ: America/Sao_Paulo
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: bettermeet
       MYSQL_USER: user_node
@@ -24,6 +26,8 @@ services:
     # Se alguém no grupo usar Mac M1/M2/M3 e der erro de arquitetura, descomente a linha abaixo:
     # platform: linux/amd64
     environment:
+      # Mesmo fuso das APIs (TZ_REUNIOES): datas e horários de reunião não podem divergir entre banco e servidor.
+      TZ: America/Sao_Paulo
       MYSQL_ROOT_PASSWORD: rootpassword
       MYSQL_DATABASE: monitoring
       MYSQL_USER: user_monitoring
