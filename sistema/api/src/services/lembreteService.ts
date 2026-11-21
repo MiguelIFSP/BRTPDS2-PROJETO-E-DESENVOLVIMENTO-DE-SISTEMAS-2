@@ -11,6 +11,7 @@ import {
   instanteNoFuso,
   addMinutes,
 } from '../utils/fusoHorario.ts';
+import { USUARIO_REMOVIDO } from '../utils/autoria.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
 import { emailService } from './emailService.ts';
 
@@ -107,7 +108,7 @@ export const lembreteService = {
       if (!alvo) continue;
 
       const participantes = [
-        reuniao.criadoPor,
+        ...(reuniao.criadoPor ? [reuniao.criadoPor] : []),
         ...reuniao.convites.map((convite) => convite.user),
       ];
       for (const participante of participantes) {
@@ -155,7 +156,7 @@ export const lembreteService = {
             horaInicio: reuniao.horaInicio,
             horaFim: reuniao.horaFim,
             comissao: reuniao.comissao.nome,
-            organizador: reuniao.criadoPor.name,
+            organizador: reuniao.criadoPor?.name ?? USUARIO_REMOVIDO,
           },
           { nome: participante.name, email: participante.email },
           alvo.tipo,

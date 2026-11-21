@@ -51,3 +51,114 @@ export const dataNoFuso = (instante: Date, fuso: string) =>
 
 export const addMinutes = (instante: Date, minutos: number) =>
   new Date(instante.getTime() + minutos * MINUTO_MS);
+
+// Janelas de presença, em minutos: a entrada abre antes do início e a saída
+// ainda vale um tempo depois do fim.
+export const TOLERANCIA_ENTRADA_MIN = 15;
+export const TOLERANCIA_SAIDA_MIN = 30;
+
+export type EstadoReuniao =
+  'CANCELADA' | 'AGUARDANDO' | 'CHECKIN_ABERTO' | 'EM_ANDAMENTO' | 'ENCERRADA';
+
+export type ReuniaoComHorario = {
+  data: string;
+  horaInicio: string;
+  horaFim: string;
+  status: string;
+};
+
+export type EstadoDaReuniao = {
+  estado: EstadoReuniao;
+  inicio: Date;
+  fim: Date;
+  aberturaCheckIn: Date;
+  limiteSaida: Date;
+};
+
+/**
+ * Única fonte do estado de uma reunião por horário. A API impede que o término
+ * cruze a meia-noite, então fim e início ficam sempre no mesmo dia.
+ */
+export const estadoDaReuniao = (
+  reuniao: ReuniaoComHorario,
+  fuso: string,
+  agora = new Date(),
+): EstadoDaReuniao => {
+  const inicio = instanteNoFuso(reuniao.data, reuniao.horaInicio, fuso);
+  const fim = instanteNoFuso(reuniao.data, reuniao.horaFim, fuso);
+  const aberturaCheckIn = addMinutes(inicio, -TOLERANCIA_ENTRADA_MIN);
+  const limiteSaida = addMinutes(fim, TOLERANCIA_SAIDA_MIN);
+
+  let estado: EstadoReuniao;
+  if (reuniao.status === 'CANCELADA') estado = 'CANCELADA';
+  else if (agora < aberturaCheckIn) estado = 'AGUARDANDO';
+  else if (agora < inicio) estado = 'CHECKIN_ABERTO';
+  else if (agora < fim) estado = 'EM_ANDAMENTO';
+  else estado = 'ENCERRADA';
+
+  return { estado, inicio, fim, aberturaCheckIn, limiteSaida };
+};
+
+export const podeRegistrarEntrada = (
+  reuniao: ReuniaoComHorario,
+  fuso: string,
+  agora = new Date(),
+) => {
+  const { estado } = estadoDaReuniao(reuniao, fuso, agora);
+  return estado === 'CHECKIN_ABERTO' || estado === 'EM_ANDAMENTO';
+};
+
+export const podeRegistrarSaida = (
+  reuniao: ReuniaoComHorario,
+  fuso: string,
+  agora = new Date(),
+) => {
+  const { estado, aberturaCheckIn, limiteSaida } = estadoDaReuniao(
+    reuniao,
+    fuso,
+    agora,
+  );
+  return (
+    estado !== 'CANCELADA' && agora >= aberturaCheckIn && agora < limiteSaida
+  );
+};
+
+export const podeMudarRespostaConvite = (
+  reuniao: ReuniaoComHorario,
+  fuso: string,
+  agora = new Date(),
+) => {
+  const { estado, inicio } = estadoDaReuniao(reuniao, fuso, agora);
+  return estado !== 'CANCELADA' && agora < inicio;
+};
+
+/** O minuto atual ainda vale: só um horário anterior a ele é passado. */
+export const horarioNoPassado = (
+  data: string,
+  hora: string,
+  fuso: string,
+  agora = new Date(),
+) => {
+  const inicioDoMinuto = new Date(
+    Math.floor(agora.getTime() / MINUTO_MS) * MINUTO_MS,
+  );
+  return instanteNoFuso(data, hora, fuso) < inicioDoMinuto;
+};
+
+/** Hora "HH:mm" que o instante tem no fuso. */
+export const formatarHoraNoFuso = (instante: Date, fuso: string) =>
+  new Intl.DateTimeFormat('pt-BR', {
+    timeZone: fuso,
+    hourCycle: 'h23',
+    hour: '2-digit',
+    minute: '2-digit',
+  }).format(instante);
+
+/** Data "DD/MM/AAAA" que o instante tem no fuso. */
+export const formatarDataNoFuso = (instante: Date, fuso: string) =>
+  new Intl.DateTimeFormat('pt-BR', {
+    timeZone: fuso,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(instante);

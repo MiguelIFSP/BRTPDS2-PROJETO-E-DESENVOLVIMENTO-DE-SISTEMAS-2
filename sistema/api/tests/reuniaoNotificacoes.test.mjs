@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, jest, test } from '@jest/globals';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { criarAuthSimulado, tokenDe } from './sessaoSimulada.mjs';
 
 const criadorId = 7;
 const reuniaoId = 31;
-const jwtSecret = 'segredo-ficticio-dos-testes-de-notificacao';
 const prisma = {
   user: { findUnique: jest.fn() },
   reuniao: {
@@ -21,14 +20,16 @@ const prisma = {
     deleteMany: jest.fn(),
   },
   lembreteEnviado: { deleteMany: jest.fn() },
+  comissaoEquipe: { findUnique: jest.fn() },
   $transaction: jest.fn(),
 };
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
 }));
 jest.unstable_mockModule('../src/config/env.ts', () => ({
-  env: { JWT_SECRET: jwtSecret },
+  env: { TZ_REUNIOES: 'America/Sao_Paulo' },
 }));
+jest.unstable_mockModule('../src/lib/auth.ts', criarAuthSimulado);
 const { default: reuniaoRoutes } =
   await import('../src/routes/reuniaoRoutes.ts');
 const { default: notificacaoRoutes } =
@@ -39,11 +40,6 @@ app.use(express.json());
 app.use('/api', reuniaoRoutes, notificacaoRoutes);
 app.use(handleError);
 
-const tokenDe = (userId, role = 'USER') =>
-  jwt.sign({ role, email: 'pessoa@example.test' }, jwtSecret, {
-    subject: String(userId),
-    expiresIn: '1h',
-  });
 const isoLocal = (date) => {
   const pad = (value) => String(value).padStart(2, '0');
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
@@ -59,6 +55,8 @@ const dataSeguinte = isoLocal(daquiA(31));
 const dataBr = (iso) => iso.split('-').reverse().join('/');
 const reuniao = {
   criadoPorUserId: criadorId,
+  comissaoId: 3,
+  status: 'AGENDADA',
   titulo: 'Planejamento',
   pauta: 'Pauta',
   descricao: null,
@@ -99,6 +97,7 @@ beforeEach(() => {
   }));
   prisma.$transaction.mockImplementation((callback) => callback(prisma));
   prisma.reuniao.findUnique.mockResolvedValue(reuniao);
+  prisma.comissaoEquipe.findUnique.mockResolvedValue(null);
   prisma.reuniao.update.mockResolvedValue({ id: reuniaoId });
   prisma.reuniao.delete.mockResolvedValue({ id: reuniaoId });
   prisma.notificacao.createMany.mockResolvedValue({ count: 2 });
@@ -218,6 +217,10 @@ describe('GET /api/reunioes/minhas', () => {
       {
         id: reuniaoId,
         criadoPorUserId: criadorId,
+        status: 'AGENDADA',
+        data: '2099-06-15',
+        horaInicio: '10:00',
+        horaFim: '11:00',
         comissao: { id: 4, nome: 'Comissão', equipe: [] },
         registros: [],
         convites: [
@@ -306,5 +309,70 @@ describe('/api/notificacoes', () => {
   test('exige autenticação', async () => {
     const response = await request(app).get('/api/notificacoes');
     expect(response.status).toBe(401);
+  });
+});
+
+describe('quem gere a reunião e reunião encerrada', () => {
+  const administradorDaComissao = () =>
+    prisma.comissaoEquipe.findUnique.mockResolvedValue({
+      papel: 'ADMINISTRADOR',
+    });
+
+  test('editar reunião encerrada pelo horário responde 409 e não grava', async () => {
+    prisma.reuniao.findUnique.mockResolvedValue({
+      ...reuniao,
+      data: '2020-01-10',
+    });
+    const response = await patch(corpo);
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe(
+      'Esta reunião já terminou e não pode mais ser alterada.',
+    );
+    expect(prisma.reuniao.update).not.toHaveBeenCalled();
+    expect(prisma.notificacao.createMany).not.toHaveBeenCalled();
+  });
+
+  test('excluir reunião encerrada continua permitido', async () => {
+    prisma.reuniao.findUnique.mockResolvedValue({
+      ...reuniao,
+      data: '2020-01-10',
+    });
+    expect((await remove()).status).toBe(200);
+    expect(prisma.reuniao.delete).toHaveBeenCalled();
+  });
+
+  test('Administrador da comissão edita reunião de outra pessoa', async () => {
+    administradorDaComissao();
+    const response = await patch({ ...corpo, pauta: 'Nova pauta' }, tokenDe(8));
+    expect(response.status).toBe(200);
+    expect(destinatarios()).toEqual([7, 9]);
+  });
+
+  test('participante comum não edita nem exclui (403)', async () => {
+    expect((await patch(corpo, tokenDe(8))).status).toBe(403);
+    expect((await remove(tokenDe(8))).status).toBe(403);
+    expect(prisma.reuniao.update).not.toHaveBeenCalled();
+  });
+
+  test('autoria nula: só Administrador da comissão e ADMIN gerem, e ninguém nulo é avisado', async () => {
+    prisma.reuniao.findUnique.mockResolvedValue({
+      ...reuniao,
+      criadoPorUserId: null,
+      criadoPor: null,
+    });
+    expect((await patch(corpo, tokenDe(8))).status).toBe(403);
+
+    administradorDaComissao();
+    const response = await patch({ ...corpo, pauta: 'Nova pauta' }, tokenDe(8));
+    expect(response.status).toBe(200);
+    expect(destinatarios()).toEqual([9]);
+  });
+
+  test('ADMIN da plataforma edita sem ser da comissão', async () => {
+    const response = await patch(
+      { ...corpo, pauta: 'Nova pauta' },
+      tokenDe(99),
+    );
+    expect(response.status).toBe(200);
   });
 });

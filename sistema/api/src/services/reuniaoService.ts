@@ -9,9 +9,15 @@ import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
 import { emailService, type Destinatario } from './emailService.ts';
 import type { ReuniaoEmail } from '../utils/emailTemplates.ts';
-import { instanteNoFuso } from '../utils/fusoHorario.ts';
+import {
+  estadoDaReuniao,
+  formatarDataNoFuso,
+  formatarHoraNoFuso,
+} from '../utils/fusoHorario.ts';
+import { USUARIO_REMOVIDO } from '../utils/autoria.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
 import { generateTokenResposta } from '../utils/tokenResposta.ts';
+import { podeGerirReuniao } from './permissaoReuniaoService.ts';
 
 type CreateReuniaoData = {
   comissaoId: number;
@@ -62,6 +68,7 @@ const conviteSelect = {
 
 const reuniaoListSelect = {
   ...reuniaoSelect,
+  criadoPor: { select: { name: true } },
   convites: {
     select: {
       id: true,
@@ -125,12 +132,20 @@ const assertMembroDaComissao = async (comissaoId: number, userId: number) => {
 const isConviteExpirado = (
   reuniao: { data: string; horaFim: string },
   agora = new Date(),
-) => agora >= instanteNoFuso(reuniao.data, reuniao.horaFim, env.TZ_REUNIOES);
+) =>
+  // Só o término importa aqui; o início não entra na conta do encerramento.
+  estadoDaReuniao(
+    { ...reuniao, horaInicio: reuniao.horaFim, status: 'AGENDADA' },
+    env.TZ_REUNIOES,
+    agora,
+  ).estado === 'ENCERRADA';
 
 // Dados que alimentam o aviso de edição ou exclusão. Quem recusou o convite
 // não participa mais da reunião e não é avisado.
 const reuniaoAvisoSelect = {
   criadoPorUserId: true,
+  comissaoId: true,
+  status: true,
   titulo: true,
   pauta: true,
   descricao: true,
@@ -157,9 +172,19 @@ type ReuniaoLista = Prisma.ReuniaoGetPayload<{
 // Mesma forma da lista e da página da reunião: comissão, convites,
 // presença de quem está vendo e participantes que aceitaram.
 const apresentarReuniao = (reuniao: ReuniaoLista, userId: number) => {
-  const { registros, comissao, convites, ...dados } = reuniao;
+  const { registros, comissao, convites, criadoPor, ...dados } = reuniao;
+  const { estado, aberturaCheckIn, limiteSaida } = estadoDaReuniao(
+    reuniao,
+    env.TZ_REUNIOES,
+  );
   return {
     ...dados,
+    usuario: criadoPor?.name ?? null,
+    estado,
+    janelaCheckIn: {
+      abre: aberturaCheckIn.toISOString(),
+      fecha: limiteSaida.toISOString(),
+    },
     comissao: { id: comissao.id, nome: comissao.nome },
     convites: convites.map(({ user, ...convite }) => ({
       ...convite,
@@ -197,7 +222,7 @@ const destinatariosDoAviso = (reuniao: ReuniaoAviso, actorId: number) =>
       reuniao.criadoPorUserId,
       ...reuniao.convites.map((convite) => convite.userId),
     ]),
-  ].filter((id) => id !== actorId);
+  ].filter((id): id is number => id !== null && id !== actorId);
 
 const formatDate = (data: string) => data.split('-').reverse().join('/');
 
@@ -211,7 +236,7 @@ const paraEmail = (reuniaoId: number, reuniao: ReuniaoAviso): ReuniaoEmail => ({
   horaInicio: reuniao.horaInicio,
   horaFim: reuniao.horaFim,
   comissao: reuniao.comissao.nome,
-  organizador: reuniao.criadoPor.name,
+  organizador: reuniao.criadoPor?.name ?? USUARIO_REMOVIDO,
 });
 
 const getDestinatarios = async (userIds: number[]): Promise<Destinatario[]> => {
@@ -331,7 +356,7 @@ export const reuniaoService = {
           convite.userId === userId &&
           convite.status === StatusConviteReuniao.ACEITO,
       );
-    if (role !== 'ADMIN' && !participa) {
+    if (!participa && !(await podeGerirReuniao(userId, role, reuniao))) {
       throw new AppError(403, 'Você não pode ver esta reunião.');
     }
     return apresentarReuniao(reuniao, userId);
@@ -350,8 +375,14 @@ export const reuniaoService = {
     if (!reuniao) {
       throw new AppError(404, 'Reunião não encontrada.');
     }
-    if (role !== 'ADMIN' && reuniao.criadoPorUserId !== userId) {
+    if (!(await podeGerirReuniao(userId, role, reuniao))) {
       throw new AppError(403, 'Você não pode editar esta reunião.');
+    }
+    if (estadoDaReuniao(reuniao, env.TZ_REUNIOES).estado === 'ENCERRADA') {
+      throw new AppError(
+        409,
+        'Esta reunião já terminou e não pode mais ser alterada.',
+      );
     }
 
     const aviso = avisoDeAtualizacao(reuniao, data);
@@ -421,7 +452,7 @@ export const reuniaoService = {
     if (!reuniao) {
       throw new AppError(404, 'Reunião não encontrada.');
     }
-    if (role !== 'ADMIN' && reuniao.criadoPorUserId !== userId) {
+    if (!(await podeGerirReuniao(userId, role, reuniao))) {
       throw new AppError(403, 'Você não pode remover esta reunião.');
     }
 
@@ -468,6 +499,9 @@ export const reuniaoService = {
       select: {
         comissaoId: true,
         status: true,
+        data: true,
+        horaInicio: true,
+        horaFim: true,
         criadoPorUserId: true,
         convites: { select: { userId: true, status: true } },
       },
@@ -499,6 +533,23 @@ export const reuniaoService = {
 
     if (reuniao.status !== 'AGENDADA') {
       throw new AppError(409, 'Esta reunião não está disponível para entrada.');
+    }
+    const horario = estadoDaReuniao(reuniao, env.TZ_REUNIOES);
+    if (horario.estado === 'AGUARDANDO') {
+      const abertura = horario.aberturaCheckIn;
+      const hora = formatarHoraNoFuso(abertura, env.TZ_REUNIOES);
+      const dia = formatarDataNoFuso(abertura, env.TZ_REUNIOES);
+      const inicio = formatarHoraNoFuso(horario.inicio, env.TZ_REUNIOES);
+      throw new AppError(
+        409,
+        `A entrada na reunião abre às ${hora} do dia ${dia}. A reunião começa às ${inicio}.`,
+      );
+    }
+    if (horario.estado === 'ENCERRADA') {
+      throw new AppError(
+        409,
+        'Esta reunião já terminou; não é possível registrar entrada.',
+      );
     }
 
     try {
@@ -585,7 +636,7 @@ export const reuniaoService = {
         data: convite.reuniao.data,
         horaInicio: convite.reuniao.horaInicio,
         horaFim: convite.reuniao.horaFim,
-        usuario: convite.reuniao.criadoPor.name,
+        usuario: convite.reuniao.criadoPor?.name ?? null,
         status: convite.status,
         pauta: convite.reuniao.pauta,
         descricao: convite.reuniao.descricao,
@@ -609,7 +660,7 @@ export const reuniaoService = {
       },
     });
     if (!reuniao) throw new AppError(404, 'Reunião não encontrada.');
-    if (role !== 'ADMIN' && reuniao.criadoPorUserId !== actorId) {
+    if (!(await podeGerirReuniao(actorId, role, reuniao))) {
       throw new AppError(
         403,
         'Você não pode convidar membros para esta reunião.',
@@ -785,7 +836,7 @@ export const reuniaoService = {
         data: atualizado.reuniao.data,
         horaInicio: atualizado.reuniao.horaInicio,
         horaFim: atualizado.reuniao.horaFim,
-        usuario: atualizado.reuniao.criadoPor.name,
+        usuario: atualizado.reuniao.criadoPor?.name ?? null,
         status: atualizado.status,
         pauta: atualizado.reuniao.pauta,
         descricao: atualizado.reuniao.descricao,

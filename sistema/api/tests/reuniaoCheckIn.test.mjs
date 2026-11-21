@@ -8,12 +8,11 @@ import {
 } from '@jest/globals';
 import { Prisma } from '@prisma/client';
 import express from 'express';
-import jwt from 'jsonwebtoken';
 import request from 'supertest';
+import { criarAuthSimulado, tokenDe } from './sessaoSimulada.mjs';
 
 const userId = 7;
 const reuniaoId = 31;
-const jwtSecret = 'segredo-ficticio-dos-testes-de-check-in';
 const prisma = {
   user: { findUnique: jest.fn() },
   reuniao: { findUnique: jest.fn(), findMany: jest.fn() },
@@ -28,8 +27,9 @@ jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
 }));
 jest.unstable_mockModule('../src/config/env.ts', () => ({
-  env: { JWT_SECRET: jwtSecret },
+  env: { TZ_REUNIOES: 'America/Sao_Paulo' },
 }));
+jest.unstable_mockModule('../src/lib/auth.ts', criarAuthSimulado);
 const { default: routes } = await import('../src/routes/reuniaoRoutes.ts');
 const { handleError } = await import('../src/middlewares/errorMiddleware.ts');
 const { reuniaoService } = await import('../src/services/reuniaoService.ts');
@@ -38,14 +38,7 @@ app.use(express.json());
 app.use('/api', routes);
 app.use(handleError);
 
-const token = jwt.sign(
-  { role: 'USER', email: 'integrante@example.test' },
-  jwtSecret,
-  {
-    subject: String(userId),
-    expiresIn: '1h',
-  },
-);
+const token = tokenDe(userId);
 const post = (id = reuniaoId) =>
   request(app)
     .post(`/api/reunioes/${id}/entrar`)
@@ -54,6 +47,31 @@ const postOut = (id = reuniaoId) =>
   request(app)
     .post(`/api/reunioes/${id}/sair`)
     .set('Authorization', `Bearer ${token}`);
+// 21/10/2026, 10:00 às 11:00 em São Paulo (UTC-3): entrada abre às 12:45Z,
+// começa às 13:00Z, termina às 14:00Z.
+const horarioReuniao = {
+  data: '2026-10-21',
+  horaInicio: '10:00',
+  horaFim: '11:00',
+};
+const emUtc = (instante) => {
+  // só o Date é simulado; o supertest precisa dos timers reais.
+  jest.useFakeTimers({
+    now: new Date(instante),
+    doNotFake: [
+      'nextTick',
+      'setImmediate',
+      'clearImmediate',
+      'setInterval',
+      'clearInterval',
+      'setTimeout',
+      'clearTimeout',
+      'queueMicrotask',
+      'hrtime',
+      'performance',
+    ],
+  });
+};
 const registro = {
   id: 12,
   reuniaoId,
@@ -74,9 +92,11 @@ beforeEach(() => {
     role: 'USER',
     email: `usuario${where.id}@example.test`,
   }));
+  emUtc('2026-10-21T13:30:00Z');
   prisma.reuniao.findUnique.mockResolvedValue({
     comissaoId: 4,
     status: 'AGENDADA',
+    ...horarioReuniao,
   });
   prisma.comissao.findUnique.mockResolvedValue({
     id: 4,
@@ -87,7 +107,10 @@ beforeEach(() => {
   prisma.reuniaoRegistro.create.mockResolvedValue(registro);
   prisma.reuniaoRegistro.updateMany.mockResolvedValue({ count: 1 });
 });
-afterEach(() => jest.restoreAllMocks());
+afterEach(() => {
+  jest.useRealTimers();
+  jest.restoreAllMocks();
+});
 
 describe('POST /api/reunioes/:id/entrar', () => {
   test('usa o JWT e o horário do servidor, ignorando dados enviados no corpo', async () => {
@@ -156,7 +179,11 @@ describe('POST /api/reunioes/:id/entrar', () => {
   test.each(['REALIZADA', 'CANCELADA'])(
     'preserva presença existente em reunião %s',
     async (status) => {
-      prisma.reuniao.findUnique.mockResolvedValue({ comissaoId: 4, status });
+      prisma.reuniao.findUnique.mockResolvedValue({
+        comissaoId: 4,
+        status,
+        ...horarioReuniao,
+      });
       const saidaAt = new Date('2026-10-21T16:00:00.000Z');
       prisma.reuniaoRegistro.findUnique.mockResolvedValue({
         ...registro,
@@ -175,11 +202,53 @@ describe('POST /api/reunioes/:id/entrar', () => {
   test.each(['REALIZADA', 'CANCELADA'])(
     'recusa primeira entrada em reunião %s',
     async (status) => {
-      prisma.reuniao.findUnique.mockResolvedValue({ comissaoId: 4, status });
+      prisma.reuniao.findUnique.mockResolvedValue({
+        comissaoId: 4,
+        status,
+        ...horarioReuniao,
+      });
       expect((await post()).status).toBe(409);
       expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
     },
   );
+
+  test('antes da abertura da entrada responde 409 com o horário', async () => {
+    emUtc('2026-10-21T12:44:59Z');
+    const response = await post();
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe(
+      'A entrada na reunião abre às 09:45 do dia 21/10/2026. A reunião começa às 10:00.',
+    );
+    expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
+  });
+
+  test('na abertura da entrada registra a presença', async () => {
+    emUtc('2026-10-21T12:45:00Z');
+    expect((await post()).status).toBe(201);
+  });
+
+  test('1 s antes do fim ainda registra a entrada', async () => {
+    emUtc('2026-10-21T13:59:59Z');
+    expect((await post()).status).toBe(201);
+  });
+
+  test('no fim da reunião recusa a entrada com 409', async () => {
+    emUtc('2026-10-21T14:00:00Z');
+    const response = await post();
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe(
+      'Esta reunião já terminou; não é possível registrar entrada.',
+    );
+    expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
+  });
+
+  test('repetição depois do fim devolve o primeiro registro', async () => {
+    emUtc('2026-10-21T18:00:00Z');
+    prisma.reuniaoRegistro.findUnique.mockResolvedValue(registro);
+    const response = await post();
+    expect(response.status).toBe(200);
+    expect(response.body.jaRegistrado).toBe(true);
+  });
 
   test('exige autenticação antes de consultar o banco', async () => {
     expect((await request(app).post('/api/reunioes/31/entrar')).status).toBe(
@@ -329,6 +398,8 @@ describe('presença ao recarregar reuniões', () => {
     prisma.reuniao.findMany.mockResolvedValue([
       {
         id: reuniaoId,
+        status: 'AGENDADA',
+        ...horarioReuniao,
         criadoPorUserId: outroId,
         comissao,
         convites: [
@@ -338,6 +409,8 @@ describe('presença ao recarregar reuniões', () => {
       },
       {
         id: 32,
+        status: 'AGENDADA',
+        ...horarioReuniao,
         criadoPorUserId: outroId,
         comissao,
         convites: [],
@@ -350,6 +423,12 @@ describe('presença ao recarregar reuniões', () => {
     expect(comPresenca.meuRegistro).toEqual(registro);
     expect(semPresenca.meuRegistro).toBeNull();
     expect(comPresenca).not.toHaveProperty('registros');
+    // 12:45Z (15 min antes do início) até 14:30Z (30 min depois do fim).
+    expect(comPresenca.estado).toBe('EM_ANDAMENTO');
+    expect(comPresenca.janelaCheckIn).toEqual({
+      abre: '2026-10-21T12:45:00.000Z',
+      fecha: '2026-10-21T14:30:00.000Z',
+    });
     // a presença de cada participante sai junto dele, não numa lista solta.
     expect(
       comPresenca.participantes.map((participante) => [
