@@ -10,6 +10,8 @@ type ApiRequestOptions = {
   // 401 com credencial encerra a sessão. Padrão: só na API de Dados; monitoring
   // e gestão podem recusar por motivos próprios sem deslogar a pessoa.
   expireSessionOn401?: boolean;
+  // Authorization e Content-Type são montados aqui e valem sobre estes.
+  headers?: Record<string, string>;
   fallbackError: string;
 };
 
@@ -51,10 +53,13 @@ export async function apiRequest<T>(
     body,
     baseUrl = API_URL,
     expireSessionOn401 = baseUrl === API_URL,
+    headers: extraHeaders,
     fallbackError,
   }: ApiRequestOptions,
 ): Promise<T> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { ...extraHeaders };
+  delete headers.Authorization;
+  delete headers['Content-Type'];
   const credential = token ?? getSessionToken();
   if (credential) headers.Authorization = `Bearer ${credential}`;
   if (body !== undefined) headers['Content-Type'] = 'application/json';
