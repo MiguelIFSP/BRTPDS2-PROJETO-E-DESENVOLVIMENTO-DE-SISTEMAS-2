@@ -345,27 +345,28 @@ export default function ReuniaoDetalheScreen() {
         ) : null}
       </Card>
 
-      {!isHistorical &&
-      token &&
-      (reuniao.status === 'AGENDADA' ||
-        reuniao.meuRegistro ||
-        user?.role === 'ADMIN' ||
-        papelNaComissao === 'ADMINISTRADOR') ? (
+      {token &&
+      (canManage ||
+        (!isHistorical &&
+          (reuniao.status === 'AGENDADA' || reuniao.meuRegistro))) ? (
         <Card>
           <SectionLabel label="Presença" />
           <ListaPresencaButton
             reuniaoId={reuniao.id}
             papelNaComissao={papelNaComissao}
+            criadoPorUserId={reuniao.criadoPorUserId}
           />
-          <ReuniaoCheckIn
-            key={`${token}:${reuniao.id}:${reuniao.meuRegistro?.entradaAt ?? ''}:${reuniao.meuRegistro?.saidaAt ?? ''}`}
-            reuniaoId={reuniao.id}
-            token={token}
-            status={reuniao.status}
-            meuRegistro={reuniao.meuRegistro}
-            horario={reuniao}
-            onRegistered={() => void reload()}
-          />
+          {!isHistorical ? (
+            <ReuniaoCheckIn
+              key={`${token}:${reuniao.id}:${reuniao.meuRegistro?.entradaAt ?? ''}:${reuniao.meuRegistro?.saidaAt ?? ''}`}
+              reuniaoId={reuniao.id}
+              token={token}
+              status={reuniao.status}
+              meuRegistro={reuniao.meuRegistro}
+              horario={reuniao}
+              onRegistered={() => void reload()}
+            />
+          ) : null}
         </Card>
       ) : null}
 

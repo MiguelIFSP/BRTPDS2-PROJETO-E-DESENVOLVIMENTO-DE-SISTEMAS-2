@@ -16,6 +16,7 @@ import ataRoutes from './routes/ataRoutes.ts';
 import comissaoRoutes from './routes/comissaoRoutes.ts';
 import conviteRespostaRoutes from './routes/conviteRespostaRoutes.ts';
 import notificacaoRoutes from './routes/notificacaoRoutes.ts';
+import listaPresencaRoutes from './routes/listaPresencaRoutes.ts';
 import organizacaoRoutes from './routes/organizacaoRoutes.ts';
 import reuniaoRoutes from './routes/reuniaoRoutes.ts';
 import usuarioRoutes from './routes/usuarioRoutes.ts';
@@ -78,6 +79,7 @@ export const criarApp = () => {
   apiRouter.use(organizacaoRoutes);
   apiRouter.use(comissaoRoutes);
   apiRouter.use(reuniaoRoutes);
+  apiRouter.use(listaPresencaRoutes);
   apiRouter.use(votacaoRoutes);
   apiRouter.use(ataRoutes);
   apiRouter.use(notificacaoRoutes);
