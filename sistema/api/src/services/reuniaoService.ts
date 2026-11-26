@@ -14,6 +14,7 @@ import { estadoDaReuniao } from '../utils/fusoHorario.ts';
 import { USUARIO_REMOVIDO } from '../utils/autoria.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
 import { generateTokenResposta } from '../utils/tokenResposta.ts';
+import { removerPastaDaReuniao } from './arquivoReuniaoService.ts';
 import { podeGerirReuniao } from './permissaoReuniaoService.ts';
 
 type CreateReuniaoData = {
@@ -479,6 +480,7 @@ export const reuniaoService = {
         }
         await transaction.reuniao.delete({ where: { id: reuniaoId } });
       });
+      await removerPastaDaReuniao(reuniaoId);
 
       if (destinatarios.length > 0) {
         emailService.runInBackground(async () =>

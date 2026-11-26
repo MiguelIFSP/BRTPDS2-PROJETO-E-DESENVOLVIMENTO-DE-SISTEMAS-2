@@ -128,6 +128,7 @@ model User {
   notificacoes     Notificacao[]
   lembretes        LembreteEnviado[]
   pedidosAcesso    PedidoAcessoOrganizacao[]
+  arquivosEnviados ArquivoReuniao[]
 }
 
 model Organizacao {
@@ -291,10 +292,28 @@ model Reuniao {
   lembretes LembreteEnviado[]
   votacoes  Votacao[]
   votosAta  AtaVoto[]
+  arquivos  ArquivoReuniao[]
 
   @@index([comissaoId])
   @@index([criadoPorUserId])
   @@index([data])
+}
+
+// Arquivo da biblioteca da reunião. O nome original não entra no caminho do disco.
+model ArquivoReuniao {
+  id               Int      @id @default(autoincrement())
+  reuniaoId        Int
+  nomeOriginal     String   @db.VarChar(255)
+  nomeArmazenado   String   @unique @db.VarChar(36)
+  tamanhoBytes     Int
+  enviadoPorUserId Int?
+  createdAt        DateTime @default(now())
+
+  reuniao    Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  enviadoPor User?   @relation(fields: [enviadoPorUserId], references: [id], onDelete: SetNull)
+
+  @@index([reuniaoId])
+  @@index([enviadoPorUserId])
 }
 
 // Presença e cargo são conferidos na API. Alterar o texto invalida os votos.

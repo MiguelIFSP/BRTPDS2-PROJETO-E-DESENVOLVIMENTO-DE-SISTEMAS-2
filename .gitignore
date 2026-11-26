@@ -40,6 +40,9 @@ yarn-error.*
 # ...mas o template sem segredos reais pode ser versionado
 !.env.example
 
+# arquivos da biblioteca da reunião (só no disco da API)
+sistema/api/uploads/
+
 # typescript
 *.tsbuildinfo
 

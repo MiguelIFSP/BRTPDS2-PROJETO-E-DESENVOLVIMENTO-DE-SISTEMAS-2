@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Ionicons } from '@react-native-vector-icons/ionicons';
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
+import BibliotecaReuniao from '@/components/BibliotecaReuniao';
 import CodigoPresencaCard from '@/components/CodigoPresencaCard';
 import PresencaManualActions from '@/components/PresencaManualActions';
 import { useRelogio } from '@/hooks/useRelogio';
@@ -27,7 +34,14 @@ import DetailHeader from '@/components/ui/DetailHeader';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import Screen from '@/components/ui/Screen';
 import SectionLabel from '@/components/ui/SectionLabel';
-import { FontFamily, Spacing, Typography } from '@/constants/theme';
+import {
+  FontFamily,
+  Radius,
+  Spacing,
+  TouchTarget,
+  Typography,
+  withAlpha,
+} from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
 import { comissaoService, PAPEIS_COMISSAO } from '@/services/comissaoService';
@@ -42,14 +56,22 @@ import { getErrorMessage } from '@/utils/apiClient';
 import { formatReuniaoDate } from '@/utils/format';
 import { podeGerirReuniao } from '@/utils/permissaoReuniao';
 
+const ABAS_REUNIAO = [
+  { id: 'dados', label: 'Dados', icon: 'reader-outline' },
+  { id: 'participantes', label: 'Participantes', icon: 'people-outline' },
+  { id: 'reuniao', label: 'Reunião', icon: 'documents-outline' },
+] as const;
+
+type AbaReuniao = (typeof ABAS_REUNIAO)[number]['id'];
+
 const STATUS_REUNIAO_UI = {
   AGENDADA: { label: 'Agendada', tone: 'info' },
   REALIZADA: { label: 'Realizada', tone: 'success' },
   CANCELADA: { label: 'Cancelada', tone: 'danger' },
 } as const satisfies Record<StatusReuniao, { label: string; tone: BadgeTone }>;
 
-// Tela de uma reunião: pauta, descrição, participantes, presença e lista.
-// Aberta pela aba Reuniões, no mesmo modelo da tela da organização.
+// Tela de uma reunião, em três abas: dados, participantes e reunião
+// (biblioteca, votações e ata). O título fica visível em todas.
 export default function ReuniaoDetalheScreen() {
   const router = useRouter();
   const agora = useRelogio();
@@ -69,6 +91,7 @@ export default function ReuniaoDetalheScreen() {
   const [isLoadingMembros, setIsLoadingMembros] = useState(false);
   const [convidados, setConvidados] = useState<number[]>([]);
   const [isInviting, setIsInviting] = useState(false);
+  const [aba, setAba] = useState<AbaReuniao>('dados');
 
   const reload = useCallback(async () => {
     if (!token || !Number.isInteger(reuniaoId) || reuniaoId <= 0) return;
@@ -234,7 +257,7 @@ export default function ReuniaoDetalheScreen() {
   const status = STATUS_REUNIAO_UI[reuniao.status];
 
   return (
-    <Screen hasForm>
+    <Screen hasForm scrollToTopKey={aba}>
       <BackButton />
 
       <DetailHeader
@@ -251,131 +274,187 @@ export default function ReuniaoDetalheScreen() {
 
       <FeedbackBanner feedback={feedback} />
 
-      <Card>
-        <View style={styles.sectionHeader}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>
-            Dados da reunião
-          </Text>
-          {!isHistorical && canManage ? (
-            <Button
-              variant="tertiary"
-              icon="create-outline"
-              label="Editar"
-              onPress={() =>
-                router.navigate({
-                  pathname: '/',
-                  params: { editar: String(reuniao.id) },
-                })
-              }
-            />
-          ) : null}
-        </View>
-        <InfoRow label="Quando" value={quando} />
-        <InfoRow
-          label="Comissão"
-          value={reuniao.comissao?.nome ?? 'Não informada'}
-        />
-        <InfoRow
-          label="Local"
-          value={reuniao.local?.trim() || 'Não informado'}
-        />
-        <InfoRow label="Pauta" value={reuniao.pauta} />
-        <InfoRow
-          label="Descrição"
-          value={reuniao.descricao?.trim() || 'Sem descrição'}
-        />
-      </Card>
+      <View style={styles.abas}>
+        {ABAS_REUNIAO.map((item) => {
+          const selecionada = aba === item.id;
+          return (
+            <Pressable
+              key={item.id}
+              accessibilityRole="tab"
+              accessibilityLabel={item.label}
+              accessibilityState={{ selected: selecionada }}
+              onPress={() => setAba(item.id)}
+              style={[
+                styles.aba,
+                {
+                  backgroundColor: selecionada
+                    ? withAlpha(colors.primary, 0.18)
+                    : colors.background,
+                  borderColor: selecionada ? colors.primary : colors.border,
+                },
+              ]}
+            >
+              <Ionicons
+                name={item.icon}
+                size={18}
+                color={selecionada ? colors.primary : colors.textSecondary}
+              />
+              <Text
+                style={[
+                  styles.abaLabel,
+                  {
+                    color: selecionada ? colors.primary : colors.textSecondary,
+                  },
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
 
-      {token && reuniao.podeGerirPresenca ? (
+      {aba === 'dados' ? (
+        <Card>
+          <View style={styles.sectionHeader}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>
+              Dados da reunião
+            </Text>
+            {!isHistorical && canManage ? (
+              <Button
+                variant="tertiary"
+                icon="create-outline"
+                label="Editar"
+                onPress={() =>
+                  router.navigate({
+                    pathname: '/',
+                    params: { editar: String(reuniao.id) },
+                  })
+                }
+              />
+            ) : null}
+          </View>
+          <InfoRow label="Quando" value={quando} />
+          <InfoRow
+            label="Comissão"
+            value={reuniao.comissao?.nome ?? 'Não informada'}
+          />
+          <InfoRow
+            label="Local"
+            value={reuniao.local?.trim() || 'Não informado'}
+          />
+          <InfoRow label="Pauta" value={reuniao.pauta} />
+          <InfoRow
+            label="Descrição"
+            value={reuniao.descricao?.trim() || 'Sem descrição'}
+          />
+        </Card>
+      ) : null}
+      {aba === 'dados' && !isHistorical && canManage ? (
+        <Button
+          variant="tertiaryDanger"
+          icon="trash-outline"
+          label="Excluir reunião"
+          onPress={() => setIsDeleteOpen(true)}
+          style={styles.deleteButton}
+        />
+      ) : null}
+
+      {aba === 'participantes' && token && reuniao.podeGerirPresenca ? (
         <CodigoPresencaCard token={token} reuniaoId={reuniao.id} />
       ) : null}
 
-      <Card>
-        <SectionLabel
-          label="Participantes"
-          trailing={
-            reuniao.participantes?.length
-              ? String(reuniao.participantes.length)
-              : undefined
-          }
-        />
-        {reuniao.participantes?.length ? (
-          reuniao.participantes.map((participante) => {
-            const presence = participante.registro?.saidaAt
-              ? 'Saída registrada'
-              : participante.registro
-                ? 'Entrada registrada'
-                : 'Não entrou';
-            return (
-              <View key={participante.userId} style={styles.participantRow}>
-                <Ionicons
-                  name={
-                    participante.registro
-                      ? 'checkmark-circle-outline'
-                      : 'ellipse-outline'
-                  }
-                  size={18}
-                  color={
-                    participante.registro
-                      ? colors.success
-                      : colors.textSecondary
-                  }
-                />
-                <Text style={[styles.participantName, { color: colors.text }]}>
-                  {participante.nome}
-                </Text>
-                <Text
-                  style={[
-                    styles.participantStatus,
-                    { color: colors.textSecondary },
-                  ]}
-                >
-                  {presence}
-                  {participante.registro?.origemEntrada === 'MANUAL'
-                    ? ' · Entrada manual'
-                    : ''}
-                  {participante.registro?.origemSaida === 'MANUAL'
-                    ? ' · Saída manual'
-                    : ''}
-                </Text>
-                {token &&
-                reuniao.podeGerirPresenca &&
-                participante.userId !== user?.id ? (
-                  <PresencaManualActions
-                    token={token}
-                    reuniaoId={reuniao.id}
-                    participante={participante}
-                    disabled={!canRegisterManual}
-                    onRegistered={reload}
-                  />
-                ) : null}
-              </View>
-            );
-          })
-        ) : (
-          <Text style={[styles.hint, { color: colors.textSecondary }]}>
-            Nenhum participante confirmado.
-          </Text>
-        )}
-        {!isHistorical && canManage ? (
-          <ConvitesSemAceite convites={reuniao.convites} />
-        ) : null}
-        {!isHistorical && canManage ? (
-          <Button
-            variant="secondary"
-            icon="person-add-outline"
-            label="Convidar participantes"
-            onPress={() => {
-              setConvidados([]);
-              setMembros([]);
-              setIsLoadingMembros(true);
-              setIsInviteOpen(true);
-            }}
+      {aba === 'participantes' ? (
+        <Card>
+          <SectionLabel
+            label="Participantes"
+            trailing={
+              reuniao.participantes?.length
+                ? String(reuniao.participantes.length)
+                : undefined
+            }
           />
-        ) : null}
-      </Card>
+          {reuniao.participantes?.length ? (
+            reuniao.participantes.map((participante) => {
+              const presence = participante.registro?.saidaAt
+                ? 'Saída registrada'
+                : participante.registro
+                  ? 'Entrada registrada'
+                  : 'Não entrou';
+              return (
+                <View key={participante.userId} style={styles.participantRow}>
+                  <Ionicons
+                    name={
+                      participante.registro
+                        ? 'checkmark-circle-outline'
+                        : 'ellipse-outline'
+                    }
+                    size={18}
+                    color={
+                      participante.registro
+                        ? colors.success
+                        : colors.textSecondary
+                    }
+                  />
+                  <Text
+                    style={[styles.participantName, { color: colors.text }]}
+                  >
+                    {participante.nome}
+                  </Text>
+                  <Text
+                    style={[
+                      styles.participantStatus,
+                      { color: colors.textSecondary },
+                    ]}
+                  >
+                    {presence}
+                    {participante.registro?.origemEntrada === 'MANUAL'
+                      ? ' · Entrada manual'
+                      : ''}
+                    {participante.registro?.origemSaida === 'MANUAL'
+                      ? ' · Saída manual'
+                      : ''}
+                  </Text>
+                  {token &&
+                  reuniao.podeGerirPresenca &&
+                  participante.userId !== user?.id ? (
+                    <PresencaManualActions
+                      token={token}
+                      reuniaoId={reuniao.id}
+                      participante={participante}
+                      disabled={!canRegisterManual}
+                      onRegistered={reload}
+                    />
+                  ) : null}
+                </View>
+              );
+            })
+          ) : (
+            <Text style={[styles.hint, { color: colors.textSecondary }]}>
+              Nenhum participante confirmado.
+            </Text>
+          )}
+          {!isHistorical && canManage ? (
+            <ConvitesSemAceite convites={reuniao.convites} />
+          ) : null}
+          {!isHistorical && canManage ? (
+            <Button
+              variant="secondary"
+              icon="person-add-outline"
+              label="Convidar participantes"
+              onPress={() => {
+                setConvidados([]);
+                setMembros([]);
+                setIsLoadingMembros(true);
+                setIsInviteOpen(true);
+              }}
+            />
+          ) : null}
+        </Card>
+      ) : null}
 
-      {token &&
+      {aba === 'participantes' &&
+      token &&
       (reuniao.status === 'AGENDADA' ||
         reuniao.meuRegistro ||
         user?.role === 'ADMIN' ||
@@ -408,7 +487,7 @@ export default function ReuniaoDetalheScreen() {
         </Card>
       ) : null}
 
-      {reuniao.meuRegistro && papelNaComissao ? (
+      {aba === 'reuniao' && reuniao.meuRegistro && papelNaComissao ? (
         <Button
           label="Ata de reunião"
           icon="document-text-outline"
@@ -422,16 +501,12 @@ export default function ReuniaoDetalheScreen() {
         />
       ) : null}
 
-      <VotacoesDaReuniao reuniaoId={reuniao.id} canManage={canManage} />
+      {aba === 'reuniao' && token ? (
+        <BibliotecaReuniao token={token} reuniaoId={reuniao.id} />
+      ) : null}
 
-      {!isHistorical && canManage ? (
-        <Button
-          variant="tertiaryDanger"
-          icon="trash-outline"
-          label="Excluir reunião"
-          onPress={() => setIsDeleteOpen(true)}
-          style={styles.deleteButton}
-        />
+      {aba === 'reuniao' ? (
+        <VotacoesDaReuniao reuniaoId={reuniao.id} canManage={canManage} />
       ) : null}
 
       <BottomSheet
@@ -476,6 +551,23 @@ export default function ReuniaoDetalheScreen() {
 
 const styles = StyleSheet.create({
   loading: { marginTop: Spacing.xxl },
+  abas: { flexDirection: 'row', gap: Spacing.sm },
+  aba: {
+    flex: 1,
+    minHeight: TouchTarget.min,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+    borderWidth: 1,
+    borderRadius: Radius.lg,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.sm,
+  },
+  abaLabel: {
+    ...Typography.bodySmall,
+    fontFamily: FontFamily.semiBold,
+    textAlign: 'center',
+  },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',

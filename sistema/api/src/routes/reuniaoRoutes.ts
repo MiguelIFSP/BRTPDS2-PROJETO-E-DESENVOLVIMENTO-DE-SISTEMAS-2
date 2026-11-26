@@ -1,6 +1,8 @@
 import { Router } from 'express';
+import { arquivoReuniaoController } from '../controllers/arquivoReuniaoController.ts';
 import { requireAuth } from '../middlewares/authMiddleware.ts';
 import { reuniaoController } from '../controllers/reuniaoController.ts';
+import { receberArquivoBinario } from '../middlewares/uploadArquivoMiddleware.ts';
 import { criarLimite } from '../middlewares/rateLimitMiddleware.ts';
 
 const routes = Router();
@@ -13,6 +15,27 @@ routes.get(
   reuniaoController.listPendingInvites,
 );
 routes.get('/reunioes/:id', requireAuth, reuniaoController.getById);
+routes.get(
+  '/reunioes/:id/arquivos',
+  requireAuth,
+  arquivoReuniaoController.list,
+);
+routes.post(
+  '/reunioes/:id/arquivos',
+  requireAuth,
+  receberArquivoBinario,
+  arquivoReuniaoController.criar,
+);
+routes.get(
+  '/reunioes/:id/arquivos/:arquivoId',
+  requireAuth,
+  arquivoReuniaoController.baixar,
+);
+routes.delete(
+  '/reunioes/:id/arquivos/:arquivoId',
+  requireAuth,
+  arquivoReuniaoController.remover,
+);
 routes.post('/reunioes', requireAuth, reuniaoController.create);
 routes.patch('/reunioes/:id', requireAuth, reuniaoController.update);
 routes.delete('/reunioes/:id', requireAuth, reuniaoController.delete);

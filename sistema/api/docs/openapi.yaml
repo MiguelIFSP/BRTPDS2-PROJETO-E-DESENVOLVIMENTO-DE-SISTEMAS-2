@@ -2329,6 +2329,138 @@ paths:
         '404': { $ref: '#/components/responses/NotFound' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /reunioes/{id}/arquivos:
+    get:
+      tags: [Reuniões]
+      summary: Lista a biblioteca de arquivos da reunião
+      description: |
+        Exige `requireAuth`. Participante (criador ou convite aceito) ou quem
+        gere a reunião. `podeEnviar` é verdadeiro só para quem gere, e só
+        enquanto a reunião não terminou e não foi cancelada.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Arquivos, do mais antigo para o mais novo.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [podeEnviar, arquivos]
+                properties:
+                  podeEnviar: { type: boolean }
+                  arquivos:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id: { type: integer }
+                        nome: { type: string }
+                        tamanhoBytes: { type: integer }
+                        createdAt: { type: string, format: date-time }
+                        enviadoPor:
+                          nullable: true
+                          allOf:
+                            - $ref: '#/components/schemas/UsuarioResumo'
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [Reuniões]
+      summary: Envia um arquivo para a biblioteca
+      description: |
+        Exige `requireAuth`. Só quem gere a reunião, e só antes do término ou
+        do cancelamento. Corpo binário de até 25 MB, qualquer tipo. O nome
+        original vai no cabeçalho `X-Nome-Arquivo`, codificado com
+        encodeURIComponent.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: X-Nome-Arquivo
+          in: header
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/octet-stream:
+            schema: { type: string, format: binary }
+      responses:
+        '201':
+          description: Arquivo gravado.
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '413':
+          description: Arquivo acima de 25 MB.
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /reunioes/{id}/arquivos/{arquivoId}:
+    get:
+      tags: [Reuniões]
+      summary: Baixa um arquivo da biblioteca
+      description: |
+        Exige `requireAuth`. Quem pode ver a reunião baixa o arquivo, antes,
+        durante e depois dela. A resposta é o conteúdo binário, sem abrir no
+        aplicativo.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: arquivoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Conteúdo do arquivo.
+          content:
+            application/octet-stream:
+              schema: { type: string, format: binary }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    delete:
+      tags: [Reuniões]
+      summary: Apaga um arquivo da biblioteca
+      description: |
+        Exige `requireAuth`. Só quem gere a reunião, e só antes do término ou
+        do cancelamento.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+        - name: arquivoId
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Arquivo apagado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /reunioes/{id}/convites:
     post:
       tags: [Reuniões]
