@@ -88,7 +88,10 @@ beforeEach(() => {
   role = 'USER';
   papelNaComissao = null;
   reuniao = {
+    id: 31,
+    titulo: 'Planejamento',
     comissaoId: 3,
+    comissao: { nome: 'Comissão A' },
     criadoPorUserId: CRIADOR,
     status: 'AGENDADA',
     data: '2026-10-21',
@@ -486,5 +489,80 @@ describe('criar, encerrar e excluir', () => {
     );
     expect(response.status).toBe(200);
     expect(response.body.encerrada).toBe(true);
+  });
+});
+
+describe('relatório dos resultados', () => {
+  const linha = (parcial) => ({
+    ...votacao,
+    ...parcial,
+    votos: (parcial.votos ?? []).map((voto) => ({
+      ...voto,
+      user: { name: `Pessoa ${voto.userId}` },
+    })),
+  });
+
+  test('antes do fim da reunião responde 409', async () => {
+    const response = await ler(PARTICIPANTE, '/reunioes/31/resultados');
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe(
+      'O relatório fica disponível quando a reunião termina.',
+    );
+  });
+
+  test('quem não vê a reunião recebe 403', async () => {
+    emUtc(DEPOIS_DO_FIM);
+    const response = await ler(OUTRO_MEMBRO, '/reunioes/31/resultados');
+    expect(response.status).toBe(403);
+  });
+
+  test('depois do fim, aberta mostra quem votou só para quem gere; secreta não mostra para ninguém', async () => {
+    emUtc(DEPOIS_DO_FIM);
+    prisma.votacao.findMany.mockResolvedValue([
+      linha({
+        id: 50,
+        tipo: 'ABERTA',
+        titulo: 'Aprovar a pauta',
+        opcoes: votacao.opcoes,
+        votos: [
+          { userId: PARTICIPANTE, opcaoId: 1 },
+          { userId: CRIADOR, opcaoId: null },
+        ],
+      }),
+      linha({
+        id: 51,
+        tipo: 'SECRETA',
+        titulo: 'Escolher a data',
+        createdAt: new Date('2026-10-21T12:05:00Z'),
+        opcoes: [{ id: 3, texto: 'Segunda' }],
+        votos: [{ userId: PARTICIPANTE, opcaoId: 3 }],
+      }),
+    ]);
+
+    const participante = await ler(PARTICIPANTE, '/reunioes/31/resultados');
+    expect(participante.status).toBe(200);
+    expect(participante.body.reuniao).toMatchObject({
+      titulo: 'Planejamento',
+      comissao: 'Comissão A',
+    });
+    expect(participante.body.votacoes[0]).toMatchObject({
+      titulo: 'Aprovar a pauta',
+      tipo: 'ABERTA',
+      totalVotos: 2,
+      nulos: 1,
+    });
+    expect(participante.body.votacoes[0].opcoes[0]).toMatchObject({
+      texto: 'Sim',
+      votos: 1,
+    });
+    expect(participante.body.votacoes[0].opcoes[0].votantes).toBeUndefined();
+    expect(semUserId(participante.body)).toBe(true);
+
+    const gestor = await ler(CRIADOR, '/reunioes/31/resultados');
+    expect(gestor.body.votacoes[0].opcoes[0].votantes).toEqual([
+      { userId: PARTICIPANTE, nome: `Pessoa ${PARTICIPANTE}` },
+    ]);
+    expect(gestor.body.votacoes[1].tipo).toBe('SECRETA');
+    expect(semUserId(gestor.body.votacoes[1])).toBe(true);
   });
 });

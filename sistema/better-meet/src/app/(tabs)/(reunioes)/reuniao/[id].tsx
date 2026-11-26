@@ -22,6 +22,7 @@ import MembrosSelector, {
   type MembroConvidavel,
 } from '@/components/MembrosSelector';
 import ListaPresencaButton from '@/components/presenca/ListaPresencaButton';
+import RelatorioVotacoes from '@/components/RelatorioVotacoes';
 import ReuniaoCheckIn from '@/components/ReuniaoCheckIn';
 import VotacoesDaReuniao from '@/components/VotacoesDaReuniao';
 import BackButton from '@/components/ui/BackButton';
@@ -186,6 +187,8 @@ export default function ReuniaoDetalheScreen() {
     (papel) => papel === papelDoUsuario,
   );
   const janela = reuniao ? calcularJanelaCheckIn(reuniao, agora) : null;
+  const reuniaoEncerrada =
+    reuniao?.status !== 'CANCELADA' && janela?.estado === 'depois';
   const canRegisterManual =
     reuniao?.status !== 'CANCELADA' && janela?.estado !== 'antes';
   const quando = reuniao
@@ -503,6 +506,10 @@ export default function ReuniaoDetalheScreen() {
 
       {aba === 'reuniao' && token ? (
         <BibliotecaReuniao token={token} reuniaoId={reuniao.id} />
+      ) : null}
+
+      {aba === 'reuniao' && token && reuniaoEncerrada ? (
+        <RelatorioVotacoes token={token} reuniaoId={reuniao.id} />
       ) : null}
 
       {aba === 'reuniao' ? (

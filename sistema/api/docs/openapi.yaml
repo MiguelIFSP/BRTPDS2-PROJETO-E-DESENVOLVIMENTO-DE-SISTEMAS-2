@@ -424,6 +424,23 @@ components:
             description: Falso esconde os totais por opção até o encerramento.,
           }
         permiteTrocaVoto: { type: boolean, default: false }
+    RelatorioVotacao:
+      type: object
+      required: [reuniao, votacoes]
+      properties:
+        reuniao:
+          type: object
+          required: [id, titulo, comissao, data, horaInicio, horaFim]
+          properties:
+            id: { type: integer }
+            titulo: { type: string }
+            comissao: { type: string }
+            data: { type: string, description: Data AAAA-MM-DD no fuso da reunião. }
+            horaInicio: { type: string }
+            horaFim: { type: string }
+        votacoes:
+          type: array
+          items: { $ref: '#/components/schemas/Votacao' }
     VotacaoResumo:
       type: object
       properties:
@@ -2807,6 +2824,38 @@ paths:
                   type: integer
                   minimum: 0
                   description: Versão utilizada no PDF gerado com sucesso.
+
+  /reunioes/{id}/resultados:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema: { type: integer, minimum: 1 }
+    get:
+      tags: [Votações]
+      summary: Relatório dos resultados da reunião
+      description: |
+        Exige `requireAuth`. Só depois que o horário de fim da reunião passa (409
+        antes disso). Participante vê os totais de cada votação. Quem gere a
+        reunião também vê quem votou em cada opção quando a votação é ABERTA.
+        Votação SECRETA não traz `userId` nem nome de quem votou, para ninguém.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Placar oficial da reunião.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/RelatorioVotacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: A reunião ainda não terminou.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
 
   /reunioes/{id}/votacoes:
     parameters:

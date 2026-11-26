@@ -5,6 +5,11 @@ import { requireAuth } from '../middlewares/authMiddleware.ts';
 const routes = Router();
 
 routes.get(
+  '/reunioes/:id/resultados',
+  requireAuth,
+  votacaoController.relatorio,
+);
+routes.get(
   '/reunioes/:id/votacoes',
   requireAuth,
   votacaoController.listByReuniao,

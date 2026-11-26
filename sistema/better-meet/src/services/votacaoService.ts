@@ -45,6 +45,18 @@ export type VotacaoDetalhe = {
   opcoes: VotacaoOpcao[];
 };
 
+export type RelatorioVotacao = {
+  reuniao: {
+    id: number;
+    titulo: string;
+    comissao: string;
+    data: string;
+    horaInicio: string;
+    horaFim: string;
+  };
+  votacoes: VotacaoDetalhe[];
+};
+
 export type VotacaoCreateInput = {
   titulo: string;
   opcoes: string[];
@@ -63,6 +75,13 @@ export const rotuloDeVotos = (total: number) => {
 };
 
 export const votacaoService = {
+  relatorio(token: string, reuniaoId: number) {
+    return apiRequest<RelatorioVotacao>(`/reunioes/${reuniaoId}/resultados`, {
+      token,
+      fallbackError: 'Não foi possível carregar os resultados.',
+    });
+  },
+
   listByReuniao(token: string, reuniaoId: number) {
     return apiRequest<VotacaoResumo[]>(`/reunioes/${reuniaoId}/votacoes`, {
       token,

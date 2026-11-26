@@ -5,6 +5,13 @@ import { votacaoService } from '../services/votacaoService.ts';
 import { parseId } from '../utils/parseId.ts';
 
 export const votacaoController = {
+  async relatorio(request: Request, response: Response) {
+    const { id: userId, role } = (request as AuthenticatedRequest).user;
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    const relatorio = await votacaoService.relatorio(userId, role, reuniaoId);
+    response.status(200).json(relatorio);
+  },
+
   async listByReuniao(request: Request, response: Response) {
     const { id: userId, role } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');
