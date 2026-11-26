@@ -5,15 +5,12 @@ import {
   type Role,
 } from '@prisma/client';
 import prisma from '../config/database.ts';
+import { presencaService } from './presencaService.ts';
 import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
 import { emailService, type Destinatario } from './emailService.ts';
 import type { ReuniaoEmail } from '../utils/emailTemplates.ts';
-import {
-  estadoDaReuniao,
-  formatarDataNoFuso,
-  formatarHoraNoFuso,
-} from '../utils/fusoHorario.ts';
+import { estadoDaReuniao } from '../utils/fusoHorario.ts';
 import { USUARIO_REMOVIDO } from '../utils/autoria.ts';
 import { PRISMA_ERROR, isPrismaError } from '../utils/prismaErrors.ts';
 import { generateTokenResposta } from '../utils/tokenResposta.ts';
@@ -96,6 +93,10 @@ const reuniaoListSelect = {
       userId: true,
       entradaAt: true,
       saidaAt: true,
+      origemEntrada: true,
+      origemSaida: true,
+      entradaManualPorId: true,
+      saidaManualPorId: true,
     },
   },
 } satisfies Prisma.ReuniaoSelect;
@@ -179,6 +180,9 @@ const apresentarReuniao = (reuniao: ReuniaoLista, userId: number) => {
   );
   return {
     ...dados,
+    podeGerirPresenca: comissao.equipe.some(
+      (membro) => membro.userId === userId && membro.papel === 'ADMINISTRADOR',
+    ),
     usuario: criadoPor?.name ?? null,
     estado,
     janelaCheckIn: {
@@ -493,131 +497,8 @@ export const reuniaoService = {
     }
   },
 
-  async checkIn(userId: number, reuniaoId: number) {
-    const reuniao = await prisma.reuniao.findUnique({
-      where: { id: reuniaoId },
-      select: {
-        comissaoId: true,
-        status: true,
-        data: true,
-        horaInicio: true,
-        horaFim: true,
-        criadoPorUserId: true,
-        convites: { select: { userId: true, status: true } },
-      },
-    });
-    if (!reuniao) {
-      throw new AppError(404, 'Reunião não encontrada.');
-    }
-
-    await assertMembroDaComissao(reuniao.comissaoId, userId);
-    if (
-      reuniao.criadoPorUserId !== userId &&
-      reuniao.convites !== undefined &&
-      !reuniao.convites.some(
-        (convite) =>
-          convite.userId === userId &&
-          convite.status === StatusConviteReuniao.ACEITO,
-      )
-    ) {
-      throw new AppError(
-        403,
-        'Aceite o convite antes de registrar sua entrada na reunião.',
-      );
-    }
-
-    const where = { reuniaoId_userId: { reuniaoId, userId } };
-    const existente = await prisma.reuniaoRegistro.findUnique({ where });
-    // Uma repetição confirma a primeira entrada, mesmo após o encerramento.
-    if (existente) return { registro: existente, jaRegistrado: true };
-
-    if (reuniao.status !== 'AGENDADA') {
-      throw new AppError(409, 'Esta reunião não está disponível para entrada.');
-    }
-    const horario = estadoDaReuniao(reuniao, env.TZ_REUNIOES);
-    if (horario.estado === 'AGUARDANDO') {
-      const abertura = horario.aberturaCheckIn;
-      const hora = formatarHoraNoFuso(abertura, env.TZ_REUNIOES);
-      const dia = formatarDataNoFuso(abertura, env.TZ_REUNIOES);
-      const inicio = formatarHoraNoFuso(horario.inicio, env.TZ_REUNIOES);
-      throw new AppError(
-        409,
-        `A entrada na reunião abre às ${hora} do dia ${dia}. A reunião começa às ${inicio}.`,
-      );
-    }
-    if (horario.estado === 'ENCERRADA') {
-      throw new AppError(
-        409,
-        'Esta reunião já terminou; não é possível registrar entrada.',
-      );
-    }
-
-    try {
-      // O banco gera entradaAt: o cliente não controla o horário da presença.
-      const registro = await prisma.reuniaoRegistro.create({
-        data: { reuniaoId, userId },
-      });
-      return { registro, jaRegistrado: false };
-    } catch (error) {
-      // Duas requisições podem consultar antes da primeira gravação. A chave
-      // única decide qual cria; a outra devolve o mesmo registro sem alterá-lo.
-      if (isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) {
-        const registro = await prisma.reuniaoRegistro.findUnique({ where });
-        if (registro) return { registro, jaRegistrado: true };
-      }
-      throw error;
-    }
-  },
-
-  async checkOut(userId: number, reuniaoId: number) {
-    const reuniao = await prisma.reuniao.findUnique({
-      where: { id: reuniaoId },
-      select: {
-        comissaoId: true,
-        criadoPorUserId: true,
-        convites: { select: { userId: true, status: true } },
-      },
-    });
-    if (!reuniao) {
-      throw new AppError(404, 'Reunião não encontrada.');
-    }
-
-    await assertMembroDaComissao(reuniao.comissaoId, userId);
-    if (
-      reuniao.criadoPorUserId !== userId &&
-      reuniao.convites !== undefined &&
-      !reuniao.convites.some(
-        (convite) =>
-          convite.userId === userId &&
-          convite.status === StatusConviteReuniao.ACEITO,
-      )
-    ) {
-      throw new AppError(
-        403,
-        'Aceite o convite antes de registrar sua saída na reunião.',
-      );
-    }
-
-    const where = { reuniaoId_userId: { reuniaoId, userId } };
-    const existente = await prisma.reuniaoRegistro.findUnique({ where });
-    if (!existente) {
-      throw new AppError(409, 'Registre sua entrada antes de sair da reunião.');
-    }
-    if (existente.saidaAt) {
-      return { registro: existente, jaRegistrado: true };
-    }
-
-    const atualizado = await prisma.reuniaoRegistro.updateMany({
-      where: { reuniaoId, userId, saidaAt: null },
-      data: { saidaAt: new Date() },
-    });
-    const registro = await prisma.reuniaoRegistro.findUnique({ where });
-    if (!registro) {
-      throw new AppError(404, 'Registro de presença não encontrado.');
-    }
-
-    return { registro, jaRegistrado: atualizado.count === 0 };
-  },
+  checkIn: presencaService.checkIn,
+  checkOut: presencaService.checkOut,
 
   async listPendingInvites(userId: number) {
     const convites = await prisma.conviteReuniao.findMany({
@@ -730,6 +611,7 @@ export const reuniaoService = {
             horaInicio: data.horaInicio,
             horaFim: data.horaFim,
             criadoPorUserId: userId,
+            codigoPresenca: presencaService.generateCode(),
             convites: {
               create: userIds.map((membroId) => ({
                 userId: membroId,

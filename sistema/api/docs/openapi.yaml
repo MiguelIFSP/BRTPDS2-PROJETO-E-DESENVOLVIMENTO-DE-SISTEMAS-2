@@ -132,7 +132,24 @@ components:
   schemas:
     Ata:
       type: object
-      required: [reuniaoId, titulo, dataReuniao, conteudoAta, versaoAta, papelNaComissao, podeEditar, podeVotar, meuVoto, votos, presentes, aprovada, exportada, exportadaAt, podeExportar]
+      required:
+        [
+          reuniaoId,
+          titulo,
+          dataReuniao,
+          conteudoAta,
+          versaoAta,
+          papelNaComissao,
+          podeEditar,
+          podeVotar,
+          meuVoto,
+          votos,
+          presentes,
+          aprovada,
+          exportada,
+          exportadaAt,
+          podeExportar,
+        ]
       properties:
         presentes:
           type: integer
@@ -143,7 +160,8 @@ components:
           description: Calculada, nunca gravada. Mais da metade dos presentes aprovou a versão atual; a metade exata não aprova.
         exportada: { type: boolean }
         exportadaAt: { type: string, format: date-time, nullable: true }
-        podeExportar: { type: boolean, description: Verdadeiro com a ata aprovada. }
+        podeExportar:
+          { type: boolean, description: Verdadeiro com a ata aprovada. }
         reuniaoId: { type: integer }
         titulo: { type: string }
         dataReuniao:
@@ -163,7 +181,11 @@ components:
           type: string
           enum: [ADMINISTRADOR, FACILITADOR, SECRETARIO, MEMBRO]
         podeEditar: { type: boolean, description: Falso depois da exportação. }
-        podeVotar: { type: boolean, description: Falso sem ata salva e depois da exportação. }
+        podeVotar:
+          {
+            type: boolean,
+            description: Falso sem ata salva e depois da exportação.,
+          }
         meuVoto:
           type: string
           nullable: true
@@ -185,7 +207,12 @@ components:
       properties:
         error: { type: string, example: E-mail ou senha inválidos. }
         message: { type: string, description: Igual a `error`. }
-        code: { type: string, example: INVALID_EMAIL_OR_PASSWORD, description: Código do Better Auth. }
+        code:
+          {
+            type: string,
+            example: INVALID_EMAIL_OR_PASSWORD,
+            description: Código do Better Auth.,
+          }
     UsuarioAuth:
       type: object
       description: Usuário no formato do Better Auth (o id vem como texto).
@@ -203,11 +230,16 @@ components:
       type: object
       properties:
         redirect: { type: boolean, example: false }
-        token: { type: string, description: Valor bruto da sessão; use o cabeçalho `set-auth-token` como Bearer. }
+        token:
+          {
+            type: string,
+            description: Valor bruto da sessão; use o cabeçalho `set-auth-token` como Bearer.,
+          }
         user: { $ref: '#/components/schemas/UsuarioAuth' }
     UsuarioMe:
       type: object
-      required: [id, name, email, role, emailVerified, themePreference, createdAt]
+      required:
+        [id, name, email, role, emailVerified, themePreference, createdAt]
       properties:
         id: { type: integer }
         name: { type: string }
@@ -272,9 +304,12 @@ components:
           nullable: true
           description: Nome de quem criou; nulo quando a conta foi excluída. Presente em GET /reunioes/{id} e /reunioes/minhas.
         estado: { $ref: '#/components/schemas/EstadoReuniao' }
+        podeGerirPresenca:
+          type: boolean
+          description: Indica ADMINISTRADOR atual da comissão; autoriza consultar código e registrar por outros participantes. Presente nas consultas da reunião.
         janelaCheckIn:
           type: object
-          description: Instantes em UTC. `abre` é 15 minutos antes do início; `fecha` é o limite da saída (30 minutos depois do fim).
+          description: Instantes em UTC. `abre` coincide com o início. `fecha` mantém a referência legada de 30 minutos depois do fim; não limita saídas atrasadas. Novas entradas próprias encerram no fim previsto da reunião.
           properties:
             abre: { type: string, format: date-time }
             fecha: { type: string, format: date-time }
@@ -325,6 +360,10 @@ components:
           format: date-time
           description: Horário da primeira entrada, gerado pelo servidor.
         saidaAt: { type: string, format: date-time, nullable: true }
+        origemEntrada: { type: string, enum: [PROPRIO, MANUAL] }
+        origemSaida: { type: string, nullable: true, enum: [PROPRIO, MANUAL] }
+        entradaManualPorId: { type: integer, nullable: true }
+        saidaManualPorId: { type: integer, nullable: true }
     EntradaReuniao:
       type: object
       required: [message, registro, jaRegistrado]
@@ -356,7 +395,7 @@ components:
     EstadoReuniao:
       type: string
       enum: [CANCELADA, AGUARDANDO, CHECKIN_ABERTO, EM_ANDAMENTO, ENCERRADA]
-      description: Calculado pelo horário no fuso das reuniões. A entrada abre 15 minutos antes do início.
+      description: Calculado pelo horário no fuso das reuniões. A entrada abre no início; CHECKIN_ABERTO permanece no contrato por compatibilidade e não é mais emitido.
     TipoVotacao:
       type: string
       enum: [ABERTA, SECRETA]
@@ -372,7 +411,12 @@ components:
           maxItems: 6
           items: { type: string, maxLength: 80 }
         tipo: { $ref: '#/components/schemas/TipoVotacao' }
-        mostrarParcial: { type: boolean, default: false, description: Falso esconde os totais por opção até o encerramento. }
+        mostrarParcial:
+          {
+            type: boolean,
+            default: false,
+            description: Falso esconde os totais por opção até o encerramento.,
+          }
         permiteTrocaVoto: { type: boolean, default: false }
     VotacaoResumo:
       type: object
@@ -393,7 +437,11 @@ components:
         tipo: { $ref: '#/components/schemas/TipoVotacao' }
         mostrarParcial: { type: boolean }
         permiteTrocaVoto: { type: boolean }
-        encerrada: { type: boolean, description: Verdadeiro também quando a reunião terminou ou foi cancelada. }
+        encerrada:
+          {
+            type: boolean,
+            description: Verdadeiro também quando a reunião terminou ou foi cancelada.,
+          }
         createdAt: { type: string, format: date-time }
         reuniao:
           type: object
@@ -725,7 +773,12 @@ paths:
         de troca de e-mail (`PATCH /usuarios/{id}`). Limite: 20 por minuto por IP.
       parameters:
         - { name: token, in: query, required: true, schema: { type: string } }
-        - { name: callbackURL, in: query, required: false, schema: { type: string } }
+        - {
+            name: callbackURL,
+            in: query,
+            required: false,
+            schema: { type: string },
+          }
       responses:
         '200':
           description: E-mail confirmado.
@@ -823,7 +876,12 @@ paths:
         minuto por IP.
       parameters:
         - { name: token, in: path, required: true, schema: { type: string } }
-        - { name: callbackURL, in: query, required: true, schema: { type: string } }
+        - {
+            name: callbackURL,
+            in: query,
+            required: true,
+            schema: { type: string },
+          }
       responses:
         '302':
           description: Redireciona para o `callbackURL`.
@@ -1093,8 +1151,14 @@ paths:
               schema:
                 type: object
                 properties:
-                  message: { type: string, example: Senha alterada com sucesso. }
-                  token: { type: string, nullable: true, description: Token da nova sessão. }
+                  message:
+                    { type: string, example: Senha alterada com sucesso. }
+                  token:
+                    {
+                      type: string,
+                      nullable: true,
+                      description: Token da nova sessão.,
+                    }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401':
           description: Sem token, token inválido ou senha atual incorreta.
@@ -2057,7 +2121,10 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409': { $ref: '#/components/responses/Conflict' }
-        '410': { description: A reunião já terminou; o convite não pode mais ser respondido. }
+        '410':
+          {
+            description: A reunião já terminou; o convite não pode mais ser respondido.,
+          }
         '500': { $ref: '#/components/responses/InternalError' }
 
   /reunioes/{id}:
@@ -2176,76 +2243,132 @@ paths:
 
   /reunioes/{id}/entrar:
     post:
-      tags: [Reuniões]
+      tags:
+        - Reuniões
       summary: Registra a primeira entrada do integrante na reunião
-      description: |
-        Exige participação na comissão de uma organização aprovada e, para
-        convidados, aceite prévio do convite.
-        A identidade vem exclusivamente do JWT; não aceita horário ou usuário do cliente.
-        Novas entradas só na janela: de 15 minutos antes do início até o fim da
-        reunião (409 com a hora de abertura antes dela, 409 depois do fim).
-        Novas entradas exigem reunião AGENDADA. Repetições devolvem o registro
-        original, sem alterar entradaAt ou saidaAt, inclusive após o encerramento.
-      security: [{ bearerAuth: [] }]
+      description:
+        Exige autenticação, vínculo atual com a comissão de organização
+        aprovada e convite aceito (ou autoria da reunião). Código de presença
+        obrigatório. Horário e identidade vêm do servidor. Antes do início retorna
+        400; código ausente ou inválido retorna 400. Reunião cancelada retorna
+        409. Repetições preservam os horários e retornam o mesmo registro. Novas
+        entradas próprias somente do início até antes do término, em reunião
+        AGENDADA. Ata finalizada não admite novas presenças.
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
       responses:
-        '201':
-          description: Primeira entrada registrada.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/EntradaReuniao' }
         '200':
           description: Presença já registrada; o horário original foi preservado.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/EntradaReuniao' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
-        '409':
-          description: Antes da abertura da entrada, reunião encerrada ou reunião cancelada. A mensagem diz o motivo e, antes da abertura, a hora.
+              schema:
+                $ref: '#/components/schemas/EntradaReuniao'
+        '201':
+          description: Primeira entrada registrada.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-        '500': { $ref: '#/components/responses/InternalError' }
+              schema:
+                $ref: '#/components/schemas/EntradaReuniao'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Estado incompatível com a operação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Limite de tentativas de presença atingido.
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - codigoPresenca
+              properties:
+                codigoPresenca:
+                  type: string
+                  pattern: ^[0-9]{6}$
+                  description: Código informado pelo administrador da comissão.
 
   /reunioes/{id}/sair:
     post:
-      tags: [Reuniões]
+      tags:
+        - Reuniões
       summary: Registra a saída do integrante da reunião
-      description: |
-        Exige `requireAuth`, participação na comissão e, para convidados, aceite
-        prévio do convite. A identidade e o horário vêm do servidor; não aceita
-        horário ou usuário do cliente.
-        Exige entrada registrada antes (409 sem ela). Repetições devolvem o
-        registro original, sem alterar saidaAt.
-      security: [{ bearerAuth: [] }]
+      description:
+        Exige autenticação, vínculo atual com a comissão de organização
+        aprovada e convite aceito (ou autoria da reunião). Código de presença
+        obrigatório. Horário e identidade vêm do servidor. Antes do início retorna
+        400; código ausente ou inválido retorna 400. Reunião cancelada retorna
+        409. Repetições preservam os horários e retornam o mesmo registro. Exige
+        entrada prévia (409 sem ela). Permite saída após o término.
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
-          description: Saída registrada, ou já registrada antes (`jaRegistrado` = true, horário original preservado).
+          description:
+            Saída registrada, ou já registrada antes (`jaRegistrado` = true,
+            horário original preservado).
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/EntradaReuniao' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/EntradaReuniao'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
-          description: Entrada ainda não registrada nesta reunião.
+          description: Estado incompatível com a operação.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-        '500': { $ref: '#/components/responses/InternalError' }
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          description: Limite de tentativas de presença atingido.
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - codigoPresenca
+              properties:
+                codigoPresenca:
+                  type: string
+                  pattern: ^[0-9]{6}$
+                  description: Código informado pelo administrador da comissão.
 
   /reunioes/{id}/ata:
     parameters:
@@ -2303,7 +2426,11 @@ paths:
               properties:
                 conteudoAta: { type: string, minLength: 1, maxLength: 50000 }
                 versaoAta: { type: integer, minimum: 0 }
-            example: { conteudoAta: '<p><strong>Decisão:</strong> aprovar o cronograma.</p>', versaoAta: 0 }
+            example:
+              {
+                conteudoAta: '<p><strong>Decisão:</strong> aprovar o cronograma.</p>',
+                versaoAta: 0,
+              }
       responses:
         '200':
           description: Ata salva e votação atualizada.
@@ -2365,36 +2492,65 @@ paths:
 
   /reunioes/{id}/ata/exportar:
     post:
-      tags: [Reuniões]
+      tags:
+        - Reuniões
       summary: Exporta a ata aprovada e a torna imutável
-      description: |
+      description: >-
         Exige JWT, vínculo atual com a comissão e entrada registrada na reunião.
+
         Só com a ata aprovada: mais da metade dos presentes (maioria simples; a
+
         metade exata não aprova) votou APROVADO na versão atual. Grava
+
         `ataExportadaAt` e `ataVersaoExportada`. Depois disso, editar a ata e
+
         votar respondem 409. Repetir a chamada é idempotente e não altera a data.
-      security: [{ bearerAuth: [] }]
+         A versão enviada deve ser a mesma do PDF; versão desatualizada retorna 409. O aplicativo notifica após gerar o arquivo. No navegador, o usuário confirma que salvou ou imprimiu; cancelamento não finaliza. Finalização, edição, votos e novas presenças são serializados pelo bloqueio da reunião.
+      security:
+        - bearerAuth: []
       parameters:
         - name: id
           in: path
           required: true
-          schema: { type: integer, minimum: 1 }
+          schema:
+            type: integer
+            minimum: 1
       responses:
         '200':
           description: Ata exportada (ou já exportada antes), com `exportada` = true.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Ata' }
-        '400': { $ref: '#/components/responses/BadRequest' }
-        '401': { $ref: '#/components/responses/Unauthorized' }
-        '403': { $ref: '#/components/responses/Forbidden' }
-        '404': { $ref: '#/components/responses/NotFound' }
+              schema:
+                $ref: '#/components/schemas/Ata'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
         '409':
           description: A ata ainda não foi aprovada, ou a versão mudou durante a exportação.
           content:
             application/json:
-              schema: { $ref: '#/components/schemas/Error' }
-        '500': { $ref: '#/components/responses/InternalError' }
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - versaoAta
+              properties:
+                versaoAta:
+                  type: integer
+                  minimum: 0
+                  description: Versão utilizada no PDF gerado com sucesso.
 
   /reunioes/{id}/votacoes:
     parameters:
@@ -2526,7 +2682,11 @@ paths:
               type: object
               properties:
                 opcaoId: { type: integer, minimum: 1 }
-                nulo: { type: boolean, description: 'Verdadeiro registra voto nulo; não envie junto com `opcaoId`.' }
+                nulo:
+                  {
+                    type: boolean,
+                    description: 'Verdadeiro registra voto nulo; não envie junto com `opcaoId`.',
+                  }
             examples:
               opcao: { value: { opcaoId: 12 } }
               nulo: { value: { nulo: true } }
@@ -2676,7 +2836,10 @@ paths:
           }
         '404': { description: Token inválido ou reunião excluída. }
         '409': { description: Reunião cancelada. }
-        '410': { description: A reunião já terminou; o link não aceita mais respostas. }
+        '410':
+          {
+            description: A reunião já terminou; o link não aceita mais respostas.,
+          }
     post:
       tags: [Reuniões]
       summary: Confirma a resposta ao convite pelo botão da página
@@ -2699,3 +2862,176 @@ paths:
         '404': { description: Token inválido ou reunião excluída. }
         '409': { description: Convite já respondido ou reunião cancelada. }
         '410': { description: A reunião já terminou. }
+
+  /reunioes/{id}/codigo-presenca:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: integer
+          minimum: 1
+    get:
+      tags:
+        - Reuniões
+      summary: Consulta o código de presença
+      description:
+        Somente ADMINISTRADOR atual da comissão. ADMIN global não substitui
+        este papel. Reuniões anteriores à migração podem retornar código nulo; use
+        POST para gerar.
+      security:
+        - bearerAuth: []
+      responses:
+        '200': &a1
+          description: Código restrito ao administrador atual da comissão.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  codigoPresenca:
+                    type: string
+                    nullable: true
+                    pattern: ^[0-9]{6}$
+        '400': &a2
+          $ref: '#/components/responses/BadRequest'
+        '401': &a3
+          $ref: '#/components/responses/Unauthorized'
+        '403': &a4
+          $ref: '#/components/responses/Forbidden'
+        '404': &a5
+          $ref: '#/components/responses/NotFound'
+        '409': &a6
+          description: Estado incompatível com a operação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500': &a7
+          $ref: '#/components/responses/InternalError'
+    post:
+      tags:
+        - Reuniões
+      summary: Gera ou renova o código de presença
+      description: Somente ADMINISTRADOR atual da comissão. Gera seis dígitos
+        aleatórios e invalida imediatamente o código anterior. Corpo vazio.
+      security:
+        - bearerAuth: []
+      responses:
+        '200': *a1
+        '400': *a2
+        '401': *a3
+        '403': *a4
+        '404': *a5
+        '409': *a6
+        '429':
+          description: Limite de tentativas atingido.
+        '500': *a7
+
+  /reunioes/{id}/participantes/{userId}/entrar:
+    post:
+      tags:
+        - Reuniões
+      summary: Registra entrada pelo participante
+      description: Somente ADMINISTRADOR atual da comissão. O participante deve
+        integrar a comissão e ter aceitado o convite (ou criado a reunião). Sem
+        PIN ou biometria do participante. Usa horário do servidor e grava a
+        autoria manual. Antes do início retorna 400. Cancelada retorna 409; saída
+        sem entrada retorna 409. Repetições são idempotentes. Permite correções
+        após o término, mas não adiciona presenças depois de finalizar a ata.
+        Corpo vazio.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Registro efetuado ou já existente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntradaReuniao'
+        '201':
+          description: Primeira entrada registrada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntradaReuniao'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Estado incompatível com a operação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /reunioes/{id}/participantes/{userId}/sair:
+    post:
+      tags:
+        - Reuniões
+      summary: Registra saída pelo participante
+      description: Somente ADMINISTRADOR atual da comissão. O participante deve
+        integrar a comissão e ter aceitado o convite (ou criado a reunião). Sem
+        PIN ou biometria do participante. Usa horário do servidor e grava a
+        autoria manual. Antes do início retorna 400. Cancelada retorna 409; saída
+        sem entrada retorna 409. Repetições são idempotentes. Permite correções
+        após o término, mas não adiciona presenças depois de finalizar a ata.
+        Corpo vazio.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Registro efetuado ou já existente.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EntradaReuniao'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Estado incompatível com a operação.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/responses/InternalError'

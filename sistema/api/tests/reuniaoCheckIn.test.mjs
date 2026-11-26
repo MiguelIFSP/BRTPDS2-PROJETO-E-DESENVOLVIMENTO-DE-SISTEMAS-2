@@ -6,7 +6,6 @@ import {
   jest,
   test,
 } from '@jest/globals';
-import { Prisma } from '@prisma/client';
 import express from 'express';
 import request from 'supertest';
 import { criarAuthSimulado, tokenDe } from './sessaoSimulada.mjs';
@@ -15,13 +14,15 @@ const userId = 7;
 const reuniaoId = 31;
 const prisma = {
   user: { findUnique: jest.fn() },
-  reuniao: { findUnique: jest.fn(), findMany: jest.fn() },
+  reuniao: { findUnique: jest.fn(), findMany: jest.fn(), update: jest.fn() },
   comissao: { findUnique: jest.fn() },
   reuniaoRegistro: {
     findUnique: jest.fn(),
     create: jest.fn(),
-    updateMany: jest.fn(),
+    update: jest.fn(),
   },
+  $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
 };
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
@@ -38,24 +39,32 @@ app.use(express.json());
 app.use('/api', routes);
 app.use(handleError);
 
-const token = tokenDe(userId);
-const post = (id = reuniaoId) =>
+const call = (
+  suffix,
+  body = { codigoPresenca: '123456' },
+  actor = userId,
+  id = reuniaoId,
+) =>
   request(app)
-    .post(`/api/reunioes/${id}/entrar`)
-    .set('Authorization', `Bearer ${token}`);
-const postOut = (id = reuniaoId) =>
-  request(app)
-    .post(`/api/reunioes/${id}/sair`)
-    .set('Authorization', `Bearer ${token}`);
-// 21/10/2026, 10:00 às 11:00 em São Paulo (UTC-3): entrada abre às 12:45Z,
-// começa às 13:00Z, termina às 14:00Z.
+    .post(`/api/reunioes/${id}/${suffix}`)
+    .set('Authorization', `Bearer ${tokenDe(actor)}`)
+    .send(body);
 const horarioReuniao = {
   data: '2026-10-21',
   horaInicio: '10:00',
   horaFim: '11:00',
 };
-const emUtc = (instante) => {
-  // só o Date é simulado; o supertest precisa dos timers reais.
+const registro = {
+  id: 12,
+  reuniaoId,
+  userId,
+  entradaAt: new Date('2026-10-21T13:00:00Z'),
+  saidaAt: null,
+};
+let meeting;
+let equipe;
+let persisted;
+const emUtc = (instante) =>
   jest.useFakeTimers({
     now: new Date(instante),
     doNotFake: [
@@ -71,307 +80,216 @@ const emUtc = (instante) => {
       'performance',
     ],
   });
-};
-const registro = {
-  id: 12,
-  reuniaoId,
-  userId,
-  entradaAt: new Date('2026-10-21T15:00:00.123Z'),
-  saidaAt: null,
-};
-const duplicateError = () =>
-  new Prisma.PrismaClientKnownRequestError('Presença duplicada.', {
-    code: 'P2002',
-    clientVersion: Prisma.prismaVersion.client,
-  });
-
 beforeEach(() => {
   jest.resetAllMocks();
-  // o requireAuth lê o perfil no banco, não no token.
-  prisma.user.findUnique.mockImplementation(async ({ where }) => ({
-    role: 'USER',
-    email: `usuario${where.id}@example.test`,
-  }));
   emUtc('2026-10-21T13:30:00Z');
-  prisma.reuniao.findUnique.mockResolvedValue({
+  meeting = {
+    id: reuniaoId,
     comissaoId: 4,
+    criadoPorUserId: 8,
+    codigoPresenca: '123456',
     status: 'AGENDADA',
+    ataExportadaAt: null,
+    convites: [{ userId, status: 'ACEITO' }],
     ...horarioReuniao,
+  };
+  equipe = [
+    { userId, papel: 'MEMBRO' },
+    { userId: 8, papel: 'ADMINISTRADOR' },
+  ];
+  persisted = null;
+  prisma.user.findUnique.mockResolvedValue({
+    role: 'ADMIN',
+    email: 'teste@example.test',
   });
-  prisma.comissao.findUnique.mockResolvedValue({
+  prisma.reuniao.findUnique.mockImplementation(async () => meeting);
+  prisma.comissao.findUnique.mockImplementation(async () => ({
     id: 4,
     organizacao: { status: 'ACEITA' },
-    equipe: [{ userId }],
+    equipe,
+  }));
+  prisma.$queryRaw.mockResolvedValue([{ id: reuniaoId }]);
+  // A fila representa a serialização do bloqueio da reunião; o teste MySQL verifica o bloqueio real.
+  let queue = Promise.resolve();
+  prisma.$transaction.mockImplementation((callback) => {
+    const pending = queue.then(() => callback(prisma));
+    queue = pending.catch(() => {});
+    return pending;
   });
-  prisma.reuniaoRegistro.findUnique.mockResolvedValue(null);
-  prisma.reuniaoRegistro.create.mockResolvedValue(registro);
-  prisma.reuniaoRegistro.updateMany.mockResolvedValue({ count: 1 });
+  prisma.reuniaoRegistro.findUnique.mockImplementation(async () => persisted);
+  prisma.reuniaoRegistro.create.mockImplementation(async ({ data }) => {
+    persisted = { id: 12, saidaAt: null, ...data };
+    return persisted;
+  });
+  prisma.reuniaoRegistro.update.mockImplementation(async ({ data }) => {
+    persisted = { ...persisted, ...data };
+    return persisted;
+  });
+  prisma.reuniao.update.mockImplementation(async ({ data }) =>
+    Object.assign(meeting, data),
+  );
 });
 afterEach(() => {
   jest.useRealTimers();
   jest.restoreAllMocks();
 });
 
-describe('POST /api/reunioes/:id/entrar', () => {
-  test('usa o JWT e o horário do servidor, ignorando dados enviados no corpo', async () => {
-    const response = await post().send({
+describe('registro próprio de presença', () => {
+  test('usa identidade autenticada, código e horário do servidor', async () => {
+    const response = await call('entrar', {
+      codigoPresenca: '123456',
       userId: 999,
       entradaAt: '1999-01-01',
-      saidaAt: '1999-01-02',
     });
     expect(response.status).toBe(201);
-    expect(response.body).toMatchObject({
-      jaRegistrado: false,
-      registro: {
-        userId,
-        reuniaoId,
-        entradaAt: registro.entradaAt.toISOString(),
-        saidaAt: null,
-      },
-    });
-    expect(prisma.reuniaoRegistro.create).toHaveBeenCalledWith({
-      data: { reuniaoId, userId },
+    expect(response.body.registro).toMatchObject({
+      userId,
+      entradaAt: '2026-10-21T13:30:00.000Z',
+      origemEntrada: 'PROPRIO',
+      entradaManualPorId: null,
     });
   });
-
-  test('repetição retorna 200 e preserva o primeiro registro', async () => {
-    prisma.reuniaoRegistro.findUnique
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce(registro);
-    const first = await post();
-    const retry = await post();
-    expect(first.status).toBe(201);
-    expect(retry.status).toBe(200);
-    expect(retry.body.jaRegistrado).toBe(true);
-    expect(retry.body.message).toMatch(/já/);
-    expect(retry.body.registro).toEqual(first.body.registro);
-    expect(prisma.reuniaoRegistro.create).toHaveBeenCalledTimes(1);
-  });
-
-  test('duas requisições simultâneas retornam o mesmo registro com 201 e 200', async () => {
-    let reads = 0;
-    let persisted = null;
-    let release;
-    const barrier = new Promise((resolve) => {
-      release = resolve;
-    });
-    prisma.reuniaoRegistro.findUnique.mockImplementation(async () => {
-      if (reads < 2) {
-        reads += 1;
-        if (reads === 2) release();
-        await barrier;
-        return null;
-      }
-      return persisted;
-    });
-    prisma.reuniaoRegistro.create.mockImplementation(async () => {
-      if (persisted) throw duplicateError();
+  test.each(['entrar', 'sair'])(
+    '%s não permite registro antes do início, mesmo com presença antiga',
+    async (acao) => {
       persisted = registro;
-      return registro;
-    });
-    const responses = await Promise.all([post(), post()]);
-    expect(responses.map((r) => r.status).sort()).toEqual([200, 201]);
-    expect(responses[0].body.registro).toEqual(responses[1].body.registro);
-    expect(prisma.reuniaoRegistro.create).toHaveBeenCalledTimes(2);
-    expect(prisma.reuniaoRegistro.findUnique).toHaveBeenCalledTimes(3);
-  });
-
-  test.each(['REALIZADA', 'CANCELADA'])(
-    'preserva presença existente em reunião %s',
-    async (status) => {
-      prisma.reuniao.findUnique.mockResolvedValue({
-        comissaoId: 4,
-        status,
-        ...horarioReuniao,
-      });
-      const saidaAt = new Date('2026-10-21T16:00:00.000Z');
-      prisma.reuniaoRegistro.findUnique.mockResolvedValue({
-        ...registro,
-        saidaAt,
-      });
-      const response = await post();
-      expect(response.status).toBe(200);
-      expect(response.body.registro).toMatchObject({
-        entradaAt: registro.entradaAt.toISOString(),
-        saidaAt: saidaAt.toISOString(),
-      });
+      emUtc('2026-10-21T12:59:59Z');
+      const response = await call(acao);
+      expect(response.status).toBe(400);
+      expect(response.body.error).toMatch(/antes do início/);
+      expect(prisma.reuniaoRegistro.update).not.toHaveBeenCalled();
       expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
     },
   );
-
-  test.each(['REALIZADA', 'CANCELADA'])(
-    'recusa primeira entrada em reunião %s',
-    async (status) => {
-      prisma.reuniao.findUnique.mockResolvedValue({
-        comissaoId: 4,
-        status,
-        ...horarioReuniao,
-      });
-      expect((await post()).status).toBe(409);
+  test('permite entrada exatamente no início', async () => {
+    emUtc('2026-10-21T13:00:00Z');
+    expect((await call('entrar')).status).toBe(201);
+  });
+  test.each(['entrar', 'sair'])(
+    '%s valida código ausente, malformado e incorreto',
+    async (acao) => {
+      for (const body of [
+        {},
+        { codigoPresenca: 'abc' },
+        { codigoPresenca: '654321' },
+      ]) {
+        expect((await call(acao, body)).status).toBe(400);
+      }
       expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
+      expect(prisma.reuniaoRegistro.update).not.toHaveBeenCalled();
     },
   );
-
-  test('antes da abertura da entrada responde 409 com o horário', async () => {
-    emUtc('2026-10-21T12:44:59Z');
-    const response = await post();
-    expect(response.status).toBe(409);
-    expect(response.body.error).toBe(
-      'A entrada na reunião abre às 09:45 do dia 21/10/2026. A reunião começa às 10:00.',
-    );
-    expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
-  });
-
-  test('na abertura da entrada registra a presença', async () => {
-    emUtc('2026-10-21T12:45:00Z');
-    expect((await post()).status).toBe(201);
-  });
-
-  test('1 s antes do fim ainda registra a entrada', async () => {
-    emUtc('2026-10-21T13:59:59Z');
-    expect((await post()).status).toBe(201);
-  });
-
-  test('no fim da reunião recusa a entrada com 409', async () => {
-    emUtc('2026-10-21T14:00:00Z');
-    const response = await post();
-    expect(response.status).toBe(409);
-    expect(response.body.error).toBe(
-      'Esta reunião já terminou; não é possível registrar entrada.',
-    );
-    expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
-  });
-
-  test('repetição depois do fim devolve o primeiro registro', async () => {
-    emUtc('2026-10-21T18:00:00Z');
-    prisma.reuniaoRegistro.findUnique.mockResolvedValue(registro);
-    const response = await post();
+  test('saída exige entrada e preserva o horário inicial', async () => {
+    expect((await call('sair')).status).toBe(409);
+    persisted = registro;
+    const response = await call('sair');
     expect(response.status).toBe(200);
-    expect(response.body.jaRegistrado).toBe(true);
+    expect(response.body.registro).toMatchObject({
+      entradaAt: registro.entradaAt.toISOString(),
+      saidaAt: '2026-10-21T13:30:00.000Z',
+      origemSaida: 'PROPRIO',
+    });
   });
-
-  test('exige autenticação antes de consultar o banco', async () => {
+  test.each(['entrar', 'sair'])('%s simultâneo é idempotente', async (acao) => {
+    if (acao === 'sair') persisted = registro;
+    const responses = await Promise.all([call(acao), call(acao)]);
+    expect(responses.map((response) => response.status).sort()).toEqual(
+      acao === 'entrar' ? [200, 201] : [200, 200],
+    );
+    expect(responses[0].body.registro).toEqual(responses[1].body.registro);
+    expect(
+      prisma.reuniaoRegistro[acao === 'entrar' ? 'create' : 'update'],
+    ).toHaveBeenCalledTimes(1);
+  });
+  test('saída atrasada é permitida, nova entrada própria após término não', async () => {
+    emUtc('2026-10-21T16:00:00Z');
+    expect((await call('entrar')).status).toBe(409);
+    persisted = registro;
+    expect((await call('sair')).status).toBe(200);
+  });
+  test.each(['entrar', 'sair'])('reunião cancelada impede %s', async (acao) => {
+    meeting.status = 'CANCELADA';
+    persisted = registro;
+    expect((await call(acao)).status).toBe(409);
+  });
+  test('valida id, sessão, existência, vínculo e aceite', async () => {
+    expect((await call('entrar', {}, userId, 'abc')).status).toBe(400);
     expect((await request(app).post('/api/reunioes/31/entrar')).status).toBe(
       401,
     );
-    expect(prisma.reuniao.findUnique).not.toHaveBeenCalled();
+    equipe = [];
+    expect((await call('entrar')).status).toBe(403);
+    equipe = [{ userId, papel: 'MEMBRO' }];
+    meeting.convites = [];
+    expect((await call('entrar')).status).toBe(403);
+    meeting = null;
+    expect((await call('entrar')).status).toBe(404);
   });
-
-  test('recusa JWT inválido', async () => {
-    const response = await request(app)
-      .post('/api/reunioes/31/entrar')
-      .set('Authorization', 'Bearer invalido');
-    expect(response.status).toBe(401);
-    expect(prisma.reuniao.findUnique).not.toHaveBeenCalled();
-  });
-
-  test.each(['abc', '0', '-1', '1.5'])('recusa id inválido %s', async (id) => {
-    expect((await post(id)).status).toBe(400);
-    expect(prisma.reuniao.findUnique).not.toHaveBeenCalled();
-  });
-
-  test('retorna 404 para reunião inexistente', async () => {
-    prisma.reuniao.findUnique.mockResolvedValue(null);
-    expect((await post()).status).toBe(404);
-    expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
-  });
-
-  test('recusa não integrante mesmo se houver presença anterior', async () => {
-    prisma.comissao.findUnique.mockResolvedValue({
-      id: 4,
-      organizacao: { status: 'ACEITA' },
-      equipe: [],
-    });
-    prisma.reuniaoRegistro.findUnique.mockResolvedValue(registro);
-    expect((await post()).status).toBe(403);
-    expect(prisma.reuniaoRegistro.findUnique).not.toHaveBeenCalled();
-    expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
-  });
-
-  test('exige organização aprovada', async () => {
-    prisma.comissao.findUnique.mockResolvedValue({
-      id: 4,
-      organizacao: { status: 'PENDENTE' },
-      equipe: [{ userId }],
-    });
-    expect((await post()).status).toBe(409);
-    expect(prisma.reuniaoRegistro.create).not.toHaveBeenCalled();
-  });
-
-  test('não confirma presença quando a gravação falha', async () => {
-    jest.spyOn(console, 'error').mockImplementation(() => {});
-    prisma.reuniaoRegistro.create.mockRejectedValue(
-      new Error('Detalhe interno.'),
-    );
-    const response = await post();
-    expect(response.status).toBe(500);
-    expect(response.body).toEqual({
-      error: 'Erro interno. Tente novamente mais tarde.',
-    });
-  });
-
-  test('relança P2002 quando não há registro recuperável', async () => {
-    const error = duplicateError();
-    prisma.reuniaoRegistro.create.mockRejectedValue(error);
-    await expect(reuniaoService.checkIn(userId, reuniaoId)).rejects.toBe(error);
+  test('não acrescenta presenças depois de finalizar a ata', async () => {
+    meeting.ataExportadaAt = new Date();
+    expect((await call('entrar')).status).toBe(409);
+    expect((await call('participantes/7/entrar', {}, 8)).status).toBe(409);
   });
 });
 
-describe('POST /api/reunioes/:id/sair', () => {
-  test('usa o JWT e horário do servidor sem alterar a entrada', async () => {
-    const saidaAt = new Date('2026-10-21T16:00:00.000Z');
-    prisma.reuniaoRegistro.findUnique
-      .mockResolvedValueOnce(registro)
-      .mockResolvedValueOnce({ ...registro, saidaAt });
-    prisma.reuniaoRegistro.updateMany.mockImplementation(async ({ data }) => {
-      expect(data.saidaAt).toBeInstanceOf(Date);
-      expect(data.saidaAt).not.toEqual(new Date('1999-01-02'));
-      return { count: 1 };
-    });
-
-    const response = await postOut().send({
-      userId: 999,
-      entradaAt: '1999-01-01',
-      saidaAt: '1999-01-02',
-    });
-
-    expect(response.status).toBe(200);
-    expect(response.body).toMatchObject({
-      jaRegistrado: false,
-      registro: {
-        userId,
-        reuniaoId,
-        entradaAt: registro.entradaAt.toISOString(),
-        saidaAt: saidaAt.toISOString(),
-      },
-    });
-    expect(prisma.reuniaoRegistro.updateMany).toHaveBeenCalledWith({
-      where: { reuniaoId, userId, saidaAt: null },
-      data: { saidaAt: expect.any(Date) },
-    });
+describe('código e registro manual pelo administrador da comissão', () => {
+  test('administrador não usa registro manual para contornar a própria confirmação', async () => {
+    expect((await call('participantes/8/entrar', {}, 8)).status).toBe(403);
   });
-
-  test('repetição mantém o primeiro horário de saída', async () => {
-    const saidaAt = new Date('2026-10-21T16:00:00.000Z');
-    prisma.reuniaoRegistro.findUnique.mockResolvedValue({
-      ...registro,
-      saidaAt,
-    });
-
-    const response = await postOut();
-
-    expect(response.status).toBe(200);
-    expect(response.body.jaRegistrado).toBe(true);
-    expect(response.body.registro).toMatchObject({
-      entradaAt: registro.entradaAt.toISOString(),
-      saidaAt: saidaAt.toISOString(),
-    });
-    expect(prisma.reuniaoRegistro.updateMany).not.toHaveBeenCalled();
+  test('somente administrador da comissão visualiza e renova código', async () => {
+    for (const actor of [7, 8]) {
+      const response = await request(app)
+        .get('/api/reunioes/31/codigo-presenca')
+        .set('Authorization', `Bearer ${tokenDe(actor)}`);
+      expect(response.status).toBe(actor === 8 ? 200 : 403);
+      if (actor === 7)
+        expect(JSON.stringify(response.body)).not.toContain('123456');
+    }
+    expect((await call('codigo-presenca', {})).status).toBe(403);
+    const renewed = await call('codigo-presenca', {}, 8);
+    expect(renewed.status).toBe(200);
+    expect(renewed.body.codigoPresenca).toMatch(/^\d{6}$/);
+    expect(renewed.body.codigoPresenca).not.toBe('123456');
+    expect((await call('entrar')).status).toBe(400);
+    expect(
+      (await call('entrar', { codigoPresenca: renewed.body.codigoPresenca }))
+        .status,
+    ).toBe(201);
   });
-
-  test('não permite saída sem entrada registrada', async () => {
-    expect((await postOut()).status).toBe(409);
-    expect(prisma.reuniaoRegistro.updateMany).not.toHaveBeenCalled();
+  test('administrador registra entrada e saída sem PIN, com autoria e idempotência', async () => {
+    expect((await call('participantes/7/entrar', {}, 7)).status).toBe(403);
+    const entrada = await call('participantes/7/entrar', {}, 8);
+    expect(entrada.status).toBe(201);
+    expect(entrada.body.registro).toMatchObject({
+      userId: 7,
+      origemEntrada: 'MANUAL',
+      entradaManualPorId: 8,
+    });
+    expect(
+      (await call('participantes/7/entrar', {}, 8)).body.jaRegistrado,
+    ).toBe(true);
+    const saida = await call('participantes/7/sair', {}, 8);
+    expect(saida.status).toBe(200);
+    expect(saida.body.registro).toMatchObject({
+      origemSaida: 'MANUAL',
+      saidaManualPorId: 8,
+    });
+    expect((await call('participantes/7/sair', {}, 8)).body.jaRegistrado).toBe(
+      true,
+    );
+  });
+  test.each(['entrar', 'sair'])(
+    'registro manual %s respeita início e participante da comissão',
+    async (acao) => {
+      expect((await call(`participantes/99/${acao}`, {}, 8)).status).toBe(403);
+      emUtc('2026-10-21T12:59:59Z');
+      expect((await call(`participantes/7/${acao}`, {}, 8)).status).toBe(400);
+    },
+  );
+  test('não registra saída manual sem entrada e permite corrigir após término', async () => {
+    expect((await call('participantes/7/sair', {}, 8)).status).toBe(409);
+    emUtc('2026-10-21T16:00:00Z');
+    expect((await call('participantes/7/entrar', {}, 8)).status).toBe(201);
   });
 });
 
@@ -426,7 +344,7 @@ describe('presença ao recarregar reuniões', () => {
     // 12:45Z (15 min antes do início) até 14:30Z (30 min depois do fim).
     expect(comPresenca.estado).toBe('EM_ANDAMENTO');
     expect(comPresenca.janelaCheckIn).toEqual({
-      abre: '2026-10-21T12:45:00.000Z',
+      abre: '2026-10-21T13:00:00.000Z',
       fecha: '2026-10-21T14:30:00.000Z',
     });
     // a presença de cada participante sai junto dele, não numa lista solta.

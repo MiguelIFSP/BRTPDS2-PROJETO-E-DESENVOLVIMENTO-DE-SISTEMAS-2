@@ -26,3 +26,5 @@ export const ataVotoSchema = yup.object({
     .required('Escolha aprovar ou reprovar a ata.'),
   versaoAta: versaoRule(),
 });
+
+export const ataExportacaoSchema = yup.object({ versaoAta: versaoRule() });

@@ -52,6 +52,11 @@ enum StatusAtaVoto {
   REPROVADO // participante solicita revisão do conteúdo salvo
 }
 
+enum OrigemRegistroPresenca {
+  PROPRIO // participante confirmou a própria presença
+  MANUAL // administrador da comissão registrou por outra pessoa
+}
+
 // Tipo da votação, fixado na criação e nunca alterado.
 enum TipoVotacao {
   ABERTA // quem gere a reunião vê quem votou em quê
@@ -109,6 +114,8 @@ model User {
   votosAta         AtaVoto[]
   convitesReuniao  ConviteReuniao[]
   registrosReuniao ReuniaoRegistro[]
+  entradasManuais  ReuniaoRegistro[] @relation("EntradaManualAutor")
+  saidasManuais    ReuniaoRegistro[] @relation("SaidaManualAutor")
   notificacoes     Notificacao[]
   lembretes        LembreteEnviado[]
 }
@@ -233,6 +240,8 @@ model Reuniao {
   data               String // Data no formato AAAA-MM-DD para o contrato do app.
   horaInicio         String // Horário no formato HH:mm.
   horaFim            String // Horário no formato HH:mm.
+  // Consultado/renovado somente por administrador atual da comissão.
+  codigoPresenca     String?       @db.VarChar(6)
   // Endereço, link da chamada ou os dois (reunião híbrida), em texto livre.
   // Obrigatório na API; nulo só nas reuniões criadas antes do campo existir.
   local              String?       @db.VarChar(500)
@@ -296,11 +305,19 @@ model ConviteReuniao {
 
 // Uma presença por integrante; repetir a entrada preserva o primeiro horário.
 model ReuniaoRegistro {
-  id        Int       @id @default(autoincrement())
-  reuniaoId Int
-  userId    Int
-  entradaAt DateTime  @default(now())
-  saidaAt   DateTime?
+  id                 Int                     @id @default(autoincrement())
+  reuniaoId          Int
+  userId             Int
+  entradaAt          DateTime                @default(now())
+  saidaAt            DateTime?
+  origemEntrada      OrigemRegistroPresenca  @default(PROPRIO)
+  origemSaida        OrigemRegistroPresenca?
+  entradaManualPorId Int?
+  saidaManualPorId   Int?
+
+  // A origem permanece mesmo quando a conta de quem registrou é excluída.
+  entradaManualPor User? @relation("EntradaManualAutor", fields: [entradaManualPorId], references: [id], onDelete: SetNull)
+  saidaManualPor   User? @relation("SaidaManualAutor", fields: [saidaManualPorId], references: [id], onDelete: SetNull)
 
   reuniao Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)

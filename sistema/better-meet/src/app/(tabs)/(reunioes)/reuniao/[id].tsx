@@ -4,6 +4,11 @@ import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router';
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
 import { useShallow } from 'zustand/react/shallow';
 
+import CodigoPresencaCard from '@/components/CodigoPresencaCard';
+import PresencaManualActions from '@/components/PresencaManualActions';
+import { useRelogio } from '@/hooks/useRelogio';
+import { calcularJanelaCheckIn } from '@/utils/janelaCheckIn';
+
 import ConvitesSemAceite from '@/components/ConvitesSemAceite';
 import InfoRow from '@/components/InfoRow';
 import MembrosSelector, {
@@ -47,6 +52,7 @@ const STATUS_REUNIAO_UI = {
 // Aberta pela aba Reuniões, no mesmo modelo da tela da organização.
 export default function ReuniaoDetalheScreen() {
   const router = useRouter();
+  const agora = useRelogio();
   const { colors } = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const reuniaoId = Number(id);
@@ -156,6 +162,9 @@ export default function ReuniaoDetalheScreen() {
   const papelNaComissao = PAPEIS_COMISSAO.find(
     (papel) => papel === papelDoUsuario,
   );
+  const janela = reuniao ? calcularJanelaCheckIn(reuniao, agora) : null;
+  const canRegisterManual =
+    reuniao?.status !== 'CANCELADA' && janela?.estado !== 'antes';
   const quando = reuniao
     ? `${formatReuniaoDate(reuniao.data)} · ${reuniao.horaInicio} às ${reuniao.horaFim}`
     : '';
@@ -277,6 +286,10 @@ export default function ReuniaoDetalheScreen() {
         />
       </Card>
 
+      {token && reuniao.podeGerirPresenca ? (
+        <CodigoPresencaCard token={token} reuniaoId={reuniao.id} />
+      ) : null}
+
       <Card>
         <SectionLabel
           label="Participantes"
@@ -318,7 +331,24 @@ export default function ReuniaoDetalheScreen() {
                   ]}
                 >
                   {presence}
+                  {participante.registro?.origemEntrada === 'MANUAL'
+                    ? ' · Entrada manual'
+                    : ''}
+                  {participante.registro?.origemSaida === 'MANUAL'
+                    ? ' · Saída manual'
+                    : ''}
                 </Text>
+                {token &&
+                reuniao.podeGerirPresenca &&
+                participante.userId !== user?.id ? (
+                  <PresencaManualActions
+                    token={token}
+                    reuniaoId={reuniao.id}
+                    participante={participante}
+                    disabled={!canRegisterManual}
+                    onRegistered={reload}
+                  />
+                ) : null}
               </View>
             );
           })
@@ -345,8 +375,7 @@ export default function ReuniaoDetalheScreen() {
         ) : null}
       </Card>
 
-      {!isHistorical &&
-      token &&
+      {token &&
       (reuniao.status === 'AGENDADA' ||
         reuniao.meuRegistro ||
         user?.role === 'ADMIN' ||
@@ -364,7 +393,17 @@ export default function ReuniaoDetalheScreen() {
             status={reuniao.status}
             meuRegistro={reuniao.meuRegistro}
             horario={reuniao}
-            onRegistered={() => void reload()}
+            onRegistered={() => {
+              void reload().catch((error: unknown) => {
+                setFeedback({
+                  type: 'error',
+                  message: getErrorMessage(
+                    error,
+                    'Presença registrada, mas não foi possível atualizar a reunião. Abra a tela novamente.',
+                  ),
+                });
+              });
+            }}
           />
         </Card>
       ) : null}
@@ -446,6 +485,7 @@ const styles = StyleSheet.create({
   sectionTitle: { ...Typography.heading3 },
   hint: { ...Typography.bodySmall },
   participantRow: {
+    flexWrap: 'wrap',
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,

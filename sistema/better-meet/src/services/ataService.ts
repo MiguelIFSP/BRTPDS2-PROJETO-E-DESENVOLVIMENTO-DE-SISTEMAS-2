@@ -43,10 +43,11 @@ export const ataService = {
     });
   },
   // 409 se a ata ainda não foi aprovada pela maioria dos presentes.
-  exportar(token: string, reuniaoId: number) {
+  exportar(token: string, reuniaoId: number, versaoAta: number) {
     return apiRequest<Ata>(`/reunioes/${reuniaoId}/ata/exportar`, {
       method: 'POST',
       token,
+      body: { versaoAta },
       fallbackError: 'Não foi possível exportar a ata.',
     });
   },

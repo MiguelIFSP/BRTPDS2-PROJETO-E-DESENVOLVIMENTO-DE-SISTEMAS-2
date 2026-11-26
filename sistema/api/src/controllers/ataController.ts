@@ -1,6 +1,10 @@
 import type { Request, Response } from 'express';
 import type { AuthenticatedRequest } from '../middlewares/authMiddleware.ts';
-import { ataSchema, ataVotoSchema } from '../schemas/ataSchema.ts';
+import {
+  ataSchema,
+  ataVotoSchema,
+  ataExportacaoSchema,
+} from '../schemas/ataSchema.ts';
 import { ataService } from '../services/ataService.ts';
 import { parseId } from '../utils/parseId.ts';
 
@@ -26,12 +30,11 @@ export const ataController = {
   },
   async exportar(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
-    response.json(
-      await ataService.exportar(
-        userId,
-        parseId(request.params.id, 'da reunião'),
-      ),
-    );
+    const reuniaoId = parseId(request.params.id, 'da reunião');
+    const { versaoAta } = await ataExportacaoSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    response.json(await ataService.exportar(userId, reuniaoId, versaoAta));
   },
   async vote(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;

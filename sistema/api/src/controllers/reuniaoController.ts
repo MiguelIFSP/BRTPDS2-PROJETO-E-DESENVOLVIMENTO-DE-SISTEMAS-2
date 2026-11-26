@@ -8,6 +8,8 @@ import {
 } from '../schemas/reuniaoSchema.ts';
 import { reuniaoService } from '../services/reuniaoService.ts';
 import { parseId } from '../utils/parseId.ts';
+import { presencaSchema } from '../schemas/presencaSchema.ts';
+import { presencaService } from '../services/presencaService.ts';
 
 export const reuniaoController = {
   async listMine(request: Request, response: Response) {
@@ -19,7 +21,14 @@ export const reuniaoController = {
   async checkIn(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');
-    const result = await reuniaoService.checkIn(userId, reuniaoId);
+    const { codigoPresenca } = await presencaSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const result = await reuniaoService.checkIn(
+      userId,
+      reuniaoId,
+      codigoPresenca,
+    );
     response.status(result.jaRegistrado ? 200 : 201).json({
       ...result,
       message: result.jaRegistrado
@@ -31,7 +40,14 @@ export const reuniaoController = {
   async checkOut(request: Request, response: Response) {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');
-    const result = await reuniaoService.checkOut(userId, reuniaoId);
+    const { codigoPresenca } = await presencaSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const result = await reuniaoService.checkOut(
+      userId,
+      reuniaoId,
+      codigoPresenca,
+    );
     response.status(200).json({
       ...result,
       message: result.jaRegistrado
@@ -44,6 +60,47 @@ export const reuniaoController = {
     const { id: userId } = (request as AuthenticatedRequest).user;
     const convites = await reuniaoService.listPendingInvites(userId);
     response.status(200).json(convites);
+  },
+
+  async getCodigoPresenca(request: Request, response: Response) {
+    const { id } = (request as AuthenticatedRequest).user;
+    response.json(
+      await presencaService.getCode(
+        id,
+        parseId(request.params.id, 'da reunião'),
+      ),
+    );
+  },
+  async renewCodigoPresenca(request: Request, response: Response) {
+    const { id } = (request as AuthenticatedRequest).user;
+    response.json(
+      await presencaService.renewCode(
+        id,
+        parseId(request.params.id, 'da reunião'),
+      ),
+    );
+  },
+  async registerEntradaManual(request: Request, response: Response) {
+    const { id } = (request as AuthenticatedRequest).user;
+    const result = await presencaService.registerManual(
+      id,
+      parseId(request.params.id, 'da reunião'),
+      parseId(request.params.userId, 'do participante'),
+      'entrada',
+    );
+    response
+      .status(result.jaRegistrado ? 200 : 201)
+      .json({ ...result, message: 'Entrada registrada.' });
+  },
+  async registerSaidaManual(request: Request, response: Response) {
+    const { id } = (request as AuthenticatedRequest).user;
+    const result = await presencaService.registerManual(
+      id,
+      parseId(request.params.id, 'da reunião'),
+      parseId(request.params.userId, 'do participante'),
+      'saida',
+    );
+    response.json({ ...result, message: 'Saída registrada.' });
   },
 
   async getById(request: Request, response: Response) {

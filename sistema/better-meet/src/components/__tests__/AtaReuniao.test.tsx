@@ -4,7 +4,11 @@ import {
   useImperativeHandle as mockUseImperativeHandle,
   useState as mockUseState,
 } from 'react';
-import { Text as MockText, TextInput as MockTextInput } from 'react-native';
+import {
+  Platform,
+  Text as MockText,
+  TextInput as MockTextInput,
+} from 'react-native';
 import {
   act,
   fireEvent,
@@ -80,8 +84,8 @@ const initialAta: Ata = {
   votos: { aprovados: 0, reprovados: 0 },
   presentes: 3,
   aprovada: true,
-  exportada: true,
-  exportadaAt: '2026-11-11T15:00:00.000Z',
+  exportada: false,
+  exportadaAt: null,
   podeExportar: true,
 };
 const save = jest.spyOn(ataService, 'save');
@@ -121,10 +125,88 @@ beforeEach(() => {
 });
 
 describe('AtaReuniao', () => {
+  it('atualiza texto e votos enquanto a tela permanece aberta', async () => {
+    jest.useFakeTimers();
+    const latest = { ...initialAta, podeEditar: false, versaoAta: 2 };
+    const getAta = jest
+      .spyOn(ataService, 'getByReuniao')
+      .mockResolvedValue(latest);
+    const view = await show({
+      podeEditar: false,
+      conteudoAta: null,
+      podeVotar: false,
+    });
+    try {
+      await act(async () => {
+        jest.advanceTimersByTime(5000);
+      });
+      expect(getAta).toHaveBeenCalledWith('jwt', 31);
+      expect(updated).toHaveBeenCalledWith(latest);
+    } finally {
+      await view.unmount();
+      getAta.mockRestore();
+      jest.useRealTimers();
+    }
+  });
+  it('participante recebe texto atualizado e vota sem alteração local nem voto do presidente', async () => {
+    const ata = {
+      ...initialAta,
+      podeEditar: false,
+      conteudoAta: null,
+      podeVotar: false,
+      exportada: false,
+    };
+    const view = await render(
+      <AtaReuniao ata={ata} onUpdated={updated} onReload={reload} />,
+    );
+    await view.rerender(
+      <AtaReuniao
+        ata={{
+          ...ata,
+          conteudoAta: '<p>Texto salvo.</p>',
+          versaoAta: 2,
+          podeVotar: true,
+        }}
+        onUpdated={updated}
+        onReload={reload}
+      />,
+    );
+    expect(screen.getByLabelText('Aprovar')).not.toBeDisabled();
+    await fireEvent.press(screen.getByLabelText('Reprovar'));
+    expect(vote).toHaveBeenCalledWith('jwt', 31, 'REPROVADO', 2);
+  });
+  it('falha na geração de PDF não finaliza a ata', async () => {
+    exportPdf.mockRejectedValueOnce(new Error('Falha ao gerar PDF.'));
+    await show();
+    await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+    await fireEvent.press(
+      screen.getByLabelText('Exportar e tornar definitiva'),
+    );
+    expect(await screen.findByText('Falha ao gerar PDF.')).toBeTruthy();
+    expect(exportar).not.toHaveBeenCalled();
+  });
+  it('na web só finaliza após confirmação explícita de PDF salvo', async () => {
+    const platform = Platform.OS;
+    Platform.OS = 'web';
+    try {
+      await show();
+      await fireEvent.press(screen.getByLabelText('Exportar PDF'));
+      await fireEvent.press(
+        screen.getByLabelText('Exportar e tornar definitiva'),
+      );
+      expect(exportPdf).toHaveBeenCalledTimes(1);
+      expect(exportar).not.toHaveBeenCalled();
+      await fireEvent.press(screen.getByLabelText('PDF salvo: finalizar ata'));
+      expect(exportar).toHaveBeenCalledWith('jwt', 31, 1);
+    } finally {
+      Platform.OS = platform;
+    }
+  });
   it.each(['ADMINISTRADOR', 'SECRETARIO', 'FACILITADOR', 'MEMBRO'] as const)(
     '%s com acesso à leitura exporta a ata salva',
     async (papelNaComissao) => {
       await show({
+        exportada: true,
         papelNaComissao,
         podeEditar: ['ADMINISTRADOR', 'SECRETARIO'].includes(papelNaComissao),
       });
@@ -152,7 +234,7 @@ describe('AtaReuniao', () => {
     expect(screen.getByText(/1 aprovações de 3 presentes/)).toBeTruthy();
     expect(exportar).not.toHaveBeenCalled();
   });
-  it('confirma, exporta e só depois gera o PDF quando a ata foi aprovada', async () => {
+  it('confirma, gera o PDF e só depois finaliza no servidor quando a ata foi aprovada', async () => {
     await show({ exportada: false, exportadaAt: null });
     await fireEvent.press(screen.getByLabelText('Exportar PDF'));
     expect(exportar).not.toHaveBeenCalled();
@@ -160,14 +242,19 @@ describe('AtaReuniao', () => {
       screen.getByLabelText('Exportar e tornar definitiva'),
     );
     await waitFor(() => expect(exportPdf).toHaveBeenCalledTimes(1));
-    expect(exportar).toHaveBeenCalledWith('jwt', 31);
+    expect(exportar).toHaveBeenCalledWith('jwt', 31, 1);
+    expect(exportPdf.mock.invocationCallOrder[0]).toBeLessThan(
+      exportar.mock.invocationCallOrder[0]!,
+    );
     expect(updated).toHaveBeenCalledWith(
       expect.objectContaining({ exportada: true }),
     );
   });
   it('mostra a aprovação como definitiva e sem voto depois de exportada', async () => {
-    await show({ podeVotar: false, podeEditar: false });
-    expect(screen.getByText('Aprovação definitiva')).toBeTruthy();
+    await show({ exportada: true, podeVotar: false, podeEditar: false });
+    expect(
+      screen.getByText('Ata finalizada e exportada — votação encerrada'),
+    ).toBeTruthy();
     expect(screen.getByText(/aprovação é definitiva/)).toBeTruthy();
     expect(screen.getByLabelText('Aprovar')).toBeDisabled();
   });
@@ -196,9 +283,9 @@ describe('AtaReuniao', () => {
     expect(
       await screen.findByText('A ata ainda não foi aprovada.'),
     ).toBeTruthy();
-    expect(exportPdf).not.toHaveBeenCalled();
+    expect(exportPdf).toHaveBeenCalledTimes(1);
   });
-  it('exporta o conteúdo salvo e informa que o rascunho não será incluído', async () => {
+  it('bloqueia exportação com alterações não salvas', async () => {
     await show();
     await fireEvent.changeText(
       screen.getByLabelText('Conteúdo da ata'),
@@ -206,11 +293,8 @@ describe('AtaReuniao', () => {
     );
     expect(screen.getByText(/O PDF usa a versão salva/)).toBeTruthy();
     await fireEvent.press(screen.getByLabelText('Exportar PDF'));
-    await waitFor(() =>
-      expect(exportPdf).toHaveBeenCalledWith(
-        expect.objectContaining({ conteudoAta: initialAta.conteudoAta }),
-      ),
-    );
+    expect(screen.getByLabelText('Exportar PDF')).toBeDisabled();
+    expect(exportPdf).not.toHaveBeenCalled();
     expect(save).not.toHaveBeenCalled();
   });
   it('não exporta antes de existir ata salva', async () => {
@@ -226,7 +310,7 @@ describe('AtaReuniao', () => {
           complete = resolve;
         }),
     );
-    await show();
+    await show({ exportada: true });
     await fireEvent.press(screen.getByLabelText('Exportar PDF'));
     await fireEvent.press(screen.getByLabelText('Exportar PDF'));
     expect(screen.getByText('Gerando PDF...')).toBeTruthy();
@@ -238,7 +322,7 @@ describe('AtaReuniao', () => {
   });
   it('exibe o erro e permite tentar exportar novamente', async () => {
     exportPdf.mockRejectedValueOnce(new Error('Não foi possível gerar o PDF.'));
-    await show();
+    await show({ exportada: true });
     await fireEvent.press(screen.getByLabelText('Exportar PDF'));
     expect(
       await screen.findByText('Não foi possível gerar o PDF.'),

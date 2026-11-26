@@ -13,6 +13,7 @@ const prisma = {
     upsert: jest.fn(),
   },
   $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
 };
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
@@ -52,6 +53,7 @@ const vote = (body = {}) =>
 
 beforeEach(() => {
   jest.resetAllMocks();
+  prisma.$queryRaw.mockResolvedValue([{ id: 31 }]);
   papel = 'SECRETARIO';
   presente = true;
   reuniao = {
@@ -373,6 +375,13 @@ describe('conteúdo e votação', () => {
 });
 
 describe('aprovação por maioria simples dos presentes e exportação', () => {
+  test('exportação exige a versão exata do arquivo gerado', async () => {
+    expect((await call('post', '/exportar')).status).toBe(400);
+    expect(
+      (await call('post', '/exportar').send({ versaoAta: 0 })).status,
+    ).toBe(409);
+    expect(prisma.reuniao.updateMany).not.toHaveBeenCalled();
+  });
   const votar = (...status) => {
     votos = status.map((s, indice) => ({
       userId: 20 + indice,
@@ -381,12 +390,16 @@ describe('aprovação por maioria simples dos presentes e exportação', () => {
     }));
   };
 
-  test('integrante que não é presidente vota e o voto vale', async () => {
-    papel = 'MEMBRO';
-    const response = await vote();
-    expect(response.status).toBe(200);
-    expect(response.body.meuVoto).toBe('APROVADO');
-  });
+  test.each(['APROVADO', 'REPROVADO'])(
+    'integrante vota %s antes de qualquer voto do presidente',
+    async (status) => {
+      papel = 'MEMBRO';
+      expect(votos).toHaveLength(0);
+      const response = await vote({ status });
+      expect(response.status).toBe(200);
+      expect(response.body.meuVoto).toBe(status);
+    },
+  );
 
   test.each([
     [4, ['APROVADO', 'APROVADO'], false],
@@ -411,7 +424,9 @@ describe('aprovação por maioria simples dos presentes e exportação', () => {
 
   test('exportar antes da aprovação responde 409 e não grava', async () => {
     votar('APROVADO', 'REPROVADO');
-    const response = await call('post', '/exportar');
+    const response = await call('post', '/exportar').send({
+      versaoAta: reuniao.versaoAta,
+    });
     expect(response.status).toBe(409);
     expect(response.body.error).toBe(
       'A ata só pode ser exportada depois de aprovada.',
@@ -421,21 +436,25 @@ describe('aprovação por maioria simples dos presentes e exportação', () => {
 
   test('exportar ata aprovada grava a versão e é idempotente', async () => {
     votar('APROVADO', 'APROVADO', 'APROVADO');
-    const primeira = await call('post', '/exportar');
+    const primeira = await call('post', '/exportar').send({
+      versaoAta: reuniao.versaoAta,
+    });
     expect(primeira.status).toBe(200);
     expect(primeira.body).toMatchObject({ exportada: true, podeEditar: false });
     expect(prisma.reuniao.updateMany).toHaveBeenCalledWith({
       where: { id: 31, versaoAta: 1, ataExportadaAt: null },
       data: { ataExportadaAt: expect.any(Date), ataVersaoExportada: 1 },
     });
-    const segunda = await call('post', '/exportar');
+    const segunda = await call('post', '/exportar').send({
+      versaoAta: reuniao.versaoAta,
+    });
     expect(segunda.status).toBe(200);
     expect(prisma.reuniao.updateMany).toHaveBeenCalledTimes(1);
   });
 
   test('depois da exportação editar e votar respondem 409', async () => {
     votar('APROVADO', 'APROVADO', 'APROVADO');
-    await call('post', '/exportar');
+    await call('post', '/exportar').send({ versaoAta: reuniao.versaoAta });
     const edicao = await save();
     expect(edicao.status).toBe(409);
     expect(edicao.body.error).toBe(
@@ -448,7 +467,10 @@ describe('aprovação por maioria simples dos presentes e exportação', () => {
   test('ausente não exporta', async () => {
     presente = false;
     votar('APROVADO', 'APROVADO', 'APROVADO');
-    expect((await call('post', '/exportar')).status).toBe(403);
+    expect(
+      (await call('post', '/exportar').send({ versaoAta: reuniao.versaoAta }))
+        .status,
+    ).toBe(403);
   });
 
   test('editar apaga os votos da versão anterior e a aprovação some', async () => {

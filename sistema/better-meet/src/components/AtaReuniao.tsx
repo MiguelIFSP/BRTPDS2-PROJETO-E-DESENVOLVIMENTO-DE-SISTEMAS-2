@@ -1,6 +1,6 @@
-import { useRef, useState } from 'react';
-import { usePreventRemove } from 'expo-router';
-import { StyleSheet, Text, View } from 'react-native';
+import { useCallback, useRef, useState } from 'react';
+import { useFocusEffect, usePreventRemove } from 'expo-router';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 
 import AtaEditor from '@/components/ata/AtaEditor';
 import type { AtaEditorHandle } from '@/components/ata/AtaEditor.types';
@@ -34,7 +34,10 @@ export default function AtaReuniao({
 }) {
   const { colors } = useTheme();
   const token = useAuthStore((state) => state.token);
-  const [html, setHtml] = useState(ata.conteudoAta ?? '');
+  const [draft, setDraft] = useState<{ html: string; versao: number } | null>(
+    null,
+  );
+  const [pendingExport, setPendingExport] = useState<Ata | null>(null);
   const [busy, setBusy] = useState(false);
   const [isExportingPdf, setIsExportingPdf] = useState(false);
   const exportInProgress = useRef(false);
@@ -46,8 +49,38 @@ export default function AtaReuniao({
   const [discarded, setDiscarded] = useState(false);
   const [feedback, setFeedback] = useFeedback();
   const editor = useRef<AtaEditorHandle>(null);
-  const dirty = html !== (ata.conteudoAta ?? '');
-  usePreventRemove(ata.podeEditar && dirty && !discarded, ({ repeat }) => {
+  const canEdit = ata.podeEditar && !ata.exportada;
+  const canVote = ata.podeVotar && !ata.exportada;
+  const dirty =
+    canEdit && draft !== null && draft.html !== (ata.conteudoAta ?? '');
+  const hasConflict =
+    conflict || (draft !== null && draft.versao !== ata.versaoAta);
+  useFocusEffect(
+    useCallback(() => {
+      let cancelled = false;
+      let loading = false;
+      const timer = setInterval(() => {
+        if (!token || busy || isExportingPdf || loading) return;
+        loading = true;
+        void ataService
+          .getByReuniao(token, ata.reuniaoId)
+          .then((latest) => {
+            if (!cancelled) onUpdated(latest);
+          })
+          .catch(() => {
+            /* Uma falha temporária não descarta o rascunho; a atualização manual permite tentar novamente. */
+          })
+          .finally(() => {
+            loading = false;
+          });
+      }, 5000);
+      return () => {
+        cancelled = true;
+        clearInterval(timer);
+      };
+    }, [token, ata.reuniaoId, onUpdated, busy, isExportingPdf]),
+  );
+  usePreventRemove(canEdit && dirty && !discarded, ({ repeat }) => {
     setPendingLeave(() => repeat);
   });
 
@@ -71,10 +104,10 @@ export default function AtaReuniao({
         token,
         ata.reuniaoId,
         content,
-        ata.versaoAta,
+        draft?.versao ?? ata.versaoAta,
       );
       setPendingHtml(null);
-      setHtml(saved.conteudoAta ?? '');
+      setDraft(null);
       onUpdated(saved);
       setFeedback({
         type: 'success',
@@ -120,31 +153,59 @@ export default function AtaReuniao({
     }
   };
 
-  const handleExportPdf = async () => {
-    if (exportInProgress.current || busy || !ata.conteudoAta) return;
+  const finalizeExport = async (versao: Ata) => {
+    if (!token) throw new Error('Entre novamente para finalizar a ata.');
+    const result = await ataService.exportar(
+      token,
+      versao.reuniaoId,
+      versao.versaoAta,
+    );
+    onUpdated(result);
+    setPendingExport(null);
+    setFeedback({
+      type: 'success',
+      message: 'Ata finalizada e exportada — votação encerrada.',
+    });
+  };
+  const confirmPrinted = async () => {
+    if (!pendingExport || exportInProgress.current) return;
     exportInProgress.current = true;
     setIsExportingPdf(true);
     try {
-      let versao = ata;
-      if (!ata.exportada) {
-        if (!token) return;
-        // Exportar grava a versão e torna a aprovação definitiva.
-        versao = await ataService.exportar(token, ata.reuniaoId);
-        onUpdated(versao);
-      }
+      await finalizeExport(pendingExport);
+    } catch (error) {
+      handleError(error);
+    } finally {
+      exportInProgress.current = false;
+      setIsExportingPdf(false);
+    }
+  };
+  const handleExportPdf = async () => {
+    if (
+      exportInProgress.current ||
+      busy ||
+      dirty ||
+      !ata.conteudoAta ||
+      (!ata.exportada && !ata.podeExportar)
+    )
+      return;
+    exportInProgress.current = true;
+    setIsExportingPdf(true);
+    try {
+      const versao = ata;
       await exportAtaPdf({
         titulo: versao.titulo,
         dataReuniao: versao.dataReuniao,
-        conteudoAta: versao.conteudoAta ?? ata.conteudoAta,
+        conteudoAta: versao.conteudoAta ?? '',
       });
+      if (!versao.exportada) {
+        // O navegador não informa se a impressão foi cancelada; o usuário confirma.
+        // No aparelho, a geração do arquivo precisa terminar antes de finalizar.
+        if (Platform.OS === 'web') setPendingExport(versao);
+        else await finalizeExport(versao);
+      }
     } catch (error) {
-      setFeedback({
-        type: 'error',
-        message: getErrorMessage(
-          error,
-          'Não foi possível exportar a ata para PDF.',
-        ),
-      });
+      handleError(error);
     } finally {
       exportInProgress.current = false;
       setIsExportingPdf(false);
@@ -155,17 +216,17 @@ export default function AtaReuniao({
     <View style={styles.container}>
       <FeedbackBanner feedback={feedback} />
       <Card>
-        <SectionLabel
-          label={ata.podeEditar ? 'Redigir ata' : 'Leitura da ata'}
-        />
-        {ata.podeEditar ? (
+        <SectionLabel label={canEdit ? 'Redigir ata' : 'Leitura da ata'} />
+        {canEdit ? (
           <>
             <AtaEditor
-              key={ata.versaoAta}
+              key={draft?.versao ?? ata.versaoAta}
               ref={editor}
-              initialHtml={ata.conteudoAta ?? ''}
-              onChange={setHtml}
-              disabled={busy || conflict}
+              initialHtml={draft?.html ?? ata.conteudoAta ?? ''}
+              onChange={(html) =>
+                setDraft({ html, versao: draft?.versao ?? ata.versaoAta })
+              }
+              disabled={busy || hasConflict || isExportingPdf}
             />
             <Text style={[styles.hint, { color: colors.textSecondary }]}>
               Ao salvar, o texto fica disponível para votação. Alterações no
@@ -174,7 +235,7 @@ export default function AtaReuniao({
             <Button
               label="Salvar"
               isLoading={busy}
-              disabled={!dirty || conflict}
+              disabled={!dirty || hasConflict || isExportingPdf}
               onPress={() => void prepareSave()}
             />
           </>
@@ -193,7 +254,10 @@ export default function AtaReuniao({
           isLoading={isExportingPdf}
           loadingLabel="Gerando PDF..."
           disabled={
-            busy || !ata.conteudoAta || (!ata.exportada && !ata.podeExportar)
+            busy ||
+            dirty ||
+            !ata.conteudoAta ||
+            (!ata.exportada && !ata.podeExportar)
           }
           accessibilityHint={
             ata.exportada || ata.podeExportar
@@ -210,7 +274,7 @@ export default function AtaReuniao({
             ({ata.votos.aprovados} aprovações de {ata.presentes} presentes).
           </Text>
         ) : null}
-        {ata.podeEditar && dirty && ata.conteudoAta ? (
+        {canEdit && dirty && ata.conteudoAta ? (
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
             O PDF usa a versão salva. Salve as alterações para incluí-las na
             exportação.
@@ -220,7 +284,11 @@ export default function AtaReuniao({
       <Card>
         <SectionLabel label="Votação da ata" />
         {ata.exportada ? (
-          <Badge label="Aprovação definitiva" tone="success" showDot />
+          <Badge
+            label="Ata finalizada e exportada — votação encerrada"
+            tone="success"
+            showDot
+          />
         ) : ata.aprovada ? (
           <Badge label="Aprovada pela maioria" tone="success" showDot />
         ) : null}
@@ -231,10 +299,10 @@ export default function AtaReuniao({
         {ata.meuVoto ? (
           <Text style={[styles.body, { color: colors.text }]}>
             Seu voto: {ata.meuVoto === 'APROVADO' ? 'Aprovado' : 'Reprovado'}.
-            Você pode alterá-lo.
+            {!ata.exportada ? ' Você pode alterá-lo.' : ''}
           </Text>
         ) : null}
-        {!ata.podeVotar || dirty ? (
+        {!canVote || dirty ? (
           <Text style={[styles.hint, { color: colors.textSecondary }]}>
             {ata.exportada
               ? 'A ata foi exportada e a aprovação é definitiva: não é mais possível votar ou alterar.'
@@ -248,10 +316,11 @@ export default function AtaReuniao({
             label="Aprovar"
             icon="checkmark-outline"
             disabled={
-              !ata.podeVotar ||
+              !canVote ||
               dirty ||
               busy ||
-              conflict ||
+              isExportingPdf ||
+              hasConflict ||
               ata.meuVoto === 'APROVADO'
             }
             onPress={() => void vote('APROVADO')}
@@ -261,10 +330,11 @@ export default function AtaReuniao({
             variant="secondary"
             icon="close-outline"
             disabled={
-              !ata.podeVotar ||
+              !canVote ||
               dirty ||
               busy ||
-              conflict ||
+              isExportingPdf ||
+              hasConflict ||
               ata.meuVoto === 'REPROVADO'
             }
             onPress={() => void vote('REPROVADO')}
@@ -276,6 +346,18 @@ export default function AtaReuniao({
         variant="tertiary"
         disabled={busy}
         onPress={() => (dirty ? setConfirmReload(true) : onReload())}
+      />
+      <ConfirmDialog
+        visible={pendingExport !== null}
+        title="Concluir exportação?"
+        message="Se você salvou ou imprimiu o PDF, confirme para finalizar esta versão e encerrar a votação. Se cancelou, volte sem finalizar."
+        variant="info"
+        confirmLabel="PDF salvo: finalizar ata"
+        isLoading={isExportingPdf}
+        onCancel={() => {
+          if (!exportInProgress.current) setPendingExport(null);
+        }}
+        onConfirm={() => void confirmPrinted()}
       />
       <ConfirmDialog
         visible={pendingHtml !== null}

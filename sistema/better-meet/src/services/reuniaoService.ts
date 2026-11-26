@@ -25,6 +25,10 @@ export type ReuniaoRegistro = {
   userId: number;
   entradaAt: string;
   saidaAt: string | null;
+  origemEntrada?: 'PROPRIO' | 'MANUAL';
+  origemSaida?: 'PROPRIO' | 'MANUAL' | null;
+  entradaManualPorId?: number | null;
+  saidaManualPorId?: number | null;
 };
 
 export type ReuniaoParticipante = {
@@ -63,6 +67,7 @@ export type Reuniao = {
   usuario?: string | null;
   estado?: EstadoReuniao;
   janelaCheckIn?: { abre: string; fecha: string };
+  podeGerirPresenca?: boolean;
   meuRegistro?: ReuniaoRegistro | null;
   participantes?: ReuniaoParticipante[];
   comissao?: { id: number; nome: string };
@@ -102,18 +107,20 @@ export type ReuniaoCreateInput = {
 };
 
 export const reuniaoService = {
-  checkIn(token: string, reuniaoId: number) {
+  checkIn(token: string, reuniaoId: number, codigoPresenca: string) {
     return apiRequest<EntradaReuniaoResponse>(`/reunioes/${reuniaoId}/entrar`, {
       method: 'POST',
       token,
+      body: { codigoPresenca },
       fallbackError: 'Não foi possível confirmar sua presença.',
     });
   },
 
-  checkOut(token: string, reuniaoId: number) {
+  checkOut(token: string, reuniaoId: number, codigoPresenca: string) {
     return apiRequest<SaidaReuniaoResponse>(`/reunioes/${reuniaoId}/sair`, {
       method: 'POST',
       token,
+      body: { codigoPresenca },
       fallbackError: 'Não foi possível registrar sua saída.',
     });
   },
@@ -123,6 +130,41 @@ export const reuniaoService = {
       token,
       fallbackError: 'Não foi possível carregar suas reuniões.',
     });
+  },
+
+  getCodigoPresenca(token: string, reuniaoId: number) {
+    return apiRequest<{ codigoPresenca: string | null }>(
+      `/reunioes/${reuniaoId}/codigo-presenca`,
+      {
+        token,
+        fallbackError: 'Não foi possível carregar o código de presença.',
+      },
+    );
+  },
+  renewCodigoPresenca(token: string, reuniaoId: number) {
+    return apiRequest<{ codigoPresenca: string }>(
+      `/reunioes/${reuniaoId}/codigo-presenca`,
+      {
+        token,
+        method: 'POST',
+        fallbackError: 'Não foi possível atualizar o código de presença.',
+      },
+    );
+  },
+  registerPresencaManual(
+    token: string,
+    reuniaoId: number,
+    userId: number,
+    acao: 'entrar' | 'sair',
+  ) {
+    return apiRequest<EntradaReuniaoResponse>(
+      `/reunioes/${reuniaoId}/participantes/${userId}/${acao}`,
+      {
+        token,
+        method: 'POST',
+        fallbackError: 'Não foi possível registrar a presença.',
+      },
+    );
   },
 
   getById(token: string, reuniaoId: number) {

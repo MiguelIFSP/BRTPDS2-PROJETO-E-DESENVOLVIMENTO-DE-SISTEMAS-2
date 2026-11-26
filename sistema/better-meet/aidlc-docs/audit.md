@@ -959,3 +959,81 @@ No momento, não vamos fazer código ou documentação, apenas ajustar esses arq
 **Context**: Fechamento da unidade.
 
 ---
+
+## Nova unidade — presenca-ata-final
+**Timestamp**: 2026-11-25T23:33:18Z
+**Context**: Workspace Detection e Requirements Analysis. O fluxo anterior refatoracao-ultima-entrega está encerrado desde 2026-11-21; este pedido inicia uma unidade própria, sem reutilizar aprovações antigas. Estado anterior preservado em construction/presenca-ata-final/estado-anterior.md.
+**User Input (texto integral)**:
+
+\### 1. Correções no Registro de Entrada (Check-in) e Saída (Check-out)\
+\
+1\. \*\*Bloqueio antes do início da reunião (Backend e Frontend):\*\*\
+&#x20;  \- \*\*Backend:\*\* Nas rotas de entrada e saída, valide se o horário atual do servidor (\`new Date()\`) é maior ou igual a \`reuniao.dataInicio\`. Se a reunião ainda não começou, bloqueie a operação retornando HTTP \`400\` ou \`403\` com mensagem clara (ex: \`"Não é possível registrar entrada/saída antes do início da reunião."\`). Garanta também que não seja possível registrar saída sem ter entrada prévia.\
+&#x20;  \- \*\*Frontend:\*\* Desabilite os botões de entrada e saída enquanto a reunião não tiver iniciado, exibindo um aviso visual claro com o horário de início.\
+\
+2\. \*\*Confirmação por Biometria (Frontend):\*\*\
+&#x20;  \- Utilize a biblioteca \`expo-local-authentication\` (verifique se já está no \`package.json\`; caso não esteja, adicione via padrão do Expo SDK 58).\
+&#x20;  \- Ao clicar em \*\*Entrar na Reunião\*\* ou \*\*Sair da Reunião\*\*, exija autenticação biométrica (impressão digital / Face ID) antes de disparar a requisição para a API.\
+&#x20;  \- \*\*Fallback seguro:\*\* Caso o dispositivo não possua biometria cadastrada (ou esteja rodando no Expo Web), permita o fallback nativo do aparelho (PIN/senha do dispositivo via \`disableDeviceFallback: false\`) ou um modal de confirmação explícita no Web, deixando essa regra clara no código.\
+\
+3\. \*\*Garantia de presença real na reunião (Código de Presença / PIN):\*\*\
+&#x20;  \- \*\*Banco de Dados (Prisma):\*\* Adicione um campo \`codigoPresenca\` (String, ex: 6 caracteres alfanuméricos ou 6 dígitos) no modelo \`Reuniao\` (gerado automaticamente na criação da reunião ou sob demanda pelo Presidente/Administrador da comissão).\
+&#x20;  \- \*\*Backend:\*\*\
+&#x20;    \- Exponha o \`codigoPresenca\` apenas para o \`ADMINISTRADOR\` da comissão na consulta da reunião (ou em rota dedicada para gerar/visualizar o código).\
+&#x20;    \- Nas rotas de entrada e saída feitas pelo próprio participante, exija o \`codigoPresenca\` no corpo da requisição e valide se confere com o da reunião (retornando HTTP \`400\` se for inválido).\
+&#x20;  \- \*\*Frontend:\*\*\
+&#x20;    \- Para o \`ADMINISTRADOR\` da comissão, exiba um card/modal na tela da reunião mostrando o \*\*Código de Presença\*\* atual (com botão de copiar/atualizar) para ele repassar aos participantes presentes.\
+&#x20;    \- Para o participante, ao clicar em Entrar ou Sair, solicite o Código de Presença (em um modal simples) + confirmação biométrica antes de enviar à API.\
+\
+4\. \*\*Registro manual de Entrada e Saída pelo Presidente (Administrador da comissão):\*\*\
+&#x20;  \- \*\*Regra de negócio:\*\* Se um participante esquecer de registrar entrada ou saída, o \`ADMINISTRADOR\` da comissão deve poder marcar manualmente por ele (sem exigir biometria/PIN do participante, apenas a validação de que a reunião já começou e que quem está solicitando é \`ADMINISTRADOR\` da comissão).\
+&#x20;  \- \*\*Banco de Dados:\*\* Se fizer sentido para auditoria, adicione campos opcionais em \`ReuniaoRegistro\` (ex: \`entradaManualPorId\` / \`saidaManualPorId\` ou \`origemRegistro\`) para distinguir registro próprio de registro feito pelo presidente.\
+&#x20;  \- \*\*Backend:\*\* Crie ou estenda os endpoints para permitir que o \`ADMINISTRADOR\` da comissão registre a entrada e a saída de um \`userId\` específico daquela comissão/reunião (respeitando as regras de idempotência e de horário de início).\
+&#x20;  \- \*\*Frontend:\*\* Na lista de participantes/presenças da reunião (visão do \`ADMINISTRADOR\` da comissão), adicione botões de ação rápida \*\*"Marcar Entrada"\*\* (para quem ainda não entrou) e \*\*"Marcar Saída"\*\* (para quem já entrou e não saiu), com feedback visual e atualização imediata da lista.\
+\
+\---\
+\
+\### 2. Correções no Módulo de Ata de Reunião\
+\
+1\. \*\*Corrigir bug da votação dependente do Presidente:\*\*\
+&#x20;  \- Inspecione o backend (\`ataService.ts\` / \`ataController.ts\` / middlewares) e o frontend (\`AtaReuniao.tsx\`) para identificar por que participantes só conseguiam votar após o presidente votar.\
+&#x20;  \- \*\*Correção:\*\* Assim que a ata estiver salva e disponível para votação, \*\*qualquer participante elegível\*\* (quem registrou presença na reunião) deve poder votar (Aprovar ou Reprovar) imediatamente, independentemente de o Presidente já ter votado ou não.\
+\
+2\. \*\*Bloquear exportação de PDF antes da aprovação da ata:\*\*\
+&#x20;  \- \*\*Regra de negócio:\*\* A ata só pode ser exportada/impressa em PDF depois de estar oficialmente \*\*APROVADA\*\* (conforme a regra de aprovação de votos já existente no projeto — verifique como o status de aprovação é calculado hoje e padronize entre backend e frontend).\
+&#x20;  \- \*\*Frontend:\*\* Desabilite ou oculte o botão \*\*"Exportar PDF"\*\* enquanto o status da ata não for \`APROVADA\`, exibindo uma mensagem informativa (ex: \`"A exportação em PDF será liberada após a aprovação da ata."\`).\
+&#x20;  \- \*\*Backend:\*\* Se houver rota de registro/geração de exportação, valide o status \`APROVADA\` no servidor também (retornando HTTP \`403\` ou \`409\` caso contrário).\
+\
+3\. \*\*Bloquear alteração de aprovação/reprovação após aprovação/exportação:\*\*\
+&#x20;  \- \*\*Banco de Dados (Prisma):\*\* Adicione um campo de controle em \`Reuniao\` (ex: \`ataExportadaEm DateTime?\` ou \`ataTravada Boolean @default(false)\`), ou utilize o estado definitivo de aprovação + registro de exportação.\
+&#x20;  \- \*\*Backend:\*\*\
+&#x20;    \- Crie um endpoint (ex: \`POST /reunioes/:id/ata/exportar\` ou marque automaticamente ao confirmar a exportação) que registra o timestamp de exportação/impressão da ata (apenas se ela já estiver aprovada).\
+&#x20;    \- Na rota \`POST /reunioes/:id/ata/votar\`, bloqueie qualquer tentativa de votar ou alterar um voto existente caso a ata já tenha sido \*\*exportada/impressa\*\* (ou já esteja finalizada/aprovada de forma definitiva), retornando HTTP \`409 Conflict\` com mensagem clara (ex: \`"Não é possível alterar o voto após a exportação/finalização da ata."\`).\
+&#x20;    \- Bloqueie também edições no texto da ata (\`PUT /reunioes/:id/ata\`) após a exportação/finalização para garantir integridade do documento impresso.\
+&#x20;  \- \*\*Frontend:\*\* Ao exportar o PDF com sucesso, notifique o backend para travar a ata/votos. Quando a ata estiver travada/exportada, desabilite os botões de \*\*Aprovar\*\*, \*\*Reprovar\*\* e \*\*Editar/Salvar\*\*, exibindo um badge claro (ex: \`"Ata finalizada e exportada — votação encerrada"\`).\
+\
+\---\
+\
+\### 3. Entregáveis Esperados\
+1\. Liste primeiro o diagnóstico exato do que encontrou no código (principalmente a causa raiz do bug de votação da ata).\
+2\. Aplique as alterações no \`schema.prisma\` (criando a respectiva migration), no Backend (\`sistema/api\`) e no Frontend (\`sistema/better-meet\`).\
+3\. Atualize ou adicione testes automatizados cobrindo essas novas regras (bloqueio antes do início, validação de código de presença, marcação manual pelo admin, votação independente do presidente, bloqueio de exportação antes de aprovar e bloqueio de voto após exportação).\
+4\. Ao final, informe quais pontos da documentação (RFs, RNFs, diagramas e casos de teste) precisarão ser atualizados para refletir essas mudanças.
+
+**AI Response / ação**: diagnóstico do código de presença e ata, leitura de regras e documentação do Expo SDK 58, requisitos PA-01 a PA-18 e matriz de regressão. Executadas apenas as suítes existentes de ata e presença: 96 testes da API e 39 do app passaram. Na API, configuração Jest em memória sem globalSetup de banco; nenhum banco consultado/migrado. A dependência de voto do presidente não foi reproduzida. Confirmados: tolerância de entrada de 15 min, ausência de validação temporal de saída, falta de PIN/biometria/marcação manual persistida, finalização anterior à geração do PDF e condições de escrita incompletas contra exportação concorrente. Nenhuma implementação alterada. Artefatos em inception/requirements/presenca-ata-final/diagnostico.md e requirements.md.
+**AI Prompt**: revisar diagnóstico e requisitos. Request Changes para ajustes ou Continue to Next Stage para aprovar a etapa. Aprovação necessária pela regra 86 de sistema/AGENTS.md e GT-05 do GUIA_DE_CODIFICACAO.md; implementação, migration e novos testes permanecem pendentes.
+
+---
+
+## Aprovação de requisitos e planejamento de User Stories — presenca-ata-final
+**Timestamp**: 2026-11-26T00:22:32Z
+**User Input**: "C**ontinue to Next Stage**  "
+**Context**: Aprovação de Requirements Analysis e início de User Stories, Parte 1. Data local: 25/11/2026, America/Sao_Paulo.
+**AI Response / ação**: requisitos marcados como aprovados; lida a regra inception/user-stories.md. Criados inception/plans/presenca-ata-final/user-stories-assessment.md e story-generation-plan.md. Plano propõe três papéis existentes e oito histórias por jornada, mapeando todos os requisitos PA-01 a PA-18. Não foram abertas novas perguntas, pois o escopo aprovado sustenta a proposta. Histórias e personas finais aguardam aprovação do plano conforme Parte 1, passo 13 da regra da etapa. Estado atualizado. Nenhum código, migration ou dependência alterado; nenhum teste reexecutado nesta etapa documental.
+**AI Prompt**: Plano de oito histórias preparado para revisão. Request Changes para ajustes ou Continue to Next Stage para aprovar o plano e gerar histórias/personas. A aprovação específica do plano é exigida por .aidlc-rule-details/inception/user-stories.md, Parte 1, passo 13: "Do not proceed until the user explicitly approves the story approach". A aprovação dos requisitos já foi registrada e não está sendo solicitada novamente.
+
+---
+
+## Execução direta das correções — 26/11/2026
+
+O usuário instruiu dispensar planos e corrigir o código, reiterando depois “pode continuar”. Foram implementados presença com horário/PIN/autenticação local, registro manual auditável e correções de atualização/finalização da ata. A validação técnica e a situação da migration estão no diagnóstico, seção 7. Sem novos checkpoints de aprovação, commit ou publicação.

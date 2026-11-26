@@ -2,7 +2,7 @@ import { instanteNoFuso, TZ_REUNIOES } from '@/utils/fusoReuniao';
 
 // Mesma margem da API (TOLERANCIA_ENTRADA_MIN). A decisão final é sempre da
 // API; o app só reflete para não mostrar um botão que seria recusado.
-export const TOLERANCIA_ENTRADA_MIN = 15;
+export const TOLERANCIA_ENTRADA_MIN = 0;
 
 export type EstadoJanelaCheckIn = 'antes' | 'aberta' | 'depois';
 
@@ -18,7 +18,7 @@ type ReuniaoComHorario = {
   horaFim: string;
 };
 
-/** A entrada abre 15 min antes do início e fecha no fim da reunião. */
+/** A entrada abre no início e fecha no fim da reunião. */
 export const calcularJanelaCheckIn = (
   reuniao: ReuniaoComHorario,
   agora = new Date(),

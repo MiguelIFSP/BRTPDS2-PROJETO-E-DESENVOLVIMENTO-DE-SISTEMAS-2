@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { requireAuth } from '../middlewares/authMiddleware.ts';
 import { reuniaoController } from '../controllers/reuniaoController.ts';
+import { criarLimite } from '../middlewares/rateLimitMiddleware.ts';
 
 const routes = Router();
+const limitePresenca = criarLimite(60, 20);
 
 routes.get('/reunioes/minhas', requireAuth, reuniaoController.listMine);
 routes.get(
@@ -19,8 +21,39 @@ routes.post(
   requireAuth,
   reuniaoController.inviteMembers,
 );
-routes.post('/reunioes/:id/entrar', requireAuth, reuniaoController.checkIn);
-routes.post('/reunioes/:id/sair', requireAuth, reuniaoController.checkOut);
+routes.post(
+  '/reunioes/:id/entrar',
+  requireAuth,
+  limitePresenca,
+  reuniaoController.checkIn,
+);
+routes.post(
+  '/reunioes/:id/sair',
+  requireAuth,
+  limitePresenca,
+  reuniaoController.checkOut,
+);
+routes.get(
+  '/reunioes/:id/codigo-presenca',
+  requireAuth,
+  reuniaoController.getCodigoPresenca,
+);
+routes.post(
+  '/reunioes/:id/codigo-presenca',
+  requireAuth,
+  limitePresenca,
+  reuniaoController.renewCodigoPresenca,
+);
+routes.post(
+  '/reunioes/:id/participantes/:userId/entrar',
+  requireAuth,
+  reuniaoController.registerEntradaManual,
+);
+routes.post(
+  '/reunioes/:id/participantes/:userId/sair',
+  requireAuth,
+  reuniaoController.registerSaidaManual,
+);
 routes.patch(
   '/reunioes/convites/:inviteId/responder',
   requireAuth,

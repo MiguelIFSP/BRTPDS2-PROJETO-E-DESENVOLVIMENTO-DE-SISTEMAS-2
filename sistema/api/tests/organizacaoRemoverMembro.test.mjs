@@ -16,6 +16,7 @@ const prisma = {
   conviteReuniao: { findMany: jest.fn(), deleteMany: jest.fn() },
   reuniao: { findUnique: jest.fn() },
   $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
 };
 jest.unstable_mockModule('../src/config/database.ts', () => ({
   default: prisma,
@@ -69,6 +70,7 @@ const vinculo = (comissaoId, equipe) => ({
 
 beforeEach(() => {
   jest.resetAllMocks();
+  prisma.$queryRaw.mockResolvedValue([{ id: 31 }]);
   prisma.user.findUnique.mockImplementation(async ({ where }) => ({
     role: 'USER',
     email: `usuario${where.id}@example.test`,
