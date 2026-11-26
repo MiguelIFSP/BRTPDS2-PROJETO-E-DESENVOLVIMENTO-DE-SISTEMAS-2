@@ -17,6 +17,9 @@ type ScreenProps = {
   toast?: ReactNode;
   refreshing?: boolean;
   onRefresh?: () => void;
+  // Muda quando o conteúdo troca de etapa, para a rolagem voltar ao topo.
+  // Só tem efeito em telas com hasForm.
+  scrollToTopKey?: string | number;
 };
 
 // Estrutura padrão de tela (UI-05): SafeAreaView → Header (opcional) → ScrollView com
@@ -28,6 +31,7 @@ export default function Screen({
   toast,
   refreshing = false,
   onRefresh,
+  scrollToTopKey,
 }: ScreenProps) {
   const { colors } = useTheme();
   const [isRefreshingInternally, setIsRefreshingInternally] = useState(false);
@@ -57,6 +61,7 @@ export default function Screen({
         <KeyboardAwareScrollView
           contentContainerStyle={styles.content}
           refreshControl={refreshControl}
+          scrollToTopKey={scrollToTopKey}
         >
           {children}
         </KeyboardAwareScrollView>

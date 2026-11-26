@@ -38,6 +38,7 @@ jest.mock('@/store/authStore', () => ({
 
 jest.spyOn(organizacaoService, 'listMine').mockResolvedValue([]);
 jest.spyOn(organizacaoService, 'listAll').mockResolvedValue([]);
+jest.spyOn(organizacaoService, 'listDisponiveis').mockResolvedValue([]);
 
 beforeEach(() => {
   mockBack.mockClear();

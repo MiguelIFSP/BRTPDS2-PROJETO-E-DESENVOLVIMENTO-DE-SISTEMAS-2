@@ -1,6 +1,7 @@
 import {
   PapelOrganizacao,
   StatusOrganizacao,
+  StatusPedidoAcesso,
   type Prisma,
   type Role,
 } from '@prisma/client';
@@ -262,6 +263,40 @@ const findWithMembros = async (organizacaoId: number) => {
   return organizacao;
 };
 
+const MENSAGEM_ANALISE_PEDIDO =
+  'Somente o criador ou o gerente pode analisar pedidos de acesso.';
+
+const pedidoResumoSelect = {
+  id: true,
+  organizacaoId: true,
+  userId: true,
+  status: true,
+  createdAt: true,
+  respondidoAt: true,
+  user: { select: { id: true, name: true, email: true } },
+} satisfies Prisma.PedidoAcessoOrganizacaoSelect;
+
+// criador e gerente. o admin da plataforma não analisa pedido de entrada
+// só por ser admin: precisa ter um desses papéis na organização.
+const assertPodeAnalisarPedido = (papel: PapelOrganizacao | undefined) => {
+  if (papel !== 'CRIADOR' && papel !== 'GERENTE') {
+    throw new AppError(403, MENSAGEM_ANALISE_PEDIDO);
+  }
+};
+
+const findAceitaParaAnalise = async (
+  organizacaoId: number,
+  actorId: number,
+) => {
+  const organizacao = await findWithMembros(organizacaoId);
+  if (organizacao.status !== 'ACEITA') {
+    throw new AppError(404, 'Organização aprovada não encontrada.');
+  }
+  const actor = organizacao.membros.find((membro) => membro.userId === actorId);
+  assertPodeAnalisarPedido(actor?.papel);
+  return organizacao;
+};
+
 // admin do sistema passa. usuario comum so se o papel dele estiver na lista.
 const assertCanManage = (
   actorRole: Role,
@@ -456,10 +491,22 @@ export const organizacaoService = {
     }
 
     try {
-      return await prisma.organizacaoMembro.create({
+      const membro = await prisma.organizacaoMembro.create({
         data: { organizacaoId, userId: user.id, papel: 'MEMBRO' },
         include: membroUserSelect,
       });
+      await prisma.pedidoAcessoOrganizacao.updateMany({
+        where: {
+          organizacaoId,
+          userId: user.id,
+          status: StatusPedidoAcesso.PENDENTE,
+        },
+        data: {
+          status: StatusPedidoAcesso.ACEITO,
+          respondidoAt: new Date(),
+        },
+      });
+      return membro;
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) {
         throw new AppError(409, 'Este usuário já é membro da organização.');
@@ -568,5 +615,135 @@ export const organizacaoService = {
         sucessoresComissao,
       ),
     );
+  },
+
+  // organizações aceitas das quais a pessoa ainda não participa, com o pedido
+  // dela se já houver. a busca por nome fica no app.
+  async listDisponiveis(userId: number) {
+    const organizacoes = await prisma.organizacao.findMany({
+      where: {
+        status: StatusOrganizacao.ACEITA,
+        membros: { none: { userId } },
+      },
+      orderBy: { nome: 'asc' },
+      select: {
+        id: true,
+        nome: true,
+        pedidosAcesso: {
+          where: { userId },
+          select: { status: true },
+        },
+      },
+    });
+    return organizacoes.map((organizacao) => ({
+      id: organizacao.id,
+      nome: organizacao.nome,
+      pedido: organizacao.pedidosAcesso[0]
+        ? { status: organizacao.pedidosAcesso[0].status }
+        : null,
+    }));
+  },
+
+  // cria o pedido ou reabre o recusado (e o aceito de quem foi removido).
+  async solicitarAcesso(organizacaoId: number, userId: number) {
+    const organizacao = await prisma.organizacao.findUnique({
+      where: { id: organizacaoId },
+      select: {
+        status: true,
+        membros: { where: { userId }, select: { userId: true } },
+        pedidosAcesso: {
+          where: { userId },
+          select: { id: true, status: true },
+        },
+      },
+    });
+    if (!organizacao || organizacao.status !== StatusOrganizacao.ACEITA) {
+      throw new AppError(404, 'Organização aprovada não encontrada.');
+    }
+    if (organizacao.membros.length > 0) {
+      throw new AppError(409, 'Você já é membro desta organização.');
+    }
+
+    const pedido = organizacao.pedidosAcesso[0];
+    if (pedido?.status === StatusPedidoAcesso.PENDENTE) {
+      throw new AppError(409, 'Você já solicitou acesso a esta organização.');
+    }
+
+    const dadosReabertura = {
+      status: StatusPedidoAcesso.PENDENTE,
+      respondidoAt: null,
+      createdAt: new Date(),
+    };
+    if (pedido) {
+      return prisma.pedidoAcessoOrganizacao.update({
+        where: { id: pedido.id },
+        data: dadosReabertura,
+        select: pedidoResumoSelect,
+      });
+    }
+
+    try {
+      return await prisma.pedidoAcessoOrganizacao.create({
+        data: { organizacaoId, userId },
+        select: pedidoResumoSelect,
+      });
+    } catch (error) {
+      if (isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) {
+        throw new AppError(409, 'Você já solicitou acesso a esta organização.');
+      }
+      throw error;
+    }
+  },
+
+  async listPedidos(organizacaoId: number, actorId: number) {
+    await findAceitaParaAnalise(organizacaoId, actorId);
+    return prisma.pedidoAcessoOrganizacao.findMany({
+      where: { organizacaoId, status: StatusPedidoAcesso.PENDENTE },
+      orderBy: { createdAt: 'asc' },
+      select: pedidoResumoSelect,
+    });
+  },
+
+  async responderPedido(
+    organizacaoId: number,
+    actorId: number,
+    solicitanteId: number,
+    status: StatusPedidoAcesso,
+  ) {
+    if (
+      status !== StatusPedidoAcesso.ACEITO &&
+      status !== StatusPedidoAcesso.RECUSADO
+    ) {
+      throw new AppError(400, 'Informe se o pedido foi aceito ou recusado.');
+    }
+    await findAceitaParaAnalise(organizacaoId, actorId);
+
+    return prisma.$transaction(async (transaction) => {
+      const pedido = await transaction.pedidoAcessoOrganizacao.findUnique({
+        where: {
+          organizacaoId_userId: { organizacaoId, userId: solicitanteId },
+        },
+        select: { id: true, status: true },
+      });
+      if (!pedido || pedido.status !== StatusPedidoAcesso.PENDENTE) {
+        throw new AppError(404, 'Pedido de acesso não encontrado.');
+      }
+
+      if (status === StatusPedidoAcesso.ACEITO) {
+        try {
+          await transaction.organizacaoMembro.create({
+            data: { organizacaoId, userId: solicitanteId, papel: 'MEMBRO' },
+          });
+        } catch (error) {
+          if (!isPrismaError(error, PRISMA_ERROR.UNIQUE_VIOLATION)) throw error;
+        }
+      }
+
+      return transaction.pedidoAcessoOrganizacao.update({
+        where: { id: pedido.id },
+        data: { status, respondidoAt: new Date() },
+        select: pedidoResumoSelect,
+      });
+    });
   },
 };

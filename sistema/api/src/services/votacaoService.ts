@@ -322,4 +322,44 @@ export const votacaoService = {
     }
     await prisma.votacao.delete({ where: { id: votacaoId } });
   },
+
+  // Placar oficial. Só depois do horário de fim: antes disso o número na tela
+  // é o parcial, quando a votação permite. Secreta nunca traz quem votou.
+  async relatorio(userId: number, role: Role, reuniaoId: number) {
+    const acesso = await acessoDaReuniao(userId, role, reuniaoId);
+    if (acesso.estado !== 'ENCERRADA') {
+      throw new AppError(
+        409,
+        'O relatório fica disponível quando a reunião termina.',
+      );
+    }
+    const reuniao = await prisma.reuniao.findUnique({
+      where: { id: reuniaoId },
+      select: {
+        id: true,
+        titulo: true,
+        data: true,
+        horaInicio: true,
+        horaFim: true,
+        comissao: { select: { nome: true } },
+      },
+    });
+    if (!reuniao) throw new AppError(404, 'Reunião não encontrada.');
+    const votacoes = await prisma.votacao.findMany({
+      where: { reuniaoId },
+      orderBy: { createdAt: 'asc' },
+      select: votacaoSelect,
+    });
+    return {
+      reuniao: {
+        id: reuniao.id,
+        titulo: reuniao.titulo,
+        comissao: reuniao.comissao.nome,
+        data: reuniao.data,
+        horaInicio: reuniao.horaInicio,
+        horaFim: reuniao.horaFim,
+      },
+      votacoes: votacoes.map((item) => apresentar(item, userId, acesso)),
+    };
+  },
 };

@@ -5,6 +5,8 @@ Revisão do app mobile (`sistema/better-meet`), da API de dados (`sistema/api`) 
 > **Versão analisada:** branch `development`, commit `e992493`. Linhas citadas valem para esse commit; confira antes de corrigir.
 >
 > **Situação (atualizada em 2026-11-21):** os onze itens foram tratados na refatoração da branch `feature/refatoracao-ultima-entrega` (base `aed2702`). Cada um está marcado como "corrigido na refatoração de 2026-11-21" e a correção já está commitada na branch, com os hashes indicados em cada item (conferidos com o git; o relatório em si foi commitado em `ad4dd58`). O que continua aberto está listado em "Pendências que continuam abertas", no fim deste arquivo.
+>
+> **Acréscimo de 2026-11-25:** o item 12 foi encontrado depois da revisão, no teste de login do app, e corrigido na unidade AI-DLC `correcao-origem-better-auth`, na mesma branch.
 
 ## Resumo por gravidade
 
@@ -21,6 +23,7 @@ Revisão do app mobile (`sistema/better-meet`), da API de dados (`sistema/api`) 
 | 9 | Baixa | API | Login pelo nome é ambíguo | Corrigido (U1) |
 | 10 | Baixa | API | Administrador padrão é promovido de novo a cada inicialização | Corrigido (U1) |
 | 11 | Baixa | Gestão (web) | Sem a monitoring, o painel não mostra os subsistemas | Corrigido (U4) |
+| 12 | Alta | App | Login no Android e no iOS recusado com 403 `MISSING_OR_NULL_ORIGIN` | Corrigido (correcao-origem-better-auth) |
 
 ---
 
@@ -156,6 +159,20 @@ Na exclusão completa, as reuniões das organizações apagadas somem em cascata
 **Direção da correção:** em `apiRequest`, quando a resposta for 401 de uma requisição com token, chamar `useAuthStore.getState().logout()`.
 
 O check-in antecipado do item 5 também precisa de ajuste no app.
+
+---
+
+### 12. Login no Android e no iOS recusado com 403 MISSING_OR_NULL_ORIGIN (alta)
+
+> **Situação: corrigido em 2026-11-25** (unidade AI-DLC `correcao-origem-better-auth`). O `apiRequest` aceita cabeçalhos extras, e o `authService` envia `expo-origin: bettermeet://` em todas as chamadas a `/api/auth/*`. Testes: `better-meet/src/services/__tests__/authService.test.ts` e `better-meet/src/utils/__tests__/apiClient.test.ts`. (commit: a registrar.)
+
+**Onde:** `sistema/better-meet/src/services/authService.ts` (função `authCall`) e `sistema/better-meet/src/utils/apiClient.ts` (função `apiRequest`).
+
+**O que acontece:** no aparelho, o primeiro login funciona, mas o segundo login, o "sair" e os reenvios de e-mail falham com "Não foi possível concluir a operação.". O terminal da API mostra `Erro do Better Auth sem tradução (status 403, código MISSING_OR_NULL_ORIGIN)`.
+
+**Causa:** o `fetch` do React Native guarda o cookie `better-auth.session_token` do login e o reenvia, mas não envia `Origin`. O Better Auth 1.7.27 recusa todo POST com cookie e sem origem. O plugin `expo()` da API troca a origem ausente pelo cabeçalho `expo-origin`, que o cliente Expo do Better Auth envia; o app usa o `apiRequest` no lugar desse cliente e não enviava o cabeçalho.
+
+**Correção:** enviar `expo-origin: bettermeet://` (já está no `trustedOrigins`) nas chamadas do app ao Better Auth. A proteção de origem e CSRF da API continua ligada, e a API não mudou.
 
 ---
 

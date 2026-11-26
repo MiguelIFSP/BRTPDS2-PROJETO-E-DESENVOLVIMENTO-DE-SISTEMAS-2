@@ -12,6 +12,12 @@ const AUTH_URL = `${API_URL}/auth`;
 const CALLBACK_EMAIL_CONFIRMADO = 'bettermeet://email-confirmado';
 const REDIRECT_REDEFINIR_SENHA = 'bettermeet://redefinir-senha';
 
+// No Android e no iOS, o fetch reenvia o cookie de sessão do Better Auth sem
+// Origin, e a API recusa com 403 MISSING_OR_NULL_ORIGIN. O plugin expo() da API
+// usa este cabeçalho como origem (bettermeet:// está no trustedOrigins), como faz
+// o cliente Expo do Better Auth. No web o navegador manda Origin e ele é ignorado.
+const CABECALHO_ORIGEM_EXPO = { 'expo-origin': 'bettermeet://' } as const;
+
 export type SessaoIniciada = {
   user: AuthUser;
   token: string;
@@ -87,6 +93,7 @@ async function authCall<T>(
       baseUrl: AUTH_URL,
       body,
       token,
+      headers: CABECALHO_ORIGEM_EXPO,
       fallbackError,
     });
   } catch (error) {

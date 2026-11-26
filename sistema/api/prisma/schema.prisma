@@ -28,6 +28,15 @@ enum StatusOrganizacao {
   RECUSADA
 }
 
+// Pedido para entrar numa organização já aceita. Quem analisa é o criador ou
+// o gerente. PENDENTE -> ACEITO ou RECUSADO. RECUSADO volta para PENDENTE
+// quando a pessoa solicita de novo. ACEITO de quem foi removido também volta.
+enum StatusPedidoAcesso {
+  PENDENTE
+  ACEITO
+  RECUSADO
+}
+
 enum PapelComissao {
   ADMINISTRADOR // controle total da comissão (pode excluir a comissão)
   FACILITADOR // pode gerenciar os membros e as pautas
@@ -60,6 +69,11 @@ enum TipoEventoPresenca {
 enum StatusAtaVoto {
   APROVADO // participante concorda com o conteúdo salvo
   REPROVADO // participante solicita revisão do conteúdo salvo
+}
+
+enum OrigemRegistroPresenca {
+  PROPRIO // participante confirmou a própria presença
+  MANUAL // administrador da comissão registrou por outra pessoa
 }
 
 // Tipo da votação, fixado na criação e nunca alterado.
@@ -119,12 +133,16 @@ model User {
   votosAta         AtaVoto[]
   convitesReuniao  ConviteReuniao[]
   registrosReuniao ReuniaoRegistro[]
+  entradasManuais  ReuniaoRegistro[] @relation("EntradaManualAutor")
+  saidasManuais    ReuniaoRegistro[] @relation("SaidaManualAutor")
   notificacoes     Notificacao[]
   lembretes        LembreteEnviado[]
-  presencasManuais ReuniaoPresenca[]       @relation("PresencaMarcadaPor")
+  presencasManuais            ReuniaoPresenca[]       @relation("PresencaMarcadaPor")
   eventosPresencaRegistrados ReuniaoEventoPresenca[] @relation("PresencaEventoRegistradaPor")
-  presencasReuniao ReuniaoPresenca[]
-  eventosPresenca ReuniaoEventoPresenca[]
+  presencasReuniao            ReuniaoPresenca[]
+  eventosPresenca             ReuniaoEventoPresenca[]
+  pedidosAcesso               PedidoAcessoOrganizacao[]
+  arquivosEnviados            ArquivoReuniao[]
 }
 
 model Organizacao {
@@ -133,8 +151,9 @@ model Organizacao {
   status    StatusOrganizacao @default(PENDENTE)
   createdAt DateTime          @default(now())
 
-  comissoes Comissao[]
-  membros   OrganizacaoMembro[]
+  comissoes     Comissao[]
+  membros       OrganizacaoMembro[]
+  pedidosAcesso PedidoAcessoOrganizacao[]
 }
 
 model OrganizacaoMembro {
@@ -146,6 +165,23 @@ model OrganizacaoMembro {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([organizacaoId, userId]) // o mesmo usuario nao entra duas vezes na mesma org
+}
+
+// Um pedido por pessoa e organização. A pessoa só vira membro no aceite.
+model PedidoAcessoOrganizacao {
+  id            Int                 @id @default(autoincrement())
+  organizacaoId Int
+  userId        Int
+  status        StatusPedidoAcesso  @default(PENDENTE)
+  createdAt     DateTime            @default(now())
+  respondidoAt  DateTime?
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizacaoId, userId])
+  @@index([userId])
+  @@index([organizacaoId, status])
 }
 
 // Só existe dentro de organização ACEITA, e só membros da organização entram
@@ -247,6 +283,8 @@ model Reuniao {
   data               String // Data no formato AAAA-MM-DD para o contrato do app.
   horaInicio         String // Horário no formato HH:mm.
   horaFim            String // Horário no formato HH:mm.
+  // Consultado/renovado somente por administrador atual da comissão.
+  codigoPresenca     String?       @db.VarChar(6)
   // Endereço, link da chamada ou os dois (reunião híbrida), em texto livre.
   // Obrigatório na API; nulo só nas reuniões criadas antes do campo existir.
   local              String?       @db.VarChar(500)
@@ -269,11 +307,29 @@ model Reuniao {
   votacoes  Votacao[]
   votosAta  AtaVoto[]
   presencasManuais ReuniaoPresenca[]
-  eventosPresenca ReuniaoEventoPresenca[]
+  eventosPresenca  ReuniaoEventoPresenca[]
+  arquivos         ArquivoReuniao[]
 
   @@index([comissaoId])
   @@index([criadoPorUserId])
   @@index([data])
+}
+
+// Arquivo da biblioteca da reunião. O nome original não entra no caminho do disco.
+model ArquivoReuniao {
+  id               Int      @id @default(autoincrement())
+  reuniaoId        Int
+  nomeOriginal     String   @db.VarChar(255)
+  nomeArmazenado   String   @unique @db.VarChar(36)
+  tamanhoBytes     Int
+  enviadoPorUserId Int?
+  createdAt        DateTime @default(now())
+
+  reuniao    Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  enviadoPor User?   @relation(fields: [enviadoPorUserId], references: [id], onDelete: SetNull)
+
+  @@index([reuniaoId])
+  @@index([enviadoPorUserId])
 }
 
 // Presença e cargo são conferidos na API. Alterar o texto invalida os votos.
@@ -312,11 +368,19 @@ model ConviteReuniao {
 
 // Uma presença por integrante; repetir a entrada preserva o primeiro horário.
 model ReuniaoRegistro {
-  id        Int       @id @default(autoincrement())
-  reuniaoId Int
-  userId    Int
-  entradaAt DateTime  @default(now())
-  saidaAt   DateTime?
+  id                 Int                     @id @default(autoincrement())
+  reuniaoId          Int
+  userId             Int
+  entradaAt          DateTime                @default(now())
+  saidaAt            DateTime?
+  origemEntrada      OrigemRegistroPresenca  @default(PROPRIO)
+  origemSaida        OrigemRegistroPresenca?
+  entradaManualPorId Int?
+  saidaManualPorId   Int?
+
+  // A origem permanece mesmo quando a conta de quem registrou é excluída.
+  entradaManualPor User? @relation("EntradaManualAutor", fields: [entradaManualPorId], references: [id], onDelete: SetNull)
+  saidaManualPor   User? @relation("SaidaManualAutor", fields: [saidaManualPorId], references: [id], onDelete: SetNull)
 
   reuniao Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
   user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)

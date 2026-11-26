@@ -6,247 +6,191 @@ import {
   it,
   jest,
 } from '@jest/globals';
-import { act, fireEvent, render, screen } from '@testing-library/react-native';
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react-native';
+import { useEffect as mockUseEffect } from 'react';
 
 import ReuniaoCheckIn from '@/components/ReuniaoCheckIn';
-import { monitoringService } from '@/services/monitoringService';
-import {
-  reuniaoService,
-  type EntradaReuniaoResponse,
-  type SaidaReuniaoResponse,
-} from '@/services/reuniaoService';
-import { ApiError } from '@/utils/apiClient';
+import { reuniaoService } from '@/services/reuniaoService';
+import { confirmPresencaLocal } from '@/utils/confirmPresencaLocal';
 
+jest.mock('@/utils/confirmPresencaLocal', () => ({
+  confirmPresencaLocal: jest.fn(),
+}));
+jest.mock('expo-router', () => ({
+  useFocusEffect: (callback: () => void) => mockUseEffect(callback, [callback]),
+}));
+const confirmLocal = jest.mocked(confirmPresencaLocal);
 const registro = {
   id: 12,
   reuniaoId: 31,
   userId: 7,
-  entradaAt: '2026-10-21T15:00:00.123Z',
+  entradaAt: '2026-06-15T13:00:00Z',
   saidaAt: null,
-};
-const response: EntradaReuniaoResponse = {
-  registro,
-  message: 'Presença confirmada.',
-  jaRegistrado: false,
-};
-const saidaResponse: SaidaReuniaoResponse = {
-  registro: { ...registro, saidaAt: '2026-10-21T16:00:00.000Z' },
-  message: 'Saída registrada.',
-  jaRegistrado: false,
 };
 const props = {
   reuniaoId: 31,
   token: 'jwt-teste',
   status: 'AGENDADA' as const,
+  horario: { data: '2026-06-15', horaInicio: '10:00', horaFim: '11:00' },
 };
 const checkIn = jest.spyOn(reuniaoService, 'checkIn');
 const checkOut = jest.spyOn(reuniaoService, 'checkOut');
-jest
-  .spyOn(monitoringService, 'reportRequestFailure')
-  .mockImplementation(() => {});
-
-beforeEach(() => {
-  checkIn.mockReset();
-  checkIn.mockResolvedValue(response);
-  checkOut.mockReset();
-  checkOut.mockResolvedValue(saidaResponse);
-});
-
-// 10:00 a 11:00 em São Paulo = 13:00 a 14:00 UTC; a entrada abre às 09:45.
-const horario = { data: '2026-06-15', horaInicio: '10:00', horaFim: '11:00' };
-const agoraEm = (iso: string) => {
-  jest.useFakeTimers({
-    doNotFake: [
-      'nextTick',
-      'setImmediate',
-      'clearImmediate',
-      'setInterval',
-      'clearInterval',
-      'setTimeout',
-      'clearTimeout',
-      'queueMicrotask',
-      'requestAnimationFrame',
-      'cancelAnimationFrame',
-      'performance',
-    ],
-    now: new Date(iso),
-  });
+const open = async (saida = false) => {
+  await fireEvent.press(
+    screen.getByLabelText(saida ? 'Registrar saída' : 'Entrar na Reunião'),
+  );
+  await fireEvent.changeText(
+    screen.getByLabelText('Código de Presença'),
+    '123456',
+  );
 };
-
-describe('ReuniaoCheckIn: janela de entrada', () => {
-  afterEach(() => {
-    jest.useRealTimers();
-  });
-
-  it('antes da abertura esconde o botão e mostra a hora em que a entrada abre', async () => {
-    agoraEm('2026-06-15T12:00:00Z');
-    await render(<ReuniaoCheckIn {...props} horario={horario} />);
-    expect(
-      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
-    ).toBeNull();
-    expect(screen.getByText('A entrada abre às 09:45.')).toBeOnTheScreen();
-  });
-
-  it('1 segundo antes da abertura ainda não mostra o botão', async () => {
-    agoraEm('2026-06-15T12:44:59Z');
-    await render(<ReuniaoCheckIn {...props} horario={horario} />);
-    expect(
-      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
-    ).toBeNull();
-  });
-
-  it('dentro da janela mostra o botão', async () => {
-    agoraEm('2026-06-15T12:45:00Z');
-    await render(<ReuniaoCheckIn {...props} horario={horario} />);
-    expect(
-      screen.getByRole('button', { name: 'Entrar na Reunião' }),
-    ).toBeOnTheScreen();
-  });
-
-  it('depois do fim esconde o botão e avisa que a entrada foi encerrada', async () => {
-    agoraEm('2026-06-15T14:00:00Z');
-    await render(<ReuniaoCheckIn {...props} horario={horario} />);
-    expect(
-      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
-    ).toBeNull();
-    expect(
-      screen.getByText('A entrada nesta reunião já foi encerrada.'),
-    ).toBeOnTheScreen();
-  });
-
-  it('exibe a mensagem do 409 quando a API recusa a entrada', async () => {
-    agoraEm('2026-06-15T13:30:00Z');
-    checkIn.mockRejectedValue(
-      new ApiError(
-        'Esta reunião já terminou; não é possível registrar entrada.',
-        409,
-      ),
-    );
-    await render(<ReuniaoCheckIn {...props} horario={horario} />);
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Entrar na Reunião' }),
-    );
-    expect(
-      await screen.findByText(
-        'Esta reunião já terminou; não é possível registrar entrada.',
-      ),
-    ).toBeOnTheScreen();
-  });
+beforeEach(() => {
+  jest.useFakeTimers({ now: new Date('2026-06-15T13:30:00Z') });
+  checkIn
+    .mockReset()
+    .mockResolvedValue({
+      registro,
+      message: 'Presença confirmada.',
+      jaRegistrado: false,
+    });
+  checkOut
+    .mockReset()
+    .mockResolvedValue({
+      registro: { ...registro, saidaAt: '2026-06-15T13:30:00Z' },
+      message: 'Saída registrada.',
+      jaRegistrado: false,
+    });
+  confirmLocal.mockReset().mockResolvedValue(true);
+});
+afterEach(() => {
+  jest.useRealTimers();
 });
 
 describe('ReuniaoCheckIn', () => {
   it.each([false, true])(
-    'confirma presença em resposta com jaRegistrado=%s',
-    async (jaRegistrado) => {
-      checkIn.mockResolvedValue({ ...response, jaRegistrado });
-      await render(<ReuniaoCheckIn {...props} />);
-      await fireEvent.press(
-        screen.getByRole('button', { name: 'Entrar na Reunião' }),
+    'bloqueia antes do início inclusive saída=%s, mostra horário e libera no início',
+    async (saida) => {
+      jest.setSystemTime(new Date('2026-06-15T12:59:59Z'));
+      await render(
+        <ReuniaoCheckIn {...props} meuRegistro={saida ? registro : null} />,
       );
-
-      expect(checkIn).toHaveBeenCalledWith('jwt-teste', 31);
-      expect(await screen.findByText('Presença ativa')).toBeOnTheScreen();
-      expect(
-        screen.queryByRole('button', { name: 'Entrar na Reunião' }),
-      ).toBeNull();
+      const label = saida ? 'Registrar saída' : 'Entrar na Reunião';
+      expect(screen.getByLabelText(label)).toBeDisabled();
+      expect(screen.getByText(/às 10:00 de 15\/06\/2026/)).toBeTruthy();
+      await act(() => jest.advanceTimersByTime(1000));
+      expect(screen.getByLabelText(label)).not.toBeDisabled();
     },
   );
-
-  it('mantém loading e impede outro envio enquanto aguarda a API', async () => {
-    let finish: (value: EntradaReuniaoResponse) => void = () => {};
-    checkIn.mockImplementation(
+  it.each([false, true])(
+    'pede PIN e autenticação antes da requisição, saída=%s',
+    async (saida) => {
+      const updated = jest.fn();
+      await render(
+        <ReuniaoCheckIn
+          {...props}
+          meuRegistro={saida ? registro : null}
+          onRegistered={updated}
+        />,
+      );
+      await open(saida);
+      expect(checkIn).not.toHaveBeenCalled();
+      expect(checkOut).not.toHaveBeenCalled();
+      expect(confirmLocal).not.toHaveBeenCalled();
+      await fireEvent.press(screen.getByLabelText('Confirmar presença'));
+      await waitFor(() =>
+        expect(saida ? checkOut : checkIn).toHaveBeenCalledWith(
+          'jwt-teste',
+          31,
+          '123456',
+        ),
+      );
+      expect(confirmLocal).toHaveBeenCalledWith(saida);
+      expect(confirmLocal.mock.invocationCallOrder[0]).toBeLessThan(
+        (saida ? checkOut : checkIn).mock.invocationCallOrder[0]!,
+      );
+      expect(updated).toHaveBeenCalledTimes(1);
+      expect(
+        screen.getByText(saida ? 'Saída registrada.' : 'Presença confirmada.'),
+      ).toBeTruthy();
+    },
+  );
+  it('não envia se a autenticação for cancelada', async () => {
+    confirmLocal.mockResolvedValue(false);
+    await render(<ReuniaoCheckIn {...props} />);
+    await open();
+    await fireEvent.press(screen.getByLabelText('Confirmar presença'));
+    expect(checkIn).not.toHaveBeenCalled();
+    expect(screen.getByLabelText('Confirmar presença')).not.toBeDisabled();
+  });
+  it('valida o PIN e remove o erro ao editar', async () => {
+    await render(<ReuniaoCheckIn {...props} />);
+    await open();
+    await fireEvent.changeText(
+      screen.getByLabelText('Código de Presença'),
+      '12',
+    );
+    await fireEvent.press(screen.getByLabelText('Confirmar presença'));
+    expect(confirmLocal).not.toHaveBeenCalled();
+    expect(screen.getByText(/seis dígitos/)).toBeTruthy();
+    await fireEvent.changeText(
+      screen.getByLabelText('Código de Presença'),
+      '123456',
+    );
+    expect(screen.queryByText(/seis dígitos/)).toBeNull();
+  });
+  it('informa erro da API e permite nova tentativa', async () => {
+    checkIn.mockRejectedValueOnce(new Error('Código de presença inválido.'));
+    await render(<ReuniaoCheckIn {...props} />);
+    await open();
+    await fireEvent.press(screen.getByLabelText('Confirmar presença'));
+    expect(
+      await screen.findByText('Código de presença inválido.'),
+    ).toBeTruthy();
+    await fireEvent.press(screen.getByLabelText('Confirmar presença'));
+    expect(checkIn).toHaveBeenCalledTimes(2);
+  });
+  it('impede chamadas duplicadas enquanto autentica', async () => {
+    let resolve: ((result: boolean) => void) | undefined;
+    confirmLocal.mockImplementation(
       () =>
-        new Promise((resolve) => {
-          finish = resolve;
+        new Promise<boolean>((done) => {
+          resolve = done;
         }),
     );
     await render(<ReuniaoCheckIn {...props} />);
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Entrar na Reunião' }),
-    );
-
-    const button = screen.getByRole('button', { name: 'Entrar na Reunião' });
-    expect(button).toBeDisabled();
-    expect(screen.getByText('Confirmando presença...')).toBeOnTheScreen();
-    await fireEvent.press(button);
-    expect(checkIn).toHaveBeenCalledTimes(1);
-
-    await act(() => {
-      finish(response);
+    await open();
+    await fireEvent.press(screen.getByLabelText('Confirmar presença'));
+    await fireEvent.press(screen.getByLabelText('Confirmar presença'));
+    expect(confirmLocal).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolve?.(true);
     });
-    expect(await screen.findByText('Presença ativa')).toBeOnTheScreen();
+    expect(checkIn).toHaveBeenCalledTimes(1);
   });
-
-  it('permite tentar novamente após falha sem confirmar presença antes do sucesso', async () => {
-    checkIn.mockRejectedValueOnce(new ApiError('Sem conexão.', 0));
-    await render(<ReuniaoCheckIn {...props} />);
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Entrar na Reunião' }),
+  it('permite saída atrasada, bloqueia entrada depois do fim e reunião cancelada', async () => {
+    jest.setSystemTime(new Date('2026-06-15T16:00:00Z'));
+    const view = await render(<ReuniaoCheckIn {...props} />);
+    expect(screen.getByLabelText('Entrar na Reunião')).toBeDisabled();
+    await view.rerender(<ReuniaoCheckIn {...props} meuRegistro={registro} />);
+    expect(screen.getByLabelText('Registrar saída')).not.toBeDisabled();
+    await view.rerender(
+      <ReuniaoCheckIn {...props} meuRegistro={registro} status="CANCELADA" />,
     );
-    expect(await screen.findByText('Sem conexão.')).toBeOnTheScreen();
-    expect(screen.queryByText('Presença ativa')).toBeNull();
-    expect(
-      screen.getByRole('button', { name: 'Entrar na Reunião' }),
-    ).not.toBeDisabled();
-
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Entrar na Reunião' }),
-    );
-    expect(await screen.findByText('Presença ativa')).toBeOnTheScreen();
-    expect(checkIn).toHaveBeenCalledTimes(2);
+    expect(screen.getByLabelText('Registrar saída')).toBeDisabled();
   });
-
-  it('recupera presença recebida do servidor ao reabrir a tela', async () => {
+  it('não oferece nova saída depois de registrada', async () => {
     await render(
-      <ReuniaoCheckIn {...props} status="REALIZADA" meuRegistro={registro} />,
+      <ReuniaoCheckIn
+        {...props}
+        meuRegistro={{ ...registro, saidaAt: '2026-06-15T13:30:00Z' }}
+      />,
     );
-    expect(screen.getByText('Presença ativa')).toBeOnTheScreen();
-    expect(
-      screen.getByRole('button', { name: 'Registrar saída' }),
-    ).toBeOnTheScreen();
-    expect(checkIn).not.toHaveBeenCalled();
+    expect(screen.queryByLabelText('Registrar saída')).toBeNull();
   });
-
-  it('registra a saída e substitui a presença ativa pelo estado encerrado', async () => {
-    await render(<ReuniaoCheckIn {...props} meuRegistro={registro} />);
-    await fireEvent.press(
-      screen.getByRole('button', { name: 'Registrar saída' }),
-    );
-
-    expect(checkOut).toHaveBeenCalledWith('jwt-teste', 31);
-    expect(await screen.findByText('Saída registrada')).toBeOnTheScreen();
-    expect(
-      screen.queryByRole('button', { name: 'Registrar saída' }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
-    ).toBeNull();
-  });
-
-  it('mostra estado encerrado recebido do servidor sem permitir reentrada', async () => {
-    await render(
-      <ReuniaoCheckIn {...props} meuRegistro={saidaResponse.registro} />,
-    );
-
-    expect(screen.getByText('Saída registrada')).toBeOnTheScreen();
-    expect(
-      screen.queryByRole('button', { name: 'Registrar saída' }),
-    ).toBeNull();
-    expect(
-      screen.queryByRole('button', { name: 'Entrar na Reunião' }),
-    ).toBeNull();
-    expect(checkIn).not.toHaveBeenCalled();
-    expect(checkOut).not.toHaveBeenCalled();
-  });
-
-  it.each(['REALIZADA', 'CANCELADA'] as const)(
-    'não oferece primeira entrada em reunião %s',
-    async (status) => {
-      await render(<ReuniaoCheckIn {...props} status={status} />);
-      expect(
-        screen.queryByRole('button', { name: 'Entrar na Reunião' }),
-      ).toBeNull();
-      expect(checkIn).not.toHaveBeenCalled();
-    },
-  );
 });

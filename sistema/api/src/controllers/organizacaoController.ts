@@ -5,6 +5,7 @@ import {
   organizacaoSchema,
   papelMembroSchema,
   remocaoMembroSchema,
+  respostaPedidoAcessoSchema,
   statusOrganizacaoSchema,
 } from '../schemas/organizacaoSchema.ts';
 import { organizacaoService } from '../services/organizacaoService.ts';
@@ -107,6 +108,48 @@ export const organizacaoController = {
       papel,
     );
     response.status(200).json(membro);
+  },
+
+  async listDisponiveis(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    const organizacoes = await organizacaoService.listDisponiveis(userId);
+    response.status(200).json(organizacoes);
+  },
+
+  async solicitarAcesso(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    const organizacaoId = parseId(request.params.id, 'da organização');
+    const pedido = await organizacaoService.solicitarAcesso(
+      organizacaoId,
+      userId,
+    );
+    response.status(201).json(pedido);
+  },
+
+  async listPedidos(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    const organizacaoId = parseId(request.params.id, 'da organização');
+    const pedidos = await organizacaoService.listPedidos(organizacaoId, userId);
+    response.status(200).json(pedidos);
+  },
+
+  async responderPedido(request: Request, response: Response) {
+    const { id: userId } = (request as AuthenticatedRequest).user;
+    const organizacaoId = parseId(request.params.id, 'da organização');
+    const solicitanteId = parseId(
+      request.params.userId,
+      'de quem pediu acesso',
+    );
+    const { status } = await respostaPedidoAcessoSchema.validate(request.body, {
+      stripUnknown: true,
+    });
+    const pedido = await organizacaoService.responderPedido(
+      organizacaoId,
+      userId,
+      solicitanteId,
+      status,
+    );
+    response.status(200).json(pedido);
   },
 
   async removeMember(request: Request, response: Response) {

@@ -60,6 +60,43 @@ describe('apiRequest', () => {
     );
   });
 
+  it('envia os cabeçalhos extras junto com token e JSON', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(200, {}));
+
+    await apiRequest('/x', {
+      method: 'POST',
+      token: 'abc',
+      body: {},
+      headers: { 'expo-origin': 'bettermeet://' },
+      fallbackError: 'Falhou.',
+    });
+
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(init.headers).toEqual({
+      'expo-origin': 'bettermeet://',
+      Authorization: 'Bearer abc',
+      'Content-Type': 'application/json',
+    });
+  });
+
+  it('cabeçalhos extras não trocam Authorization nem Content-Type', async () => {
+    mockFetch.mockResolvedValue(jsonResponse(200, {}));
+
+    await apiRequest('/x', {
+      method: 'POST',
+      token: 'abc',
+      body: {},
+      headers: { Authorization: 'Bearer outro', 'Content-Type': 'text/plain' },
+      fallbackError: 'Falhou.',
+    });
+
+    const init = mockFetch.mock.calls[0]?.[1] as RequestInit;
+    expect(init.headers).toEqual({
+      Authorization: 'Bearer abc',
+      'Content-Type': 'application/json',
+    });
+  });
+
   it('usa a mensagem de erro da API e guarda o status', async () => {
     mockFetch.mockResolvedValue(
       jsonResponse(409, { error: 'Este e-mail já está cadastrado.' }),

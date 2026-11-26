@@ -1,72 +1,64 @@
-- **Incremento:** Apresentação final (AF) — refatoração de código para a entrega de 2026-11-27
-- **Escopo:** corrigir bugs, débitos técnicos e pendências de padrão em api, better-meet, monitoring-better-meet e management-better-meet, seguindo os guias revisados.
-- **Branch:** feature/refatoracao-ultima-entrega
-- **Commit:** aed2702 (HEAD no início da unidade)
-- **Data de revisão:** 2026-11-20
-- **Responsável(eis):** [nome de quem revisa e aprova]
-- **Estado:** Concluída — Build and Test aprovado em 2026-11-21.
-- **Fontes:** [auditoria](audit.md); [RELATORIO_BUGS.md](../../../RELATORIO_BUGS.md); guias na raiz do repositório.
-
-# Estado AI-DLC — Refatoração para a última entrega
+﻿# Estado AI-DLC — Presença e ata da entrega final
 
 ## Project Information
 
-- **Project Type:** Brownfield; código em 4 subsistemas.
-- **Start Date:** 2026-11-20T16:35:32Z
-- **Current Stage:** CONSTRUCTION — Build and Test concluído; aguardando aprovação final.
-- **Request:** executar a refatoração para a última entrega, corrigindo bugs, débitos técnicos e pendências vistas nas alterações até agora, no fluxo médio do AI-DLC v1, com sub-agentes e o agente principal só como orquestrador. Sem commit, merge ou git de escrita; sem alterar a Wiki na origem (só `wiki-local`); docker e migrations do Prisma liberados. Texto completo no audit.md.
-- **Unidade:** refatoracao-ultima-entrega
-- **Profundidade:** padrão ("fluxo médio").
-- **AI-DLC Rules:** VERSION 1.0.1 (v1).
+- Project Type: Brownfield; API de dados e app Better Meet.
+- Start Date: 2026-11-25T23:33:18Z.
+- Current Stage: correções implementadas e verificadas; execução direta autorizada pelo usuário em substituição aos checkpoints.
+- Request: corrigir entrada/saída com horário, código de presença, biometria/fallback e registro manual; conferir voto da ata independente do presidente, aprovação e finalização/exportação, com migration e testes. Pedido completo em audit.md.
+- Unidade: presenca-ata-final.
+- Profundidade: padrão.
+- Branch observada: finalGu, por leitura de .git/HEAD; Git não disponível no PATH. Nenhuma operação de Git executada.
+- Fluxo anterior: refatoracao-ultima-entrega, concluído e aprovado em 2026-11-21. Estado preservado em construction/presenca-ata-final/estado-anterior.md. Aprovações e exclusões de escopo antigas não autorizam esta unidade.
 
-## Decisões do usuário (Requirements Analysis, por caixas de diálogo)
+## Project Standards
 
-| Tema | Decisão |
-|---|---|
-| Autenticação | Better Auth completo (hash scrypt, recuperação com token, e-mail confirmado, login social e biometria) |
-| Grupos de pendências | Bugs 1 a 11 do relatório; pendências de padrão P1 a P22; retornos funcionais Di2/Di3; proteção da API e interface (EX-19, UI-09) |
-| Verificações dos sub-agentes | `npm test`, lint e typecheck; sem servidores de desenvolvimento nem `expo export`; docker e migrations liberados |
-| Orquestração | Sub-agentes em paralelo onde forem independentes |
-| Autoria na exclusão de conta | SetNull e "usuário removido" |
-| Login social | Google |
-| Anexos (F37) e lista de presença com PDF (F40) | Fora desta entrega |
-
-## Restrições
-
-- Sem commit, merge, push, checkout ou qualquer git de escrita; só consulta.
-- Wiki de origem intocada; `wiki-local/` pode ser atualizada.
-- Sem iniciar `npm run dev/start` nem build (memória do projeto), salvo o que o usuário liberou acima.
+- ../../AGENTS.md (relativo a aidlc-docs): instruções de sistema, inclusive regras 83–90.
+- ../AGENTS.md: documentação exata do Expo SDK 58 antes de escrever código.
+- ../../../GUIA_DE_CODIFICACAO.md: guia da raiz do repositório; prevalece em divergências com resumos.
+- AI-DLC v1.0.1, regras locais em ../.aidlc-rule-details/.
+- Instruções específicas atuais de HTTP 400 antes do início e autenticação local para presença prevalecem sobre as regras gerais correspondentes.
 
 ## Extension Configuration
 
-| Extension | Enabled | Decided At |
+| Extension | Enabled | Fonte |
 |---|---|---|
-| Security Baseline | No | A reconfirmar nesta unidade, por tratar de código |
-| Resiliency Baseline | No | A reconfirmar |
-| Property-Based Testing | No | A reconfirmar |
+| Security Baseline | No | Estado padrão do projeto em GT-05; sem solicitação para ativar. |
+| Resiliency Baseline | No | Estado padrão do projeto em GT-05; sem solicitação para ativar. |
+| Property-Based Testing | No | Estado padrão do projeto em GT-05; sem solicitação para ativar. |
+
+As regras obrigatórias de segurança e testes do projeto continuam aplicáveis.
 
 ## Stage Progress
 
-- [x] Workspace Detection.
-- Reverse Engineering: artefatos existentes (2026-11-07) e defasados; a análise de cada subsistema pelos sub-agentes atualiza o necessário.
-- [x] Requirements Analysis: requirements.md com 85 requisitos (RF-R01 a RF-R85).
-- [x] Aprovação de Requirements Analysis: "Approve & Continue" em 2026-11-20.
-- [x] Workflow Planning: inception/plans/refatoracao-ultima-entrega-execution-plan.md
-- [x] Aprovação de Workflow Planning: "Approve & Continue" em 2026-11-20.
-- [x] Units Generation: inception/application-design/refatoracao-ultima-entrega/ (9 unidades, 85 requisitos).
-- [x] Aprovação de Units Generation: "Approve & Continue" em 2026-11-20.
-- [x] Functional Design (U1, U7, U8): construction/u1-..., u7-..., u8-.../functional-design/
-- [x] Aprovação do Functional Design: "Continue" em 2026-11-20.
-- [x] Code Generation, parte 1: planos U1 a U7 em construction/plans/ (U8 e U9 na onda 2).
-- [x] Aprovação dos planos da onda 1: "Approve & Continue" em 2026-11-21.
-- [x] Execução da onda 1: U1, U2 (fase 1), U3 (fase 1), U4 (fase 1), U5 (fase 1), U6 (fase 1) concluídas.
-- [x] U7 fase 1 concluída; planos de U8 e U9 prontos.
-- [x] Aprovação da onda 1 e da onda 2a em 2026-11-21.
-- [x] Onda 2a concluída: fases 2 de U2, U3, U4 e U7.
-- [x] Onda 2b concluída: U5 fase 2.
-- [x] Onda 2c concluída: U8.
-- [x] Onda 3 concluída: U9 e U6 fase 2.
-- [x] Aprovação da Code Generation: "Continue to Next Stage" para Build and Test (2026-11-21).
-- [x] Code Generation (planos por subsistema, aprovação, execução, aprovação).
-- [x] Build and Test concluído em 2026-11-21: 107 suítes, 1018 testes, lint e typecheck verdes; resumo em construction/build-and-test/refatoracao-ultima-entrega-build-and-test-summary.md.
-- [x] Aprovação final: "Approve & Close" em 2026-11-21.
+- [x] Workspace Detection: projeto existente; nova unidade porque a anterior já foi encerrada.
+- [x] Contexto de Reverse Engineering: artefatos existentes lidos e trechos relevantes conferidos no código; diagnóstico específico no documento abaixo. Sem reescrever artefatos antigos.
+- [x] Requirements Analysis: diagnóstico, critérios e matriz mínima de regressão escritos.
+- [x] Aprovação de Requirements Analysis: usuário respondeu “C**ontinue to Next Stage**” em interação registrada em 2026-11-26T00:22:32Z (25/11 no fuso local).
+- [x] User Stories, Parte 1: avaliação e plano de oito histórias com cobertura PA-01 a PA-18.
+- [ ] Aprovação do plano de geração de User Stories (passo 13 da regra da etapa).
+- [ ] User Stories, Parte 2: histórias, personas e aprovação dos artefatos.
+- [ ] Workflow Planning e aprovação.
+- [ ] Desenho necessário de dados, concorrência e fluxo de exportação/fallback, conforme planejamento.
+- [ ] Code Generation, parte 1: plano e aprovação.
+- [ ] Code Generation, parte 2: schema/migration, API, app, testes e contratos.
+- [ ] Build and Test e aprovação.
+
+## Artefatos para revisão
+
+- inception/plans/presenca-ata-final/user-stories-assessment.md
+- inception/plans/presenca-ata-final/story-generation-plan.md
+
+Diagnóstico e requisitos em inception/requirements/presenca-ata-final/ já revisados pelo usuário.
+
+## Evidência desta etapa
+
+- API: 2 suítes, 96 testes aprovados; Prisma/autenticação simulados. Global setup de banco desativado apenas em memória nesta execução.
+- App: 2 suítes, 39 testes aprovados.
+- Voto dependente do presidente: não reproduzido na versão atual; primeiro voto de membro já passa. Não atribuir causa raiz sem reprodução.
+- Confirmados: entrada abre 15 min antes; saída não valida início; ausência de PIN/biometria/registro manual persistido; trava anterior à geração de PDF; condições de escrita de voto/edição incompletas para concorrência com exportação.
+- Nenhum código, schema, migration ou dependência alterado. Nenhum servidor iniciado e nenhum banco consultado/migrado nesta etapa.
+
+## Situação final
+
+Implementação concluída conforme solicitação direta posterior do usuário. Diagnóstico, alterações, migração local, testes e limites da validação registrados em inception/requirements/presenca-ata-final/diagnostico.md, seção 7. Os dados anteriores desta nota descrevem a análise inicial. Não há aprovação de planejamento pendente. Aplicação da migration no banco do ambiente de uso e validação física de biometria/Face ID permanecem como passos de disponibilização.

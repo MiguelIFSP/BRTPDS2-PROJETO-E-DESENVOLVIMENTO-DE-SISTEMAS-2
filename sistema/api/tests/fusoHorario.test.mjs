@@ -25,8 +25,8 @@ const estadoEm = (texto, dados = reuniao) =>
 describe('estadoDaReuniao', () => {
   test.each([
     ['2026-10-21T12:44:59Z', 'AGUARDANDO'],
-    ['2026-10-21T12:45:00Z', 'CHECKIN_ABERTO'],
-    ['2026-10-21T12:59:59Z', 'CHECKIN_ABERTO'],
+    ['2026-10-21T12:45:00Z', 'AGUARDANDO'],
+    ['2026-10-21T12:59:59Z', 'AGUARDANDO'],
     ['2026-10-21T13:00:00Z', 'EM_ANDAMENTO'],
     ['2026-10-21T13:59:59Z', 'EM_ANDAMENTO'],
     ['2026-10-21T14:00:00Z', 'ENCERRADA'],
@@ -43,7 +43,7 @@ describe('estadoDaReuniao', () => {
   test('devolve os pontos de tempo calculados no fuso', () => {
     const estado = estadoDaReuniao(reuniao, SP, em('2026-10-21T13:30:00Z'));
     expect(estado.aberturaCheckIn.toISOString()).toBe(
-      '2026-10-21T12:45:00.000Z',
+      '2026-10-21T13:00:00.000Z',
     );
     expect(estado.inicio.toISOString()).toBe('2026-10-21T13:00:00.000Z');
     expect(estado.fim.toISOString()).toBe('2026-10-21T14:00:00.000Z');
@@ -58,7 +58,7 @@ describe('estadoDaReuniao', () => {
       status: 'AGENDADA',
     };
     // 23:30 em São Paulo = 02:30Z do dia 22.
-    expect(estadoEm('2026-10-22T02:29:59Z', noite)).toBe('CHECKIN_ABERTO');
+    expect(estadoEm('2026-10-22T02:29:59Z', noite)).toBe('AGUARDANDO');
     expect(estadoEm('2026-10-22T02:30:00Z', noite)).toBe('EM_ANDAMENTO');
     expect(estadoEm('2026-10-22T02:59:00Z', noite)).toBe('ENCERRADA');
   });
@@ -70,11 +70,11 @@ describe('estadoDaReuniao', () => {
 });
 
 describe('janelas', () => {
-  test('entrada: aberta de 12:45:00Z até 13:59:59Z', () => {
+  test('entrada: aberta de 13:00:00Z até 13:59:59Z', () => {
     expect(podeRegistrarEntrada(reuniao, SP, em('2026-10-21T12:44:59Z'))).toBe(
       false,
     );
-    expect(podeRegistrarEntrada(reuniao, SP, em('2026-10-21T12:45:00Z'))).toBe(
+    expect(podeRegistrarEntrada(reuniao, SP, em('2026-10-21T13:00:00Z'))).toBe(
       true,
     );
     expect(podeRegistrarEntrada(reuniao, SP, em('2026-10-21T13:59:59Z'))).toBe(

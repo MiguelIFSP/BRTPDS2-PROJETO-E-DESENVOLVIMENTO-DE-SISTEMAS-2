@@ -35,7 +35,13 @@
       ],
       "@react-native-community/datetimepicker",
       "expo-sharing",
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Permita que o Better Meet use o Face ID para confirmar sua entrada e saída das reuniões."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

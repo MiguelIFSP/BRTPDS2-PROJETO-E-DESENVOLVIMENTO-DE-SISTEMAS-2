@@ -8,6 +8,11 @@ const routes = Router();
 
 routes.post('/organizacoes', requireAuth, organizacaoController.create);
 routes.get('/organizacoes/minhas', requireAuth, organizacaoController.getMine);
+routes.get(
+  '/organizacoes/disponiveis',
+  requireAuth,
+  organizacaoController.listDisponiveis,
+);
 // precisam vir antes de /organizacoes/:id, senao "relatorio" seria lido como um id.
 routes.get(
   '/organizacoes/relatorio/minhas',
@@ -35,6 +40,21 @@ routes.patch(
   organizacaoController.updateStatus,
 );
 routes.delete('/organizacoes/:id', requireAuth, organizacaoController.delete);
+routes.post(
+  '/organizacoes/:id/pedidos',
+  requireAuth,
+  organizacaoController.solicitarAcesso,
+);
+routes.get(
+  '/organizacoes/:id/pedidos',
+  requireAuth,
+  organizacaoController.listPedidos,
+);
+routes.patch(
+  '/organizacoes/:id/pedidos/:userId',
+  requireAuth,
+  organizacaoController.responderPedido,
+);
 routes.post(
   '/organizacoes/:id/membros',
   requireAuth,

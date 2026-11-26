@@ -52,9 +52,9 @@ export const dataNoFuso = (instante: Date, fuso: string) =>
 export const addMinutes = (instante: Date, minutos: number) =>
   new Date(instante.getTime() + minutos * MINUTO_MS);
 
-// Janelas de presença, em minutos: a entrada abre antes do início e a saída
-// ainda vale um tempo depois do fim.
-export const TOLERANCIA_ENTRADA_MIN = 15;
+// A entrada nunca antecede o início. A margem de saída também é usada
+// pelos lembretes; registros de saída podem ser corrigidos após o término.
+export const TOLERANCIA_ENTRADA_MIN = 0;
 export const TOLERANCIA_SAIDA_MIN = 30;
 
 export type EstadoReuniao =

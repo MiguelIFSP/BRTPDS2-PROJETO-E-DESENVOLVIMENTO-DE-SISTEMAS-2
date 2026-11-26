@@ -196,6 +196,58 @@ describe('authService.resetPassword e resendVerification', () => {
   });
 });
 
+// O fetch nativo reenvia o cookie de sessão sem Origin, e o Better Auth recusa
+// com 403 MISSING_OR_NULL_ORIGIN; o plugin expo() da API lê este cabeçalho.
+describe('authService e o cabeçalho expo-origin', () => {
+  const origemExpo = { 'expo-origin': 'bettermeet://' };
+  const sentHeaders = (call: number) =>
+    (mockFetch.mock.calls[call]?.[1] as RequestInit).headers;
+
+  it('signIn envia expo-origin ao Better Auth e não à API de Dados', async () => {
+    mockFetch
+      .mockResolvedValueOnce(jsonResponse(200, { token: 'tok-1', user: {} }))
+      .mockResolvedValueOnce(jsonResponse(200, perfil));
+
+    await authService.signIn('ana@exemplo.com', 'Senha123');
+
+    expect(sentHeaders(0)).toMatchObject(origemExpo);
+    expect(sentUrl(1)).toBe('http://api.teste/api/usuarios/me');
+    expect(sentHeaders(1)).not.toHaveProperty('expo-origin');
+  });
+
+  it.each([
+    [
+      'signUp',
+      () =>
+        authService.signUp({
+          name: 'Ana',
+          email: 'ana@exemplo.com',
+          password: 'Senha123',
+        }),
+    ],
+    [
+      'requestPasswordReset',
+      () => authService.requestPasswordReset('ana@exemplo.com'),
+    ],
+    ['resetPassword', () => authService.resetPassword('tok', 'Senha123')],
+    [
+      'resendVerification',
+      () => authService.resendVerification('ana@exemplo.com'),
+    ],
+  ])('%s envia expo-origin', async (_nome, chamar) => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(200, { status: true }));
+    await chamar();
+    expect(sentHeaders(0)).toMatchObject(origemExpo);
+  });
+
+  it('signOut envia expo-origin', async () => {
+    await setSessionToken('tok');
+    mockFetch.mockResolvedValueOnce(jsonResponse(200, {}));
+    await authService.signOut();
+    expect(sentHeaders(0)).toMatchObject(origemExpo);
+  });
+});
+
 describe('authService.signOut', () => {
   it('chama a API com o token e apaga a sessão local', async () => {
     await setSessionToken('tok');

@@ -2,6 +2,7 @@ import type { PapelComissao, Prisma, StatusAtaVoto } from '@prisma/client';
 import prisma from '../config/database.ts';
 import { AppError } from '../errors/AppError.ts';
 import { sanitizeAtaHtml, validateAtaHtml } from '../utils/ataHtml.ts';
+import { lockReuniao } from '../utils/lockReuniao.ts';
 
 const podeEditar = (papel: PapelComissao) =>
   papel === 'ADMINISTRADOR' || papel === 'SECRETARIO';
@@ -79,7 +80,8 @@ const present = async (
   const presentes = reuniao._count.registros;
   const exportada = reuniao.ataExportadaAt !== null;
   const aprovada =
-    Boolean(reuniao.conteudoAta) && ataAprovada(aprovados, presentes);
+    exportada ||
+    (Boolean(reuniao.conteudoAta) && ataAprovada(aprovados, presentes));
   return {
     reuniaoId,
     titulo: reuniao.titulo,
@@ -124,6 +126,7 @@ export const ataService = {
   ) {
     const sanitized = validateAtaHtml(conteudoAta);
     return prisma.$transaction(async (transaction) => {
+      await lockReuniao(transaction, reuniaoId);
       const { reuniao, papel } = await loadAccess(
         transaction,
         userId,
@@ -135,7 +138,7 @@ export const ataService = {
       const changed = reuniao.conteudoAta !== sanitized;
       // A escrita condicional também bloqueia a linha até votos e texto ficarem consistentes.
       const updated = await transaction.reuniao.updateMany({
-        where: { id: reuniaoId, versaoAta },
+        where: { id: reuniaoId, versaoAta, ataExportadaAt: null },
         data: {
           conteudoAta: sanitized,
           versaoAta: { increment: changed ? 1 : 0 },
@@ -155,6 +158,7 @@ export const ataService = {
     versaoAta: number,
   ) {
     return prisma.$transaction(async (transaction) => {
+      await lockReuniao(transaction, reuniaoId);
       const { reuniao } = await loadAccess(transaction, userId, reuniaoId);
       if (reuniao.ataExportadaAt) throw new AppError(409, MENSAGEM_EXPORTADA);
       if (!reuniao.conteudoAta)
@@ -165,7 +169,7 @@ export const ataService = {
       if (reuniao.versaoAta !== versaoAta) throw conflict();
       // Serializa o voto com a edição: nunca registra aprovação de uma versão antiga.
       const locked = await transaction.reuniao.updateMany({
-        where: { id: reuniaoId, versaoAta },
+        where: { id: reuniaoId, versaoAta, ataExportadaAt: null },
         data: { versaoAta: { increment: 0 } },
       });
       if (locked.count === 0) throw conflict();
@@ -179,9 +183,11 @@ export const ataService = {
   },
 
   /** Exportar grava a versão e torna a ata imutável; repetir não muda nada. */
-  exportar(userId: number, reuniaoId: number) {
+  exportar(userId: number, reuniaoId: number, versaoAta: number) {
     return prisma.$transaction(async (transaction) => {
+      await lockReuniao(transaction, reuniaoId);
       const { reuniao } = await loadAccess(transaction, userId, reuniaoId);
+      if (reuniao.versaoAta !== versaoAta) throw conflict();
       if (reuniao.ataExportadaAt) {
         return present(transaction, userId, reuniaoId);
       }

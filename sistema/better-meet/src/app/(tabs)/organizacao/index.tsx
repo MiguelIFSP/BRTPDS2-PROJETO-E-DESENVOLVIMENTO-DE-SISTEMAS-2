@@ -9,6 +9,7 @@ import OrganizacaoCard from '@/components/OrganizacaoCard';
 import BackButton from '@/components/ui/BackButton';
 import BottomSheet from '@/components/ui/BottomSheet';
 import Button from '@/components/ui/Button';
+import Card from '@/components/ui/Card';
 import Chip from '@/components/ui/Chip';
 import DashedButton from '@/components/ui/DashedButton';
 import FeedbackBanner from '@/components/ui/FeedbackBanner';
@@ -30,6 +31,7 @@ import { monitoringService } from '@/services/monitoringService';
 import {
   organizacaoService,
   type Organizacao,
+  type OrganizacaoDisponivel,
 } from '@/services/organizacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
@@ -40,9 +42,10 @@ import { ORIGEM_RELATORIO } from '@/utils/navegacaoOrigem';
 type Filtro = 'minhas' | 'pendentes' | 'todas';
 
 /**
- * Aba Organização. O usuário vê as organizações de que participa e solicita
- * novas; o admin vê todas, filtra por chips e aceita/recusa as pendentes
- * direto no card. Dados, equipe e exclusão ficam na tela da organização.
+ * Aba Organização. O usuário vê as organizações de que participa, solicita
+ * novas e pede acesso às já aceitas. O admin vê todas, filtra por chips e
+ * aceita/recusa as criações pendentes direto no card. O pedido de entrada é
+ * analisado pelo criador ou pelo gerente, na tela da organização.
  */
 export default function OrganizacaoScreen() {
   const router = useRouter();
@@ -59,6 +62,9 @@ export default function OrganizacaoScreen() {
   const [feedback, setFeedback] = useFeedback();
   const [formFeedback, setFormFeedback] = useFeedback();
   const [organizacoes, setOrganizacoes] = useState<Organizacao[]>([]);
+  const [disponiveis, setDisponiveis] = useState<OrganizacaoDisponivel[]>([]);
+  const [busca, setBusca] = useState('');
+  const [solicitandoId, setSolicitandoId] = useState<number | null>(null);
   const [filtro, setFiltro] = useState<Filtro>('minhas');
 
   const fetchOrganizacoes = useCallback(
@@ -71,7 +77,12 @@ export default function OrganizacaoScreen() {
 
   const loadOrganizacoes = async () => {
     if (!token) return;
-    setOrganizacoes(await fetchOrganizacoes(token));
+    const [data, abertas] = await Promise.all([
+      fetchOrganizacoes(token),
+      organizacaoService.listDisponiveis(token),
+    ]);
+    setOrganizacoes(data);
+    setDisponiveis(abertas);
   };
 
   const openOrganizacao = (organizacaoId: number) =>
@@ -90,8 +101,14 @@ export default function OrganizacaoScreen() {
       const load = async () => {
         if (!token) return;
         try {
-          const data = await fetchOrganizacoes(token);
-          if (!cancelled) setOrganizacoes(data);
+          const [data, abertas] = await Promise.all([
+            fetchOrganizacoes(token),
+            organizacaoService.listDisponiveis(token),
+          ]);
+          if (!cancelled) {
+            setOrganizacoes(data);
+            setDisponiveis(abertas);
+          }
         } catch (error) {
           if (!cancelled) {
             setFeedback({
@@ -192,6 +209,27 @@ export default function OrganizacaoScreen() {
     }
   };
 
+  const handleSolicitar = async (organizacaoId: number) => {
+    if (!token) return;
+    setSolicitandoId(organizacaoId);
+    try {
+      await organizacaoService.solicitarAcesso(token, organizacaoId);
+      setFeedback({ type: 'success', message: 'Pedido de acesso enviado.' });
+      await loadOrganizacoes();
+    } catch (error) {
+      monitoringService.reportRequestFailure(
+        error,
+        'OrganizacaoScreen.handleSolicitar',
+      );
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'Não foi possível solicitar acesso.'),
+      });
+    } finally {
+      setSolicitandoId(null);
+    }
+  };
+
   const minhas = isAdmin
     ? organizacoes.filter((organizacao) =>
         organizacao.membros.some((membro) => membro.user.id === user?.id),
@@ -224,6 +262,12 @@ export default function OrganizacaoScreen() {
     { label: string; section: string; lista: Organizacao[]; empty: string }
   >;
   const atual = filtros[isAdmin ? filtro : 'minhas'];
+  const termo = busca.trim().toLocaleLowerCase('pt-BR');
+  const disponiveisFiltradas = termo
+    ? disponiveis.filter((organizacao) =>
+        organizacao.nome.toLocaleLowerCase('pt-BR').includes(termo),
+      )
+    : disponiveis;
 
   return (
     <Screen hasForm>
@@ -300,6 +344,59 @@ export default function OrganizacaoScreen() {
       {atual.lista.length === 0 ? (
         <Text style={[styles.empty, { color: colors.textSecondary }]}>
           {atual.empty}
+        </Text>
+      ) : null}
+
+      <SectionLabel
+        label="Pedir acesso"
+        showDot
+        trailing={countLabel(
+          disponiveisFiltradas.length,
+          'organização',
+          'organizações',
+        )}
+      />
+      <TextField
+        accessibilityLabel="Buscar organização"
+        autoCapitalize="words"
+        autoCorrect={false}
+        onChangeText={setBusca}
+        placeholder="Buscar pelo nome"
+        value={busca}
+      />
+      {disponiveisFiltradas.map((organizacao) => {
+        const pendente = organizacao.pedido?.status === 'PENDENTE';
+        return (
+          <Card key={organizacao.id}>
+            <Text style={[styles.disponivelNome, { color: colors.text }]}>
+              {organizacao.nome}
+            </Text>
+            {pendente ? (
+              <Text style={[styles.requester, { color: colors.textSecondary }]}>
+                Aguardando análise do criador ou do gerente.
+              </Text>
+            ) : (
+              <View style={styles.actions}>
+                <Button
+                  icon="enter-outline"
+                  label="Solicitar acesso"
+                  accessibilityLabel={`Solicitar acesso a ${organizacao.nome}`}
+                  isLoading={solicitandoId === organizacao.id}
+                  loadingLabel="Enviando..."
+                  onPress={() => void handleSolicitar(organizacao.id)}
+                />
+              </View>
+            )}
+          </Card>
+        );
+      })}
+      {disponiveis.length === 0 ? (
+        <Text style={[styles.empty, { color: colors.textSecondary }]}>
+          Não há organizações disponíveis para solicitar acesso.
+        </Text>
+      ) : disponiveisFiltradas.length === 0 ? (
+        <Text style={[styles.empty, { color: colors.textSecondary }]}>
+          Nenhuma organização encontrada com esse nome.
         </Text>
       ) : null}
 
@@ -390,6 +487,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     paddingVertical: Spacing.lg,
   },
+  disponivelNome: { ...Typography.heading3 },
   field: { gap: Spacing.sm },
   statusRow: {
     flexDirection: 'row',

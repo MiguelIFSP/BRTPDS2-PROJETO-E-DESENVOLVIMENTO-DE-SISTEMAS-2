@@ -68,13 +68,17 @@ describe('votacaoService', () => {
 describe('ataService.exportar', () => {
   it('chama a rota de exportação e repassa o 409 antes da aprovação', async () => {
     request.mockResolvedValueOnce({ exportada: true });
-    await ataService.exportar('token', 7);
+    await ataService.exportar('token', 7, 1);
     expect(request).toHaveBeenCalledWith(
       '/reunioes/7/ata/exportar',
-      expect.objectContaining({ method: 'POST', token: 'token' }),
+      expect.objectContaining({
+        method: 'POST',
+        token: 'token',
+        body: { versaoAta: 1 },
+      }),
     );
     request.mockRejectedValueOnce(new ApiError('Ata não aprovada.', 409));
-    await expect(ataService.exportar('token', 7)).rejects.toMatchObject({
+    await expect(ataService.exportar('token', 7, 1)).rejects.toMatchObject({
       status: 409,
     });
   });
