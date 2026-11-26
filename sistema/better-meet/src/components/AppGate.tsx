@@ -25,7 +25,6 @@ export default function AppGate() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Protected guard={isAuthenticated} redirectTo="/login">
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="lista-presenca" />
         <Stack.Screen name="manual" />
       </Stack.Protected>
       <Stack.Protected guard={!isAuthenticated} redirectTo="/">

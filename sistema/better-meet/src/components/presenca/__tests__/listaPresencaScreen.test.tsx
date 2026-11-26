@@ -8,7 +8,7 @@ import {
 import type * as ReactModule from 'react';
 import type * as ReactNativeModule from 'react-native';
 
-import ListaPresencaScreen from '@/app/lista-presenca';
+import ListaPresencaScreen from '@/app/(tabs)/(reunioes)/lista-presenca';
 import { listaPresencaService } from '@/services/listaPresencaService';
 import type { ListaPresencaDetalhada } from '@/services/listaPresencaService';
 import { exportListaPresencaPdf } from '@/utils/listaPresencaPdf';
