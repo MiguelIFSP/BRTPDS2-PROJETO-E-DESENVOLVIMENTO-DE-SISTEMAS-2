@@ -12,6 +12,9 @@ export type PapelOrganizacao = (typeof PAPEIS_ORGANIZACAO)[number];
 export const STATUS_ORGANIZACAO = ['PENDENTE', 'ACEITA', 'RECUSADA'] as const;
 export type StatusOrganizacao = (typeof STATUS_ORGANIZACAO)[number];
 
+export const STATUS_PEDIDO_ACESSO = ['PENDENTE', 'ACEITO', 'RECUSADO'] as const;
+export type StatusPedidoAcesso = (typeof STATUS_PEDIDO_ACESSO)[number];
+
 // teto por cargo, o mesmo do organizacaoService da API.
 export const LIMITE_POR_PAPEL = {
   GERENTE: 1,
@@ -30,6 +33,22 @@ export type Organizacao = {
   createdAt: string;
   membros: OrganizacaoMembro[];
   comissoes: { id: number; nome: string }[];
+};
+
+export type OrganizacaoDisponivel = {
+  id: number;
+  nome: string;
+  pedido: { status: StatusPedidoAcesso } | null;
+};
+
+export type PedidoAcessoOrganizacao = {
+  id: number;
+  organizacaoId: number;
+  userId: number;
+  status: StatusPedidoAcesso;
+  createdAt: string;
+  respondidoAt: string | null;
+  user: { id: number; name: string; email: string };
 };
 
 export type OrganizacaoReport = {
@@ -82,6 +101,51 @@ export const organizacaoService = {
       token,
       fallbackError: 'Não foi possível listar suas organizações.',
     });
+  },
+
+  listDisponiveis(token: string) {
+    return apiRequest<OrganizacaoDisponivel[]>('/organizacoes/disponiveis', {
+      token,
+      fallbackError: 'Não foi possível carregar as organizações disponíveis.',
+    });
+  },
+
+  solicitarAcesso(token: string, organizacaoId: number) {
+    return apiRequest<PedidoAcessoOrganizacao>(
+      `/organizacoes/${organizacaoId}/pedidos`,
+      {
+        method: 'POST',
+        token,
+        fallbackError: 'Não foi possível solicitar acesso.',
+      },
+    );
+  },
+
+  listPedidos(token: string, organizacaoId: number) {
+    return apiRequest<PedidoAcessoOrganizacao[]>(
+      `/organizacoes/${organizacaoId}/pedidos`,
+      {
+        token,
+        fallbackError: 'Não foi possível carregar os pedidos de acesso.',
+      },
+    );
+  },
+
+  responderPedido(
+    token: string,
+    organizacaoId: number,
+    userId: number,
+    status: 'ACEITO' | 'RECUSADO',
+  ) {
+    return apiRequest<PedidoAcessoOrganizacao>(
+      `/organizacoes/${organizacaoId}/pedidos/${userId}`,
+      {
+        method: 'PATCH',
+        token,
+        body: { status },
+        fallbackError: 'Não foi possível atualizar o pedido de acesso.',
+      },
+    );
   },
 
   listAll(token: string) {

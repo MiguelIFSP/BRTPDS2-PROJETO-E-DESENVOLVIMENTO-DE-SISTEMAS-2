@@ -28,6 +28,15 @@ enum StatusOrganizacao {
   RECUSADA
 }
 
+// Pedido para entrar numa organização já aceita. Quem analisa é o criador ou
+// o gerente. PENDENTE -> ACEITO ou RECUSADO. RECUSADO volta para PENDENTE
+// quando a pessoa solicita de novo. ACEITO de quem foi removido também volta.
+enum StatusPedidoAcesso {
+  PENDENTE
+  ACEITO
+  RECUSADO
+}
+
 enum PapelComissao {
   ADMINISTRADOR // controle total da comissão (pode excluir a comissão)
   FACILITADOR // pode gerenciar os membros e as pautas
@@ -118,6 +127,7 @@ model User {
   saidasManuais    ReuniaoRegistro[] @relation("SaidaManualAutor")
   notificacoes     Notificacao[]
   lembretes        LembreteEnviado[]
+  pedidosAcesso    PedidoAcessoOrganizacao[]
 }
 
 model Organizacao {
@@ -126,8 +136,9 @@ model Organizacao {
   status    StatusOrganizacao @default(PENDENTE)
   createdAt DateTime          @default(now())
 
-  comissoes Comissao[]
-  membros   OrganizacaoMembro[]
+  comissoes     Comissao[]
+  membros       OrganizacaoMembro[]
+  pedidosAcesso PedidoAcessoOrganizacao[]
 }
 
 model OrganizacaoMembro {
@@ -139,6 +150,23 @@ model OrganizacaoMembro {
   user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@id([organizacaoId, userId]) // o mesmo usuario nao entra duas vezes na mesma org
+}
+
+// Um pedido por pessoa e organização. A pessoa só vira membro no aceite.
+model PedidoAcessoOrganizacao {
+  id            Int                 @id @default(autoincrement())
+  organizacaoId Int
+  userId        Int
+  status        StatusPedidoAcesso  @default(PENDENTE)
+  createdAt     DateTime            @default(now())
+  respondidoAt  DateTime?
+
+  organizacao Organizacao @relation(fields: [organizacaoId], references: [id], onDelete: Cascade)
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([organizacaoId, userId])
+  @@index([userId])
+  @@index([organizacaoId, status])
 }
 
 // Só existe dentro de organização ACEITA, e só membros da organização entram

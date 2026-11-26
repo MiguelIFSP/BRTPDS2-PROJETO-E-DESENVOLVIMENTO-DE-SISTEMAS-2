@@ -1,4 +1,8 @@
-import { PapelOrganizacao, StatusOrganizacao } from '@prisma/client';
+import {
+  PapelOrganizacao,
+  StatusOrganizacao,
+  StatusPedidoAcesso,
+} from '@prisma/client';
 import * as yup from 'yup';
 import { emailRule, idRule } from './commonSchema.ts';
 
@@ -32,6 +36,16 @@ export const statusOrganizacaoSchema = yup.object({
       'Status inválido.',
     )
     .required('Informe o status.'),
+});
+
+export const respostaPedidoAcessoSchema = yup.object({
+  status: yup
+    .string<StatusPedidoAcesso>()
+    .oneOf(
+      [StatusPedidoAcesso.ACEITO, StatusPedidoAcesso.RECUSADO],
+      'Informe se o pedido foi aceito ou recusado.',
+    )
+    .required('Informe se o pedido foi aceito ou recusado.'),
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>

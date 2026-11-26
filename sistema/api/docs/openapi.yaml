@@ -270,6 +270,12 @@ components:
     StatusOrganizacao:
       type: string
       enum: [PENDENTE, ACEITA, RECUSADA]
+    StatusPedidoAcesso:
+      type: string
+      enum: [PENDENTE, ACEITO, RECUSADO]
+      description: |
+        Pedido para entrar numa organização já aceita. RECUSADO pode voltar
+        para PENDENTE se a pessoa solicitar de novo.
     PapelComissao:
       type: string
       enum: [ADMINISTRADOR, FACILITADOR, SECRETARIO, MEMBRO]
@@ -548,6 +554,29 @@ components:
         comissoes:
           type: array
           items: { $ref: '#/components/schemas/Comissao' }
+    OrganizacaoDisponivel:
+      type: object
+      required: [id, nome, pedido]
+      properties:
+        id: { type: integer }
+        nome: { type: string }
+        pedido:
+          nullable: true
+          allOf:
+            - type: object
+              required: [status]
+              properties:
+                status: { $ref: '#/components/schemas/StatusPedidoAcesso' }
+    PedidoAcessoOrganizacao:
+      type: object
+      properties:
+        id: { type: integer }
+        organizacaoId: { type: integer }
+        userId: { type: integer }
+        status: { $ref: '#/components/schemas/StatusPedidoAcesso' }
+        createdAt: { type: string, format: date-time }
+        respondidoAt: { type: string, format: date-time, nullable: true }
+        user: { $ref: '#/components/schemas/UsuarioResumo' }
     CrescimentoMes:
       type: object
       properties:
@@ -1438,6 +1467,25 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /organizacoes/disponiveis:
+    get:
+      tags: [Organizações]
+      summary: Organizações aceitas das quais o usuário ainda não participa
+      description: |
+        Exige `requireAuth`. Cada item traz o pedido de acesso da própria
+        pessoa, se existir. A busca por nome é feita no aplicativo.
+      security: [{ bearerAuth: [] }]
+      responses:
+        '200':
+          description: Organizações disponíveis, em ordem de nome.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/OrganizacaoDisponivel' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /organizacoes/relatorio:
     get:
       tags: [Organizações]
@@ -1558,6 +1606,82 @@ paths:
           content:
             application/json:
               schema: { $ref: '#/components/schemas/Organizacao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/{id}/pedidos:
+    get:
+      tags: [Organizações]
+      summary: Lista os pedidos de acesso pendentes
+      description: |
+        Exige `requireAuth`. Só o CRIADOR ou o GERENTE da organização aceita.
+        O ADMIN da plataforma não analisa pedido só por ser admin.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
+      responses:
+        '200':
+          description: Pedidos pendentes, do mais antigo para o mais novo.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: '#/components/schemas/PedidoAcessoOrganizacao' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
+    post:
+      tags: [Organizações]
+      summary: Solicita acesso a uma organização aceita
+      description: |
+        Exige `requireAuth`. Quem já é membro ou já tem pedido pendente recebe
+        409. Pedido recusado (ou aceito de quem foi removido) volta a pendente.
+      security: [{ bearerAuth: [] }]
+      parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
+      responses:
+        '201':
+          description: Pedido pendente.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoAcessoOrganizacao' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { $ref: '#/components/responses/Conflict' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
+  /organizacoes/{id}/pedidos/{userId}:
+    patch:
+      tags: [Organizações]
+      summary: Aceita ou recusa um pedido de acesso
+      description: |
+        Exige `requireAuth`. Só o CRIADOR ou o GERENTE. Aceitar inclui a
+        pessoa como MEMBRO.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - { $ref: '#/components/parameters/OrganizacaoId' }
+        - name: userId
+          in: path
+          required: true
+          description: Id de quem pediu acesso.
+          schema: { type: integer, minimum: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [status]
+              properties:
+                status: { type: string, enum: [ACEITO, RECUSADO] }
+      responses:
+        '200':
+          description: Pedido atualizado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/PedidoAcessoOrganizacao' }
         '400': { $ref: '#/components/responses/BadRequest' }
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }

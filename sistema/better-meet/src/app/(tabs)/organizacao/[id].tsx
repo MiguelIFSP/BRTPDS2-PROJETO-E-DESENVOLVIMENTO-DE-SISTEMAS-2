@@ -41,6 +41,7 @@ import {
   organizacaoService,
   papelLabel,
   type Organizacao,
+  type PedidoAcessoOrganizacao,
 } from '@/services/organizacaoService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
@@ -60,6 +61,8 @@ export default function OrganizacaoDetalheScreen() {
     useShallow((state) => ({ token: state.token, user: state.user })),
   );
   const [organizacao, setOrganizacao] = useState<Organizacao | null>(null);
+  const [pedidos, setPedidos] = useState<PedidoAcessoOrganizacao[]>([]);
+  const [pedidoEmAnalise, setPedidoEmAnalise] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [feedback, setFeedback] = useFeedback();
 
@@ -70,9 +73,22 @@ export default function OrganizacaoDetalheScreen() {
   const [formFeedback, setFormFeedback] = useFeedback();
   const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
 
+  const carregarPedidos = async (authToken: string, data: Organizacao) => {
+    const papel = getMyPapel(data, user?.id);
+    if (papel === 'CRIADOR' || papel === 'GERENTE') {
+      setPedidos(
+        await organizacaoService.listPedidos(authToken, organizacaoId),
+      );
+      return;
+    }
+    setPedidos([]);
+  };
+
   const reload = async () => {
     if (!token) return;
-    setOrganizacao(await organizacaoService.getById(token, organizacaoId));
+    const data = await organizacaoService.getById(token, organizacaoId);
+    setOrganizacao(data);
+    await carregarPedidos(token, data);
   };
 
   const { requestAction, cardFeedback, showCardFeedback, dialogProps } =
@@ -91,7 +107,9 @@ export default function OrganizacaoDetalheScreen() {
         setIsLoading(true);
         try {
           const data = await organizacaoService.getById(token, organizacaoId);
-          if (!cancelled) setOrganizacao(data);
+          if (cancelled) return;
+          setOrganizacao(data);
+          await carregarPedidos(token, data);
         } catch (error) {
           if (!cancelled) {
             setFeedback({
@@ -110,7 +128,7 @@ export default function OrganizacaoDetalheScreen() {
       return () => {
         cancelled = true;
       };
-    }, [token, organizacaoId, setFeedback]),
+    }, [token, organizacaoId, user?.id, setFeedback]),
   );
 
   if (!organizacao) {
@@ -140,6 +158,8 @@ export default function OrganizacaoDetalheScreen() {
     isAceita && (isCreator || myPapel === 'GERENTE' || myPapel === 'MODERADOR');
   const canPromote = isAceita && isCreator;
   const canRemove = isAceita && (isCreator || myPapel === 'GERENTE');
+  const canReviewPedidos =
+    isAceita && (myPapel === 'CRIADOR' || myPapel === 'GERENTE');
 
   const status = STATUS_ORGANIZACAO_UI[organizacao.status];
   const criador = organizacao.membros.find(
@@ -240,6 +260,37 @@ export default function OrganizacaoDetalheScreen() {
     }
   };
 
+  const responderPedido = async (
+    solicitanteId: number,
+    status: 'ACEITO' | 'RECUSADO',
+  ) => {
+    if (!token) return;
+    setPedidoEmAnalise(solicitanteId);
+    try {
+      await organizacaoService.responderPedido(
+        token,
+        organizacaoId,
+        solicitanteId,
+        status,
+      );
+      setFeedback({
+        type: 'success',
+        message: status === 'ACEITO' ? 'Pedido aceito.' : 'Pedido recusado.',
+      });
+      await reload();
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(
+          error,
+          'Não foi possível atualizar o pedido de acesso.',
+        ),
+      });
+    } finally {
+      setPedidoEmAnalise(null);
+    }
+  };
+
   return (
     <Screen hasForm>
       <BackButton />
@@ -315,6 +366,53 @@ export default function OrganizacaoDetalheScreen() {
         <InfoRow label="Criada em" value={formatDate(organizacao.createdAt)} />
         <InfoRow label="Status" value={status.label} />
       </Card>
+
+      {canReviewPedidos ? (
+        <Card>
+          <SectionLabel
+            label="Pedidos de acesso"
+            trailing={countLabel(pedidos.length, 'pedido', 'pedidos')}
+          />
+          {pedidos.length === 0 ? (
+            <Text style={[styles.hint, { color: colors.textSecondary }]}>
+              Nenhum pedido aguardando análise.
+            </Text>
+          ) : (
+            pedidos.map((pedido) => (
+              <View key={pedido.id} style={styles.pedido}>
+                <Text style={[styles.comissaoName, { color: colors.text }]}>
+                  {pedido.user.name}
+                </Text>
+                <Text style={[styles.hint, { color: colors.textSecondary }]}>
+                  {pedido.user.email}
+                </Text>
+                <View style={styles.statusActions}>
+                  <Button
+                    variant="secondary"
+                    icon="close-circle-outline"
+                    label="Recusar"
+                    accessibilityLabel={`Recusar pedido de ${pedido.user.name}`}
+                    disabled={pedidoEmAnalise !== null}
+                    onPress={() =>
+                      void responderPedido(pedido.userId, 'RECUSADO')
+                    }
+                  />
+                  <Button
+                    icon="checkmark-circle-outline"
+                    label="Aceitar"
+                    accessibilityLabel={`Aceitar pedido de ${pedido.user.name}`}
+                    disabled={pedidoEmAnalise !== null}
+                    isLoading={pedidoEmAnalise === pedido.userId}
+                    onPress={() =>
+                      void responderPedido(pedido.userId, 'ACEITO')
+                    }
+                  />
+                </View>
+              </View>
+            ))
+          )}
+        </Card>
+      ) : null}
 
       {isAceita ? (
         <Card>
@@ -462,6 +560,7 @@ const styles = StyleSheet.create({
     fontFamily: FontFamily.semiBold,
     flex: 1,
   },
+  pedido: { gap: Spacing.xs },
   deleteButton: { alignSelf: 'flex-start' },
   field: { gap: Spacing.sm },
 });
