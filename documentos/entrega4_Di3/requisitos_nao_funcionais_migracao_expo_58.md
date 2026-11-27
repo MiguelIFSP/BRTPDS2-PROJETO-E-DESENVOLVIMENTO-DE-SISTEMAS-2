@@ -1,11 +1,14 @@
 # Requisitos não funcionais — Migração para o Expo SDK 58
 
+> **Atualização de 2026-11-27:** este documento registra os resultados da entrega Di3 (2026-11-13) e não recebe novos resultados. A especificação vigente dos RNF50 a RNF54 é [requisitos_nao_funcionais_expo_58.md](../entrega5_AF/requisitos_nao_funcionais_expo_58.md).
+
 ```text
 Incremento: Entrega Di3 — Manutenção: migração para a SDK 58 do Expo
 Escopo: RNF50, RNF51, RNF52, RNF53 e RNF54; better-meet e management-better-meet/web
 Branch: main
 Commit: 6e4b743; as verificações automáticas foram feitas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web)
-Data de revisão: 2026-11-13
+Versão: 1.1
+Data de revisão: 2026-11-27 (conteúdo da Di3 revisado em 2026-11-13)
 Responsável(eis): Bruno Soares Machado
 Estado: Parcial (RNF53 aprovado no Android e no painel web; iOS não executado, sem acesso a dispositivo)
 Fontes: sistema/better-meet/package.json; sistema/better-meet/package-lock.json; sistema/better-meet/app.json; sistema/management-better-meet/web/package.json; sistema/management-better-meet/web/app.json; sistema/better-meet/node_modules/react-native/package.json (campo engines); saídas de tsc, expo lint, jest e expo-doctor de 2026-11-13 (e de 2026-11-12 no commit 0320831, para o histórico do RNF50); migracao_expo_58.md; testes_migracao_expo_58.md
@@ -133,3 +136,10 @@ Versões/configuração: react-native 0.88.1 exige "^22.13.0 || ^24.3.0 || >= 26
 Evidência: node -v = v24.15.0; engines do react-native 0.88.1 lido do pacote instalado (2026-11-12, mesma versão de react-native na development)
 Resultado: Aprovado em 2026-11-13
 ```
+
+## Histórico de revisões
+
+| Versão | Data | Autor(es) | Alteração |
+|---|---|---|---|
+| 1.0 | 2026-11-13 | Bruno Soares Machado | Registro da entrega Di3 |
+| 1.1 | 2026-11-27 | Bruno Soares Machado | Aviso que aponta a especificação vigente |

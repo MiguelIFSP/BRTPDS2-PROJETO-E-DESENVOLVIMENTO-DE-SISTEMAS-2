@@ -1,9 +1,9 @@
 Incremento: Apresentação final (AF) — refatoração de código
 Escopo: catálogo de softwares e licenças (GT-06, RF-R83; regra 100 do guia de codificação)
-Versão: 1.0
+Versão: 1.1
 Branch: feature/refatoracao-ultima-entrega
 Commit: aed2702 (base; as alterações da refatoração estão no working tree, sem commit)
-Data de revisão: 2026-11-21
+Data de revisão: 2026-11-27 (na versão 1.1, só os pacotes do Expo de better-meet e web, sobre o commit dd14034; os demais itens são de 2026-11-21)
 Responsável(eis): [nome de quem revisa e assina o documento]
 Estado: Implementado
 Fontes: sistema/api/package.json e package-lock.json; sistema/better-meet/package.json e package-lock.json; sistema/monitoring-better-meet/package.json e package-lock.json; sistema/management-better-meet/server/package.json e package-lock.json; sistema/management-better-meet/web/package.json e package-lock.json; package.json de cada pacote em node_modules (licença)
@@ -86,19 +86,20 @@ Quem incluir, remover ou trocar a versão de uma dependência atualiza este arqu
 | `@tiptap/react` | 3.33.0 | MIT | produção | Editor de texto rico da ata (Tiptap, versão web) | Sim | existente |
 | `@tiptap/starter-kit` | 3.33.0 | MIT | produção | Editor de texto rico da ata (Tiptap, versão web) | Sim | existente |
 | `dompurify` | 3.4.17 | (MPL-2.0 OR Apache-2.0) | produção | Limpeza de HTML no cliente | Sim | existente |
-| `expo` | 58.0.25 | MIT | produção | SDK do Expo 58 | Sim | existente |
+| `expo` | 58.1.0 | MIT | produção | SDK do Expo 58 | Sim | existente |
 | `expo-asset` | 58.0.21 | MIT | produção | Carregamento das imagens do manual exportado em PDF | Sim | nova |
 | `expo-clipboard` | 58.0.4 | MIT | produção | Cópia do código de presença | Sim | nova |
 | `expo-local-authentication` | 58.0.3 | MIT | produção | Desbloqueio do app e confirmação de presença com biometria ou senha nativa | Sim | nova |
 | `expo-constants` | 58.0.16 | MIT | produção | Constantes do app (Expo) | Sim | existente |
-| `expo-file-system` | 58.0.13 | MIT | produção | Acesso a arquivos (exportação da ata) | Sim | existente |
+| `expo-document-picker` | 58.0.5 | MIT | produção | Seletor de documentos do sistema | Sim | nova |
+| `expo-file-system` | 58.0.15 | MIT | produção | Acesso a arquivos (exportação da ata) | Sim | existente |
 | `expo-font` | 58.0.12 | MIT | produção | Carregamento de fontes | Sim | existente |
 | `expo-linking` | 58.0.17 | MIT | produção | Links e deep links (`bettermeet://`) | Sim | existente |
 | `expo-print` | 58.0.9 | MIT | produção | Geração de PDF da ata | Sim | existente |
-| `expo-router` | 58.0.31 | MIT | produção | Navegação por arquivos (Expo Router) | Sim | existente |
+| `expo-router` | 58.0.33 | MIT | produção | Navegação por arquivos (Expo Router) | Sim | existente |
 | `expo-secure-store` | 58.0.3 | MIT | produção | Guarda o token de sessão no Keychain (iOS) e no Keystore (Android) | Sim | nova |
-| `expo-sharing` | 58.0.23 | MIT | produção | Compartilhamento de arquivos | Sim | existente |
-| `expo-splash-screen` | 58.0.14 | MIT | produção | Tela de abertura | Sim | existente |
+| `expo-sharing` | 58.0.24 | MIT | produção | Compartilhamento de arquivos | Sim | existente |
+| `expo-splash-screen` | 58.0.15 | MIT | produção | Tela de abertura | Sim | existente |
 | `expo-symbols` | 58.0.5 | MIT | produção | Ícones do sistema na barra de abas nativa | Sim | existente |
 | `expo-system-ui` | 58.0.7 | MIT | produção | Cor de fundo da interface do sistema | Sim | existente |
 | `react` | 19.3.0 | MIT | produção | React 19 | Sim | existente |
@@ -122,7 +123,7 @@ Quem incluir, remover ou trocar a versão de uma dependência atualiza este arqu
 | `eslint-config-expo` | 58.0.4 | MIT | desenvolvimento | Regras do ESLint para projetos Expo | Sim | existente |
 | `eslint-config-prettier` | 10.1.8 | MIT | desenvolvimento | Desliga regras do ESLint que conflitam com o Prettier | Sim | existente |
 | `jest` | 30.5.2 | MIT | desenvolvimento | Testes automatizados (Jest 30) | Sim | existente |
-| `jest-expo` | 58.0.14 | MIT | desenvolvimento | Preset do Jest para Expo | Sim | existente |
+| `jest-expo` | 58.0.16 | MIT | desenvolvimento | Preset do Jest para Expo | Sim | existente |
 | `prettier` | 3.9.10 | MIT | desenvolvimento | Formatação de código (Prettier) | Sim | existente |
 | `typescript` | 6.0.3 | Apache-2.0 | desenvolvimento | Compilador e verificador de tipos (TypeScript) | Sim | existente |
 
@@ -200,11 +201,11 @@ Quem incluir, remover ou trocar a versão de uma dependência atualiza este arqu
 |---|---|---|---|---|---|---|
 | `@react-native-async-storage/async-storage` | 2.2.0 | MIT | produção | Armazenamento local (tema, preferências) | Sim | existente |
 | `@react-native-vector-icons/ionicons` | 13.1.5 | MIT | produção | Ícones Ionicons | Sim | existente |
-| `expo` | 58.0.25 | MIT | produção | SDK do Expo 58 | Sim | existente |
+| `expo` | 58.1.0 | MIT | produção | SDK do Expo 58 | Sim | existente |
 | `expo-constants` | 58.0.16 | MIT | produção | Constantes do app (Expo) | Sim | existente |
 | `expo-linking` | 58.0.17 | MIT | produção | Links e deep links (`bettermeet://`) | Sim | existente |
-| `expo-router` | 58.0.31 | MIT | produção | Navegação por arquivos (Expo Router) | Sim | existente |
-| `expo-splash-screen` | 58.0.14 | MIT | produção | Tela de abertura | Sim | existente |
+| `expo-router` | 58.0.33 | MIT | produção | Navegação por arquivos (Expo Router) | Sim | existente |
+| `expo-splash-screen` | 58.0.15 | MIT | produção | Tela de abertura | Sim | existente |
 | `expo-status-bar` | 58.0.5 | MIT | produção | Barra de status | Sim | existente |
 | `expo-system-ui` | 58.0.7 | MIT | produção | Cor de fundo da interface do sistema | Sim | existente |
 | `react` | 19.3.0 | MIT | produção | React 19 | Sim | existente |
@@ -225,7 +226,7 @@ Quem incluir, remover ou trocar a versão de uma dependência atualiza este arqu
 | `@testing-library/react-native` | 14.1.0 | MIT | desenvolvimento | Testes de componentes React Native | Sim | nova |
 | `eslint-config-prettier` | 10.1.8 | MIT | desenvolvimento | Desliga regras do ESLint que conflitam com o Prettier | Sim | nova |
 | `jest` | 30.5.2 | MIT | desenvolvimento | Testes automatizados (Jest 30) | Sim | nova |
-| `jest-expo` | 58.0.15 | MIT | desenvolvimento | Preset do Jest para Expo | Sim | nova |
+| `jest-expo` | 58.0.16 | MIT | desenvolvimento | Preset do Jest para Expo | Sim | nova |
 | `prettier` | 3.10.1 | MIT | desenvolvimento | Formatação de código (Prettier) | Sim | nova |
 | `@expo/ui` | ~58.0.28 (faixa antiga) | — | — | Sem importador no painel (peer opcional do `expo-router`) | — | removida |
 | `expo-device` | ~58.0.5 (faixa antiga) | — | — | Sem importador no painel (peer opcional do `expo-router`) | — | removida |
@@ -240,3 +241,4 @@ Quem incluir, remover ou trocar a versão de uma dependência atualiza este arqu
 | Versão | Data | Autor(es) | Alteração |
 |---|---|---|---|
 | 1.0 | 2026-11-21 | [nomes] | Criação do documento: dependências diretas dos cinco subsistemas e linha da licença do projeto pendente |
+| 1.1 | 2026-11-27 | Bruno Soares Machado | Atualização para o `expo` 58.1.0 no aplicativo e no painel web; inclusão do `expo-document-picker`, que faltava |

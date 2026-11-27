@@ -1,11 +1,14 @@
 # Testes da migração para o Expo SDK 58
 
+> **Atualização de 2026-11-27:** os registros até a seção "Resultado" são da execução de 2026-11-13. A execução com o `expo` 58.1.0 está no fim do documento. A especificação vigente dos RNF50 a RNF54 é [requisitos_nao_funcionais_expo_58.md](../entrega5_AF/requisitos_nao_funcionais_expo_58.md).
+
 ```text
 Incremento: Entrega Di3 — Manutenção: migração para a SDK 58 do Expo
 Escopo: RNF50 a RNF54 (requisitos_nao_funcionais_migracao_expo_58.md)
 Branch: main
 Commit: 6e4b743; as verificações automáticas foram feitas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web)
-Data de revisão: 2026-11-13
+Versão: 1.1
+Data de revisão: 2026-11-27 (conteúdo da Di3 revisado em 2026-11-13)
 Responsável(eis): Bruno Soares Machado
 Estado: Parcial (verificações automáticas aprovadas; testes manuais aprovados no Android e painel web de gestão de subsistemas; iOS não executado)
 Fontes: sistema/better-meet/package.json; sistema/better-meet/src/**/__tests__; sistema/management-better-meet/web/package.json; sistema/better-meet/src/app/_layout.tsx; saídas dos comandos de 2026-11-13
@@ -79,3 +82,29 @@ Execução de 2026-11-13, sobre a `development`, commit `80ec6e5`:
 - Testes manuais no Android e painel Web de gestão de subsistemas: **executados e aprovados**, segundo Bruno Soares Machado. Foram registrados como aprovados os casos CT-RNF53-01 a CT-RNF53-05 no Android e o CT-RNF53-06 no painel web (Chrome, em 2026-11-07, antes do commit `ee65540` de atualização de patches do SDK 58 e sem repetição depois). O Android foi testado em 2026-11-13, no aparelho Samsung Galaxy S21+, rodando o Android 15, via Expo Go para SDK 58.
 - Lacunas: o **iOS não foi executado** (CT-RNF53-01 a CT-RNF53-05 no iOS), porque não tivemos acesso a um dispositivo iOS. Nenhum teste automatizado cobre `RootLayout`, `Stack.Protected` nem `NativeTabs`; essas mudanças foram testadas somente de forma manual, no Android. O slide do Incremento 3 diz que o app será executado em um dispositivo Android e um iOS.
 - Evidências: saída dos comandos automáticos acima, de 2026-11-13. Para o Android, só a informação do responsável: não há log nem captura de tela.
+
+---
+
+## Execução de 2026-11-27: Expo 58.1.0
+
+Execução em Windows 10, Node v24.15.0, na branch `main`, sobre os `package.json` e `package-lock.json` registrados depois no commit `dd14034`. A tabela mostra o resultado de cada caso.
+
+| ID | Cenário verificado | Status |
+|---|---|---|
+| CT-RNF50-01 | `expo-doctor` no `better-meet` | Passou: 20 de 20 |
+| CT-RNF50-02 | `expo-doctor` no `web` | Passou: 20 de 20 |
+| CT-RNF51-01 | `tsc --noEmit` no `better-meet` | Passou (saída 0) |
+| CT-RNF51-02 | `npm run lint` no `better-meet` | Falhou (saída 1): 2 erros `react/display-name` em `ReuniaoAbas.test.tsx` e 10 avisos; mesma contagem antes da atualização |
+| CT-RNF51-03 | `tsc --noEmit` no `web`, na árvore de trabalho (o cenário de clone limpo não foi repetido) | Passou (saída 0) |
+| CT-RNF51-04 | `npm run lint` no `web` | Passou (saída 0) |
+| CT-RNF52-01 | `npm test -- --ci` e `npm run test:web -- --ci` no `better-meet` | Passou: 378 de 378 (63 suítes) e 43 de 43 (5 suítes) |
+| CT-RNF52-01 (painel) | `npm test -- --ci` no `web` | Passou: 40 de 40 (6 suítes) |
+| CT-RNF53-01 a CT-RNF53-06 | Testes manuais em Android, iOS e painel web | Não executado após a atualização |
+| CT-RNF54-01 | Node dentro da faixa `engines` do `react-native` 0.88.1 | Passou: v24.15.0 |
+
+## Histórico de revisões
+
+| Versão | Data | Autor(es) | Alteração |
+|---|---|---|---|
+| 1.0 | 2026-11-13 | Bruno Soares Machado | Registro da entrega Di3 |
+| 1.1 | 2026-11-27 | Bruno Soares Machado | Registro de execução com o `expo` 58.1.0 |

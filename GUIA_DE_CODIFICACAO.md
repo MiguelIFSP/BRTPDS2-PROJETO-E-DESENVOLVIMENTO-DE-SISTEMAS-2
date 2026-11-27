@@ -2371,7 +2371,7 @@ Segundo o [plano_de_testes.md](documentos/entrega1_AP/plano_de_testes.md):
 | Subsistema | Ferramenta e versão | Configuração | Onde ficam os testes |
 |---|---|---|---|
 | `api` | Jest 30.5.2; Supertest 7.3.1 | `jest.config.mjs`: ambiente `node`, `testMatch` `tests/**/*.test.mjs`, transformação `tests/stripTypes.mjs` (usa `stripTypeScriptTypes` do Node); `npm test` roda o Jest com `--experimental-vm-modules` | `sistema/api/tests/<assunto>.test.mjs` |
-| `better-meet` | Jest 30.5.2; `jest-expo` 58.0.14; React Native Testing Library 14.1.0 | `package.json`: preset `jest-expo`, `resolver` do Reanimated, `jest.setup.ts`; `src/app/` e `src/web-tests/` ficam fora da execução | `__tests__/` ao lado do código (`src/components/ui/__tests__/ui.test.tsx`) |
+| `better-meet` | Jest 30.5.2; `jest-expo` 58.0.16; React Native Testing Library 14.1.0 | `package.json`: preset `jest-expo`, `resolver` do Reanimated, `jest.setup.ts`; `src/app/` e `src/web-tests/` ficam fora da execução | `__tests__/` ao lado do código (`src/components/ui/__tests__/ui.test.tsx`) |
 
 - **Nomes:** o arquivo leva o assunto (`reuniaoCheckIn.test.mjs`); `describe` com o nome da unidade testada e `test`/`it` com a frase do comportamento, em pt-BR ("aceita título e duas opções").
 - **Simular dependências:** nos testes da API, o banco e o `env` são substituídos com `jest.unstable_mockModule('../src/config/database.ts', …)` antes do `await import` do módulo testado. Nos testes do app, o `AsyncStorage` é simulado em `jest.setup.ts` e o `fetch` com `globalThis.fetch = mockFetch as typeof fetch` (RN-19). Nenhum teste usa o banco de desenvolvimento.

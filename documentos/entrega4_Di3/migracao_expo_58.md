@@ -1,11 +1,14 @@
 # Migração para o Expo SDK 58
 
+> **Atualização de 2026-11-27:** este documento registra a migração entregue na Di3. Depois dela, os dois apps foram atualizados para o `expo` 58.1.0 (seção 12). A especificação vigente dos RNF50 a RNF54 é [requisitos_nao_funcionais_expo_58.md](../entrega5_AF/requisitos_nao_funcionais_expo_58.md).
+
 ```text
 Incremento: Entrega Di3 — Manutenção: migração para a SDK 58 do Expo
 Escopo: migração do better-meet e do management-better-meet/web do SDK 57 para o SDK 58; RNF50 a RNF54 (requisitos_nao_funcionais_migracao_expo_58.md). Nenhum RF e nenhum UC novos.
 Branch: main
 Commit: 6e4b743; verificações automáticas em 80ec6e5, e o 6e4b743 só acrescentou src/expo-types.d.ts (correção do tsc do web); commits da migração: 9527c1b, dbf965d e 23b9226, integrados à development pelo merge 5b94ead
-Data de revisão: 2026-11-13
+Versão: 1.1
+Data de revisão: 2026-11-27 (conteúdo da Di3 revisado em 2026-11-13)
 Responsável(eis): Bruno Soares Machado
 Estado: Parcial (código migrado e verificado por análise estática e testes automatizados; testes manuais aprovados no Android e no painel web; iOS não executado, sem acesso a dispositivo)
 Fontes: sistema/better-meet/package.json; sistema/better-meet/package-lock.json; sistema/better-meet/src/app/_layout.tsx; sistema/better-meet/src/app/(tabs)/_layout.tsx; sistema/better-meet/src/components/ui/KeyboardAwareScrollView.tsx; sistema/better-meet/src/components/ui/TextField.tsx; sistema/better-meet/src/utils/__tests__/apiClient.test.ts; sistema/management-better-meet/web/package.json; sistema/management-better-meet/web/src/app/_layout.tsx; sistema/management-better-meet/web/src/store/themeStore.ts; sistema/management-better-meet/web/src/hooks/use-theme.ts; git diff ae0dec7..23b9226; git diff 0320831..origin/development; slide aula4.pptx (Incremento 3, "Manutenção")
@@ -238,3 +241,25 @@ Em [testes_migracao_expo_58.md](testes_migracao_expo_58.md). Resumo da execuçã
 5. `npm ci` não mostra o total de vulnerabilidades (rodado com `--no-audit`). As 33 do app e as 5 do web, que vêm dos `aidlc-docs`, não foram reavaliadas aqui, e não há RNF de segurança de dependências.
 6. **Diagramas PlantUML:** `DS-Protecao-Rotas-Better-Meet` e `DS-Hidratacao-Tema-Web` têm `.puml` e `.svg` em `Diagramas/`, compilados sem erro com o PlantUML 1.2026.10. Falta conferir a renderização no GitHub e na Wiki (item do checklist da seção 15 do guia).
 7. O painel web tem dependências que o código não usa (`@expo/ui`, `expo-device`, `expo-glass-effect`, `expo-image`, `expo-symbols`, `expo-web-browser`, `expo-status-bar`), segundo o `aidlc-docs` do web. Não reconferido por busca no código.
+
+---
+
+## 12. Atualização para o Expo 58.1.0 (2026-11-27)
+
+Os dois apps passaram do `expo` 58.0.26 para o 58.1.0, ainda no SDK 58, na branch `main` (commit `dd14034`). Mudaram o `package.json` e o `package-lock.json`; nenhum código-fonte foi alterado. A tabela de versões, os comandos, a análise dos changelogs e os resultados estão em [requisitos_nao_funcionais_expo_58.md](../entrega5_AF/requisitos_nao_funcionais_expo_58.md).
+
+A tabela abaixo mostra a situação atual de itens registrados antes neste documento.
+
+| Item | Situação em 2026-11-27 |
+|---|---|
+| D1 (`AGENTS.md` do painel web) | Resolvido: o arquivo aponta para a documentação `v58.0.0` |
+| RNF52, painel web sem testes | O painel tem testes: 6 suítes e 40 testes aprovados |
+| RNF51, lint do `better-meet` | Reprovado: 2 erros em `ReuniaoAbas.test.tsx`; a contagem era a mesma antes da atualização |
+| RNF53 | Teste manual não repetido com o `expo` 58.1.0; o iOS continua não executado |
+
+## Histórico de revisões
+
+| Versão | Data | Autor(es) | Alteração |
+|---|---|---|---|
+| 1.0 | 2026-11-13 | Bruno Soares Machado | Registro da entrega Di3 |
+| 1.1 | 2026-11-27 | Bruno Soares Machado | Aviso sobre a atualização para o `expo` 58.1.0 e seção 12 |
