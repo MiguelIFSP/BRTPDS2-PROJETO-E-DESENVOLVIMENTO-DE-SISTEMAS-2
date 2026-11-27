@@ -98,6 +98,24 @@ const exigirPermissao = async (
   }
 };
 
+// Antes do início não houve participação a registrar. No instante exato do
+// início a lista já pode ser alterada, e continua assim depois do término.
+const exigirReuniaoIniciada = (
+  reuniao: Pick<ReuniaoLista, 'data' | 'horaInicio'>,
+) => {
+  const inicio = instanteNoFuso(
+    reuniao.data,
+    reuniao.horaInicio,
+    env.TZ_REUNIOES,
+  );
+  if (new Date() < inicio) {
+    throw new AppError(
+      409,
+      'A lista de presença só pode ser alterada após o início da reunião.',
+    );
+  }
+};
+
 const participantesDaReuniao = (reuniao: ReuniaoLista) => {
   const porId = new Map<
     number,
@@ -269,6 +287,7 @@ export const listaPresencaService = {
     const reuniao = await carregarReuniao(reuniaoId);
     await exigirPermissao(actorId, role, reuniao);
     exigirParticipante(reuniao, participanteId);
+    exigirReuniaoIniciada(reuniao);
 
     const existente = await prisma.reuniaoPresenca.findUnique({
       where: { reuniaoId_userId: { reuniaoId, userId: participanteId } },
@@ -349,6 +368,7 @@ export const listaPresencaService = {
           'Não é possível registrar eventos em uma reunião cancelada.',
         );
       }
+      exigirReuniaoIniciada(reuniao);
 
       const ocorridoAt = instanteNoFuso(
         reuniao.data,

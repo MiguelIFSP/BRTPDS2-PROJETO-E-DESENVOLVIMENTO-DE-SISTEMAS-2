@@ -339,6 +339,7 @@ const MANUAL_CAPITULOS = [
         steps: [
           'Em uma conta comum, “Ver lista de presença” aparece para quem criou a reunião ou tem o papel Administrador naquela comissão.',
           'Na lista, consulte o estado Presente, Ausente ou Sem marcação e os horários de entrada e saída registrados para cada pessoa.',
+          'A lista pode ser consultada a qualquer momento, mas só pode ser alterada a partir do horário de início da reunião.',
           'Uma pessoa autorizada pode ajustar a marcação manual, registrar uma saída no meio da reunião e o horário de retorno. O motivo da saída é opcional; Observações pode guardar informações adicionais.',
           'A exportação em PDF só fica disponível depois que a reunião for encerrada. Reuniões canceladas não podem ser exportadas.',
         ],

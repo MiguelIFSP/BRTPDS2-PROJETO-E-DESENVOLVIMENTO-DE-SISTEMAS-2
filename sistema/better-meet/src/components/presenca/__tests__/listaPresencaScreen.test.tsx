@@ -157,6 +157,38 @@ describe('ListaPresencaScreen', () => {
     ).toBeOnTheScreen();
   });
 
+  it('bloqueia alterações antes do início da reunião', async () => {
+    service.listByReuniao.mockResolvedValue({
+      ...LISTA,
+      cabecalho: {
+        ...LISTA.cabecalho,
+        reuniao: {
+          ...LISTA.cabecalho.reuniao,
+          data: '2099-11-25',
+          estado: 'AGUARDANDO',
+          podeExportar: false,
+        },
+      },
+    });
+
+    await render(<ListaPresencaScreen />);
+
+    expect(
+      await screen.findByText(
+        /A lista poderá ser alterada a partir do início da reunião/,
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', { name: 'Presente para Pessoa convidada' }),
+    ).toBeNull();
+    expect(
+      screen.queryByLabelText('Observações de Pessoa convidada'),
+    ).toBeNull();
+    expect(
+      screen.queryByRole('button', { name: 'Salvar observações' }),
+    ).toBeNull();
+  });
+
   it('salva uma classificação e permite registrar saída com motivo opcional', async () => {
     service.updateMark.mockResolvedValue({
       ...LISTA,

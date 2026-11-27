@@ -77,7 +77,7 @@ export const buildListaPresencaPdfHtml = ({
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; form-action 'none'">
   <title>Lista de presença — ${escapeHtml(reuniao.titulo)}</title>
   <style>
-    @page { size: A4 landscape; margin: 14mm; }
+    @page { size: A4 portrait; margin: 14mm; }
     * { box-sizing: border-box; }
     body { color: ${colors.text}; font: 12px Arial, Helvetica, sans-serif; line-height: 1.45; }
     header { border-bottom: 2px solid ${colors.primary}; margin-bottom: 16px; padding-bottom: 12px; }
@@ -86,14 +86,14 @@ export const buildListaPresencaPdfHtml = ({
     p { margin: 3px 0; }
     .brand { color: ${colors.primary}; font-size: 14px; font-weight: bold; margin-bottom: 10px; }
     .summary { display: flex; gap: 20px; margin: 12px 0; }
-    table { border-collapse: collapse; width: 100%; }
-    th, td { border: 1px solid ${colors.border}; padding: 7px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
+    table { border-collapse: collapse; width: 100%; font-size: 10px; }
+    th, td { border: 1px solid ${colors.border}; padding: 5px; text-align: left; vertical-align: top; overflow-wrap: anywhere; }
     th { background: ${colors.backgroundElement}; }
     tr { break-inside: avoid; page-break-inside: avoid; }
     thead { display: table-header-group; }
     ul { margin: 0; padding-left: 16px; }
     li { margin: 0 0 5px; }
-    small { color: ${colors.textSecondary}; font-size: 10px; }
+    small { color: ${colors.textSecondary}; font-size: 9px; }
     .empty { color: ${colors.textSecondary}; padding: 16px 0; }
   </style>
 </head>

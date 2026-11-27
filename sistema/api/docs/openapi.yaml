@@ -2677,6 +2677,10 @@ paths:
     patch:
       tags: [Reuniões]
       summary: Atualizar marcação e/ou observações de um participante
+      description: >-
+        Disponível ao administrador da plataforma, criador da reunião ou
+        administrador atual da comissão. Só é permitido a partir do horário de
+        início da reunião, no fuso TZ_REUNIOES.
       security: [{ bearerAuth: [] }]
       parameters:
         - {
@@ -2712,12 +2716,13 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: A reunião ainda não começou. }
 
   /reunioes/{id}/lista-presenca/{userId}/eventos:
     post:
       tags: [Reuniões]
       summary: Registrar saída ou retorno de um participante
-      description: O horário HH:mm é interpretado na data e no fuso TZ_REUNIOES da reunião. Saídas exigem presença marcada ou entrada registrada; eventos precisam alternar saída e retorno.
+      description: Só é permitido a partir do horário de início da reunião. O horário HH:mm é interpretado na data e no fuso TZ_REUNIOES da reunião. Saídas exigem presença marcada ou entrada registrada; eventos precisam alternar saída e retorno.
       security: [{ bearerAuth: [] }]
       parameters:
         - {
@@ -2755,7 +2760,9 @@ paths:
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
         '409':
-          { description: O horário ou a sequência de eventos não é válida. }
+          {
+            description: "A reunião ainda não começou ou está cancelada, ou o horário ou a sequência de eventos não é válida.",
+          }
 
   /reunioes/{id}/ata:
     parameters:

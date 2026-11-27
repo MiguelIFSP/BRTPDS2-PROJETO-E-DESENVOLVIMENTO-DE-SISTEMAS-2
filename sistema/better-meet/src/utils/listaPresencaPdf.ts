@@ -18,8 +18,8 @@ export const exportListaPresencaPdf = async (
 
   const { base64 } = await Print.printToFileAsync({
     html,
-    width: 842,
-    height: 595,
+    width: 595,
+    height: 842,
     margins: { top: 40, bottom: 40, left: 40, right: 40 },
     base64: true,
   });

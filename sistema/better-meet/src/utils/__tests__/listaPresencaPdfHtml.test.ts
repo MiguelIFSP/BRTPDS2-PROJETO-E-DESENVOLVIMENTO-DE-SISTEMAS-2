@@ -63,6 +63,12 @@ describe('buildListaPresencaPdfHtml', () => {
     expect(html).toContain('Observações');
   });
 
+  it('define a página em A4 na orientação retrato', () => {
+    expect(buildListaPresencaPdfHtml(lista)).toContain(
+      '@page { size: A4 portrait;',
+    );
+  });
+
   it('não gera conteúdo do PDF antes do encerramento da reunião', () => {
     expect(() =>
       buildListaPresencaPdfHtml({

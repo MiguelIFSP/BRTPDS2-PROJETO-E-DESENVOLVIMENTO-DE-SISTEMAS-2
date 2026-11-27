@@ -13,6 +13,7 @@ import SectionLabel from '@/components/ui/SectionLabel';
 import TextField from '@/components/ui/TextField';
 import { Spacing, Typography } from '@/constants/theme';
 import { useFeedback } from '@/hooks/useFeedback';
+import { useRelogio } from '@/hooks/useRelogio';
 import { useTheme } from '@/hooks/useTheme';
 import { listaPresencaService } from '@/services/listaPresencaService';
 import { exportListaPresencaPdf } from '@/utils/listaPresencaPdf';
@@ -24,6 +25,7 @@ import type {
 } from '@/services/listaPresencaService';
 import { useAuthStore } from '@/store/authStore';
 import { getErrorMessage } from '@/utils/apiClient';
+import { calcularJanelaCheckIn } from '@/utils/janelaCheckIn';
 
 const STATUS_OPCOES = [
   { valor: 'PRESENTE', rotulo: 'Presente' },
@@ -67,6 +69,7 @@ export default function ListaPresencaScreen() {
   const id = Number(reuniaoId);
   const token = useAuthStore((state) => state.token);
   const { colors } = useTheme();
+  const agora = useRelogio();
   const [lista, setLista] = useState<ListaPresencaDetalhada | null>(null);
   const [feedback, setFeedback] = useFeedback();
   const [isLoading, setIsLoading] = useState(true);
@@ -216,6 +219,12 @@ export default function ListaPresencaScreen() {
   };
 
   const reuniao = lista?.cabecalho.reuniao;
+  // Calculado pelo relógio, e não pelo estado carregado, para liberar a edição
+  // no horário de início com a tela aberta.
+  const podeAlterar = reuniao
+    ? calcularJanelaCheckIn(reuniao, agora, reuniao.fusoHorario).estado !==
+      'antes'
+    : false;
 
   const saveObservation = (participanteId: number) =>
     runUpdate(
@@ -292,6 +301,13 @@ export default function ListaPresencaScreen() {
         </Text>
       ) : null}
 
+      {reuniao && !podeAlterar && reuniao.estado !== 'CANCELADA' ? (
+        <Text style={[styles.body, { color: colors.textSecondary }]}>
+          A lista poderá ser alterada a partir do início da reunião, às{' '}
+          {reuniao.horaInicio} de {formatarData(reuniao.data)}.
+        </Text>
+      ) : null}
+
       <SectionLabel label="Participantes e registros" />
       {!isLoading && lista?.participantes.length === 0 ? (
         <Card>
@@ -303,8 +319,11 @@ export default function ListaPresencaScreen() {
       {lista?.participantes.map((participante) => {
         const ultimoEvento = participante.eventos.at(-1);
         const podeRegistrarSaida =
-          participante.status === 'PRESENTE' && ultimoEvento?.tipo !== 'SAIDA';
-        const podeRegistrarRetorno = ultimoEvento?.tipo === 'SAIDA';
+          podeAlterar &&
+          participante.status === 'PRESENTE' &&
+          ultimoEvento?.tipo !== 'SAIDA';
+        const podeRegistrarRetorno =
+          podeAlterar && ultimoEvento?.tipo === 'SAIDA';
         const horario = horarios[participante.userId] ?? horaAtual();
 
         return (
@@ -320,19 +339,21 @@ export default function ListaPresencaScreen() {
               </View>
             </View>
 
-            <View accessibilityRole="radiogroup" style={styles.opcoes}>
-              {STATUS_OPCOES.map((opcao) => (
-                <Chip
-                  key={opcao.valor}
-                  label={opcao.rotulo}
-                  accessibilityLabel={`${opcao.rotulo} para ${participante.nome}`}
-                  selected={participante.status === opcao.valor}
-                  onPress={() =>
-                    void updateStatus(participante.userId, opcao.valor)
-                  }
-                />
-              ))}
-            </View>
+            {podeAlterar ? (
+              <View accessibilityRole="radiogroup" style={styles.opcoes}>
+                {STATUS_OPCOES.map((opcao) => (
+                  <Chip
+                    key={opcao.valor}
+                    label={opcao.rotulo}
+                    accessibilityLabel={`${opcao.rotulo} para ${participante.nome}`}
+                    selected={participante.status === opcao.valor}
+                    onPress={() =>
+                      void updateStatus(participante.userId, opcao.valor)
+                    }
+                  />
+                ))}
+              </View>
+            ) : null}
             <Text style={[styles.caption, { color: colors.textSecondary }]}>
               Entrada registrada:{' '}
               {formatarInstante(participante.entrada, reuniao?.fusoHorario)}
@@ -349,31 +370,35 @@ export default function ListaPresencaScreen() {
               </Text>
             ) : null}
 
-            <TextField
-              label="Observações"
-              accessibilityLabel={`Observações de ${participante.nome}`}
-              value={observacoes[participante.userId] ?? ''}
-              placeholder="Observações sobre a participação"
-              maxLength={2000}
-              multiline
-              onChangeText={(value) =>
-                setObservacoes((current) => ({
-                  ...current,
-                  [participante.userId]: value,
-                }))
-              }
-            />
-            <Button
-              label="Salvar observações"
-              icon="save-outline"
-              variant="secondary"
-              disabled={
-                isSaving ||
-                (observacoes[participante.userId] ?? '').trim() ===
-                  (participante.observacao ?? '')
-              }
-              onPress={() => void saveObservation(participante.userId)}
-            />
+            {podeAlterar ? (
+              <>
+                <TextField
+                  label="Observações"
+                  accessibilityLabel={`Observações de ${participante.nome}`}
+                  value={observacoes[participante.userId] ?? ''}
+                  placeholder="Observações sobre a participação"
+                  maxLength={2000}
+                  multiline
+                  onChangeText={(value) =>
+                    setObservacoes((current) => ({
+                      ...current,
+                      [participante.userId]: value,
+                    }))
+                  }
+                />
+                <Button
+                  label="Salvar observações"
+                  icon="save-outline"
+                  variant="secondary"
+                  disabled={
+                    isSaving ||
+                    (observacoes[participante.userId] ?? '').trim() ===
+                      (participante.observacao ?? '')
+                  }
+                  onPress={() => void saveObservation(participante.userId)}
+                />
+              </>
+            ) : null}
 
             {participante.eventos.length > 0 ? (
               <View style={[styles.eventos, { borderTopColor: colors.border }]}>
