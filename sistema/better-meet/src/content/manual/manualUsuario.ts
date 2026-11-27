@@ -33,12 +33,12 @@ export type ManualChapter = {
 
 // Cada ilustração é um recurso estático incluído no pacote do aplicativo.
 // Os arquivos com nomes descritivos ficam em assets/manual/images.
-export const MANUAL_USUARIO = [
+const MANUAL_CAPITULOS = [
   {
     id: 'primeiros-passos',
-    title: 'Bem-vindo e navegação',
+    title: 'Primeiros passos e navegação',
     intro:
-      'Este guia explica as funções disponíveis para uma conta de usuário comum. Algumas ações aparecem apenas quando o papel da pessoa na organização, comissão ou reunião permite usá-las.',
+      'Depois de entrar, use este capítulo para se orientar no aplicativo. Algumas ações aparecem apenas quando o papel da pessoa na organização, comissão ou reunião permite usá-las.',
     content: [
       {
         kind: 'section',
@@ -71,10 +71,19 @@ export const MANUAL_USUARIO = [
   },
   {
     id: 'conta-acesso',
-    title: 'Criar conta, confirmar e entrar',
+    title: 'Entrar e criar uma conta',
     intro:
-      'A conta é identificada pelo e-mail. Para concluir o cadastro e entrar pela primeira vez, confirme o endereço usado no formulário.',
+      'Comece entrando na sua conta. Se ainda não tiver cadastro, crie uma conta e confirme o e-mail antes de acessar o aplicativo.',
     content: [
+      {
+        kind: 'section',
+        title: 'Entrar na conta',
+        steps: [
+          'Na tela Entrar, informe o e-mail e a senha cadastrados. O ícone de olho alterna entre mostrar e ocultar a senha.',
+          'Toque em “Entrar”. Se os dados estiverem incorretos, confira a digitação; o aplicativo não revela se o erro foi no e-mail ou na senha.',
+          'Se ainda não tiver uma conta, use “Ainda não tem conta? Cadastrar-se”. Para redefinir a senha, use “Esqueceu a senha?”.',
+        ],
+      },
       {
         kind: 'section',
         title: 'Criar uma conta',
@@ -111,10 +120,8 @@ export const MANUAL_USUARIO = [
       },
       {
         kind: 'section',
-        title: 'Entrar ou recuperar a senha',
+        title: 'Recuperar a senha',
         steps: [
-          'Na tela Entrar, informe seu e-mail e senha. O ícone de olho alterna entre mostrar e ocultar a senha.',
-          'Se os dados estiverem incorretos, confira a digitação. O aplicativo não revela se o erro foi no e-mail ou na senha.',
           'Para redefinir a senha, toque em “Esqueceu a senha?”, informe o e-mail e abra a mensagem recebida. O link vale por 30 minutos.',
           'No formulário Nova senha, siga o link ou informe o código da mensagem, defina e confirme a nova senha e toque em “Redefinir senha”. Ao terminar, entre usando a nova senha.',
         ],
@@ -464,3 +471,10 @@ export const MANUAL_USUARIO = [
     ],
   },
 ] as const satisfies readonly ManualChapter[];
+
+// A navegação do manual começa pelo acesso e só depois apresenta as áreas internas.
+export const MANUAL_USUARIO: readonly ManualChapter[] = [
+  MANUAL_CAPITULOS[1],
+  MANUAL_CAPITULOS[0],
+  ...MANUAL_CAPITULOS.slice(2),
+];

@@ -1,19 +1,32 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import { Image, StyleSheet, Text, View } from 'react-native';
+import {
+  Image,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 
 import ManualPagination from '@/components/manual/ManualPagination';
 import BackButton from '@/components/ui/BackButton';
 import Card from '@/components/ui/Card';
 import PageIntro from '@/components/ui/PageIntro';
 import Screen from '@/components/ui/Screen';
-import { FontFamily, Radius, Spacing, Typography } from '@/constants/theme';
+import {
+  FontFamily,
+  MaxContentWidth,
+  Radius,
+  Spacing,
+  Typography,
+} from '@/constants/theme';
 import { MANUAL_USUARIO } from '@/content/manual/manualUsuario';
 import { useTheme } from '@/hooks/useTheme';
 
 export default function ManualScreen() {
   const router = useRouter();
   const { colors } = useTheme();
+  const { width: screenWidth } = useWindowDimensions();
   const [page, setPage] = useState(0);
   const chapter = MANUAL_USUARIO[page] ?? MANUAL_USUARIO[0]!;
   const totalPages = MANUAL_USUARIO.length;
@@ -71,6 +84,17 @@ export default function ManualScreen() {
         const key = `${chapter.id}-${index}`;
 
         if (block.kind === 'image') {
+          const imageWidth = Math.max(
+            0,
+            Math.min(
+              screenWidth - Spacing.lg * 4,
+              MaxContentWidth - Spacing.lg * 4,
+              260,
+              380 * block.aspectRatio,
+            ),
+          );
+          const imageHeight = imageWidth / block.aspectRatio;
+
           return (
             <Card key={key} style={styles.figure}>
               <Image
@@ -80,7 +104,7 @@ export default function ManualScreen() {
                 resizeMode="contain"
                 style={[
                   styles.illustration,
-                  { aspectRatio: block.aspectRatio },
+                  { width: imageWidth, height: imageHeight },
                 ]}
               />
               <Text style={[styles.caption, { color: colors.textSecondary }]}>
@@ -159,7 +183,7 @@ const styles = StyleSheet.create({
   stepRow: { flexDirection: 'row', alignItems: 'flex-start', gap: Spacing.sm },
   stepNumber: { ...Typography.body, fontFamily: FontFamily.bold },
   stepText: { flex: 1 },
-  figure: { alignItems: 'center' },
-  illustration: { width: '100%', borderRadius: Radius.md },
+  figure: { width: '100%', alignItems: 'center' },
+  illustration: { borderRadius: Radius.md },
   caption: { ...Typography.bodySmall, lineHeight: 20, textAlign: 'center' },
 });
