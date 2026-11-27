@@ -25,7 +25,7 @@ export const listaPresencaController = {
     const { id: userId, role } = (request as AuthenticatedRequest).user;
     const reuniaoId = parseId(request.params.id, 'da reunião');
     const participanteId = parseId(request.params.userId, 'do participante');
-    const { status } = await marcacaoPresencaRealSchema.validate(request.body, {
+    const data = await marcacaoPresencaRealSchema.validate(request.body, {
       stripUnknown: true,
     });
     response
@@ -36,7 +36,7 @@ export const listaPresencaController = {
           role,
           reuniaoId,
           participanteId,
-          status,
+          data,
         ),
       );
   },

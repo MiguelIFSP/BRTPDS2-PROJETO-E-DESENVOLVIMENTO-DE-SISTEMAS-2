@@ -394,7 +394,8 @@ model ReuniaoRegistro {
 model ReuniaoPresenca {
   reuniaoId       Int
   userId          Int
-  status          StatusMarcacaoPresenca
+  status          StatusMarcacaoPresenca?
+  observacao      String?          @db.VarChar(2000)
   marcadoPorId    Int
   updatedAt       DateTime @updatedAt
 

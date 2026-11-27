@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { listaPresencaService } from '@/services/listaPresencaService';
 import { apiRequest } from '@/utils/apiClient';
@@ -28,12 +28,29 @@ describe('listaPresencaService', () => {
   it('atualiza a marcação sem enviar a identidade de quem administra', async () => {
     request.mockResolvedValue({ participantes: [] });
 
-    await listaPresencaService.updateMark('token', 7, 12, 'AUSENTE');
+    await listaPresencaService.updateMark('token', 7, 12, {
+      status: 'AUSENTE',
+    });
 
     expect(request).toHaveBeenCalledWith('/reunioes/7/lista-presenca/12', {
       method: 'PATCH',
       token: 'token',
       body: { status: 'AUSENTE' },
+      fallbackError: 'Não foi possível atualizar a presença.',
+    });
+  });
+
+  it('salva observações para uma pessoa sem alterar o horário registrado', async () => {
+    request.mockResolvedValue({ participantes: [] });
+
+    await listaPresencaService.updateMark('token', 7, 12, {
+      observacao: 'Chegou após o início.',
+    });
+
+    expect(request).toHaveBeenCalledWith('/reunioes/7/lista-presenca/12', {
+      method: 'PATCH',
+      token: 'token',
+      body: { observacao: 'Chegou após o início.' },
       fallbackError: 'Não foi possível atualizar a presença.',
     });
   });

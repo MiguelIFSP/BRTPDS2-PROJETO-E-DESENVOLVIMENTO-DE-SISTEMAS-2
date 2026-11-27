@@ -22,6 +22,7 @@ export type ParticipanteListaPresenca = {
   status: StatusMarcacaoLista;
   entrada: string | null;
   saida: string | null;
+  observacao: string | null;
   marcadoPor: string | null;
   marcadoEm: string | null;
   eventos: EventoListaPresenca[];
@@ -36,6 +37,14 @@ export type ListaPresencaDetalhada = {
       horaInicio: string;
       horaFim: string;
       local: string | null;
+      fusoHorario: string;
+      estado:
+        | 'CANCELADA'
+        | 'AGUARDANDO'
+        | 'CHECKIN_ABERTO'
+        | 'EM_ANDAMENTO'
+        | 'ENCERRADA';
+      podeExportar: boolean;
     };
     organizacao: { id: number; nome: string };
     comissao: { id: number; nome: string };
@@ -61,14 +70,17 @@ export const listaPresencaService = {
     token: string,
     reuniaoId: number,
     userId: number,
-    status: StatusMarcacaoLista,
+    data: {
+      status?: StatusMarcacaoLista | undefined;
+      observacao?: string | undefined;
+    },
   ) {
     return apiRequest<ListaPresencaDetalhada>(
       `/reunioes/${reuniaoId}/lista-presenca/${userId}`,
       {
         method: 'PATCH',
         token,
-        body: { status },
+        body: data,
         fallbackError: 'Não foi possível atualizar a presença.',
       },
     );

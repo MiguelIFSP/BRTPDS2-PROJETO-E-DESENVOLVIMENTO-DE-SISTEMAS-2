@@ -12,6 +12,9 @@ const lista: ListaPresencaDetalhada = {
       horaInicio: '19:00',
       horaFim: '20:00',
       local: 'Sala A & B',
+      fusoHorario: 'America/Sao_Paulo',
+      estado: 'ENCERRADA',
+      podeExportar: true,
     },
     organizacao: { id: 1, nome: 'Organização' },
     comissao: { id: 2, nome: 'Conselho' },
@@ -28,6 +31,7 @@ const lista: ListaPresencaDetalhada = {
       saida: null,
       marcadoPor: 'Administradora',
       marcadoEm: '2026-11-25T22:01:00.000Z',
+      observacao: 'Chegou após o início.',
       eventos: [
         {
           id: 7,
@@ -50,10 +54,29 @@ describe('buildListaPresencaPdfHtml', () => {
     expect(html).toContain('Reunião &lt;Equipe&gt;');
     expect(html).toContain('Pessoa &lt;Um&gt;');
     expect(html).toContain('Sala A &amp; B');
-    expect(html).toContain('Atendimento &amp; retorno');
+    expect(html).toContain('Chegou após o início.');
+    expect(html).not.toContain('Atendimento &amp; retorno');
     expect(html).toContain('25/11/2026');
+    expect(html).toContain('19:00');
     expect(html).toContain('Entrada');
-    expect(html).toContain('Saídas, retornos e motivos');
+    expect(html).toContain('Saídas e retornos');
+    expect(html).toContain('Observações');
+  });
+
+  it('não gera conteúdo do PDF antes do encerramento da reunião', () => {
+    expect(() =>
+      buildListaPresencaPdfHtml({
+        ...lista,
+        cabecalho: {
+          ...lista.cabecalho,
+          reuniao: {
+            ...lista.cabecalho.reuniao,
+            estado: 'EM_ANDAMENTO',
+            podeExportar: false,
+          },
+        },
+      }),
+    ).toThrow('A lista só pode ser exportada após o encerramento da reunião.');
   });
 
   it('mostra quando não há participantes', () => {

@@ -1,4 +1,4 @@
-﻿import { beforeEach, describe, expect, it, jest } from '@jest/globals';
+import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import {
   fireEvent,
   render,
@@ -56,6 +56,9 @@ const LISTA: ListaPresencaDetalhada = {
       horaInicio: '19:00',
       horaFim: '20:00',
       local: 'Sala A',
+      fusoHorario: 'America/Sao_Paulo',
+      estado: 'ENCERRADA',
+      podeExportar: true,
     },
     organizacao: { id: 1, nome: 'Organização de teste' },
     comissao: { id: 2, nome: 'Comissão de teste' },
@@ -70,6 +73,7 @@ const LISTA: ListaPresencaDetalhada = {
       status: 'SEM_MARCACAO',
       entrada: null,
       saida: null,
+      observacao: null,
       marcadoPor: null,
       marcadoEm: null,
       eventos: [],
@@ -106,6 +110,53 @@ describe('ListaPresencaScreen', () => {
     await waitFor(() => expect(exportPdf).toHaveBeenCalledWith(LISTA));
   });
 
+  it('oculta a exportação durante a reunião', async () => {
+    service.listByReuniao.mockResolvedValue({
+      ...LISTA,
+      cabecalho: {
+        ...LISTA.cabecalho,
+        reuniao: {
+          ...LISTA.cabecalho.reuniao,
+          estado: 'EM_ANDAMENTO',
+          podeExportar: false,
+        },
+      },
+    });
+
+    await render(<ListaPresencaScreen />);
+
+    expect(
+      await screen.findByText(
+        'A exportação ficará disponível após o encerramento da reunião.',
+      ),
+    ).toBeOnTheScreen();
+    expect(
+      screen.queryByRole('button', { name: 'Exportar lista em PDF' }),
+    ).toBeNull();
+  });
+
+  it('explica que reuniões canceladas não podem ser exportadas', async () => {
+    service.listByReuniao.mockResolvedValue({
+      ...LISTA,
+      cabecalho: {
+        ...LISTA.cabecalho,
+        reuniao: {
+          ...LISTA.cabecalho.reuniao,
+          estado: 'CANCELADA',
+          podeExportar: false,
+        },
+      },
+    });
+
+    await render(<ListaPresencaScreen />);
+
+    expect(
+      await screen.findByText(
+        'Reuniões canceladas não permitem exportar a lista de presença.',
+      ),
+    ).toBeOnTheScreen();
+  });
+
   it('salva uma classificação e permite registrar saída com motivo opcional', async () => {
     service.updateMark.mockResolvedValue({
       ...LISTA,
@@ -119,12 +170,9 @@ describe('ListaPresencaScreen', () => {
     );
 
     await waitFor(() =>
-      expect(service.updateMark).toHaveBeenCalledWith(
-        'token',
-        7,
-        12,
-        'PRESENTE',
-      ),
+      expect(service.updateMark).toHaveBeenCalledWith('token', 7, 12, {
+        status: 'PRESENTE',
+      }),
     );
     expect(
       await screen.findByRole('button', { name: 'Registrar saída' }),
@@ -174,6 +222,31 @@ describe('ListaPresencaScreen', () => {
         tipo: 'SAIDA',
         hora: '19:30',
         motivo: 'Emergência',
+      }),
+    );
+  });
+
+  it('salva observações associadas ao participante e à reunião', async () => {
+    service.updateMark.mockResolvedValue({
+      ...LISTA,
+      participantes: [
+        { ...LISTA.participantes[0]!, observacao: 'Chegou após o início.' },
+      ],
+    });
+
+    await render(<ListaPresencaScreen />);
+    await screen.findByText('Pessoa convidada');
+    await fireEvent.changeText(
+      screen.getByLabelText('Observações de Pessoa convidada'),
+      'Chegou após o início.',
+    );
+    await fireEvent.press(
+      screen.getByRole('button', { name: 'Salvar observações' }),
+    );
+
+    await waitFor(() =>
+      expect(service.updateMark).toHaveBeenCalledWith('token', 7, 12, {
+        observacao: 'Chegou após o início.',
       }),
     );
   });

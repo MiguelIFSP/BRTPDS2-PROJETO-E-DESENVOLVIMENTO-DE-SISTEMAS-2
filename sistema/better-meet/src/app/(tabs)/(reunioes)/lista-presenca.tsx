@@ -39,11 +39,15 @@ const horaAtual = () => {
   return `${String(agora.getHours()).padStart(2, '0')}:${String(agora.getMinutes()).padStart(2, '0')}`;
 };
 
-const formatarInstante = (instante: string | null) =>
+const formatarInstante = (
+  instante: string | null,
+  fusoHorario = 'America/Sao_Paulo',
+) =>
   instante
     ? new Date(instante).toLocaleString('pt-BR', {
         dateStyle: 'short',
         timeStyle: 'short',
+        timeZone: fusoHorario,
       })
     : 'Não registrado';
 
@@ -70,6 +74,7 @@ export default function ListaPresencaScreen() {
   const [isExporting, setIsExporting] = useState(false);
   const [horarios, setHorarios] = useState<Record<number, string>>({});
   const [motivos, setMotivos] = useState<Record<number, string>>({});
+  const [observacoes, setObservacoes] = useState<Record<number, string>>({});
 
   useFocusEffect(
     useCallback(() => {
@@ -91,6 +96,17 @@ export default function ListaPresencaScreen() {
           );
           if (isCurrent) {
             setLista(result);
+            setObservacoes(
+              Object.fromEntries(
+                result.participantes.map(
+                  (participante) =>
+                    [
+                      participante.userId,
+                      participante.observacao ?? '',
+                    ] as const,
+                ),
+              ),
+            );
             setFeedback(null);
           }
         } catch (error) {
@@ -118,6 +134,7 @@ export default function ListaPresencaScreen() {
     participanteId: number,
     action: () => Promise<ListaPresencaDetalhada>,
     successMessage: string,
+    resetEventInputs = true,
   ) => {
     if (isSaving) return;
     setIsSaving(true);
@@ -126,8 +143,13 @@ export default function ListaPresencaScreen() {
       const updated = await action();
       setLista(updated);
       setFeedback({ type: 'success', message: successMessage });
-      setHorarios((current) => ({ ...current, [participanteId]: horaAtual() }));
-      setMotivos((current) => ({ ...current, [participanteId]: '' }));
+      if (resetEventInputs) {
+        setHorarios((current) => ({
+          ...current,
+          [participanteId]: horaAtual(),
+        }));
+        setMotivos((current) => ({ ...current, [participanteId]: '' }));
+      }
     } catch (error) {
       setFeedback({
         type: 'error',
@@ -145,12 +167,9 @@ export default function ListaPresencaScreen() {
     runUpdate(
       participanteId,
       () =>
-        listaPresencaService.updateMark(
-          token ?? '',
-          id,
-          participanteId,
+        listaPresencaService.updateMark(token ?? '', id, participanteId, {
           status,
-        ),
+        }),
       'Marcação de presença salva.',
     );
 
@@ -198,8 +217,19 @@ export default function ListaPresencaScreen() {
 
   const reuniao = lista?.cabecalho.reuniao;
 
+  const saveObservation = (participanteId: number) =>
+    runUpdate(
+      participanteId,
+      () =>
+        listaPresencaService.updateMark(token ?? '', id, participanteId, {
+          observacao: observacoes[participanteId] ?? '',
+        }),
+      'Observações salvas.',
+      false,
+    );
+
   const handleExport = async () => {
-    if (!lista || isExporting) return;
+    if (!lista || !reuniao?.podeExportar || isExporting) return;
     setIsExporting(true);
     setFeedback(null);
     try {
@@ -243,7 +273,7 @@ export default function ListaPresencaScreen() {
           </Text>
         </Card>
       ) : null}
-      {lista ? (
+      {lista && reuniao?.podeExportar ? (
         <Button
           label="Exportar lista em PDF"
           icon="download-outline"
@@ -253,6 +283,13 @@ export default function ListaPresencaScreen() {
           disabled={isSaving}
           onPress={() => void handleExport()}
         />
+      ) : null}
+      {lista && reuniao && !reuniao.podeExportar ? (
+        <Text style={[styles.caption, { color: colors.textSecondary }]}>
+          {reuniao.estado === 'CANCELADA'
+            ? 'Reuniões canceladas não permitem exportar a lista de presença.'
+            : 'A exportação ficará disponível após o encerramento da reunião.'}
+        </Text>
       ) : null}
 
       <SectionLabel label="Participantes e registros" />
@@ -297,17 +334,46 @@ export default function ListaPresencaScreen() {
               ))}
             </View>
             <Text style={[styles.caption, { color: colors.textSecondary }]}>
-              Entrada registrada: {formatarInstante(participante.entrada)}
+              Entrada registrada:{' '}
+              {formatarInstante(participante.entrada, reuniao?.fusoHorario)}
             </Text>
             <Text style={[styles.caption, { color: colors.textSecondary }]}>
-              Saída registrada: {formatarInstante(participante.saida)}
+              Saída registrada:{' '}
+              {formatarInstante(participante.saida, reuniao?.fusoHorario)}
             </Text>
             {participante.marcadoPor ? (
               <Text style={[styles.caption, { color: colors.textSecondary }]}>
                 Marcação atualizada por {participante.marcadoPor} em{' '}
-                {formatarInstante(participante.marcadoEm)}.
+                {formatarInstante(participante.marcadoEm, reuniao?.fusoHorario)}
+                .
               </Text>
             ) : null}
+
+            <TextField
+              label="Observações"
+              accessibilityLabel={`Observações de ${participante.nome}`}
+              value={observacoes[participante.userId] ?? ''}
+              placeholder="Observações sobre a participação"
+              maxLength={2000}
+              multiline
+              onChangeText={(value) =>
+                setObservacoes((current) => ({
+                  ...current,
+                  [participante.userId]: value,
+                }))
+              }
+            />
+            <Button
+              label="Salvar observações"
+              icon="save-outline"
+              variant="secondary"
+              disabled={
+                isSaving ||
+                (observacoes[participante.userId] ?? '').trim() ===
+                  (participante.observacao ?? '')
+              }
+              onPress={() => void saveObservation(participante.userId)}
+            />
 
             {participante.eventos.length > 0 ? (
               <View style={[styles.eventos, { borderTopColor: colors.border }]}>
@@ -318,7 +384,7 @@ export default function ListaPresencaScreen() {
                     style={[styles.caption, { color: colors.textSecondary }]}
                   >
                     {evento.tipo === 'SAIDA' ? 'Saiu' : 'Retornou'} em{' '}
-                    {formatarInstante(evento.ocorridoAt)}
+                    {formatarInstante(evento.ocorridoAt, reuniao?.fusoHorario)}
                     {evento.motivo ? ` · Motivo: ${evento.motivo}` : ''}
                     {' · Registrado por '}
                     {evento.registradoPor}

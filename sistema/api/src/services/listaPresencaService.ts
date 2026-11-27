@@ -10,7 +10,7 @@ import prisma from '../config/database.ts';
 import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
 import { podeGerirReuniao } from './permissaoReuniaoService.ts';
-import { instanteNoFuso } from '../utils/fusoHorario.ts';
+import { estadoDaReuniao, instanteNoFuso } from '../utils/fusoHorario.ts';
 
 type EventoPresencaData = {
   tipo: TipoEventoPresenca;
@@ -55,6 +55,7 @@ const reuniaoSelect = {
     select: {
       userId: true,
       status: true,
+      observacao: true,
       updatedAt: true,
       marcadoPor: { select: { name: true } },
     },
@@ -159,6 +160,7 @@ const participantesDaReuniao = (reuniao: ReuniaoLista) => {
 };
 
 const apresentarLista = (reuniao: ReuniaoLista) => {
+  const estado = estadoDaReuniao(reuniao, env.TZ_REUNIOES).estado;
   const participantes = participantesDaReuniao(reuniao);
   const registros = new Map(
     reuniao.registros.map((registro) => [registro.userId, registro]),
@@ -181,6 +183,9 @@ const apresentarLista = (reuniao: ReuniaoLista) => {
         horaInicio: reuniao.horaInicio,
         horaFim: reuniao.horaFim,
         local: reuniao.local,
+        fusoHorario: env.TZ_REUNIOES,
+        estado,
+        podeExportar: estado === 'ENCERRADA',
       },
       organizacao: reuniao.comissao.organizacao,
       comissao: { id: reuniao.comissao.id, nome: reuniao.comissao.nome },
@@ -197,6 +202,7 @@ const apresentarLista = (reuniao: ReuniaoLista) => {
             : 'SEM_MARCACAO'),
         entrada: registro?.entradaAt.toISOString() ?? null,
         saida: registro?.saidaAt?.toISOString() ?? null,
+        observacao: marcacao?.observacao ?? null,
         marcadoPor: marcacao?.marcadoPor.name ?? null,
         marcadoEm: marcacao?.updatedAt.toISOString() ?? null,
         eventos: (eventos.get(participante.userId) ?? []).map((evento) => ({
@@ -255,13 +261,31 @@ export const listaPresencaService = {
     role: Role,
     reuniaoId: number,
     participanteId: number,
-    status: StatusMarcacaoPresenca | 'SEM_MARCACAO',
+    data: {
+      status?: StatusMarcacaoPresenca | 'SEM_MARCACAO' | undefined;
+      observacao?: string | undefined;
+    },
   ) {
     const reuniao = await carregarReuniao(reuniaoId);
     await exigirPermissao(actorId, role, reuniao);
     exigirParticipante(reuniao, participanteId);
 
-    if (status === 'SEM_MARCACAO') {
+    const existente = await prisma.reuniaoPresenca.findUnique({
+      where: { reuniaoId_userId: { reuniaoId, userId: participanteId } },
+      select: { status: true, observacao: true },
+    });
+    const status =
+      data.status === undefined
+        ? (existente?.status ?? null)
+        : data.status === 'SEM_MARCACAO'
+          ? null
+          : data.status;
+    const observacao =
+      data.observacao === undefined
+        ? (existente?.observacao ?? null)
+        : data.observacao.trim() || null;
+
+    if (status === null && observacao === null) {
       await prisma.reuniaoPresenca.deleteMany({
         where: { reuniaoId, userId: participanteId },
       });
@@ -272,9 +296,10 @@ export const listaPresencaService = {
           reuniaoId,
           userId: participanteId,
           status,
+          observacao,
           marcadoPorId: actorId,
         },
-        update: { status, marcadoPorId: actorId },
+        update: { status, observacao, marcadoPorId: actorId },
       });
     }
 

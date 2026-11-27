@@ -16,12 +16,13 @@ const escapeHtml = (value: string) =>
     .replaceAll('"', '&quot;')
     .replaceAll("'", '&#39;');
 
-const formatDateTime = (value: string | null) =>
+const formatDateTime = (value: string | null, fusoHorario: string) =>
   value
     ? escapeHtml(
         new Date(value).toLocaleString('pt-BR', {
           dateStyle: 'short',
           timeStyle: 'short',
+          timeZone: fusoHorario,
         }),
       )
     : 'Não registrado';
@@ -32,16 +33,13 @@ const formatStatus = (status: Participante['status']) => {
   return 'Sem marcação';
 };
 
-const renderEvents = (participante: Participante) => {
+const renderEvents = (participante: Participante, fusoHorario: string) => {
   if (!participante.eventos.length)
     return 'Nenhuma saída ou retorno registrado.';
   return `<ul>${participante.eventos
     .map((evento) => {
       const tipo = evento.tipo === 'SAIDA' ? 'Saiu' : 'Retornou';
-      const motivo = evento.motivo
-        ? ` — Motivo: ${escapeHtml(evento.motivo)}`
-        : '';
-      return `<li><strong>${tipo}:</strong> ${formatDateTime(evento.ocorridoAt)}${motivo}<br><small>Registrado por ${escapeHtml(evento.registradoPor)} em ${formatDateTime(evento.registradoEm)}</small></li>`;
+      return `<li><strong>${tipo}:</strong> ${formatDateTime(evento.ocorridoAt, fusoHorario)}<br><small>Registrado por ${escapeHtml(evento.registradoPor)} em ${formatDateTime(evento.registradoEm, fusoHorario)}</small></li>`;
     })
     .join('')}</ul>`;
 };
@@ -52,15 +50,21 @@ export const buildListaPresencaPdfHtml = ({
   totais,
 }: ListaPresencaPdfInput) => {
   const { reuniao, organizacao, comissao } = cabecalho;
+  if (!reuniao.podeExportar || reuniao.estado !== 'ENCERRADA') {
+    throw new Error(
+      'A lista só pode ser exportada após o encerramento da reunião.',
+    );
+  }
   const colors = Colors.light;
   const rows = participantes
     .map(
       (participante) => `<tr>
         <td><strong>${escapeHtml(participante.nome)}</strong><br><small>${escapeHtml(participante.email)}</small></td>
         <td>${formatStatus(participante.status)}</td>
-        <td>${formatDateTime(participante.entrada)}</td>
-        <td>${formatDateTime(participante.saida)}</td>
-        <td>${renderEvents(participante)}</td>
+        <td>${formatDateTime(participante.entrada, reuniao.fusoHorario)}</td>
+        <td>${formatDateTime(participante.saida, reuniao.fusoHorario)}</td>
+        <td>${renderEvents(participante, reuniao.fusoHorario)}</td>
+        <td>${escapeHtml(participante.observacao ?? '—')}</td>
       </tr>`,
     )
     .join('');
@@ -104,7 +108,7 @@ export const buildListaPresencaPdfHtml = ({
   </header>
   <main>
     <h2>Presenças e movimentações</h2>
-    ${participantes.length ? `<table><thead><tr><th>Participante</th><th>Marcação</th><th>Entrada</th><th>Saída final</th><th>Saídas, retornos e motivos</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="empty">Não há participantes convidados para esta reunião.</p>'}
+    ${participantes.length ? `<table><thead><tr><th>Participante</th><th>Marcação</th><th>Entrada</th><th>Saída final</th><th>Saídas e retornos</th><th>Observações</th></tr></thead><tbody>${rows}</tbody></table>` : '<p class="empty">Não há participantes convidados para esta reunião.</p>'}
   </main>
 </body>
 </html>`;

@@ -2658,7 +2658,10 @@ paths:
           }
       responses:
         '200':
-          description: Participantes, registros automáticos, marcações e eventos de saída e retorno.
+          description: >-
+            Participantes, horários de entrada e saída persistidos, observações e
+            eventos por reunião. Inclui estado calculado pelo horário e podeExportar;
+            esta última propriedade só é verdadeira após o encerramento.
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
@@ -2673,7 +2676,7 @@ paths:
   /reunioes/{id}/lista-presenca/{userId}:
     patch:
       tags: [Reuniões]
-      summary: Marcar participante como presente ou ausente
+      summary: Atualizar marcação e/ou observações de um participante
       security: [{ bearerAuth: [] }]
       parameters:
         - {
@@ -2694,10 +2697,15 @@ paths:
           application/json:
             schema:
               type: object
-              required: [status]
               properties:
                 status:
                   { type: string, enum: [PRESENTE, AUSENTE, SEM_MARCACAO] }
+                observacao:
+                  {
+                    type: string,
+                    maxLength: 2000,
+                    description: Observação persistida por participante e reunião.,
+                  }
       responses:
         '200': { description: Lista atualizada com a marcação persistida. }
         '400': { $ref: '#/components/responses/BadRequest' }

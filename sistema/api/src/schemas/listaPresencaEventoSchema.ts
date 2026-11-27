@@ -1,16 +1,31 @@
-import { StatusMarcacaoPresenca, TipoEventoPresenca } from '@prisma/client';
+import {
+  StatusMarcacaoPresenca,
+  TipoEventoPresenca,
+  type StatusMarcacaoPresenca as StatusMarcacaoPresencaType,
+} from '@prisma/client';
 import * as yup from 'yup';
 
-export const marcacaoPresencaRealSchema = yup.object({
-  status: yup
-    .string()
-    .trim()
-    .oneOf(
-      [...Object.values(StatusMarcacaoPresenca), 'SEM_MARCACAO'],
-      'Escolha presente, ausente ou sem marcação.',
-    )
-    .required('Informe a marcação de presença.'),
-});
+export const marcacaoPresencaRealSchema = yup
+  .object({
+    status: yup
+      .string<StatusMarcacaoPresencaType | 'SEM_MARCACAO'>()
+      .trim()
+      .oneOf(
+        [...Object.values(StatusMarcacaoPresenca), 'SEM_MARCACAO'],
+        'Escolha presente, ausente ou sem marcação.',
+      )
+      .optional(),
+    observacao: yup
+      .string()
+      .trim()
+      .max(2000, 'A observação deve ter no máximo 2.000 caracteres.')
+      .optional(),
+  })
+  .test(
+    'campo-atualizado',
+    'Informe a marcação ou as observações da pessoa.',
+    (dados) => dados?.status !== undefined || dados?.observacao !== undefined,
+  );
 
 export const eventoPresencaSchema = yup.object({
   tipo: yup
