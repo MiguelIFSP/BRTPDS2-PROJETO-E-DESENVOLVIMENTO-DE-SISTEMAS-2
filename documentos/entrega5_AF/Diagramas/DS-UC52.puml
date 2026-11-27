@@ -1,0 +1,35 @@
+@startuml DS-UC52
+!include ../../estilo-diagramas.iuml
+title UC52 - Registrar saída por participante
+autonumber
+actor "Administrador da comissão" as pessoa
+boundary "Aplicativo Better Meet" as app
+control "requireAuth / controller\nreuniaoController" as api
+control "presencaService\n<<objeto de serviço>>" as servico
+database "MySQL via Prisma" as banco
+pessoa -> app : Solicitar registrar saída por participante
+app -> api : POST /api/reunioes/:id/participantes/:userId/sair
+alt Sessão ou dados inválidos
+api --> app : 401 ou 400
+else Requisição validada
+api -> servico : registerManual(identidade, dados)
+group Transação Prisma
+servico -> banco : SELECT Reuniao FOR UPDATE
+banco --> servico : Linha bloqueada
+servico -> banco : Consultar contexto e vínculos necessários
+banco --> servico : Dados para autorização
+alt Regra de acesso ou estado não atendida
+servico --> api : AppError (status da ficha RF)
+else Ação autorizada
+servico -> servico : Conferir administrador, destinatário, início e entrada
+servico -> banco : Atualizar saída com origem MANUAL e autor se ausente
+banco --> servico : Resultado persistido
+servico --> api : Resultado da operação
+end
+end
+note over servico,banco : Prisma confirma a transação no sucesso; desfaz na falha.
+api --> app : Resposta HTTP conforme RF61
+end
+app --> pessoa : Dados atualizados ou mensagem de erro
+
+@enduml

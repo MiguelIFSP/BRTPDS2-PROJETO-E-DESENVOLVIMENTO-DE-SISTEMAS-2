@@ -1,0 +1,30 @@
+@startuml DS-UC42
+!include ../../estilo-diagramas.iuml
+title UC42 - Editar comissão
+autonumber
+actor "Usuário autorizado" as pessoa
+boundary "Aplicativo Better Meet" as app
+control "requireAuth / controller\ncomissaoController" as api
+control "comissaoService\n<<objeto de serviço>>" as servico
+database "MySQL via Prisma" as banco
+pessoa -> app : Solicitar editar comissão
+app -> api : PATCH /api/comissoes/:id
+alt Sessão ou dados inválidos
+api --> app : 401 ou 400
+else Requisição validada
+api -> servico : update(identidade, dados)
+servico -> banco : Consultar contexto e vínculos necessários
+banco --> servico : Dados para autorização
+alt Regra de acesso ou estado não atendida
+servico --> api : AppError (status da ficha RF)
+else Ação autorizada
+servico -> servico : Conferir ADMINISTRADOR / FACILITADOR
+servico -> banco : Atualizar nome e descrição
+banco --> servico : Resultado persistido
+servico --> api : Resultado da operação
+end
+api --> app : Resposta HTTP conforme RF51
+end
+app --> pessoa : Dados atualizados ou mensagem de erro
+
+@enduml

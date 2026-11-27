@@ -1,0 +1,22 @@
+@startuml DCU-Presenca
+!include ../../estilo-diagramas.iuml
+title DCU - Presença
+left to right direction
+actor "Participante elegível" as membro
+actor "Administrador da comissão" as admin
+rectangle "Better Meet" {
+  usecase "UC47 - Consultar código de presença" as uc47
+  usecase "UC48 - Renovar código de presença" as uc48
+  usecase "UC49 - Registrar entrada" as uc49
+  usecase "UC50 - Registrar saída" as uc50
+  usecase "UC51 - Registrar entrada por participante" as uc51
+  usecase "UC52 - Registrar saída por participante" as uc52
+}
+admin -- uc47
+admin -- uc48
+membro -- uc49
+membro -- uc50
+admin -- uc51
+admin -- uc52
+
+@enduml

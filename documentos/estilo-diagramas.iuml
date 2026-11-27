@@ -1,0 +1,9 @@
+' Estilo comum dos diagramas da entrega final.
+!pragma layout smetana
+skinparam monochrome true
+skinparam defaultFontName Arial
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam classAttributeIconSize 0
+skinparam sequenceMessageAlign center
+hide footbox

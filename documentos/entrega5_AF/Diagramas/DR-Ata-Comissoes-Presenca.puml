@@ -1,0 +1,70 @@
+@startuml DR-Ata-Comissoes-Presenca
+!include ../../estilo-diagramas.iuml
+title Modelo relacional - recorte de ata, comissões e presença
+entity "Organizacao (referência)" as org {
+ id : Int <<PK>>
+}
+entity "User (referência)" as usuario {
+ id : Int <<PK>>
+}
+entity Comissao {
+ * id : Int <<PK>>
+ organizacaoId : Int <<FK>>
+ nome : String
+ descricao : String?
+ createdAt : DateTime
+}
+entity ComissaoEquipe {
+ * comissaoId : Int <<PK, FK>>
+ * userId : Int <<PK, FK>>
+ papel : PapelComissao
+}
+entity "Reuniao (recorte)" as reuniao {
+ * id : Int <<PK>>
+ comissaoId : Int <<FK>>
+ criadoPorUserId : Int? <<FK>>
+ data : String
+ horaInicio : String
+ horaFim : String
+ status : StatusReuniao
+ codigoPresenca : VarChar(6)?
+ conteudoAta : LongText?
+ versaoAta : Int = 0
+ ataExportadaAt : DateTime?
+ ataVersaoExportada : Int?
+}
+entity ReuniaoRegistro {
+ * id : Int <<PK>>
+ reuniaoId : Int <<FK, UK1>>
+ userId : Int <<FK, UK1>>
+ entradaAt : DateTime
+ saidaAt : DateTime?
+ origemEntrada : OrigemRegistroPresenca
+ origemSaida : OrigemRegistroPresenca?
+ entradaManualPorId : Int? <<FK>>
+ saidaManualPorId : Int? <<FK>>
+}
+entity AtaVoto {
+ * id : Int <<PK>>
+ reuniaoId : Int <<FK, UK2>>
+ userId : Int <<FK, UK2>>
+ status : StatusAtaVoto
+ versaoAta : Int
+ updatedAt : DateTime
+}
+org ||--o{ Comissao
+Comissao ||--o{ ComissaoEquipe
+usuario ||--o{ ComissaoEquipe
+Comissao ||--o{ reuniao
+usuario |o--o{ reuniao : autoria
+reuniao ||--o{ ReuniaoRegistro
+usuario ||--o{ ReuniaoRegistro : participante
+usuario |o--o{ ReuniaoRegistro : autores manuais
+reuniao ||--o{ AtaVoto
+usuario ||--o{ AtaVoto
+note bottom of ReuniaoRegistro
+ UK1 = (reuniaoId, userId).
+ Cada autor manual é uma FK opcional independente.
+end note
+note bottom of AtaVoto : UK2 = (reuniaoId, userId).
+@enduml

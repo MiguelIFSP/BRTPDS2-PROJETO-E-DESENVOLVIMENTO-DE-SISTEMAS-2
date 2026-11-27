@@ -1,0 +1,48 @@
+@startuml DC-Ata-Comissoes-Presenca
+!include ../../estilo-diagramas.iuml
+title Módulos e persistência - ata, comissões e presença
+class comissaoService <<objeto de serviço>> {
+ create(userId, data)
+ getAllByOrganizacao(organizacaoId, actorId, actorRole)
+ getById(id, actorId, actorRole)
+ update(id, actorId, data)
+ delete(id, actorId)
+ addMember(comissaoId, actorId, userId, papel)
+ updateMemberRole(comissaoId, actorId, userId, papel)
+ removeMember(comissaoId, actorId, userId)
+}
+class presencaService <<objeto de serviço>> {
+ generateCode()
+ getCode(actorId, reuniaoId)
+ renewCode(actorId, reuniaoId)
+ checkIn(userId, reuniaoId, codigoPresenca)
+ checkOut(userId, reuniaoId, codigoPresenca)
+ registerManual(actorId, reuniaoId, userId, acao)
+}
+class ataService <<objeto de serviço>> {
+ assertCanEdit(userId, reuniaoId)
+ getByReuniao(userId, reuniaoId)
+ save(userId, reuniaoId, conteudoAta, versaoAta)
+ vote(userId, reuniaoId, status, versaoAta)
+ exportar(userId, reuniaoId, versaoAta)
+}
+class Comissao <<model Prisma>>
+class ComissaoEquipe <<model Prisma>>
+class Reuniao <<model Prisma>>
+class ReuniaoRegistro <<model Prisma>>
+class AtaVoto <<model Prisma>>
+comissaoService ..> Comissao : consulta / grava
+comissaoService ..> ComissaoEquipe : autoriza / grava
+presencaService ..> ComissaoEquipe : autoriza
+presencaService ..> Reuniao : horário / código / bloqueio
+presencaService ..> ReuniaoRegistro : registra
+ataService ..> ComissaoEquipe : autoriza
+ataService ..> ReuniaoRegistro : elegibilidade / contagem
+ataService ..> Reuniao : conteúdo / versão / exportação
+ataService ..> AtaVoto : registra / apura
+note bottom of ataService
+ Recorte de funções relevantes.
+ Serviços são objetos literais.
+ Modelos não declaram métodos de negócio.
+end note
+@enduml

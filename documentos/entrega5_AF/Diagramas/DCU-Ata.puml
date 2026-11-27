@@ -1,0 +1,21 @@
+@startuml DCU-Ata
+!include ../../estilo-diagramas.iuml
+title DCU - Ata
+left to right direction
+actor "Integrante com entrada\nregistrada" as membro
+actor "Administrador ou Secretário\ncom entrada registrada" as editor
+rectangle "Better Meet" {
+  usecase "UC35 - Consultar ata" as uc35
+  usecase "UC36 - Redigir ata" as uc36
+  usecase "UC37 - Votar na ata" as uc37
+  usecase "UC38 - Exportar ata" as uc38
+}
+membro -- uc35
+editor -- uc35
+editor -- uc36
+membro -- uc37
+editor -- uc37
+membro -- uc38
+editor -- uc38
+
+@enduml

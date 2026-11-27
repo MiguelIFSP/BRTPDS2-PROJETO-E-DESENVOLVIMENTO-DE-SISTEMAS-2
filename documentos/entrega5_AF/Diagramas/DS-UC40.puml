@@ -1,0 +1,28 @@
+@startuml DS-UC40
+!include ../../estilo-diagramas.iuml
+title UC40 - Consultar comissões da organização
+autonumber
+actor "Usuário autorizado" as pessoa
+boundary "Aplicativo Better Meet" as app
+control "requireAuth / controller\ncomissaoController" as api
+control "comissaoService\n<<objeto de serviço>>" as servico
+database "MySQL via Prisma" as banco
+pessoa -> app : Solicitar consultar comissões da organização
+app -> api : GET /api/organizacoes/:organizacaoId/comissoes
+alt Sessão ou dados inválidos
+api --> app : 401 ou 400
+else Requisição validada
+api -> servico : getAllByOrganizacao(identidade, dados)
+servico -> banco : Consultar contexto e vínculos necessários
+banco --> servico : Dados para autorização
+alt Regra de acesso ou estado não atendida
+servico --> api : AppError (status da ficha RF)
+else Ação autorizada
+servico -> servico : Aplicar filtro por equipe ou ADMIN global
+servico --> api : Resultado da operação
+end
+api --> app : Resposta HTTP conforme RF49
+end
+app --> pessoa : Dados atualizados ou mensagem de erro
+
+@enduml

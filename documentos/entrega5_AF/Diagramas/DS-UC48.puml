@@ -1,0 +1,35 @@
+@startuml DS-UC48
+!include ../../estilo-diagramas.iuml
+title UC48 - Renovar código de presença
+autonumber
+actor "Administrador da comissão" as pessoa
+boundary "Aplicativo Better Meet" as app
+control "requireAuth / controller\nreuniaoController" as api
+control "presencaService\n<<objeto de serviço>>" as servico
+database "MySQL via Prisma" as banco
+pessoa -> app : Solicitar renovar código de presença
+app -> api : POST /api/reunioes/:id/codigo-presenca
+alt Sessão ou dados inválidos
+api --> app : 401 ou 400
+else Requisição validada
+api -> servico : renewCode(identidade, dados)
+group Transação Prisma
+servico -> banco : SELECT Reuniao FOR UPDATE
+banco --> servico : Linha bloqueada
+servico -> banco : Consultar contexto e vínculos necessários
+banco --> servico : Dados para autorização
+alt Regra de acesso ou estado não atendida
+servico --> api : AppError (status da ficha RF)
+else Ação autorizada
+servico -> servico : Gerar código diferente do anterior
+servico -> banco : Atualizar codigoPresenca
+banco --> servico : Resultado persistido
+servico --> api : Resultado da operação
+end
+end
+note over servico,banco : Prisma confirma a transação no sucesso; desfaz na falha.
+api --> app : Resposta HTTP conforme RF57
+end
+app --> pessoa : Dados atualizados ou mensagem de erro
+
+@enduml

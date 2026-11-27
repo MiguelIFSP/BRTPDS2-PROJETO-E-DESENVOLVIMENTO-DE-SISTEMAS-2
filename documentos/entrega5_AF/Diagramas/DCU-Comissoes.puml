@@ -1,0 +1,39 @@
+@startuml DCU-Comissoes
+!include ../../estilo-diagramas.iuml
+title DCU - Comissões
+left to right direction
+actor "Membro da organização" as org
+actor "Integrante da comissão" as membro
+actor "Administrador da plataforma" as global
+actor "Administrador da comissão" as admin
+actor "Facilitador da comissão" as facilitador
+rectangle "Better Meet" {
+  usecase "UC39 - Criar comissão" as uc39
+  usecase "UC40 - Consultar comissões da organização" as uc40
+  usecase "UC41 - Consultar comissão" as uc41
+  usecase "UC42 - Editar comissão" as uc42
+  usecase "UC43 - Excluir comissão" as uc43
+  usecase "UC44 - Adicionar membro à comissão" as uc44
+  usecase "UC45 - Alterar papel de membro" as uc45
+  usecase "UC46 - Remover membro da comissão" as uc46
+}
+org -- uc39
+membro -- uc40
+global -- uc40
+admin -- uc40
+facilitador -- uc40
+membro -- uc41
+global -- uc41
+admin -- uc41
+facilitador -- uc41
+admin -- uc42
+facilitador -- uc42
+admin -- uc43
+admin -- uc44
+facilitador -- uc44
+admin -- uc45
+facilitador -- uc45
+admin -- uc46
+facilitador -- uc46
+
+@enduml
