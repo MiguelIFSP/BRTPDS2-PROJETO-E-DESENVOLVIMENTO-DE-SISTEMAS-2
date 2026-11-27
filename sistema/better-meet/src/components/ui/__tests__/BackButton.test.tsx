@@ -34,3 +34,10 @@ it('sem histórico, leva ao destino de reserva', async () => {
   expect(mockReplace).toHaveBeenCalledWith('/mais/relatorios');
   expect(mockBack).not.toHaveBeenCalled();
 });
+
+it('usa o destino explícito mesmo quando há outra tela no histórico', async () => {
+  await render(<BackButton fallbackHref="/mais/relatorios" alwaysFallback />);
+  await fireEvent.press(screen.getByLabelText('Voltar'));
+  expect(mockReplace).toHaveBeenCalledWith('/mais/relatorios');
+  expect(mockBack).not.toHaveBeenCalled();
+});

@@ -22,14 +22,14 @@ import { textoConfirmacao } from '@/utils/authMensagens';
 import { toFieldErrors } from '@/utils/formErrors';
 
 type CadastroForm = {
-  nome: string;
+  username: string;
   email: string;
   password: string;
   confirmPassword: string;
 };
 
 const INITIAL_VALUES: CadastroForm = {
-  nome: '',
+  username: '',
   email: '',
   password: '',
   confirmPassword: '',
@@ -76,7 +76,7 @@ export default function UsuarioScreen() {
     setIsSubmitting(true);
     try {
       await authService.signUp({
-        name: values.nome,
+        username: values.username,
         email: values.email,
         password: values.password,
       });
@@ -164,17 +164,17 @@ export default function UsuarioScreen() {
 
       <Card>
         <TextField
-          label="Nome completo"
-          autoCapitalize="words"
-          autoComplete="name"
+          label="Nome de usuário"
+          autoCapitalize="none"
+          autoComplete="username"
           autoCorrect={false}
-          maxLength={80}
+          maxLength={30}
           returnKeyType="next"
-          textContentType="name"
-          onChangeText={(value) => updateField('nome', value)}
-          placeholder="Ex.: Maria Souza"
-          value={form.nome}
-          error={errors.nome}
+          textContentType="username"
+          onChangeText={(value) => updateField('username', value)}
+          placeholder="Ex.: maria.souza"
+          value={form.username}
+          error={errors.username}
         />
         <TextField
           label="E-mail"

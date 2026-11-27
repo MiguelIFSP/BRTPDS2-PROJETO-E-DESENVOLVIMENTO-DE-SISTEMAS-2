@@ -1,10 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { useEffect as mockUseEffect, type ReactNode } from 'react';
+import type * as ReactNative from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
 import ReuniaoDetalheScreen from '@/app/(tabs)/(reunioes)/reuniao/[id]';
-import { reuniaoService } from '@/services/reuniaoService';
+import {
+  reuniaoService,
+  type Reuniao,
+} from '@/services/reuniaoService';
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void | (() => void)) => {
@@ -49,21 +53,29 @@ jest.mock('@/services/comissaoService', () => ({
 }));
 
 jest.mock('@/components/BibliotecaReuniao', () => {
-  const { Text } = require('react-native');
-  return () => <Text>Biblioteca da reunião</Text>;
+  const { Text } =
+    jest.requireActual<typeof ReactNative>('react-native');
+  function BibliotecaReuniaoMock() {
+    return <Text>Biblioteca da reunião</Text>;
+  }
+  return BibliotecaReuniaoMock;
 });
 jest.mock('@/components/VotacoesDaReuniao', () => {
-  const { Text } = require('react-native');
-  return () => <Text>Votações da reunião</Text>;
+  const { Text } =
+    jest.requireActual<typeof ReactNative>('react-native');
+  function VotacoesDaReuniaoMock() {
+    return <Text>Votações da reunião</Text>;
+  }
+  return VotacoesDaReuniaoMock;
 });
 jest.mock('@/components/CodigoPresencaCard', () => () => null);
 jest.mock('@/components/ReuniaoCheckIn', () => () => null);
 jest.mock('@/components/presenca/ListaPresencaButton', () => () => null);
 jest.mock('@/components/PresencaManualActions', () => () => null);
 
-const getById = reuniaoService.getById as unknown as jest.Mock;
+const getById = jest.mocked(reuniaoService.getById);
 
-const reuniao = {
+const reuniao: Reuniao = {
   id: 7,
   comissaoId: 1,
   titulo: 'Reunião de teste',

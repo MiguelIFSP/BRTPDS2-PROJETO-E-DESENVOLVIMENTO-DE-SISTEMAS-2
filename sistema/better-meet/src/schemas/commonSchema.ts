@@ -8,6 +8,19 @@ export const nomeRule = () =>
     .min(2, 'O nome deve ter pelo menos 2 caracteres.')
     .max(80, 'O nome deve ter no máximo 80 caracteres.');
 
+export const nomeUsuarioRule = () =>
+  yup
+    .string()
+    .trim()
+    .lowercase()
+    .required('O nome de usuário é obrigatório.')
+    .min(3, 'O nome de usuário deve ter pelo menos 3 caracteres.')
+    .max(30, 'O nome de usuário deve ter no máximo 30 caracteres.')
+    .matches(
+      /^[a-z0-9_.]+$/,
+      'Use apenas letras, números, ponto e sublinhado no nome de usuário.',
+    );
+
 export const emailRule = () =>
   yup
     .string()

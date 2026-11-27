@@ -18,7 +18,8 @@ jest.unstable_mockModule('../src/services/emailService.ts', () => ({
 }));
 
 const { auth } = await import('../src/lib/auth.ts');
-const { ERROS_AUTH } = await import('../src/lib/authErros.ts');
+const { ERROS_AUTH, traduzirErroAuth } =
+  await import('../src/lib/authErros.ts');
 
 describe('instância do Better Auth', () => {
   test('carrega com expo() e bearer() juntos', () => {
@@ -47,6 +48,28 @@ describe('instância do Better Auth', () => {
 
   test('o cliente não define o role', () => {
     expect(auth.options.user.additionalFields.role.input).toBe(false);
+  });
+
+  test('o cadastro aceita nome de usuário único, mas opcional para contas sociais antigas', () => {
+    expect(auth.options.user.additionalFields.username).toMatchObject({
+      type: 'string',
+      required: false,
+      input: true,
+      unique: true,
+    });
+  });
+
+  test('traduz nome de usuário repetido como conflito em português', () => {
+    expect(
+      traduzirErroAuth(400, {
+        code: 'NOME_USUARIO_EM_USO',
+        message: 'Este nome de usuário já está em uso.',
+      }),
+    ).toEqual({
+      status: 409,
+      error: 'Este nome de usuário já está em uso.',
+      code: 'NOME_USUARIO_EM_USO',
+    });
   });
 
   test('origens confiáveis: CORS_ORIGINS, esquema do app e exp:// fora de produção', () => {

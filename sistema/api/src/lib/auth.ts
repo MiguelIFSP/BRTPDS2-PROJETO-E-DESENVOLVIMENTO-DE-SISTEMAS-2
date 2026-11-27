@@ -6,7 +6,10 @@ import { bearer } from 'better-auth/plugins';
 import * as yup from 'yup';
 import prisma from '../config/database.ts';
 import { env } from '../config/env.ts';
-import { CODIGO_DADOS_INVALIDOS } from './authErros.ts';
+import {
+  CODIGO_DADOS_INVALIDOS,
+  CODIGO_NOME_USUARIO_EM_USO,
+} from './authErros.ts';
 import {
   cadastroAuthSchema,
   nomeAuthSchema,
@@ -26,9 +29,12 @@ export const CABECALHO_IP = 'x-better-meet-ip';
 const SETE_DIAS = 60 * 60 * 24 * 7;
 const UM_DIA = 60 * 60 * 24;
 
-const validar = async (schema: yup.AnyObjectSchema, corpo: unknown) => {
+const validar = async <T extends yup.AnyObjectSchema>(
+  schema: T,
+  corpo: unknown,
+): Promise<yup.InferType<T>> => {
   try {
-    await schema.validate(corpo ?? {}, { stripUnknown: true });
+    return await schema.validate(corpo ?? {}, { stripUnknown: true });
   } catch (error) {
     if (error instanceof yup.ValidationError) {
       throw new APIError('BAD_REQUEST', {
@@ -41,7 +47,6 @@ const validar = async (schema: yup.AnyObjectSchema, corpo: unknown) => {
 };
 
 const regrasPorRota = {
-  '/sign-up/email': cadastroAuthSchema,
   '/reset-password': redefinicaoSenhaSchema,
   '/change-password': redefinicaoSenhaSchema,
   '/update-user': nomeAuthSchema.partial(),
@@ -155,6 +160,12 @@ export const auth = betterAuth({
     additionalFields: {
       role: { type: 'string', required: false, input: false },
       themePreference: { type: 'string', required: false, input: true },
+      username: {
+        type: 'string',
+        required: false,
+        input: true,
+        unique: true,
+      },
     },
   },
   session: {
@@ -194,6 +205,39 @@ export const auth = betterAuth({
   },
   hooks: {
     before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path === '/sign-up/email') {
+        const corpo =
+          typeof ctx.body === 'object' && ctx.body !== null ? ctx.body : {};
+        const cadastro = await validar(cadastroAuthSchema, corpo);
+        const email =
+          typeof corpo.email === 'string'
+            ? corpo.email.trim().toLowerCase()
+            : '';
+        const emailExistente = email
+          ? await prisma.user.findUnique({
+              where: { email },
+              select: { id: true },
+            })
+          : null;
+
+        if (!emailExistente) {
+          const usuarioExistente = await prisma.user.findUnique({
+            where: { username: cadastro.username },
+            select: { id: true },
+          });
+          if (usuarioExistente) {
+            throw new APIError('BAD_REQUEST', {
+              message: 'Este nome de usuário já está em uso.',
+              code: CODIGO_NOME_USUARIO_EM_USO,
+            });
+          }
+        }
+
+        ctx.body.name = cadastro.username;
+        ctx.body.username = cadastro.username;
+        return;
+      }
+
       if (isRota(ctx.path)) await validar(regrasPorRota[ctx.path], ctx.body);
     }),
     after: createAuthMiddleware(async (ctx) => {

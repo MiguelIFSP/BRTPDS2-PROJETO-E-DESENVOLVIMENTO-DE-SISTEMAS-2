@@ -687,17 +687,23 @@ paths:
 
         Cadastro com e-mail já existente responde **igual** (200, mesmo
         formato), sem revelar a conta; o dono recebe um aviso por e-mail.
-        O campo `role` não é aceito: enviá-lo devolve 400. Limite: 5 por hora
-        por IP.
+        O nome de usuário é único, tem de 3 a 30 caracteres e aceita letras,
+        números, ponto e sublinhado. Um nome já usado devolve 409. O campo
+        `role` não é aceito: enviá-lo devolve 400. Limite: 5 por hora por IP.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [name, email, password]
+              required: [username, email, password]
               properties:
-                name: { type: string, minLength: 2, maxLength: 80 }
+                username:
+                  type: string
+                  minLength: 3
+                  maxLength: 30
+                  pattern: '^[a-z0-9_.]+$'
+                  description: Único e normalizado para minúsculas.
                 email: { type: string, format: email, maxLength: 160 }
                 password:
                   type: string
@@ -720,7 +726,12 @@ paths:
                   token: { type: string, nullable: true, example: null }
                   user: { $ref: '#/components/schemas/UsuarioAuth' }
         '400':
-          description: Nome ou senha inválidos, ou campo não permitido.
+          description: Nome de usuário ou senha inválidos, ou campo não permitido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '409':
+          description: O nome de usuário já está em uso.
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErroAuth' }

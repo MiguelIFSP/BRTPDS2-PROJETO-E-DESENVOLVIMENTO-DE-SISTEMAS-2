@@ -10,6 +10,8 @@ O código segue o [Guia de Codificação](../../GUIA_DE_CODIFICACAO.md). Para AP
 2. Copie `.env.example` para `.env` e preencha as URLs das APIs (veja os comentários no arquivo).
 3. Suba o app: `npm start` (ou `npm run android`, `npm run ios`, `npm run web`).
 
+No cadastro, cada conta usa um nome de usuário único (3–30 caracteres; letras, números, ponto e sublinhado).
+
 ## Scripts
 
 | Script                                    | O que faz                                                    |

@@ -14,6 +14,7 @@ describe('schema.prisma do Better Auth', () => {
     expect(user).not.toMatch(/\n\s+password\s/);
     expect(user).not.toContain('passwordResetTokens');
     expect(user).toMatch(/emailVerified\s+Boolean\s+@default\(false\)/);
+    expect(user).toMatch(/username\s+String\?\s+@unique/);
   });
 
   test('existem as tabelas do Better Auth e a antiga não existe mais', () => {
@@ -62,5 +63,22 @@ describe('migration better_auth', () => {
     expect(sql.indexOf('DROP TABLE `PasswordResetToken`')).toBeGreaterThan(
       sql.indexOf('INSERT INTO `Account`'),
     );
+  });
+});
+
+describe('migration nome de usuário', () => {
+  const sql = readFileSync(
+    path.join(
+      raiz,
+      'migrations',
+      '20261126192000_nome_usuario_unico',
+      'migration.sql',
+    ),
+    'utf8',
+  );
+
+  test('adiciona username opcional com índice único para preservar contas existentes', () => {
+    expect(sql).toContain('`username` VARCHAR(30) NULL');
+    expect(sql).toContain('UNIQUE INDEX `User_username_key`(`username`)');
   });
 });

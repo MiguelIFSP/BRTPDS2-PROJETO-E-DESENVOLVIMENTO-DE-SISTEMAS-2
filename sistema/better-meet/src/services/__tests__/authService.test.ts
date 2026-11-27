@@ -121,13 +121,15 @@ describe('authService.signUp', () => {
     );
 
     await authService.signUp({
-      name: 'Ana',
+      username: 'ana',
       email: 'ana@exemplo.com',
       password: 'Senha123',
     });
 
     expect(sentUrl(0)).toBe('http://api.teste/api/auth/sign-up/email');
     expect(sentBody(0)).toMatchObject({
+      name: 'ana',
+      username: 'ana',
       callbackURL: 'bettermeet://email-confirmado',
     });
     expect(getSessionToken()).toBeNull();
@@ -220,7 +222,7 @@ describe('authService e o cabeçalho expo-origin', () => {
       'signUp',
       () =>
         authService.signUp({
-          name: 'Ana',
+          username: 'ana',
           email: 'ana@exemplo.com',
           password: 'Senha123',
         }),

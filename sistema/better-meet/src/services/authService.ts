@@ -27,7 +27,11 @@ export type SessaoIniciada = {
 export type AuthErrorKind =
   'invalid' | 'unverified' | 'rateLimited' | 'network' | 'unknown';
 
-export type CadastroData = { name: string; email: string; password: string };
+export type CadastroData = {
+  username: string;
+  email: string;
+  password: string;
+};
 
 type SignInResponse = { token: string | null };
 
@@ -121,10 +125,16 @@ export const authService = {
    * A API responde 200 igual para e-mail novo e repetido: o app nunca diz
    * "e-mail já cadastrado", só pede para confirmar o e-mail.
    */
-  async signUp({ name, email, password }: CadastroData) {
+  async signUp({ username, email, password }: CadastroData) {
     await authCall(
       '/sign-up/email',
-      { name, email, password, callbackURL: CALLBACK_EMAIL_CONFIRMADO },
+      {
+        name: username,
+        username,
+        email,
+        password,
+        callbackURL: CALLBACK_EMAIL_CONFIRMADO,
+      },
       'Não foi possível criar a conta.',
       '',
     );

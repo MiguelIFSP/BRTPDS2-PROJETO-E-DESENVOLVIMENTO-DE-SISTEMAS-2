@@ -3,7 +3,10 @@ import { useEffect as mockUseEffect } from 'react';
 import { render, screen } from '@testing-library/react-native';
 
 import RelatorioVotacoes from '@/components/RelatorioVotacoes';
-import { votacaoService } from '@/services/votacaoService';
+import {
+  votacaoService,
+  type VotacaoDetalhe,
+} from '@/services/votacaoService';
 
 jest.mock('expo-router', () => ({
   useFocusEffect: (callback: () => void) => mockUseEffect(callback, [callback]),
@@ -14,13 +17,23 @@ jest.mock('@/services/votacaoService', () => ({
   votacaoService: { relatorio: jest.fn() },
 }));
 
-const relatorio = votacaoService.relatorio as unknown as jest.Mock;
+const relatorio = jest.mocked(votacaoService.relatorio);
 
 const votacao = (
-  parcial: Record<string, unknown> & { id: number; titulo: string },
-) => ({
+  parcial: Partial<VotacaoDetalhe> & Pick<VotacaoDetalhe, 'id' | 'titulo'>,
+): VotacaoDetalhe => ({
+  reuniaoId: 7,
   tipo: 'ABERTA',
+  mostrarParcial: true,
+  permiteTrocaVoto: false,
+  encerrada: true,
+  createdAt: '2026-10-21T10:00:00.000Z',
   totalVotos: 1,
+  reuniao: { id: 7, titulo: 'Planejamento' },
+  podeGerir: true,
+  podeVotar: false,
+  meuVotoOpcaoId: null,
+  meuVotoNulo: false,
   nulos: 0,
   opcoes: [],
   ...parcial,

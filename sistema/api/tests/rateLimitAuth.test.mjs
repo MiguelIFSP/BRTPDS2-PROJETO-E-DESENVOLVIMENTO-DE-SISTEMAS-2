@@ -95,15 +95,19 @@ describeBanco(
 
     test('o 6º cadastro por hora do mesmo IP não passa de 5', async () => {
       const ip = ambiente.novoIp();
-      const cadastrar = () =>
-        ambiente.api('post', '/api/auth/sign-up/email', {
+      let numeroCadastro = 0;
+      const cadastrar = () => {
+        const username = `ana${++numeroCadastro}`;
+        return ambiente.api('post', '/api/auth/sign-up/email', {
           ip,
           corpo: {
-            name: 'Ana Souza',
+            name: username,
+            username,
             email: novoEmail('cadastro'),
             password: 'Senha123',
           },
         });
+      };
 
       for (let i = 0; i < 5; i += 1) {
         expect((await cadastrar()).status).toBe(200);

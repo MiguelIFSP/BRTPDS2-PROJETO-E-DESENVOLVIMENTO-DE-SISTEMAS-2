@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 
 import ComissaoReportView from '@/components/relatorio/ComissaoReportView';
 import OrganizacaoReportView from '@/components/relatorio/OrganizacaoReportView';
+import ReportLinkCard from '@/components/relatorio/ReportLinkCard';
 import UsuarioReportView from '@/components/relatorio/UsuarioReportView';
 import Chip from '@/components/ui/Chip';
 import FeedbackBanner, { type Feedback } from '@/components/ui/FeedbackBanner';
@@ -158,6 +159,13 @@ export default function RelatoriosScreen() {
           />
         ))}
       </View>
+
+      <ReportLinkCard
+        icon="time-outline"
+        label="Meu histórico de reuniões"
+        description="Veja as reuniões em que sua presença foi registrada"
+        href="/(tabs)/(reunioes)/historico"
+      />
 
       <FeedbackBanner feedback={errors[activeTab] ?? null} />
 

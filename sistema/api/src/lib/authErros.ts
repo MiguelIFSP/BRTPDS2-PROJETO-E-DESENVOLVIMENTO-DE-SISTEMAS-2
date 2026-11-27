@@ -1,5 +1,6 @@
 // Código dos erros que já trazem a mensagem final em pt-BR (hooks.before de auth.ts).
 export const CODIGO_DADOS_INVALIDOS = 'DADOS_INVALIDOS';
+export const CODIGO_NOME_USUARIO_EM_USO = 'NOME_USUARIO_EM_USO';
 
 export type ErroAuthTraduzido = {
   status: number;
@@ -71,6 +72,13 @@ export const traduzirErroAuth = (
   }
   if (codigo === CODIGO_DADOS_INVALIDOS) {
     return { status, error: mensagem, code: codigo };
+  }
+  if (codigo === CODIGO_NOME_USUARIO_EM_USO) {
+    return {
+      status: 409,
+      error: 'Este nome de usuário já está em uso.',
+      code: codigo,
+    };
   }
   if (codigo && isCodigoMapeado(codigo)) {
     const mapeado = ERROS_AUTH[codigo];

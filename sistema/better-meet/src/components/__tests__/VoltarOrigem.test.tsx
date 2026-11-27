@@ -56,11 +56,12 @@ describe.each([
     expect(screen.queryByLabelText('Voltar')).toBeNull();
   });
 
-  it('volta à tela anterior quando há histórico', async () => {
+  it('volta aos relatórios mesmo quando há histórico', async () => {
     mockParams = { origem: 'relatorio' };
     await render(<Tela />);
     await fireEvent.press(screen.getByLabelText('Voltar'));
-    expect(mockBack).toHaveBeenCalledTimes(1);
+    expect(mockReplace).toHaveBeenCalledWith('/mais/relatorios');
+    expect(mockBack).not.toHaveBeenCalled();
   });
 
   it('sem histórico, leva aos relatórios', async () => {

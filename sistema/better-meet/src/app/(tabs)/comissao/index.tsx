@@ -214,7 +214,7 @@ export default function ComissaoScreen() {
   return (
     <Screen hasForm>
       {origem === ORIGEM_RELATORIO ? (
-        <BackButton fallbackHref="/mais/relatorios" />
+        <BackButton fallbackHref="/mais/relatorios" alwaysFallback />
       ) : null}
       <PageIntro
         title="Suas comissões"

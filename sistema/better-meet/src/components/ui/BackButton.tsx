@@ -14,9 +14,14 @@ import { useTheme } from '@/hooks/useTheme';
 type BackButtonProps = {
   // Destino quando não há tela anterior na pilha (ex.: aba aberta por atalho).
   fallbackHref?: Href;
+  // Sempre retorna ao destino explícito quando a tela foi aberta por um atalho.
+  alwaysFallback?: boolean;
 };
 
-export default function BackButton({ fallbackHref }: BackButtonProps) {
+export default function BackButton({
+  fallbackHref,
+  alwaysFallback = false,
+}: BackButtonProps) {
   const router = useRouter();
   const { colors } = useTheme();
 
@@ -25,7 +30,8 @@ export default function BackButton({ fallbackHref }: BackButtonProps) {
       accessibilityRole="button"
       accessibilityLabel="Voltar"
       onPress={() => {
-        if (fallbackHref && !router.canGoBack()) router.replace(fallbackHref);
+        if (fallbackHref && (alwaysFallback || !router.canGoBack()))
+          router.replace(fallbackHref);
         else router.back();
       }}
       style={({ pressed }) => [styles.button, pressed && styles.pressed]}

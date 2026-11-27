@@ -17,7 +17,17 @@ describeBanco(
 
     const cadastrar = (email, extra = {}) =>
       ambiente.api('post', '/api/auth/sign-up/email', {
-        corpo: { name: 'Ana Souza', email, password: 'Senha123', ...extra },
+        corpo: {
+          name: `u${email.split('@')[0].replace(/[^a-z0-9_.]/gi, '')}`.slice(
+            0,
+            30,
+          ),
+          username:
+            `u${email.split('@')[0].replace(/[^a-z0-9_.]/gi, '')}`.slice(0, 30),
+          email,
+          password: 'Senha123',
+          ...extra,
+        },
       });
 
     // O link de confirmação sai no e-mail; o teste o consome como o navegador faria.
@@ -35,10 +45,13 @@ describeBanco(
       expect(resposta.body.token ?? null).toBeNull();
       const user = await ambiente.prisma.user.findUnique({ where: { email } });
       expect(user).toMatchObject({
+        name: expect.any(String),
+        username: expect.any(String),
         role: 'USER',
         emailVerified: false,
         themePreference: 'system',
       });
+      expect(user.name).toBe(user.username);
       const conta = await ambiente.prisma.account.findFirst({
         where: { userId: user.id },
       });
@@ -95,8 +108,30 @@ describeBanco(
       expect(await ambiente.prisma.user.count({ where: { email } })).toBe(1);
     });
 
+    test('cadastro normaliza o nome de usuário e impede duplicados sem diferenciar maiúsculas', async () => {
+      const username = 'Usuario_Unico';
+      const primeiroEmail = ambiente.emailDe('usuario1');
+      const segundoEmail = ambiente.emailDe('usuario2');
+
+      const primeira = await cadastrar(primeiroEmail, { username });
+      const segunda = await cadastrar(segundoEmail, {
+        username: username.toUpperCase(),
+      });
+
+      expect(primeira.status).toBe(200);
+      expect(segunda.status).toBe(409);
+      expect(segunda.body.code).toBe('NOME_USUARIO_EM_USO');
+      expect(segunda.body.error).toBe('Este nome de usuário já está em uso.');
+      expect(
+        await ambiente.prisma.user.count({
+          where: { username: 'usuario_unico' },
+        }),
+      ).toBe(1);
+    });
+
     test.each([
-      ['nome curto', { name: 'A' }, /nome/i],
+      ['nome de usuário curto', { username: 'ab' }, /usuário/i],
+      ['nome de usuário inválido', { username: 'ana souza' }, /usuário/i],
       ['senha sem maiúscula', { password: 'senha1234' }, /maiúscula/],
       ['senha curta', { password: 'Ab1' }, /8 caracteres/],
     ])('cadastro recusa %s em pt-BR (400)', async (_caso, extra, mensagem) => {

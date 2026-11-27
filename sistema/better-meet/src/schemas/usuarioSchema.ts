@@ -1,9 +1,14 @@
 import * as yup from 'yup';
 
-import { emailRule, nomeRule, senhaForteRule } from './commonSchema';
+import {
+  emailRule,
+  nomeRule,
+  nomeUsuarioRule,
+  senhaForteRule,
+} from './commonSchema';
 
 export const cadastroUsuarioSchema = yup.object({
-  nome: nomeRule(),
+  username: nomeUsuarioRule(),
   email: emailRule(),
   password: senhaForteRule(),
   confirmPassword: yup

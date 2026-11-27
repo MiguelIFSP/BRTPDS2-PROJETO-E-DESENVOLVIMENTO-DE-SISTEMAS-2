@@ -1,10 +1,10 @@
 import * as yup from 'yup';
-import { nomeRule, senhaForteRule } from './commonSchema.ts';
+import { nomeRule, nomeUsuarioRule, senhaForteRule } from './commonSchema.ts';
 
 // Corpos que passam pelo Better Auth e são conferidos antes dele (hooks.before),
 // para as mensagens saírem no padrão do projeto.
 export const cadastroAuthSchema = yup.object({
-  name: nomeRule(),
+  username: nomeUsuarioRule(),
   password: senhaForteRule(),
 });
 

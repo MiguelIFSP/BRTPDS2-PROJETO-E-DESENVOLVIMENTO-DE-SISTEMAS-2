@@ -28,9 +28,9 @@ const validate = async (
 };
 
 describe('cadastroUsuarioSchema', () => {
-  it('normaliza nome e e-mail e descarta campos não previstos', async () => {
+  it('normaliza nome de usuário e e-mail e descarta campos não previstos', async () => {
     const result = await validate(cadastroUsuarioSchema, {
-      nome: '  Maria Souza  ',
+      username: '  Maria.Souza  ',
       email: '  Maria@Exemplo.COM ',
       password: 'Senha123',
       confirmPassword: 'Senha123',
@@ -38,7 +38,7 @@ describe('cadastroUsuarioSchema', () => {
     });
 
     expect(result.values).toEqual({
-      nome: 'Maria Souza',
+      username: 'maria.souza',
       email: 'maria@exemplo.com',
       password: 'Senha123',
       confirmPassword: 'Senha123',
@@ -47,14 +47,14 @@ describe('cadastroUsuarioSchema', () => {
 
   it('devolve uma mensagem em pt-BR por campo', async () => {
     const result = await validate(cadastroUsuarioSchema, {
-      nome: ' ',
+      username: 'a',
       email: 'email-invalido',
       password: 'fraca',
       confirmPassword: 'outra',
     });
 
     expect(result.errors).toEqual({
-      nome: 'O nome completo é obrigatório.',
+      username: 'O nome de usuário deve ter pelo menos 3 caracteres.',
       email: 'Informe um e-mail válido.',
       password: 'A senha deve ter pelo menos 8 caracteres.',
       confirmPassword: 'As senhas não coincidem.',
@@ -77,34 +77,46 @@ describe('cadastroUsuarioSchema', () => {
   });
 });
 
-describe('nome do cadastro', () => {
+describe('nome de usuário no cadastro', () => {
   const base = {
     email: 'ana@exemplo.com',
     password: 'Senha123',
     confirmPassword: 'Senha123',
   };
 
-  it('recusa nome com 1 caractere', async () => {
+  it('recusa nome de usuário com menos de 3 caracteres', async () => {
     const result = await validate(cadastroUsuarioSchema, {
       ...base,
-      nome: 'A',
+      username: 'ab',
     });
-    expect(result.errors?.nome).toBe(
-      'O nome deve ter pelo menos 2 caracteres.',
+    expect(result.errors?.username).toBe(
+      'O nome de usuário deve ter pelo menos 3 caracteres.',
     );
   });
 
-  it('recusa nome com 81 caracteres e aceita 80', async () => {
+  it('recusa nome de usuário com mais de 30 caracteres e aceita 30', async () => {
     const longo = await validate(cadastroUsuarioSchema, {
       ...base,
-      nome: 'a'.repeat(81),
+      username: 'a'.repeat(31),
     });
     const limite = await validate(cadastroUsuarioSchema, {
       ...base,
-      nome: 'a'.repeat(80),
+      username: 'a'.repeat(30),
     });
-    expect(longo.errors?.nome).toBe('O nome deve ter no máximo 80 caracteres.');
+    expect(longo.errors?.username).toBe(
+      'O nome de usuário deve ter no máximo 30 caracteres.',
+    );
     expect(limite.errors).toBeUndefined();
+  });
+
+  it('recusa caracteres fora de letras, números, ponto e sublinhado', async () => {
+    const result = await validate(cadastroUsuarioSchema, {
+      ...base,
+      username: 'maria souza',
+    });
+    expect(result.errors?.username).toBe(
+      'Use apenas letras, números, ponto e sublinhado no nome de usuário.',
+    );
   });
 });
 
