@@ -64,6 +64,23 @@ const conviteSelect = {
   },
 } satisfies Prisma.ConviteReuniaoSelect;
 
+const apresentarConvite = (
+  convite: Prisma.ConviteReuniaoGetPayload<{ select: typeof conviteSelect }>,
+) => ({
+  id: convite.id,
+  reuniaoId: convite.reuniaoId,
+  titulo: convite.reuniao.titulo,
+  data: convite.reuniao.data,
+  horaInicio: convite.reuniao.horaInicio,
+  horaFim: convite.reuniao.horaFim,
+  usuario: convite.reuniao.criadoPor?.name ?? null,
+  status: convite.status,
+  pauta: convite.reuniao.pauta,
+  descricao: convite.reuniao.descricao,
+  local: convite.reuniao.local,
+  comissao: convite.reuniao.comissao.nome,
+});
+
 const reuniaoListSelect = {
   ...reuniaoSelect,
   criadoPor: { select: { name: true } },
@@ -100,7 +117,33 @@ const reuniaoListSelect = {
       saidaManualPorId: true,
     },
   },
+  // Só quem votou, para saber se o convite ainda pode ser reenviado. Em
+  // votação secreta, a opção de cada pessoa nunca sai daqui.
+  votacoes: { select: { votos: { select: { userId: true } } } },
 } satisfies Prisma.ReuniaoSelect;
+
+// Quem vê a reunião na lista e na tela dela: quem aceitou e quem recusou (que
+// pode aceitar de novo até o fim). Convite sem resposta fica no sino.
+const STATUS_QUE_VEEM_A_REUNIAO: StatusConviteReuniao[] = [
+  StatusConviteReuniao.ACEITO,
+  StatusConviteReuniao.RECUSADO,
+];
+
+/**
+ * Presença registrada ou voto dado na reunião. Quem já participou não pode
+ * recusar nem ter o convite reenviado: sairia dos participantes depois de
+ * constar na lista de presença ou nas votações.
+ */
+const hasParticipacao = async (reuniaoId: number, userId: number) => {
+  const [registro, votos] = await Promise.all([
+    prisma.reuniaoRegistro.findUnique({
+      where: { reuniaoId_userId: { reuniaoId, userId } },
+      select: { id: true },
+    }),
+    prisma.votacaoVoto.count({ where: { userId, votacao: { reuniaoId } } }),
+  ]);
+  return registro !== null || votos > 0;
+};
 
 const assertMembroDaComissao = async (comissaoId: number, userId: number) => {
   const comissao = await prisma.comissao.findUnique({
@@ -174,11 +217,17 @@ type ReuniaoLista = Prisma.ReuniaoGetPayload<{
 // Mesma forma da lista e da página da reunião: comissão, convites,
 // presença de quem está vendo e participantes que aceitaram.
 const apresentarReuniao = (reuniao: ReuniaoLista, userId: number) => {
-  const { registros, comissao, convites, criadoPor, ...dados } = reuniao;
+  const { registros, comissao, convites, criadoPor, votacoes, ...dados } =
+    reuniao;
   const { estado, aberturaCheckIn, limiteSaida } = estadoDaReuniao(
     reuniao,
     env.TZ_REUNIOES,
   );
+  const participaram = new Set([
+    ...registros.map((registro) => registro.userId),
+    ...votacoes.flatMap((votacao) => votacao.votos.map((voto) => voto.userId)),
+  ]);
+  const meuConvite = convites.find((convite) => convite.userId === userId);
   return {
     ...dados,
     podeGerirPresenca: comissao.equipe.some(
@@ -191,9 +240,17 @@ const apresentarReuniao = (reuniao: ReuniaoLista, userId: number) => {
       fecha: limiteSaida.toISOString(),
     },
     comissao: { id: comissao.id, nome: comissao.nome },
+    meuConvite: meuConvite
+      ? { id: meuConvite.id, status: meuConvite.status }
+      : null,
     convites: convites.map(({ user, ...convite }) => ({
       ...convite,
       nome: user.name,
+      // Mesma regra do resendInvite; o app só decide se mostra o botão.
+      podeReenviar: !(
+        convite.status === StatusConviteReuniao.ACEITO &&
+        participaram.has(convite.userId)
+      ),
     })),
     meuRegistro:
       registros.find((registro) => registro.userId === userId) ?? null,
@@ -256,8 +313,13 @@ const getDestinatarios = async (userIds: number[]): Promise<Destinatario[]> => {
   }));
 };
 
-// Convite por e-mail (com .ics) para quem acabou de ser convidado.
-const sendConvites = (reuniaoId: number, convidados: number[]) => {
+// Convite por e-mail (com .ics) para quem acabou de ser convidado, ou de novo
+// para quem teve o convite reenviado (mesmo token, mesmos botões).
+const sendConvites = (
+  reuniaoId: number,
+  convidados: number[],
+  isReenvio = false,
+) => {
   if (convidados.length === 0) return;
   emailService.runInBackground(async () => {
     const reuniao = await prisma.reuniao.findUnique({
@@ -273,7 +335,10 @@ const sendConvites = (reuniaoId: number, convidados: number[]) => {
         user: { select: { name: true, email: true } },
       },
     });
-    await emailService.sendConvite(
+    const enviar = isReenvio
+      ? emailService.sendConviteReenviado
+      : emailService.sendConvite;
+    await enviar(
       paraEmail(reuniaoId, reuniao),
       convites.map((convite) => ({
         nome: convite.user.name,
@@ -334,7 +399,7 @@ export const reuniaoService = {
             convites: {
               some: {
                 userId,
-                status: StatusConviteReuniao.ACEITO,
+                status: { in: STATUS_QUE_VEEM_A_REUNIAO },
               },
             },
           },
@@ -359,7 +424,7 @@ export const reuniaoService = {
       reuniao.convites.some(
         (convite) =>
           convite.userId === userId &&
-          convite.status === StatusConviteReuniao.ACEITO,
+          STATUS_QUE_VEEM_A_REUNIAO.includes(convite.status),
       );
     if (!participa && !(await podeGerirReuniao(userId, role, reuniao))) {
       throw new AppError(403, 'Você não pode ver esta reunião.');
@@ -512,20 +577,7 @@ export const reuniaoService = {
     // Convite de reunião que já terminou não pode mais ser respondido.
     return convites
       .filter((convite) => !isConviteExpirado(convite.reuniao))
-      .map((convite) => ({
-        id: convite.id,
-        reuniaoId: convite.reuniaoId,
-        titulo: convite.reuniao.titulo,
-        data: convite.reuniao.data,
-        horaInicio: convite.reuniao.horaInicio,
-        horaFim: convite.reuniao.horaFim,
-        usuario: convite.reuniao.criadoPor?.name ?? null,
-        status: convite.status,
-        pauta: convite.reuniao.pauta,
-        descricao: convite.reuniao.descricao,
-        local: convite.reuniao.local,
-        comissao: convite.reuniao.comissao.nome,
-      }));
+      .map(apresentarConvite);
   },
 
   async inviteMembers(
@@ -679,6 +731,7 @@ export const reuniaoService = {
       where: { id: inviteId },
       select: {
         userId: true,
+        reuniaoId: true,
         status: true,
         reuniao: { select: { status: true, data: true, horaFim: true } },
       },
@@ -696,13 +749,30 @@ export const reuniaoService = {
         'Não é possível responder a um convite cancelado.',
       );
     }
-    if (convite.status !== StatusConviteReuniao.PENDENTE) {
-      throw new AppError(409, 'Este convite já foi respondido.');
-    }
     if (isConviteExpirado(convite.reuniao)) {
       throw new AppError(
         410,
         'Esta reunião já terminou; o convite não pode mais ser respondido.',
+      );
+    }
+
+    // Repetir a resposta (ex.: o mesmo botão do e-mail duas vezes) não é erro
+    // e não muda a data da resposta.
+    if (convite.status === status) {
+      const atual = await prisma.conviteReuniao.findUnique({
+        where: { id: inviteId },
+        select: conviteSelect,
+      });
+      if (!atual) throw new AppError(404, 'Convite não encontrado.');
+      return apresentarConvite(atual);
+    }
+    if (
+      status === StatusConviteReuniao.RECUSADO &&
+      (await hasParticipacao(convite.reuniaoId, userId))
+    ) {
+      throw new AppError(
+        409,
+        'Você já registrou presença ou votou nesta reunião; o convite não pode mais ser recusado.',
       );
     }
 
@@ -712,26 +782,98 @@ export const reuniaoService = {
         data: { status, respondidoAt: new Date() },
         select: conviteSelect,
       });
-
-      return {
-        id: atualizado.id,
-        reuniaoId: atualizado.reuniaoId,
-        titulo: atualizado.reuniao.titulo,
-        data: atualizado.reuniao.data,
-        horaInicio: atualizado.reuniao.horaInicio,
-        horaFim: atualizado.reuniao.horaFim,
-        usuario: atualizado.reuniao.criadoPor?.name ?? null,
-        status: atualizado.status,
-        pauta: atualizado.reuniao.pauta,
-        descricao: atualizado.reuniao.descricao,
-        local: atualizado.reuniao.local,
-        comissao: atualizado.reuniao.comissao.nome,
-      };
+      return apresentarConvite(atualizado);
     } catch (error) {
       if (isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)) {
         throw new AppError(404, 'Convite não encontrado.');
       }
       throw error;
     }
+  },
+
+  /**
+   * Reenvio pelo organizador: o convite volta a ficar sem resposta (reaparece
+   * no sino) e o e-mail sai de novo com o mesmo link. Quem tinha aceitado sai
+   * dos participantes até responder.
+   */
+  async resendInvite(actorId: number, role: Role, inviteId: number) {
+    const convite = await prisma.conviteReuniao.findUnique({
+      where: { id: inviteId },
+      select: {
+        userId: true,
+        reuniaoId: true,
+        status: true,
+        user: { select: { name: true } },
+        reuniao: {
+          select: {
+            criadoPorUserId: true,
+            comissaoId: true,
+            status: true,
+            data: true,
+            horaFim: true,
+            comissao: { select: { equipe: { select: { userId: true } } } },
+          },
+        },
+      },
+    });
+    if (!convite) {
+      throw new AppError(404, 'Convite não encontrado.');
+    }
+    const { reuniao } = convite;
+    if (!(await podeGerirReuniao(actorId, role, reuniao))) {
+      throw new AppError(403, 'Você não pode reenviar convites desta reunião.');
+    }
+    if (reuniao.status === 'CANCELADA') {
+      throw new AppError(
+        409,
+        'Esta reunião foi cancelada; o convite não pode ser reenviado.',
+      );
+    }
+    if (reuniao.status === 'REALIZADA') {
+      throw new AppError(
+        409,
+        'Esta reunião já foi realizada; o convite não pode ser reenviado.',
+      );
+    }
+    if (isConviteExpirado(reuniao)) {
+      throw new AppError(
+        410,
+        'Esta reunião já terminou; o convite não pode mais ser reenviado.',
+      );
+    }
+    const nome = convite.user.name;
+    if (
+      !reuniao.comissao.equipe.some(
+        (membro) => membro.userId === convite.userId,
+      )
+    ) {
+      throw new AppError(
+        409,
+        `${nome} não faz mais parte da comissão; o convite não pode ser reenviado.`,
+      );
+    }
+    if (
+      convite.status === StatusConviteReuniao.ACEITO &&
+      (await hasParticipacao(convite.reuniaoId, convite.userId))
+    ) {
+      throw new AppError(
+        409,
+        `${nome} já registrou presença ou votou nesta reunião; o convite não pode ser reenviado.`,
+      );
+    }
+
+    try {
+      await prisma.conviteReuniao.update({
+        where: { id: inviteId },
+        data: { status: StatusConviteReuniao.PENDENTE, respondidoAt: null },
+      });
+    } catch (error) {
+      if (isPrismaError(error, PRISMA_ERROR.RECORD_NOT_FOUND)) {
+        throw new AppError(404, 'Convite não encontrado.');
+      }
+      throw error;
+    }
+    sendConvites(convite.reuniaoId, [convite.userId], true);
+    return { message: `Convite reenviado para ${nome}.` };
   },
 };

@@ -26,6 +26,7 @@ Revisão do app mobile (`sistema/better-meet`), da API de dados (`sistema/api`) 
 | 12 | Alta | App | Login no Android e no iOS recusado com 403 `MISSING_OR_NULL_ORIGIN` | Corrigido (correcao-origem-better-auth) |
 | 13 | Média | API e app | Links de confirmação de e-mail e de troca de senha abrem uma aba em branco | Corrigido (email-conta-codigo-senha) |
 | 14 | Média | API e app | Comissões de que o usuário não participa aparecem na Nova reunião, na tela Comissões e no detalhe da organização | Corrigido (comissoes-criar-reuniao) |
+| 15 | Média | API e app | Convite de reunião já respondido não muda, e o organizador não consegue reenviar o convite | Corrigido (convite-resposta-reenvio) |
 
 ---
 
@@ -210,6 +211,21 @@ O check-in antecipado do item 5 também precisa de ajuste no app.
 **Correção:**
 - API: `GET /organizacoes/:id/comissoes` e o campo `comissoes` de `GET /organizacoes/minhas`, `GET /organizacoes/:id` e `PATCH /organizacoes/:id` trazem só as comissões da equipe de quem pede (o admin do sistema recebe todas). `GET /comissoes/:id` responde 403 "Você não participa desta comissão." a quem está fora da equipe. OpenAPI atualizada.
 - App: a Nova reunião e a tela Comissões filtram pela `equipe`; a seleção da Nova reunião é mantida só se a comissão continuar na lista; mensagem única "Não é possível criar reuniões: você não participa de nenhuma comissão. Peça a quem administra uma comissão para incluir você na equipe."; na edição, a comissão da reunião continua na lista. Textos de lista vazia na tela Comissões e no detalhe da organização: "Você ainda não participa de nenhuma comissão nesta organização".
+
+---
+
+### 15. Convite respondido não muda e não pode ser reenviado (média)
+
+> **Situação: corrigido em 2026-11-27** (unidade AI-DLC `convite-resposta-reenvio`). O convidado muda a resposta até o fim da reunião (pela tela da reunião, pelo sino e pelos botões do e-mail), e quem gere a reunião reenvia o convite com o botão "Reenviar" de cada pessoa. Testes: `api/tests/conviteRespostaReenvio.test.mjs` e `email.test.mjs`, e no app `ReuniaoConviteResposta.test.tsx`. (commit: a registrar.)
+
+**Onde:** `sistema/api/src/services/reuniaoService.ts` (`respondInvite`, `inviteMembers`, `listMine`, `getById`), `sistema/api/src/controllers/conviteRespostaController.ts` e `sistema/better-meet/src/app/(tabs)/(reunioes)/reuniao/[id].tsx`.
+
+**O que acontecia:** quem recusava um convite por engano não conseguia mais aceitar: a API respondia 409 "Este convite já foi respondido.", a página do e-mail mandava falar com o organizador e a reunião sumia da lista. O organizador também não tinha como reenviar: a tela "Convidar participantes" escondia quem já tinha convite, e a API ignorava essas pessoas, respondendo "0 convite(s) enviado(s)" sem explicar.
+
+**Correção:**
+- API: `PATCH /reunioes/convites/:inviteId/responder` e o link do e-mail aceitam trocar a resposta até o fim da reunião (410 depois); repetir a resposta atual não grava nada. Quem aceitou e já registrou presença ou votou não pode recusar (409). Quem recusou continua vendo a reunião (`GET /reunioes/minhas` e `GET /reunioes/:id`, com `meuConvite`).
+- API: nova rota `POST /reunioes/convites/:inviteId/reenviar`, para quem gere a reunião. O convite volta a "sem resposta", reaparece no sino e sai de novo por e-mail ("Convite reenviado", mesmo link). Recusa com 409 reunião cancelada ou realizada, convidado fora da comissão ou que já participou; com 410 reunião encerrada. OpenAPI atualizada, incluindo o `GET /reunioes/:id`, que não estava documentado.
+- App: card "Seu convite" na aba Dados, com "Aceitar convite" ou "Recusar convite" (desabilitado com o motivo quando a resposta não pode mudar); quem recusou não vê presença, arquivos, votações e ata; badge "Recusado" na lista; botão "Reenviar" por pessoa em "Convites sem aceite" e nos participantes, com confirmação para quem já tinha aceitado.
 
 ---
 

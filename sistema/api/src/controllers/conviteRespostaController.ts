@@ -21,6 +21,13 @@ const STATUS_DA_RESPOSTA = {
   recusar: StatusConviteReuniao.RECUSADO,
 } satisfies Record<RespostaDoLink, StatusConviteReuniao>;
 
+// Resposta já dada, no vocabulário do link; sem resposta, nenhuma.
+const RESPOSTA_DO_STATUS = {
+  PENDENTE: undefined,
+  ACEITO: 'aceitar',
+  RECUSADO: 'recusar',
+} satisfies Record<StatusConviteReuniao, RespostaDoLink | undefined>;
+
 // O ?resposta= do link só escolhe qual página mostrar; valor desconhecido
 // mostra as duas opções, sem erro.
 const isResposta = (valor: unknown): valor is RespostaDoLink =>
@@ -55,18 +62,6 @@ export const conviteRespostaController = {
       );
       return;
     }
-    if (convite.status !== StatusConviteReuniao.PENDENTE) {
-      sendPage(
-        response,
-        200,
-        paginaResposta.mensagem(
-          'Convite já respondido',
-          `Sua resposta foi: ${convite.status === StatusConviteReuniao.ACEITO ? 'aceito' : 'recusado'}. Para mudar, fale com quem organizou a reunião.`,
-        ),
-      );
-      return;
-    }
-
     if (reuniaoService.isConviteExpirado(convite.reuniao)) {
       sendPage(
         response,
@@ -80,12 +75,26 @@ export const conviteRespostaController = {
     }
 
     const { resposta } = request.query;
+    const respostaAtual = RESPOSTA_DO_STATUS[convite.status];
+    if (respostaAtual && resposta === respostaAtual) {
+      sendPage(
+        response,
+        200,
+        paginaResposta.mensagem(
+          'Resposta já registrada',
+          respostaAtual === 'aceitar'
+            ? 'Você já aceitou este convite. Para mudar, use o botão Recusar do e-mail ou o app.'
+            : 'Você já recusou este convite. Para mudar, use o botão Aceitar do e-mail ou o app.',
+        ),
+      );
+      return;
+    }
     sendPage(
       response,
       200,
       isResposta(resposta)
-        ? paginaResposta.confirm(convite, token, resposta)
-        : paginaResposta.choose(convite, token),
+        ? paginaResposta.confirm(convite, token, resposta, respostaAtual)
+        : paginaResposta.choose(convite, token, respostaAtual),
     );
   },
 

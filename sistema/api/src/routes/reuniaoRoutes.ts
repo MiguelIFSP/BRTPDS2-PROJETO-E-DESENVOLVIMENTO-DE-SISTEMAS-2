@@ -82,5 +82,11 @@ routes.patch(
   requireAuth,
   reuniaoController.respondInvite,
 );
+// Quem pode reenviar (quem gere a reunião) é conferido no service.
+routes.post(
+  '/reunioes/convites/:inviteId/reenviar',
+  requireAuth,
+  reuniaoController.resendInvite,
+);
 
 export default routes;

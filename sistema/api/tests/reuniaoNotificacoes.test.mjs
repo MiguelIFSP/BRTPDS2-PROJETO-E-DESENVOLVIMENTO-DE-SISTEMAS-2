@@ -223,6 +223,7 @@ describe('GET /api/reunioes/minhas', () => {
         horaFim: '11:00',
         comissao: { id: 4, nome: 'Comissão', equipe: [] },
         registros: [],
+        votacoes: [],
         convites: [
           { id: 1, userId: 8, status: 'PENDENTE', user: { name: 'Ana' } },
           { id: 2, userId: 9, status: 'RECUSADO', user: { name: 'Bia' } },
@@ -234,8 +235,8 @@ describe('GET /api/reunioes/minhas', () => {
       .set('Authorization', `Bearer ${tokenDe(criadorId)}`);
     expect(response.status).toBe(200);
     expect(response.body[0].convites).toEqual([
-      { id: 1, userId: 8, status: 'PENDENTE', nome: 'Ana' },
-      { id: 2, userId: 9, status: 'RECUSADO', nome: 'Bia' },
+      { id: 1, userId: 8, status: 'PENDENTE', nome: 'Ana', podeReenviar: true },
+      { id: 2, userId: 9, status: 'RECUSADO', nome: 'Bia', podeReenviar: true },
     ]);
   });
 });

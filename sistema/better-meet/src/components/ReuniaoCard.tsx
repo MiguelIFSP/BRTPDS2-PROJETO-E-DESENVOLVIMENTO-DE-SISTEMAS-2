@@ -1,5 +1,7 @@
+import Badge from '@/components/ui/Badge';
 import SummaryCard from '@/components/ui/SummaryCard';
 import type {
+  MeuConvite,
   ReuniaoParticipante,
   ReuniaoRegistro,
   StatusConviteReuniao,
@@ -28,6 +30,7 @@ export type ReuniaoCardData = {
     status: StatusConviteReuniao;
   }[];
   comissaoNome?: string;
+  meuConvite?: MeuConvite | null;
 };
 
 type ReuniaoCardProps = {
@@ -49,6 +52,12 @@ export default function ReuniaoCard({ reuniao, onPress }: ReuniaoCardProps) {
       }
       meta={reuniao.local ? `${quando}\n${reuniao.local}` : quando}
       memberNames={[]}
+      // Quem recusou continua vendo a reunião para poder aceitar de novo.
+      trailing={
+        reuniao.meuConvite?.status === 'RECUSADO' ? (
+          <Badge label="Recusado" tone="danger" />
+        ) : undefined
+      }
       onPress={onPress}
     />
   );

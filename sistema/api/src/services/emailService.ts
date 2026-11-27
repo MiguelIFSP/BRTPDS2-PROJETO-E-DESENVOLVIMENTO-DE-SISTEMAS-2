@@ -235,6 +235,18 @@ export const emailService = {
       ics: buildAnexoIcs('REQUEST', reuniao, destinatario),
     })),
 
+  sendConviteReenviado: (
+    reuniao: ReuniaoEmail,
+    destinatarios: Destinatario[],
+  ) =>
+    sendToEach(destinatarios, (destinatario) => ({
+      email: emailTemplates.conviteReenviado(
+        reuniao,
+        linksResposta(destinatario.tokenResposta),
+      ),
+      ics: buildAnexoIcs('REQUEST', reuniao, destinatario),
+    })),
+
   sendAtualizacao: (
     reuniao: ReuniaoEmail,
     destinatarios: Destinatario[],

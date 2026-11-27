@@ -16,8 +16,11 @@ import PresencaManualActions from '@/components/PresencaManualActions';
 import { useRelogio } from '@/hooks/useRelogio';
 import { calcularJanelaCheckIn } from '@/utils/janelaCheckIn';
 
-import ConvitesSemAceite from '@/components/ConvitesSemAceite';
+import ConvitesSemAceite, {
+  type ConviteSemAceite,
+} from '@/components/ConvitesSemAceite';
 import InfoRow from '@/components/InfoRow';
+import ReenviarConviteButton from '@/components/ReenviarConviteButton';
 import MembrosSelector, {
   type MembroConvidavel,
 } from '@/components/MembrosSelector';
@@ -92,6 +95,10 @@ export default function ReuniaoDetalheScreen() {
   const [isLoadingMembros, setIsLoadingMembros] = useState(false);
   const [convidados, setConvidados] = useState<number[]>([]);
   const [isInviting, setIsInviting] = useState(false);
+  const [isResponding, setIsResponding] = useState(false);
+  const [reenviandoId, setReenviandoId] = useState<number | null>(null);
+  const [reenvioParaConfirmar, setReenvioParaConfirmar] =
+    useState<ConviteSemAceite | null>(null);
   const [aba, setAba] = useState<AbaReuniao>('dados');
 
   const reload = useCallback(async () => {
@@ -194,6 +201,76 @@ export default function ReuniaoDetalheScreen() {
   const quando = reuniao
     ? `${formatReuniaoDate(reuniao.data)} · ${reuniao.horaInicio} às ${reuniao.horaFim}`
     : '';
+  const meuConvite = reuniao?.meuConvite ?? null;
+  // Quem recusou vê a reunião para poder aceitar de novo, mas só participa
+  // (presença, arquivos, votações e ata) depois de aceitar.
+  const naoAceitou = meuConvite !== null && meuConvite.status !== 'ACEITO';
+  // podeReenviar falso no próprio convite: já registrou presença ou votou.
+  const jaParticipou =
+    Boolean(reuniao?.meuRegistro) ||
+    (reuniao?.convites?.some(
+      (convite) =>
+        convite.id === meuConvite?.id && convite.podeReenviar === false,
+    ) ??
+      false);
+  const motivoRespostaFixa =
+    reuniao?.status === 'CANCELADA'
+      ? 'A reunião foi cancelada; a resposta não muda mais.'
+      : isHistorical
+        ? 'A reunião já terminou; a resposta não muda mais.'
+        : meuConvite?.status === 'ACEITO' && jaParticipou
+          ? 'Você já registrou presença ou votou nesta reunião, então não pode mais recusar.'
+          : null;
+
+  const handleRespond = async (status: 'ACEITO' | 'RECUSADO') => {
+    if (!token || !meuConvite) return;
+    setIsResponding(true);
+    try {
+      await reuniaoService.respondInvite(token, meuConvite.id, status);
+      setFeedback({
+        type: 'success',
+        message: status === 'ACEITO' ? 'Convite aceito.' : 'Convite recusado.',
+      });
+      await reload();
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(
+          error,
+          'Não foi possível responder ao convite.',
+        ),
+      });
+    } finally {
+      setIsResponding(false);
+    }
+  };
+
+  const resendInvite = async (convite: ConviteSemAceite) => {
+    if (!token) return;
+    setReenviandoId(convite.id);
+    try {
+      const { message } = await reuniaoService.resendInvite(token, convite.id);
+      setFeedback({ type: 'success', message });
+      await reload();
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message: getErrorMessage(error, 'Não foi possível reenviar o convite.'),
+      });
+    } finally {
+      setReenviandoId(null);
+      setReenvioParaConfirmar(null);
+    }
+  };
+
+  // Para quem aceitou, o reenvio desfaz a resposta: confirma antes.
+  const requestResend = (convite: ConviteSemAceite) => {
+    if (convite.status === 'ACEITO') {
+      setReenvioParaConfirmar(convite);
+      return;
+    }
+    void resendInvite(convite);
+  };
 
   const handleDelete = async () => {
     if (!token || !reuniao) return;
@@ -317,6 +394,42 @@ export default function ReuniaoDetalheScreen() {
         })}
       </View>
 
+      {aba === 'dados' && meuConvite && meuConvite.status !== 'PENDENTE' ? (
+        <Card>
+          <SectionLabel label="Seu convite" />
+          <Text style={[styles.conviteStatus, { color: colors.text }]}>
+            {meuConvite.status === 'ACEITO'
+              ? 'Você aceitou este convite.'
+              : 'Você recusou este convite.'}
+          </Text>
+          {motivoRespostaFixa ? (
+            <Text style={[styles.hint, { color: colors.textSecondary }]}>
+              {motivoRespostaFixa}
+            </Text>
+          ) : null}
+          {meuConvite.status === 'ACEITO' ? (
+            <Button
+              variant="secondary"
+              icon="close-circle-outline"
+              label="Recusar convite"
+              loadingLabel="Recusando..."
+              isLoading={isResponding}
+              disabled={motivoRespostaFixa !== null}
+              onPress={() => void handleRespond('RECUSADO')}
+            />
+          ) : (
+            <Button
+              icon="checkmark-circle-outline"
+              label="Aceitar convite"
+              loadingLabel="Aceitando..."
+              isLoading={isResponding}
+              disabled={motivoRespostaFixa !== null}
+              onPress={() => void handleRespond('ACEITO')}
+            />
+          )}
+        </Card>
+      ) : null}
+
       {aba === 'dados' ? (
         <Card>
           <View style={styles.sectionHeader}>
@@ -384,6 +497,12 @@ export default function ReuniaoDetalheScreen() {
                 : participante.registro
                   ? 'Entrada registrada'
                   : 'Não entrou';
+              // O criador não tem convite; os demais participantes aceitaram.
+              const conviteAceito = reuniao.convites?.find(
+                (convite) =>
+                  convite.userId === participante.userId &&
+                  convite.status === 'ACEITO',
+              );
               return (
                 <View key={participante.userId} style={styles.participantRow}>
                   <Ionicons
@@ -429,6 +548,14 @@ export default function ReuniaoDetalheScreen() {
                       onRegistered={reload}
                     />
                   ) : null}
+                  {!isHistorical && canManage && conviteAceito?.podeReenviar ? (
+                    <ReenviarConviteButton
+                      nome={participante.nome}
+                      isLoading={reenviandoId === conviteAceito.id}
+                      disabled={reenviandoId !== null}
+                      onPress={() => requestResend(conviteAceito)}
+                    />
+                  ) : null}
                 </View>
               );
             })
@@ -438,7 +565,11 @@ export default function ReuniaoDetalheScreen() {
             </Text>
           )}
           {!isHistorical && canManage ? (
-            <ConvitesSemAceite convites={reuniao.convites} />
+            <ConvitesSemAceite
+              convites={reuniao.convites}
+              onResend={requestResend}
+              reenviandoId={reenviandoId}
+            />
           ) : null}
           {!isHistorical && canManage ? (
             <Button
@@ -458,6 +589,7 @@ export default function ReuniaoDetalheScreen() {
 
       {aba === 'participantes' &&
       token &&
+      !naoAceitou &&
       (reuniao.status === 'AGENDADA' ||
         reuniao.meuRegistro ||
         user?.role === 'ADMIN' ||
@@ -490,7 +622,18 @@ export default function ReuniaoDetalheScreen() {
         </Card>
       ) : null}
 
-      {aba === 'reuniao' && reuniao.meuRegistro && papelNaComissao ? (
+      {aba === 'reuniao' && naoAceitou ? (
+        <Card>
+          <Text style={[styles.hint, { color: colors.textSecondary }]}>
+            Aceite o convite para ver os arquivos, as votações e a ata.
+          </Text>
+        </Card>
+      ) : null}
+
+      {aba === 'reuniao' &&
+      !naoAceitou &&
+      reuniao.meuRegistro &&
+      papelNaComissao ? (
         <Button
           label="Ata de reunião"
           icon="document-text-outline"
@@ -504,15 +647,15 @@ export default function ReuniaoDetalheScreen() {
         />
       ) : null}
 
-      {aba === 'reuniao' && token ? (
+      {aba === 'reuniao' && token && !naoAceitou ? (
         <BibliotecaReuniao token={token} reuniaoId={reuniao.id} />
       ) : null}
 
-      {aba === 'reuniao' && token && reuniaoEncerrada ? (
+      {aba === 'reuniao' && token && reuniaoEncerrada && !naoAceitou ? (
         <RelatorioVotacoes token={token} reuniaoId={reuniao.id} />
       ) : null}
 
-      {aba === 'reuniao' ? (
+      {aba === 'reuniao' && !naoAceitou ? (
         <VotacoesDaReuniao reuniaoId={reuniao.id} canManage={canManage} />
       ) : null}
 
@@ -551,6 +694,24 @@ export default function ReuniaoDetalheScreen() {
         isLoading={isDeleting}
         onCancel={() => setIsDeleteOpen(false)}
         onConfirm={() => void handleDelete()}
+      />
+
+      <ConfirmDialog
+        visible={reenvioParaConfirmar !== null}
+        variant="info"
+        icon="paper-plane-outline"
+        title="Reenviar convite?"
+        message={
+          reenvioParaConfirmar
+            ? `${reenvioParaConfirmar.nome} já aceitou o convite. Ao reenviar, a resposta volta a "sem resposta" e ${reenvioParaConfirmar.nome} sai dos participantes até responder de novo.`
+            : ''
+        }
+        confirmLabel="Reenviar"
+        isLoading={reenviandoId !== null}
+        onCancel={() => setReenvioParaConfirmar(null)}
+        onConfirm={() => {
+          if (reenvioParaConfirmar) void resendInvite(reenvioParaConfirmar);
+        }}
       />
     </Screen>
   );
@@ -595,5 +756,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   participantStatus: { ...Typography.bodySmall },
+  conviteStatus: { ...Typography.body, fontFamily: FontFamily.medium },
   deleteButton: { alignSelf: 'flex-start' },
 });

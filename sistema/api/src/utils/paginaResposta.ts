@@ -40,30 +40,42 @@ const formulario = (token: string, resposta: RespostaDoLink, rotulo: string) =>
 <button type="submit" style="background:${CORES[resposta]}">${rotulo}</button>
 </form>`;
 
+// Convite já respondido: a resposta pode mudar até o fim da reunião.
+const avisoRespostaAtual = (respostaAtual?: RespostaDoLink) =>
+  respostaAtual
+    ? `
+<p class="meta">Sua resposta atual: ${respostaAtual === 'aceitar' ? 'aceito' : 'recusado'}. Você pode mudá-la aqui.</p>`
+    : '';
+
 export const paginaResposta = {
   /** Link de um botão do e-mail: pede a confirmação daquela resposta. */
   confirm: (
     convite: ConviteDaPagina,
     token: string,
     resposta: RespostaDoLink,
+    respostaAtual?: RespostaDoLink,
   ) => {
     const outra: RespostaDoLink =
       resposta === 'aceitar' ? 'recusar' : 'aceitar';
     return layoutPagina(
       'Confirmar resposta',
       `<p>Olá, ${escapeHtml(convite.user.name)}. Confirme sua resposta ao convite:</p>
-${resumo(convite)}
+${resumo(convite)}${avisoRespostaAtual(respostaAtual)}
 <div class="acoes">${formulario(token, resposta, `Confirmar: ${ROTULOS[resposta].toLowerCase()}`)}</div>
 <p class="meta" style="margin-top:16px">Mudou de ideia? <a href="/api/convites/${encodeURIComponent(token)}?resposta=${outra}">${ROTULOS[outra]} o convite</a>.</p>`,
     );
   },
 
   /** Link sem resposta escolhida: mostra as duas opções. */
-  choose: (convite: ConviteDaPagina, token: string) =>
+  choose: (
+    convite: ConviteDaPagina,
+    token: string,
+    respostaAtual?: RespostaDoLink,
+  ) =>
     layoutPagina(
       'Responder convite',
       `<p>Olá, ${escapeHtml(convite.user.name)}. Você vai participar?</p>
-${resumo(convite)}
+${resumo(convite)}${avisoRespostaAtual(respostaAtual)}
 <div class="acoes">${formulario(token, 'aceitar', 'Aceitar')}${formulario(token, 'recusar', 'Recusar')}</div>`,
     ),
 

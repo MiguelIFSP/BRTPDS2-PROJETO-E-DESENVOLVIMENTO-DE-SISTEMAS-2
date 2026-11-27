@@ -14,6 +14,8 @@ const prisma = {
     update: jest.fn(),
   },
   comissao: { findUnique: jest.fn() },
+  reuniaoRegistro: { findUnique: jest.fn() },
+  votacaoVoto: { count: jest.fn() },
   user: { findMany: jest.fn(), findUnique: jest.fn() },
   lembreteEnviado: {
     create: jest.fn(),
@@ -422,14 +424,29 @@ describe('botões Aceitar/Recusar do e-mail', () => {
     expect(response.text).toContain('Convite não encontrado');
   });
 
-  test('convite já respondido não oferece os botões de novo', async () => {
+  test('convite já respondido mostra a resposta atual e deixa mudar', async () => {
     prisma.conviteReuniao.findUnique.mockResolvedValue(
       conviteDaPagina('RECUSADO'),
     );
     const response = await request(app).get(
       `/api/convites/${token}?resposta=aceitar`,
     );
-    expect(response.text).toContain('Sua resposta foi: recusado');
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('Sua resposta atual: recusado');
+    expect(response.text).toContain('Confirmar: aceitar');
+    expect(response.text).toContain('<form');
+  });
+
+  test('o mesmo botão de uma resposta já dada só avisa, sem formulário', async () => {
+    prisma.conviteReuniao.findUnique.mockResolvedValue(
+      conviteDaPagina('ACEITO'),
+    );
+    const response = await request(app).get(
+      `/api/convites/${token}?resposta=aceitar`,
+    );
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('Resposta já registrada');
+    expect(response.text).toContain('use o botão Recusar do e-mail');
     expect(response.text).not.toContain('<form');
   });
 
@@ -468,19 +485,59 @@ describe('botões Aceitar/Recusar do e-mail', () => {
     });
   });
 
-  test('confirmar um convite já respondido mostra o erro do app', async () => {
+  test('confirmar outra resposta muda um convite já respondido', async () => {
     prisma.conviteReuniao.findUnique
       .mockResolvedValueOnce({ id: 5, userId: 3 })
       .mockResolvedValueOnce({
         userId: 3,
+        reuniaoId: 31,
         status: 'ACEITO',
         reuniao: { status: 'AGENDADA', data: dataFutura, horaFim: '11:00' },
       });
+    prisma.reuniaoRegistro.findUnique.mockResolvedValue(null);
+    prisma.votacaoVoto.count.mockResolvedValue(0);
+    prisma.conviteReuniao.update.mockResolvedValue({
+      id: 5,
+      reuniaoId: 31,
+      status: 'RECUSADO',
+      reuniao: {
+        titulo: 'Planejamento',
+        pauta: 'Pauta',
+        descricao: null,
+        local: 'Sala 4',
+        data: dataFutura,
+        horaInicio: '10:00',
+        horaFim: '11:00',
+        comissao: { nome: 'Comissão de Teste' },
+        criadoPor: { name: 'Ana Souza' },
+      },
+    });
 
-    const response = await confirmar();
+    const response = await confirmar('recusar');
+
+    expect(response.status).toBe(200);
+    expect(response.text).toContain('Convite recusado');
+    expect(prisma.conviteReuniao.update.mock.calls[0][0]).toMatchObject({
+      data: { status: 'RECUSADO' },
+    });
+  });
+
+  test('recusar pelo link depois de registrar presença mostra o erro do app', async () => {
+    prisma.conviteReuniao.findUnique
+      .mockResolvedValueOnce({ id: 5, userId: 3 })
+      .mockResolvedValueOnce({
+        userId: 3,
+        reuniaoId: 31,
+        status: 'ACEITO',
+        reuniao: { status: 'AGENDADA', data: dataFutura, horaFim: '11:00' },
+      });
+    prisma.reuniaoRegistro.findUnique.mockResolvedValue({ id: 9 });
+    prisma.votacaoVoto.count.mockResolvedValue(0);
+
+    const response = await confirmar('recusar');
 
     expect(response.status).toBe(409);
-    expect(response.text).toContain('Este convite já foi respondido.');
+    expect(response.text).toContain('já registrou presença ou votou');
     expect(prisma.conviteReuniao.update).not.toHaveBeenCalled();
   });
 

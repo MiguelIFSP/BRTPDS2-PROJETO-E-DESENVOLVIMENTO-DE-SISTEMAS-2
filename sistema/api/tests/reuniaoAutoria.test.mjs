@@ -39,6 +39,7 @@ const reuniaoSemCriador = {
   comissao: { id: 3, nome: 'Comissão', equipe: [] },
   convites: [{ id: 1, userId: 8, status: 'ACEITO', user: { name: 'Ana' } }],
   registros: [],
+  votacoes: [],
 };
 const get = (caminho, userId) =>
   request(app)

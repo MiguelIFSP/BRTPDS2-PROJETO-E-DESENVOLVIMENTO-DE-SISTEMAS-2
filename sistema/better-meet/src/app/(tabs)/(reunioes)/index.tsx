@@ -403,6 +403,7 @@ export default function ReunioesScreen() {
           participantes: reuniao.participantes,
           convites: reuniao.convites,
           comissaoNome: reuniao.comissao?.nome,
+          meuConvite: reuniao.meuConvite,
         }));
 
         setReunioes(mappedMine);

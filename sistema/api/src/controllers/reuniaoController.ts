@@ -170,4 +170,11 @@ export const reuniaoController = {
     );
     response.status(200).json(convite);
   },
+
+  async resendInvite(request: Request, response: Response) {
+    const { id: actorId, role } = (request as AuthenticatedRequest).user;
+    const inviteId = parseId(request.params.inviteId, 'do convite');
+    const result = await reuniaoService.resendInvite(actorId, role, inviteId);
+    response.status(200).json(result);
+  },
 };

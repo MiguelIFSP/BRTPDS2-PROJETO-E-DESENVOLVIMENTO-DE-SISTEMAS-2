@@ -336,6 +336,21 @@ components:
               userId: { type: integer }
               nome: { type: string }
               status: { $ref: '#/components/schemas/StatusConviteReuniao' }
+              podeReenviar:
+                type: boolean
+                description: |
+                  Falso só para quem aceitou e já registrou presença ou votou na
+                  reunião. O reenvio também depende de quem pede e do horário
+                  (ver POST /reunioes/convites/{inviteId}/reenviar).
+        meuConvite:
+          type: object
+          nullable: true
+          description: |
+            Convite de quem está vendo a reunião (aceito ou recusado); nulo para
+            o criador e para quem gere a reunião sem ter sido convidado.
+          properties:
+            id: { type: integer }
+            status: { $ref: '#/components/schemas/StatusConviteReuniao' }
         meuRegistro:
           description: Presença do próprio usuário, incluída em GET /reunioes/minhas.
           nullable: true
@@ -2177,8 +2192,9 @@ paths:
       summary: Lista as reuniões do usuário autenticado
       description: |
         Exige `requireAuth`. Lista reuniões criadas pelo usuário ou para as quais
-        ele aceitou o convite. Membros da comissão com convite pendente ou recusado
-        não recebem a reunião nesta lista.
+        ele aceitou ou recusou o convite (quem recusou pode aceitar de novo até o
+        fim da reunião; `meuConvite` traz a resposta). Convite pendente não entra
+        nesta lista: fica em GET /reunioes/convites.
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -2261,8 +2277,12 @@ paths:
       tags: [Reuniões]
       summary: Responde a um convite de reunião
       description: |
-        Exige `requireAuth`. O usuário só pode responder ao próprio convite pendente,
-        até o horário de término da reunião (fuso TZ_REUNIOES).
+        Exige `requireAuth`. O usuário só responde ao próprio convite (403), até o
+        horário de término da reunião (fuso TZ_REUNIOES; depois, 410). A resposta
+        pode mudar quantas vezes quiser nesse prazo: aceito para recusado e
+        recusado para aceito. Repetir a resposta atual devolve 200 sem gravar nada.
+        Quem aceitou e já registrou presença ou votou na reunião não pode recusar
+        (409). Reunião cancelada não aceita resposta (409).
       security: [{ bearerAuth: [] }]
       parameters:
         - name: inviteId
@@ -2290,14 +2310,92 @@ paths:
         '401': { $ref: '#/components/responses/Unauthorized' }
         '403': { $ref: '#/components/responses/Forbidden' }
         '404': { $ref: '#/components/responses/NotFound' }
-        '409': { $ref: '#/components/responses/Conflict' }
+        '409':
+          description: Reunião cancelada, ou recusa de quem já registrou presença ou votou.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
         '410':
           {
             description: A reunião já terminou; o convite não pode mais ser respondido.,
           }
         '500': { $ref: '#/components/responses/InternalError' }
 
+  /reunioes/convites/{inviteId}/reenviar:
+    post:
+      tags: [Reuniões]
+      summary: Reenvia um convite de reunião
+      description: |
+        Exige `requireAuth`. Pode reenviar quem gere a reunião: o criador (se a
+        conta ainda existir), o Administrador atual da comissão e o ADMIN da
+        plataforma (403 para os demais). Vale para qualquer convidado, tenha ele
+        aceitado, recusado ou não respondido, sem limite de reenvios.
+
+        O convite volta a ficar sem resposta (`PENDENTE`), reaparece em
+        GET /reunioes/convites do convidado e sai de novo por e-mail, com o .ics e
+        os mesmos botões Aceitar/Recusar (o token não muda). Quem tinha aceitado
+        sai dos participantes até responder de novo. Falha no envio do e-mail não
+        desfaz o reenvio.
+
+        Recusado com 409 quando a reunião foi cancelada ou realizada, quando o
+        convidado não é mais membro da comissão ou quando ele aceitou e já
+        registrou presença ou votou; com 410 depois do fim da reunião.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: inviteId
+          in: path
+          required: true
+          description: Identificador do convite.
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Convite reenviado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Message' }
+              example: { message: 'Convite reenviado para Caio.' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          description: Reunião cancelada ou realizada, convidado fora da comissão, ou convidado que aceitou e já registrou presença ou votou.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '410':
+          description: A reunião já terminou; o convite não pode mais ser reenviado.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Error' }
+        '500': { $ref: '#/components/responses/InternalError' }
+
   /reunioes/{id}:
+    get:
+      tags: [Reuniões]
+      summary: Detalhe de uma reunião
+      description: |
+        Exige `requireAuth`. Pode ver o criador, quem aceitou ou recusou o convite
+        (quem recusou vê a reunião para poder aceitar de novo) e quem gere a
+        reunião; os demais recebem 403. `meuConvite` traz a resposta de quem pede,
+        e `convites[].podeReenviar` orienta o botão de reenvio.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer, minimum: 1 }
+      responses:
+        '200':
+          description: Reunião encontrada.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/Reuniao' }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '500': { $ref: '#/components/responses/InternalError' }
     patch:
       tags: [Reuniões]
       summary: Atualiza uma reunião
@@ -3156,7 +3254,9 @@ paths:
       description: |
         Pública: o token faz o papel do login. Devolve HTML. Só mostra o convite
         e pede confirmação; nunca grava a resposta, porque leitores de e-mail
-        visitam os links antes do usuário clicar.
+        visitam os links antes do usuário clicar. Convite já respondido mostra a
+        resposta atual e permite mudá-la até o fim da reunião; o link da mesma
+        resposta já dada só avisa que ela está registrada.
       parameters:
         - name: resposta
           in: query
@@ -3166,7 +3266,7 @@ paths:
         '200':
           {
             description: Página de confirmação,
-            de escolha ou de convite já respondido.,
+            de escolha ou de resposta já registrada.,
           }
         '404': { description: Token inválido ou reunião excluída. }
         '409': { description: Reunião cancelada. }
@@ -3180,7 +3280,8 @@ paths:
       description: |
         Pública: o token faz o papel do login. Recebe um formulário HTML e
         devolve HTML. Aplica as mesmas regras de
-        PATCH /reunioes/convites/{inviteId}/responder (convite respondido não muda).
+        PATCH /reunioes/convites/{inviteId}/responder (a resposta pode mudar até
+        o fim da reunião, menos a recusa de quem já registrou presença ou votou).
       requestBody:
         required: true
         content:
@@ -3194,7 +3295,10 @@ paths:
         '200': { description: Resposta registrada. }
         '400': { description: Resposta inválida. }
         '404': { description: Token inválido ou reunião excluída. }
-        '409': { description: Convite já respondido ou reunião cancelada. }
+        '409':
+          {
+            description: Reunião cancelada ou recusa de quem já registrou presença ou votou.,
+          }
         '410': { description: A reunião já terminou. }
 
   /reunioes/{id}/codigo-presenca:

@@ -324,6 +324,7 @@ describe('presença ao recarregar reuniões', () => {
           { id: 1, userId, status: 'ACEITO', user: { name: 'Integrante' } },
         ],
         registros: [registroDoOutro, registro],
+        votacoes: [],
       },
       {
         id: 32,
@@ -333,6 +334,7 @@ describe('presença ao recarregar reuniões', () => {
         comissao,
         convites: [],
         registros: [registroDoOutro],
+        votacoes: [],
       },
     ]);
 

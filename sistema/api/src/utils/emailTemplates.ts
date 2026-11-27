@@ -124,6 +124,16 @@ export const emailTemplates = {
       links,
     ),
 
+  conviteReenviado: (reuniao: ReuniaoEmail, links?: LinksResposta) =>
+    build(
+      `Convite reenviado: ${reuniao.titulo} – ${quando(reuniao)}`,
+      links
+        ? `${reuniao.organizador} reenviou o convite para esta reunião. Responda de novo pelos botões abaixo ou pelo app.`
+        : `${reuniao.organizador} reenviou o convite para esta reunião. Aceite ou recuse o convite pelo app.`,
+      reuniao,
+      links,
+    ),
+
   // titulo/mensagem são os mesmos da notificação do app.
   atualizacao: (
     reuniao: ReuniaoEmail,

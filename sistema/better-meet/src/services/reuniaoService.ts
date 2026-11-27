@@ -71,12 +71,20 @@ export type Reuniao = {
   meuRegistro?: ReuniaoRegistro | null;
   participantes?: ReuniaoParticipante[];
   comissao?: { id: number; nome: string };
-  convites?: {
-    id: number;
-    userId: number;
-    nome: string;
-    status: StatusConviteReuniao;
-  }[];
+  // Convite de quem vê a reunião; nulo para o criador ou quem só a gere.
+  meuConvite?: MeuConvite | null;
+  convites?: ConviteDaReuniao[];
+};
+
+export type MeuConvite = { id: number; status: StatusConviteReuniao };
+
+export type ConviteDaReuniao = {
+  id: number;
+  userId: number;
+  nome: string;
+  status: StatusConviteReuniao;
+  // Falso para quem aceitou e já registrou presença ou votou (regra da API).
+  podeReenviar?: boolean;
 };
 
 export type ReuniaoItem = {
@@ -223,5 +231,16 @@ export const reuniaoService = {
       body: { status },
       fallbackError: 'Não foi possível responder ao convite.',
     });
+  },
+
+  resendInvite(token: string, inviteId: number) {
+    return apiRequest<{ message: string }>(
+      `/reunioes/convites/${inviteId}/reenviar`,
+      {
+        method: 'POST',
+        token,
+        fallbackError: 'Não foi possível reenviar o convite.',
+      },
+    );
   },
 };
