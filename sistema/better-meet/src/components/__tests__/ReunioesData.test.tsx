@@ -49,8 +49,11 @@ jest.mock('expo-router', () => ({
 }));
 jest.mock('@/store/authStore', () => ({
   useAuthStore: (
-    selector: (state: { token: string; user: { name: string } }) => unknown,
-  ) => selector({ token: 'jwt-teste', user: { name: 'Teste' } }),
+    selector: (state: {
+      token: string;
+      user: { id: number; name: string };
+    }) => unknown,
+  ) => selector({ token: 'jwt-teste', user: { id: 1, name: 'Teste' } }),
 }));
 
 const reuniao = {
@@ -90,7 +93,8 @@ beforeEach(() => {
       id: 1,
       nome: 'Comissão',
       organizacaoId: 1,
-      equipe: [],
+      // a tela só oferece comissões em que o usuário está na equipe.
+      equipe: [{ comissaoId: 1, userId: 1, papel: 'MEMBRO' }],
       descricao: null,
       createdAt: '',
     },

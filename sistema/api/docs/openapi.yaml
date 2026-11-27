@@ -1489,7 +1489,9 @@ paths:
     get:
       tags: [Organizações]
       summary: Organizações das quais o usuário é membro
-      description: Exige `requireAuth`.
+      description: |
+        Exige `requireAuth`. Em `comissoes` vêm só as comissões em cuja
+        equipe o usuário está.
       security: [{ bearerAuth: [] }]
       responses:
         '200':
@@ -1558,7 +1560,8 @@ paths:
       summary: Detalha uma organização
       description: |
         Exige `requireAuth`. Só membros da organização ou o ADMIN da
-        plataforma.
+        plataforma. Em `comissoes` vêm só as comissões em cuja equipe quem
+        pede está; o ADMIN da plataforma recebe todas.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
       responses:
@@ -1577,6 +1580,8 @@ paths:
       summary: Renomeia uma organização
       description: |
         Exige `requireAuth`. Só o CRIADOR, o GERENTE ou o ADMIN da plataforma.
+        Em `comissoes` vêm só as comissões em cuja equipe quem edita está; o
+        ADMIN da plataforma recebe todas.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/OrganizacaoId' }]
       requestBody:
@@ -1875,7 +1880,10 @@ paths:
     get:
       tags: [Comissões]
       summary: Lista as comissões de uma organização
-      description: Exige `requireAuth`. Só membros da organização ou o ADMIN da plataforma.
+      description: |
+        Exige `requireAuth`. Só membros da organização ou o ADMIN da
+        plataforma. O membro recebe só as comissões em cuja equipe está; o
+        ADMIN da plataforma recebe todas.
       security: [{ bearerAuth: [] }]
       parameters: [{ $ref: '#/components/parameters/OrganizacaoIdComissoes' }]
       responses:
@@ -1970,8 +1978,11 @@ paths:
       tags: [Comissões]
       summary: Detalha uma comissão (UC02)
       description: |
-        Exige `requireAuth`. Só membros da organização ou o ADMIN da
-        plataforma. A equipe vem ordenada por papel e depois por nome.
+        Exige `requireAuth`. Só quem está na equipe da comissão ou o ADMIN
+        da plataforma. Membro da organização fora da equipe recebe 403
+        "Você não participa desta comissão."; quem não é da organização
+        recebe 403 "Você não é membro desta organização.". A equipe vem
+        ordenada por papel e depois por nome.
       security: [{ bearerAuth: [] }]
       parameters:
         - name: id

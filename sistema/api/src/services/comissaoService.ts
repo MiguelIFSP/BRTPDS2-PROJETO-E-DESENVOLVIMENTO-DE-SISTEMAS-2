@@ -166,7 +166,8 @@ export const comissaoService = {
   },
 
   /**
-   * UC02: Lista todas as comissões de uma organização (membros da org ou admin do sistema).
+   * UC02: Lista as comissões de uma organização em que quem pede está na
+   * equipe (membros da org); o admin do sistema recebe todas.
    */
   async getAllByOrganizacao(
     organizacaoId: number,
@@ -183,14 +184,17 @@ export const comissaoService = {
     }
 
     return prisma.comissao.findMany({
-      where: { organizacaoId },
+      where:
+        actorRole === 'ADMIN'
+          ? { organizacaoId }
+          : { organizacaoId, equipe: { some: { userId: actorId } } },
       orderBy: { createdAt: 'desc' },
       include: { equipe: true },
     });
   },
 
   /**
-   * UC02: Detalha uma comissão (membros da org ou admin do sistema).
+   * UC02: Detalha uma comissão (quem está na equipe ou admin do sistema).
    */
   async getById(id: number, actorId: number, actorRole: Role) {
     const comissao = await prisma.comissao.findUnique({
@@ -212,6 +216,9 @@ export const comissaoService = {
       });
       if (!membro) {
         throw new AppError(403, 'Você não é membro desta organização.');
+      }
+      if (!comissao.equipe.some((item) => item.userId === actorId)) {
+        throw new AppError(403, 'Você não participa desta comissão.');
       }
     }
 

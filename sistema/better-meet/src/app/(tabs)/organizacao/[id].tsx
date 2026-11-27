@@ -440,7 +440,8 @@ export default function OrganizacaoDetalheScreen() {
           />
           {organizacao.comissoes.length === 0 ? (
             <Text style={[styles.hint, { color: colors.textSecondary }]}>
-              Nenhuma comissão criada. Crie comissões pelo menu Comissões.
+              Você ainda não participa de nenhuma comissão nesta organização.
+              Crie comissões pelo menu Comissões.
             </Text>
           ) : (
             organizacao.comissoes.map((comissao) => (

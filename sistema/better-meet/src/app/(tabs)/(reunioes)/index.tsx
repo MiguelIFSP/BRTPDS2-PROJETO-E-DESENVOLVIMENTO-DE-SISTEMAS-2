@@ -112,6 +112,9 @@ const firstStepWithError = (errors: FieldErrors<ReuniaoFormFields>) =>
 
 const INITIAL_REUNIOES: ReuniaoItem[] = [];
 
+const SEM_COMISSAO_MESSAGE =
+  'Não é possível criar reuniões: você não participa de nenhuma comissão. Peça a quem administra uma comissão para incluir você na equipe.';
+
 const INITIAL_CONVITES: ConviteItem[] = [];
 
 // Início do app e raiz da aba Reuniões: lista as reuniões, cria novas e
@@ -183,6 +186,21 @@ export default function ReunioesScreen() {
   }, [naoLidas, pendingInvites.length, setContagem]);
 
   const canCreateMeeting = comissoes.length > 0 && Boolean(comissaoSelecionada);
+
+  // A edição não troca a comissão da reunião: ela continua na lista mesmo que
+  // quem edita (o admin do sistema, por exemplo) não esteja na equipe.
+  const comissaoDaEdicao =
+    editingReuniao &&
+    !comissoes.some((comissao) => comissao.id === editingReuniao.comissaoId)
+      ? {
+          id: editingReuniao.comissaoId,
+          nome: editingReuniao.comissaoNome ?? 'Comissão da reunião',
+          organizacaoId: 0,
+        }
+      : null;
+  const opcoesComissao = comissaoDaEdicao
+    ? [comissaoDaEdicao, ...comissoes]
+    : comissoes;
 
   const resetForm = () => {
     setTitulo('');
@@ -294,10 +312,12 @@ export default function ReunioesScreen() {
     };
   }, [isCreateOpen, setFeedback, targetComissaoId, token, user?.id]);
 
+  const userId = user?.id;
+
   // isActive: false quando a tela perdeu o foco antes da resposta chegar.
   const loadComissoes = useCallback(
     async (isActive: () => boolean = () => true) => {
-      if (!token) {
+      if (!token || !userId) {
         setComissoes([]);
         setComissaoSelecionada(null);
         return;
@@ -312,19 +332,30 @@ export default function ReunioesScreen() {
               organizacao.id,
             );
 
-            return comissoesDaOrg.map((comissao) => ({
-              id: comissao.id,
-              nome: comissao.nome,
-              organizacaoId: comissao.organizacaoId,
-              organizacaoNome: organizacao.nome,
-            }));
+            // A API recusa reunião em comissão de que o criador não participa;
+            // a lista já traz a equipe, então o filtro dispensa outra chamada.
+            return comissoesDaOrg
+              .filter((comissao) =>
+                comissao.equipe.some((membro) => membro.userId === userId),
+              )
+              .map((comissao) => ({
+                id: comissao.id,
+                nome: comissao.nome,
+                organizacaoId: comissao.organizacaoId,
+                organizacaoNome: organizacao.nome,
+              }));
           }),
         );
 
         if (!isActive()) return;
         const todas = lista.flat();
         setComissoes(todas);
-        setComissaoSelecionada((current) => current ?? todas[0]?.id ?? null);
+        // A selecionada sai da lista se a pessoa deixou a comissão.
+        setComissaoSelecionada((current) =>
+          todas.some((comissao) => comissao.id === current)
+            ? current
+            : (todas[0]?.id ?? null),
+        );
       } catch (error) {
         if (!isActive()) return;
         setFeedback({
@@ -336,7 +367,7 @@ export default function ReunioesScreen() {
         });
       }
     },
-    [setFeedback, token],
+    [setFeedback, token, userId],
   );
 
   const loadReunioes = useCallback(
@@ -663,8 +694,7 @@ export default function ReunioesScreen() {
               if (!canCreateMeeting) {
                 setFeedback({
                   type: 'error',
-                  message:
-                    'Você precisa participar de uma comissão para criar reuniões.',
+                  message: SEM_COMISSAO_MESSAGE,
                 });
                 return;
               }
@@ -716,10 +746,10 @@ export default function ReunioesScreen() {
           resetForm();
         }}
       >
-        {comissoes.length === 0 ? (
+        {opcoesComissao.length === 0 ? (
           <View style={styles.emptyCommissionState}>
             <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              Você ainda não participa de nenhuma comissão para criar reuniões.
+              {SEM_COMISSAO_MESSAGE}
             </Text>
           </View>
         ) : (
@@ -782,7 +812,7 @@ export default function ReunioesScreen() {
                       },
                     ]}
                   >
-                    {comissoes.map((comissao) => {
+                    {opcoesComissao.map((comissao) => {
                       const isSelected = comissao.id === comissaoSelecionada;
 
                       return (

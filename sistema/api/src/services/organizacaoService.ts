@@ -185,6 +185,18 @@ const organizacaoDetails = {
   comissoes: true,
 } satisfies Prisma.OrganizacaoInclude;
 
+// Mesmo include, mas as comissões vêm só as da equipe de quem pede: a pessoa
+// vê a organização, não as comissões de que não participa. O admin do sistema
+// continua vendo todas.
+const organizacaoDetailsPara = (actorId: number, actorRole: Role) =>
+  ({
+    membros: { include: membroUserSelect },
+    comissoes:
+      actorRole === 'ADMIN'
+        ? true
+        : { where: { equipe: { some: { userId: actorId } } } },
+  }) satisfies Prisma.OrganizacaoInclude;
+
 const reportSelect = {
   status: true,
   createdAt: true,
@@ -355,12 +367,12 @@ export const organizacaoService = {
     return organizacoes.map(withSortedMembros);
   },
 
-  // so as orgs em que o usuario e membro.
+  // so as orgs em que o usuario e membro, com as comissoes dele.
   async getMine(userId: number) {
     const organizacoes = await prisma.organizacao.findMany({
       where: { membros: { some: { userId } } },
       orderBy: { id: 'desc' },
-      include: organizacaoDetails,
+      include: organizacaoDetailsPara(userId, 'USER'),
     });
     return organizacoes.map(withSortedMembros);
   },
@@ -386,7 +398,7 @@ export const organizacaoService = {
   async getById(id: number, actorId: number, actorRole: Role) {
     const organizacao = await prisma.organizacao.findUnique({
       where: { id },
-      include: organizacaoDetails,
+      include: organizacaoDetailsPara(actorId, actorRole),
     });
     if (!organizacao) {
       throw new AppError(404, 'Organização não encontrada.');
@@ -417,7 +429,7 @@ export const organizacaoService = {
     const updated = await prisma.organizacao.update({
       where: { id },
       data: { nome },
-      include: organizacaoDetails,
+      include: organizacaoDetailsPara(actorId, actorRole),
     });
     return withSortedMembros(updated);
   },

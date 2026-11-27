@@ -40,6 +40,7 @@ export default function ComissaoScreen() {
   const { origem } = useLocalSearchParams<{ origem?: string }>();
   const { colors } = useTheme();
   const token = useAuthStore((state) => state.token);
+  const userId = useAuthStore((state) => state.user?.id);
   const [feedback, setFeedback] = useFeedback();
   const [formFeedback, setFormFeedback] = useFeedback();
 
@@ -71,7 +72,7 @@ export default function ComissaoScreen() {
     useCallback(() => {
       let cancelled = false;
       const load = async () => {
-        if (!token) return;
+        if (!token || !userId) return;
         setIsLoading(true);
         try {
           const aprovadas = (await organizacaoService.listMine(token)).filter(
@@ -90,7 +91,15 @@ export default function ComissaoScreen() {
           const lista = atualId
             ? await comissaoService.listByOrganizacao(token, atualId)
             : [];
-          if (!cancelled) setComissoes(lista);
+          // A API já filtra; o app repete o filtro para nunca listar comissão
+          // de que a pessoa não participa (mesma regra da Nova reunião).
+          if (!cancelled) {
+            setComissoes(
+              lista.filter((comissao) =>
+                comissao.equipe.some((membro) => membro.userId === userId),
+              ),
+            );
+          }
         } catch (error) {
           if (!cancelled) {
             setFeedback({
@@ -109,7 +118,7 @@ export default function ComissaoScreen() {
       return () => {
         cancelled = true;
       };
-    }, [token, organizacaoAtualId, setFeedback]),
+    }, [token, userId, organizacaoAtualId, setFeedback]),
   );
 
   const openComissao = (comissaoId: number) =>
@@ -197,7 +206,7 @@ export default function ComissaoScreen() {
     if (comissoes.length === 0) {
       return (
         <Text style={[styles.empty, { color: colors.textSecondary }]}>
-          Nenhuma comissão cadastrada.
+          Você ainda não participa de nenhuma comissão nesta organização.
         </Text>
       );
     }

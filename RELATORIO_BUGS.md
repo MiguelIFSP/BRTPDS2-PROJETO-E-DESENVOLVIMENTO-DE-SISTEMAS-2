@@ -25,6 +25,7 @@ Revisão do app mobile (`sistema/better-meet`), da API de dados (`sistema/api`) 
 | 11 | Baixa | Gestão (web) | Sem a monitoring, o painel não mostra os subsistemas | Corrigido (U4) |
 | 12 | Alta | App | Login no Android e no iOS recusado com 403 `MISSING_OR_NULL_ORIGIN` | Corrigido (correcao-origem-better-auth) |
 | 13 | Média | API e app | Links de confirmação de e-mail e de troca de senha abrem uma aba em branco | Corrigido (email-conta-codigo-senha) |
+| 14 | Média | API e app | Comissões de que o usuário não participa aparecem na Nova reunião, na tela Comissões e no detalhe da organização | Corrigido (comissoes-criar-reuniao) |
 
 ---
 
@@ -193,6 +194,22 @@ O check-in antecipado do item 5 também precisa de ajuste no app.
 - Telas "Recuperar conta" (só e-mail → "Enviar código") e "Nova senha" (código, nova senha, reenviar e trocar e-mail); saiu "Tenho um código".
 
 **Regra 31 do `AGENTS.md`:** ela cita `emailAndPassword.sendResetPassword`. O envio agora é o `sendVerificationOTP` do plugin `emailOTP`, também do Better Auth. As propriedades exigidas continuam valendo e testadas (código só no e-mail cadastrado, uso único, validade curta, mesma resposta para conta existente ou não, limite de tentativas). Atualizar o texto da regra no guia e no `AGENTS.md`, se o grupo concordar.
+
+---
+
+### 14. Comissões de que o usuário não participa aparecem nas listas (média)
+
+> **Situação: corrigido em 2026-11-27** (unidade AI-DLC `comissoes-criar-reuniao`). A API só devolve as comissões em cuja equipe a pessoa está (o admin do sistema vê todas) e recusa o detalhe de comissão a quem não participa; o app repete o filtro na Nova reunião e na tela Comissões. Sem nenhuma comissão, o botão "Adicionar reunião" avisa que não é possível criar reuniões. Testes: `api/tests/comissoesVisiveis.test.mjs`, e no app `ReunioesComissoes.test.tsx`, `ComissoesLista.test.tsx` e `ReunioesData.test.tsx`. (commit: a registrar.)
+
+**Onde:** `sistema/api/src/services/comissaoService.ts` (`getAllByOrganizacao`, `getById`), `sistema/api/src/services/organizacaoService.ts` (include `comissoes`), `sistema/better-meet/src/app/(tabs)/(reunioes)/index.tsx` (`loadComissoes`) e `sistema/better-meet/src/app/(tabs)/comissao/index.tsx`.
+
+**O que acontece:** a Nova reunião, a tela Comissões e o detalhe da organização listam todas as comissões das organizações do usuário. Na Nova reunião, ele escolhe uma de que não participa, preenche as três etapas e só ao salvar recebe a recusa da API. Qualquer membro da organização também abria o detalhe de qualquer comissão.
+
+**Causa:** a API entregava todas as comissões da organização a qualquer membro dela, e o app não conferia a `equipe`. A criação de reunião já era recusada (`assertMembroDaComissao` em `reuniaoService.create`).
+
+**Correção:**
+- API: `GET /organizacoes/:id/comissoes` e o campo `comissoes` de `GET /organizacoes/minhas`, `GET /organizacoes/:id` e `PATCH /organizacoes/:id` trazem só as comissões da equipe de quem pede (o admin do sistema recebe todas). `GET /comissoes/:id` responde 403 "Você não participa desta comissão." a quem está fora da equipe. OpenAPI atualizada.
+- App: a Nova reunião e a tela Comissões filtram pela `equipe`; a seleção da Nova reunião é mantida só se a comissão continuar na lista; mensagem única "Não é possível criar reuniões: você não participa de nenhuma comissão. Peça a quem administra uma comissão para incluir você na equipe."; na edição, a comissão da reunião continua na lista. Textos de lista vazia na tela Comissões e no detalhe da organização: "Você ainda não participa de nenhuma comissão nesta organização".
 
 ---
 
