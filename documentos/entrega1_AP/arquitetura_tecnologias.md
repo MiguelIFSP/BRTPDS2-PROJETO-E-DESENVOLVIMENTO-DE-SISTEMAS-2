@@ -180,20 +180,30 @@ O servidor deve possuir espaço suficiente para:
 
 ## Tecnologias Utilizadas
 
-| Tecnologia | Utilização |
-|---|---|
-| Linux | Sistema operacional recomendado para o servidor |
-| Docker | Execução dos containers |
-| Docker Compose | Gerenciamento dos serviços |
-| React Native | Aplicativo Mobile |
-| React Native Web | Frontend |
-| Zustand | Gerenciamento de estado |
-| Node.js | Backend |
-| Express | API e rotas do backend |
-| MySQL | Banco de dados |
-| Prisma | Acesso e gerenciamento dos dados |
-| BetterAuth | Autenticação |
-| Java | Painel Administrativo Desktop |
+> Versões conferidas em 2026-11-27 na árvore de trabalho da branch `main` (base `185575e`, com a atualização do Expo ainda sem commit): pacotes instalados, `package.json`, `engines` e `docker-compose.yml`. "—" indica que o repositório não fixa a versão.
+
+| Tecnologia | Versão | Utilização |
+|---|---|---|
+| Docker | — | Execução dos containers |
+| Docker Compose | — | Gerenciamento dos serviços |
+| Node.js | 24.9.0 ou superior | Execução das três APIs |
+| TypeScript | 6.0.3; 5.9.3 na API de Dados | Linguagem das APIs, do aplicativo e do painel |
+| Expo SDK | 58 (pacote `expo` 58.1.0) | Aplicativo mobile e painel web |
+| Expo Router | 58.0.33 | Navegação do aplicativo e do painel |
+| React | 19.3.0 | Interface do aplicativo e do painel |
+| React Native | 0.88.1 | Aplicativo mobile e painel web |
+| React Native Web | 0.21.4 | Versão web do aplicativo e do painel |
+| Zustand | 5.0.15 | Gerenciamento de estado |
+| Express | 5.2.1 | API e rotas do backend |
+| MySQL | 8.4.0 (imagem `mysql:8.4.0`) | Banco de dados |
+| Prisma | 7.10.0 | Acesso e gerenciamento dos dados |
+| Better Auth | 1.7.27 | Autenticação |
+| Yup | 1.7.1 | Validação |
+| PM2 | 7.0.4 (dependência da API de Gestão) | Controle dos processos das APIs |
+| Dockerode | 5.0.1 | Controle dos containers pela API de Gestão |
+| node-cron | 4.6.0 | Checagem periódica do monitoramento |
+| Jest | 30.5.2 | Testes automatizados |
+| jest-expo | 58.0.16 | Testes do aplicativo e do painel |
 
 ---
 
