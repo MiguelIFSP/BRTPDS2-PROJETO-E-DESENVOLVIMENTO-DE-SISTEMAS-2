@@ -1,8 +1,19 @@
-> Entrega final (AF) · Ata, comissões e presença · Versão 1.0 · 27/11/2026.
-> Código auditado: `feature/refatoracao-ultima-entrega`, commit <code>614734c</code>. Responsável pela revisão acadêmica: [responsável a informar].
-> Estado: implementado, salvo ressalvas expressas. Verificação documental por leitura do código; não equivale à aprovação do professor.
+> **Consolidação concluída em 27/11/2026. Documento histórico.**
+> Referência vigente: [DCU - Ata (UC35 a UC38)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata). Este endereço foi preservado para manter links e apontamentos anteriores. A indicação “unificar” ou “revisar” no nome antigo não representa uma pendência deste módulo.
+> O texto recolhido abaixo registra uma versão anterior e não deve ser utilizado como especificação atual.
 
-> Página de origem preservada. Consulte [DCU - Ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata) e seus RFs para as regras e os diagramas da versão atual.
+## Documentação vigente
+
+Para consultar regras, permissões, fluxos e diagrama atuais de **RF40 - Gerenciar atas de reunião**, acesse [DCU - Ata (UC35 a UC38)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata). Consulte também [o requisito funcional correspondente](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF44) e [os diagramas de sequência](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata).
+
+O RF40 de origem descreve as quatro operações da ata e foi integrado ao DCU - Ata; os requisitos atuais são RF44, RF45, RF46 e RF47. O número RF40 não foi reutilizado nem renumerado nesta revisão.
+
+## Preservação de referências
+
+O conteúdo e os títulos históricos abaixo foram mantidos para preservar as âncoras e permitir a conferência da origem. A consolidação não remove nem renomeia esta página.
+
+<details>
+<summary>Consultar texto histórico - não vigente</summary>
 
 # Gerenciar atas de reunião
 
@@ -129,3 +140,5 @@ Limites de linhas/colunas são da interface; a API limita tamanho HTML e colspan
 prepareSave obtém o HTML atual pelo ref e confirma alteração se houver votos carregados. O servidor compara o texto normalizado. A UI preserva rascunho em falhas; 403/409 bloqueia editar/votar até recarregar. PDF pode usar o conteúdo carregado mesmo após conflito, pois não testa conflict nem renova acesso.
 
 PDF: BetterMeet, título/data, fundo branco, CSS e sans-serif. Nativo gera A4 595×842; iOS usa CSS margin 0 e margens nativas 51; Android @page 18mm. Base64 é gravado em File(Paths.cache, nome com data/Date.now), aguardado antes de compartilhar application/pdf e UTI com.adobe.pdf. O cache permanece para leitura do destinatário. Na web, somente o documento da ata é aberto, opener isolado e print invocado; o navegador decide salvar/imprimir. Cancelar não gera confirmação de envio.
+
+</details>

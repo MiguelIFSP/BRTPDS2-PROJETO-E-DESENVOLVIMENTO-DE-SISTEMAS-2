@@ -1,8 +1,12 @@
-> Entrega final (AF) · Ata, comissões e presença · Versão 1.0 · 27/11/2026.
+> Entrega final (AF) · Ata, comissões e presença · Versão 1.1 · 27/11/2026.
 > Código auditado: `feature/refatoracao-ultima-entrega`, commit <code>614734c</code>. Responsável pela revisão acadêmica: [responsável a informar].
 > Estado: implementado, salvo ressalvas expressas. Verificação documental por leitura do código; não equivale à aprovação do professor.
 
 # DCU - Comissões
+
+> **Revisão consolidada.** Esta página contém as fichas atuais UC39 a UC46, o diagrama e a ligação com os requisitos RF48 a RF55. A [página antiga de comissão](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-Caso-de-uso%3A-comissao) permanece disponível como histórico; suas permissões e seu diagrama antigo não definem o comportamento vigente.
+
+A documentação deve ser consultada nesta página e nos [diagramas de sequência de Comissões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Comiss%C3%B5es). A alteração de navegação não renumera casos de uso nem requisitos.
 
 ## Atores
 
@@ -234,3 +238,4 @@ A revisão registra o recorte documentado nesta entrega.
 | Versão | Data | Alteração | Responsável |
 |---|---|---|---|
 | 1.0 | 27/11/2026 | Consolidação da ata e revisão de comissão e presença conforme código auditado. | [responsável a informar] |
+| 1.1 | 27/11/2026 | Consolidação explicitada; navegação atual separada dos textos históricos, com preservação dos endereços anteriores. | [responsável a informar] |

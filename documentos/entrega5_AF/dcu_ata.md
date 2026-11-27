@@ -1,8 +1,20 @@
-> Entrega final (AF) · Ata, comissões e presença · Versão 1.0 · 27/11/2026.
+> Entrega final (AF) · Ata, comissões e presença · Versão 1.1 · 27/11/2026.
 > Código auditado: `feature/refatoracao-ultima-entrega`, commit <code>614734c</code>. Responsável pela revisão acadêmica: [responsável a informar].
 > Estado: implementado, salvo ressalvas expressas. Verificação documental por leitura do código; não equivale à aprovação do professor.
 
 # DCU - Ata
+
+> **Consolidação concluída.** Esta é a referência atual dos casos de uso de ata. As quatro fichas antigas e a documentação do RF40 foram reunidas aqui. Os endereços com “unificar” são mantidos somente para compatibilidade; não representam uma tarefa de consolidação pendente.
+
+A tabela relaciona os documentos de origem às fichas atuais e aos requisitos funcionais (RF). Os textos de origem permanecem preservados no final desta página.
+
+| Documento de origem | Caso de uso atual | Requisito atual |
+|---|---|---|
+| [Consultar ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28unificar-DCU-%E2%80%90-ATA%29-Caso-de-Uso%3A-Consultar-ata) | [UC35 - Consultar ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata#uc35---consultar-ata) | [RF44](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF44) |
+| [Redigir ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28unificar-DCU-%E2%80%90-ATA%29-Caso-de-Uso%3A-Redigir-ata) | [UC36 - Redigir ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata#uc36---redigir-ata) | [RF45](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF45) |
+| [Votar na ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28unificar-DCU-%E2%80%90-ATA%29-Caso-de-Uso%3A-Votar-na-ata) | [UC37 - Votar na ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata#uc37---votar-na-ata) | [RF46](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF46) |
+| [Exportar ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28unificar-DCU-%E2%80%90-ATA%29-Caso-de-Uso%3A-Exportar-ata) | [UC38 - Exportar ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata#uc38---exportar-ata) | [RF47](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF47) |
+| [RF40 - Gerenciar atas de reunião (histórico)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF40) | Documentação de origem das quatro operações | RF44 a RF47 |
 
 ## Atores
 
@@ -18,7 +30,7 @@ Casos de uso de ata no aplicativo Better Meet.
 
 [Fonte PlantUML](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/blob/feature/documentacao-ata-comissao-presenca/documentos/entrega5_AF/Diagramas/DCU-Ata.puml)
 
-Os quatro casos de uso e o RF40 de origem foram reunidos nesta página. Os cinco textos aprovados estão preservados integralmente nos blocos “Conteúdo aprovado de origem”. As fichas atuais abaixo refletem a finalização e as permissões do código auditado; trechos antigos que afirmam ausência de bloqueio ou de endpoint de exportação são históricos. Não foi criado um quinto caso de uso artificial.
+As quatro fichas atuais são apresentadas em sequência, no padrão de objetivo, atores, precondições, fluxos, exceções e rastreabilidade. Os cinco textos de origem estão preservados integralmente nos blocos históricos ao final. O RF40 de origem reúne as quatro operações; ele não constitui um quinto caso de uso.
 
 ## UC35 - Consultar ata
 
@@ -45,6 +57,92 @@ Os quatro casos de uso e o RF40 de origem foram reunidos nesta página. Os cinco
 **Efeitos colaterais:** Sem efeitos de escrita.
 
 **Rastreabilidade:** [DS de consultar ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata); CT-AF-35; RNF55 a RNF57.
+
+
+## UC36 - Redigir ata
+
+**Objetivo:** Salvar o texto da ata e disponibilizar a versão aos participantes elegíveis.
+
+**Requisito:** [RF45](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF45). **Estado:** Implementado.
+
+**Gatilho:** a pessoa solicita “Redigir ata” no aplicativo.
+
+**Precondições:** Sessão válida; vínculo atual na comissão e registro de entrada na reunião. A saída já registrada não elimina a elegibilidade. Papel ADMINISTRADOR ou SECRETARIO; ata ainda não exportada.
+
+**Entradas:** id: inteiro positivo; conteudoAta: string HTML, trim, obrigatório, máximo 50.000 caracteres e conteúdo textual após sanitização; versaoAta: inteiro obrigatório ≥ 0.
+
+**Fluxo principal:**
+
+1. O aplicativo recebe a solicitação e os dados.
+2. Bloquear a reunião na transação; conferir papel, versão e finalização; sanitizar HTML; se o conteúdo mudar, incrementar versaoAta e excluir votos anteriores na mesma transação. Conteúdo idêntico mantém versão e votos.
+3. O aplicativo apresenta o resultado: 200: objeto Ata atualizado.
+
+**Fluxos alternativos e exceções:** 400 conteúdo/versão inválidos; 403 papel não editor; 409 versão desatualizada ou ata exportada. Todas as rotas exigem sessão (401); erros inesperados retornam 500 com mensagem genérica. Nenhuma resposta de falha deve ser exibida como sucesso.
+
+**Pós-condições:** Texto salvo e votação disponível sem depender de voto do presidente.
+
+**Efeitos colaterais:** Alteração efetiva invalida todos os votos da versão anterior.
+
+**Rastreabilidade:** [DS de redigir ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata); CT-AF-36; RNF55 a RNF57.
+
+
+## UC37 - Votar na ata
+
+**Objetivo:** Registrar aprovação ou reprovação individual da versão salva.
+
+**Requisito:** [RF46](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF46). **Estado:** Implementado.
+
+**Gatilho:** a pessoa solicita “Votar na ata” no aplicativo.
+
+**Precondições:** Sessão válida; vínculo atual na comissão e registro de entrada na reunião. A saída já registrada não elimina a elegibilidade. Texto salvo e ata não exportada. Não exige voto anterior do presidente.
+
+**Entradas:** id: inteiro positivo; status: APROVADO ou REPROVADO; versaoAta: inteiro obrigatório ≥ 0.
+
+**Fluxo principal:**
+
+1. O aplicativo recebe a solicitação e os dados.
+2. Bloquear a reunião; conferir versão e disponibilidade; inserir ou atualizar o voto único de reuniaoId/userId; recalcular maioria dos registros de entrada, incluindo quem já saiu.
+3. O aplicativo apresenta o resultado: 200: objeto Ata com voto próprio e contagens atualizadas.
+
+**Fluxos alternativos e exceções:** 400 enum/versão inválidos; 403 sem presença; 409 sem texto, versão desatualizada ou ata exportada. Todas as rotas exigem sessão (401); erros inesperados retornam 500 com mensagem genérica. Nenhuma resposta de falha deve ser exibida como sucesso.
+
+**Pós-condições:** Um voto da pessoa existe para a versão vigente. Antes da exportação, pode ser alterado.
+
+**Efeitos colaterais:** A aprovação calculada pode mudar. Não encerra a votação automaticamente.
+
+**Rastreabilidade:** [DS de votar na ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata); CT-AF-37; RNF55 a RNF57.
+
+
+## UC38 - Exportar ata
+
+**Objetivo:** Exportar o PDF da versão aprovada e registrar sua finalização.
+
+**Requisito:** [RF47](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF47). **Estado:** Implementado.
+
+**Gatilho:** a pessoa solicita “Exportar ata” no aplicativo.
+
+**Precondições:** Sessão válida; vínculo atual na comissão e registro de entrada na reunião. A saída já registrada não elimina a elegibilidade. Texto salvo e maioria estrita favorável; nenhum rascunho pendente na tela.
+
+**Entradas:** id: inteiro positivo; versaoAta: inteiro obrigatório ≥ 0; confirmação da exportação no aplicativo.
+
+**Fluxo principal:**
+
+1. O aplicativo recebe a solicitação e os dados.
+2. Gerar PDF com exportAtaPdf; no Web confirmar que foi salvo/impresso. Enviar versão à API; bloquear reunião, conferir versão e maioria; gravar ataExportadaAt e ataVersaoExportada. Repetição da versão finalizada é idempotente.
+3. O aplicativo apresenta o resultado: 200: objeto Ata com exportada true e exportadaAt; PDF gerado localmente pelo aplicativo, não pelo endpoint.
+
+**Fluxos alternativos e exceções:** 400 versão inválida; 403 sem presença; 409 versão desatualizada ou maioria insuficiente. Falha local não finaliza. Todas as rotas exigem sessão (401); erros inesperados retornam 500 com mensagem genérica. Nenhuma resposta de falha deve ser exibida como sucesso.
+
+**Pós-condições:** Texto e votos ficam imutáveis após a finalização confirmada no servidor. Reexportar a versão finalizada permanece permitido.
+
+**Efeitos colaterais:** Novas entradas passam a ser recusadas; saídas de registros existentes continuam permitidas. O arquivo local e a transação da API não são uma operação atômica.
+
+**Rastreabilidade:** [DS de exportar ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata); CT-AF-38; RNF55 a RNF57.
+
+
+## Histórico dos casos de uso de origem
+
+As quatro transcrições abaixo pertencem à versão anterior. Os identificadores, contratos e regras nelas registrados não substituem as fichas UC35 a UC38 apresentadas acima.
 
 <details>
 <summary>Conteúdo aprovado de origem — Consultar ata</summary>
@@ -78,32 +176,6 @@ Fonte: [página anterior](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENV
 
 </details>
 
-## UC36 - Redigir ata
-
-**Objetivo:** Salvar o texto da ata e disponibilizar a versão aos participantes elegíveis.
-
-**Requisito:** [RF45](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF45). **Estado:** Implementado.
-
-**Gatilho:** a pessoa solicita “Redigir ata” no aplicativo.
-
-**Precondições:** Sessão válida; vínculo atual na comissão e registro de entrada na reunião. A saída já registrada não elimina a elegibilidade. Papel ADMINISTRADOR ou SECRETARIO; ata ainda não exportada.
-
-**Entradas:** id: inteiro positivo; conteudoAta: string HTML, trim, obrigatório, máximo 50.000 caracteres e conteúdo textual após sanitização; versaoAta: inteiro obrigatório ≥ 0.
-
-**Fluxo principal:**
-
-1. O aplicativo recebe a solicitação e os dados.
-2. Bloquear a reunião na transação; conferir papel, versão e finalização; sanitizar HTML; se o conteúdo mudar, incrementar versaoAta e excluir votos anteriores na mesma transação. Conteúdo idêntico mantém versão e votos.
-3. O aplicativo apresenta o resultado: 200: objeto Ata atualizado.
-
-**Fluxos alternativos e exceções:** 400 conteúdo/versão inválidos; 403 papel não editor; 409 versão desatualizada ou ata exportada. Todas as rotas exigem sessão (401); erros inesperados retornam 500 com mensagem genérica. Nenhuma resposta de falha deve ser exibida como sucesso.
-
-**Pós-condições:** Texto salvo e votação disponível sem depender de voto do presidente.
-
-**Efeitos colaterais:** Alteração efetiva invalida todos os votos da versão anterior.
-
-**Rastreabilidade:** [DS de redigir ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata); CT-AF-36; RNF55 a RNF57.
-
 <details>
 <summary>Conteúdo aprovado de origem — Redigir ata</summary>
 
@@ -136,32 +208,6 @@ Fonte: [página anterior](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENV
 
 </details>
 
-## UC37 - Votar na ata
-
-**Objetivo:** Registrar aprovação ou reprovação individual da versão salva.
-
-**Requisito:** [RF46](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF46). **Estado:** Implementado.
-
-**Gatilho:** a pessoa solicita “Votar na ata” no aplicativo.
-
-**Precondições:** Sessão válida; vínculo atual na comissão e registro de entrada na reunião. A saída já registrada não elimina a elegibilidade. Texto salvo e ata não exportada. Não exige voto anterior do presidente.
-
-**Entradas:** id: inteiro positivo; status: APROVADO ou REPROVADO; versaoAta: inteiro obrigatório ≥ 0.
-
-**Fluxo principal:**
-
-1. O aplicativo recebe a solicitação e os dados.
-2. Bloquear a reunião; conferir versão e disponibilidade; inserir ou atualizar o voto único de reuniaoId/userId; recalcular maioria dos registros de entrada, incluindo quem já saiu.
-3. O aplicativo apresenta o resultado: 200: objeto Ata com voto próprio e contagens atualizadas.
-
-**Fluxos alternativos e exceções:** 400 enum/versão inválidos; 403 sem presença; 409 sem texto, versão desatualizada ou ata exportada. Todas as rotas exigem sessão (401); erros inesperados retornam 500 com mensagem genérica. Nenhuma resposta de falha deve ser exibida como sucesso.
-
-**Pós-condições:** Um voto da pessoa existe para a versão vigente. Antes da exportação, pode ser alterado.
-
-**Efeitos colaterais:** A aprovação calculada pode mudar. Não encerra a votação automaticamente.
-
-**Rastreabilidade:** [DS de votar na ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata); CT-AF-37; RNF55 a RNF57.
-
 <details>
 <summary>Conteúdo aprovado de origem — Votar na ata</summary>
 
@@ -193,32 +239,6 @@ Fonte: [página anterior](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENV
 
 
 </details>
-
-## UC38 - Exportar ata
-
-**Objetivo:** Exportar o PDF da versão aprovada e registrar sua finalização.
-
-**Requisito:** [RF47](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF47). **Estado:** Implementado.
-
-**Gatilho:** a pessoa solicita “Exportar ata” no aplicativo.
-
-**Precondições:** Sessão válida; vínculo atual na comissão e registro de entrada na reunião. A saída já registrada não elimina a elegibilidade. Texto salvo e maioria estrita favorável; nenhum rascunho pendente na tela.
-
-**Entradas:** id: inteiro positivo; versaoAta: inteiro obrigatório ≥ 0; confirmação da exportação no aplicativo.
-
-**Fluxo principal:**
-
-1. O aplicativo recebe a solicitação e os dados.
-2. Gerar PDF com exportAtaPdf; no Web confirmar que foi salvo/impresso. Enviar versão à API; bloquear reunião, conferir versão e maioria; gravar ataExportadaAt e ataVersaoExportada. Repetição da versão finalizada é idempotente.
-3. O aplicativo apresenta o resultado: 200: objeto Ata com exportada true e exportadaAt; PDF gerado localmente pelo aplicativo, não pelo endpoint.
-
-**Fluxos alternativos e exceções:** 400 versão inválida; 403 sem presença; 409 versão desatualizada ou maioria insuficiente. Falha local não finaliza. Todas as rotas exigem sessão (401); erros inesperados retornam 500 com mensagem genérica. Nenhuma resposta de falha deve ser exibida como sucesso.
-
-**Pós-condições:** Texto e votos ficam imutáveis após a finalização confirmada no servidor. Reexportar a versão finalizada permanece permitido.
-
-**Efeitos colaterais:** Novas entradas passam a ser recusadas; saídas de registros existentes continuam permitidas. O arquivo local e a transação da API não são uma operação atômica.
-
-**Rastreabilidade:** [DS de exportar ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata); CT-AF-38; RNF55 a RNF57.
 
 <details>
 <summary>Conteúdo aprovado de origem — Exportar ata</summary>
@@ -396,3 +416,4 @@ A revisão registra o recorte documentado nesta entrega.
 | Versão | Data | Alteração | Responsável |
 |---|---|---|---|
 | 1.0 | 27/11/2026 | Consolidação da ata e revisão de comissão e presença conforme código auditado. | [responsável a informar] |
+| 1.1 | 27/11/2026 | Consolidação explicitada; navegação atual separada dos textos históricos, com preservação dos endereços anteriores. | [responsável a informar] |

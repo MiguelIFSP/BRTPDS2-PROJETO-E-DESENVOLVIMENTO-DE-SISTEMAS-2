@@ -1,8 +1,17 @@
-> Entrega final (AF) · Ata, comissões e presença · Versão 1.0 · 27/11/2026.
+> Entrega final (AF) · Ata, comissões e presença · Versão 1.1 · 27/11/2026.
 > Código auditado: `feature/refatoracao-ultima-entrega`, commit <code>614734c</code>. Responsável pela revisão acadêmica: [responsável a informar].
 > Estado: implementado, salvo ressalvas expressas. Verificação documental por leitura do código; não equivale à aprovação do professor.
 
 # DCU - Presença
+
+> **Revisão consolidada.** Os documentos antigos de entrada e saída foram substituídos como referência vigente pelas fichas UC49 e UC50 abaixo. Seus endereços são preservados para consulta histórica.
+
+A tabela identifica a correspondência dos registros próprios; os demais casos desta página documentam o código de presença e a marcação manual.
+
+| Documento de origem | Caso de uso atual | Requisito atual |
+|---|---|---|
+| [Registrar entrada na reunião (histórico)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-Caso-de-Uso%3A-Registrar-entrada-na-reuni%C3%A3o) | [UC49 - Registrar entrada](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Presen%C3%A7a#uc49---registrar-entrada) | [RF58](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF58) |
+| [Registrar saída da reunião (histórico)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-Caso-de-Uso%3A-Registrar-sa%C3%ADda-da-reuni%C3%A3o) | [UC50 - Registrar saída](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Presen%C3%A7a#uc50---registrar-saída) | [RF59](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF59) |
 
 ## Atores
 
@@ -182,3 +191,4 @@ A revisão registra o recorte documentado nesta entrega.
 | Versão | Data | Alteração | Responsável |
 |---|---|---|---|
 | 1.0 | 27/11/2026 | Consolidação da ata e revisão de comissão e presença conforme código auditado. | [responsável a informar] |
+| 1.1 | 27/11/2026 | Consolidação explicitada; navegação atual separada dos textos históricos, com preservação dos endereços anteriores. | [responsável a informar] |

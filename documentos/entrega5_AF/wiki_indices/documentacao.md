@@ -13,3 +13,13 @@ Por favor, consulte as seções a seguir de acordo com o desejado:
 [Documentação completa e navegação dos três módulos](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/Entrega-final-%E2%80%90-Ata-Comiss%C3%B5es-e-Presen%C3%A7a).
 
 [Casos de teste e rastreabilidade](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/Testes-%E2%80%90-Ata-Comiss%C3%B5es-e-Presen%C3%A7a).
+
+## Consolidação concluída: Ata, Comissões e Presença
+
+As referências atuais dos três módulos estão reunidas nas páginas abaixo. As páginas antigas com os rótulos “unificar” e “revisar” permanecem somente como histórico, com ligação para o documento vigente.
+
+| Módulo | Casos de uso atuais | Sequências |
+|---|---|---|
+| Ata | [DCU - Ata: UC35 a UC38](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata) | [DS - Ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata) |
+| Comissões | [DCU - Comissões: UC39 a UC46](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Comiss%C3%B5es) | [DS - Comissões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Comiss%C3%B5es) |
+| Presença | [DCU - Presença: UC47 a UC52](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Presen%C3%A7a) | [DS - Presença](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Presen%C3%A7a) |

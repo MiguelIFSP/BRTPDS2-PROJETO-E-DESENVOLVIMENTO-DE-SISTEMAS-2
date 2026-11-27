@@ -6,6 +6,17 @@
 
 Os casos de uso descrevem o comportamento básico do sistema.
 
+## Consolidação concluída: Ata, Comissões e Presença
+
+As referências atuais dos três módulos estão reunidas nas páginas abaixo. As páginas antigas com os rótulos “unificar” e “revisar” permanecem somente como histórico, com ligação para o documento vigente.
+
+| Módulo | Casos de uso atuais | Sequências |
+|---|---|---|
+| Ata | [DCU - Ata: UC35 a UC38](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata) | [DS - Ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata) |
+| Comissões | [DCU - Comissões: UC39 a UC46](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Comiss%C3%B5es) | [DS - Comissões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Comiss%C3%B5es) |
+| Presença | [DCU - Presença: UC47 a UC52](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Presen%C3%A7a) | [DS - Presença](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Presen%C3%A7a) |
+
+
 # Cadastro de usuário
 O usuário realiza seu cadastro no sistema, podendo posteriormente solicitar acesso e gerenciar seus próprios dados.
 Para mais detalhes, consulte os diagramas de caso de uso no [detalhamento deste tópico](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Cadastro-de-usu%C3%A1rio).
@@ -59,7 +70,7 @@ Para mais detalhes, consulte os diagramas de caso de uso no [detalhamento deste 
 
 # Atas
 
-O administrador ou o secretário da comissão redige, consultar, edita ou exporta a ata da reunião, com formatação textual, parágrafos e tabelas, e a salva, disponibilizando-a para votação.
+O administrador ou o secretário da comissão redige e edita a ata. Qualquer integrante elegível com entrada registrada pode consultar e votar na versão salva, independentemente do voto do presidente. A exportação exige aprovação e registra a finalização. As quatro operações estão reunidas no DCU - Ata; os textos antigos permanecem apenas como histórico.
 Para mais detalhes, consulte os diagramas de caso de uso no [detalhamento deste tópico](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata).
 
 # Votações
@@ -84,7 +95,7 @@ O membro da comissão fecha sua presença, gravando o horário de saída sem per
 Para mais detalhes, consulte o [detalhamento deste caso de uso](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Presen%C3%A7a#uc50---registrar-saída).
 
 # Manual
-O usuário encontra e obtém o manual de utilização do Better Meet em PDF, pelo aviso de primeiro acesso ou pela seção Ajuda.
+O usuário lê o manual dentro do aplicativo, pelo aviso de primeiro acesso ou pela seção Ajuda, e pode exportá-lo em PDF (UC53).
 Para mais detalhes, consulte o [detalhamento deste caso de uso](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Manual-do-usu%C3%A1rio).
 
 # Diagramas de sequência - entrega final

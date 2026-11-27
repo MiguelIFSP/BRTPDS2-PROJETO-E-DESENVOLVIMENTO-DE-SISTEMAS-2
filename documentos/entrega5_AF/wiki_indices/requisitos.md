@@ -152,7 +152,7 @@ Este requisito é realizado quando o administrador do servidor prepara e sobe os
 Este requisito é realizado quando o administrador do servidor encerra os subsistemas e, se quiser, apaga os dados. [(ver mais detalhes)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-RF39)
 
 ## Ata de reunião
-Este requisito é realizado quando um integrante que registrou entrada redige, consulta, vota ou exporta a ata. Não é a votação de opções da reunião. [(ver mais detalhes)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF40)
+Registro histórico da documentação da ata, consolidado no DCU - Ata. As regras vigentes estão nos RF44 a RF47; o RF40 de origem é preservado para rastreabilidade. [Consultar DCU - Ata consolidado](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DCU-%E2%80%90-Ata)
 
 ---
 
@@ -228,6 +228,10 @@ Registrar uma entrada esquecida por outro participante. [Ver detalhes](https://g
 
 Registrar uma saída esquecida por outro participante. [Ver detalhes](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF61).
 
+## RF62 - Exportar manual em PDF
+
+Gerar o PDF do manual do usuário, com o texto e as capturas de tela, para salvar, compartilhar ou imprimir. O arquivo permite, por exemplo, que a pessoa o envie a uma IA e pergunte como realizar um processo específico. [Ver detalhes](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RF62).
+
 ---
 
 # Requisitos Não Funcionais
@@ -252,7 +256,7 @@ RNF10 a RNF11. A lista só abre para quem administra a reunião. Cada pessoa tem
 RNF12 a RNF13. Cada pessoa tem um registro de presença na reunião. A entrada e a saída aceitam no máximo vinte registros por minuto. [(ver mais detalhes)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RNFS-%E2%80%90-Hist%C3%B3rico-do-usu%C3%A1rio)
 
 ## Manual do usuário
-RNF14. A apresentação do manual aparece uma vez por conta neste aparelho. [(ver mais detalhes)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RNFS-%E2%80%90-Manual-do-usu%C3%A1rio)
+RNF14 e RNF64. A apresentação do manual aparece uma vez por conta neste aparelho. O manual exportado em PDF mantém todo o conteúdo textual. [(ver mais detalhes)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RNFS-%E2%80%90-Manual-do-usu%C3%A1rio)
 
 ## Reuniões
 RNF15 a RNF16. A reunião nasce numa comissão cuja organização foi aceita, e só quem gere altera. Cada pessoa tem um convite na reunião. [(ver mais detalhes)](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/RNFS-%E2%80%90-Reuni%C3%B5es)

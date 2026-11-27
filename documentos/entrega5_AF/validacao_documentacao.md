@@ -48,3 +48,12 @@ A revisão corresponde à preparação e validação dos artefatos desta entrega
 | Versão | Data | Alteração | Responsável |
 |---|---|---|---|
 | 1.0 | 27/11/2026 | Validação dos requisitos, preservação da ata, referências e diagramas. | [responsável a informar] |
+
+
+## Consolidação de referências da Wiki - revisão 1.1
+
+Em 27/11/2026, a navegação de Ata, Comissões e Presença foi reconciliada com a Wiki no commit eb134e0. As quatro fichas atuais da ata foram agrupadas antes dos cinco textos históricos; os oito endereços antigos receberam avisos de consolidação e indicação da referência vigente. O código auditado continua sendo 614734c; esta revisão altera somente documentação.
+
+A validação comparou o conteúdo anterior com as 14 páginas preparadas para publicação. Foram conferidas 594 ocorrências de links, preservadas 187 âncoras históricas das páginas alteradas, mantidos integralmente os cinco textos de origem da ata e os oito textos das páginas antigas. Nenhuma página foi removida ou renomeada; nenhum problema novo de destino ou âncora foi introduzido. Os problemas preexistentes de outros módulos não foram alterados.
+
+Os diagramas e seus arquivos de imagem permanecem inalterados. Não foram executados testes do aplicativo nesta revisão documental. A publicação utiliza comparação com o commit-base e envio normal, sem sobrescrever alterações concorrentes de outros integrantes.
