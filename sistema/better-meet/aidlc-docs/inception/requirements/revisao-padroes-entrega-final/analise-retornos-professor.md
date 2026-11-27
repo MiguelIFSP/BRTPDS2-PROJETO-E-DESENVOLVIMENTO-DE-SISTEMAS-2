@@ -102,7 +102,7 @@ Os retornos abaixo tratam das telas de reunião, convite e presença.
 | ID | Retorno | Cobertura | Proposta |
 |---|---|---|---|
 | F33 | Tela de criação e edição de reunião muito grande | Não coberto | P-C10 |
-| F34 | Reunião sem outros participantes além do presidente | Regra de negócio | Seção 7 |
+| F34 | Reunião sem outros participantes além do presidente | Decisão de requisito (2026-11-27): mantido de propósito | Seção 7 |
 | F35 | Erros dos campos não são limpos depois do preenchimento | Não coberto | P-C09 |
 | F36 | Reunião com início e término no passado | Não coberto | P-C08 |
 | F37 | Compartilhar arquivos para os participantes | Funcional | Seção 7 |
@@ -390,7 +390,7 @@ A tabela lista as correções e a regra que passará a orientá-las.
 | F08 | Recuperação de senha com token | EX-14 (P-C02) |
 | F09 | Tirar o "ID do usuário" do perfil | UI-08 |
 | F07, F10, F12 | Pedido de acesso à organização; quantidade de administradores; painel de administração no app | Decisões de requisito |
-| F34 | Exigir ao menos um convidado além do Administrador da comissão | Regra de negócio no service |
+| F34 | Nenhuma: a reunião sem convidados é mantida de propósito, conforme levantamento com a comunidade e comparação com Google Meet, Microsoft Teams e Fellow (decisão de 2026-11-27, em [decisao_reuniao_sem_convidados.md](../../../../../../documentos/entrega5_AF/decisao_reuniao_sem_convidados.md)) | Decisão de requisito |
 | F37, F40 | Anexos na reunião; tela de lista de presença com horários e PDF | Funcionalidades novas |
 | F38, F39 | Mudar a resposta ao convite e reenviar convite; janela de entrada e saída; marcação pelo Administrador da comissão; biometria | EX-20 (P-C06), P-C04 |
 | F46 | Exportar a ata só depois de aprovada; votação da ata independente do presidente; aprovação imutável depois da exportação | EX-20 |

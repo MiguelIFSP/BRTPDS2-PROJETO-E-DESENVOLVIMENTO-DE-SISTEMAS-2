@@ -89,7 +89,7 @@ A tabela resume o que foi verificado antes de redigir os requisitos.
 | RF-R17 | Votação: campo `tipo` (aberta ou secreta) em enum Prisma, voto nulo, opção de mostrar o resultado parcial, opção de permitir a troca de voto, voto só de quem registrou entrada e não saiu, nenhuma troca depois do encerramento da votação ou da reunião; migration | F47; EX-20; PR-06 | Testes por transição recusada: voto sem entrada, após saída, após encerramento, troca com troca desligada; voto nulo contado; enum no `schema.prisma` com transições comentadas (PR-09) | Média |
 | RF-R18 | Votação secreta: nenhuma rota devolve a ligação entre voto e pessoa, nem ao Administrador da comissão; só os totais | F47; PR-05 | Teste: resposta de `getById` e `listByReuniao` de votação secreta sem `userId` por voto; votação aberta continua listando quem votou | Média |
 | RF-R19 | Rota do relatório das reuniões de que a pessoa participou e do resultado das votações da reunião (dados para o PDF ou a tela) | F47, F48 | Teste: devolve só reuniões em que a pessoa tem convite aceito ou registro; ordenação e paginação documentadas no OpenAPI | Baixa |
-| RF-R20 | Exigir ao menos um convidado além do Administrador da comissão ao criar reunião | F34 | Teste: criação sem convidados recusada com 400 e mensagem; `reuniaoSchema` atualizado | Baixa |
+| RF-R20 | ~~Exigir ao menos um convidado além do Administrador da comissão ao criar reunião~~ Não implementar: a reunião sem convidados é mantida de propósito (decisão de 2026-11-27, em [decisao_reuniao_sem_convidados.md](../../../../../../documentos/entrega5_AF/decisao_reuniao_sem_convidados.md)) | F34 | Não se aplica; o `reuniaoSchema` continua sem `min` em `convidados` | Baixa |
 
 ### 4.3 Proteção, contrato e configuração
 

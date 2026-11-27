@@ -47,7 +47,7 @@ Estados persistidos: `AGENDADA → REALIZADA`, `AGENDADA → CANCELADA` (hoje ne
 
 | Ação | Estado exigido | Quem | Recusa |
 |---|---|---|---|
-| Criar | início e fim no futuro (RF-R10); ≥ 1 convidado (RF-R20 [SDT]) | integrante da comissão | 400 |
+| Criar | início e fim no futuro (RF-R10); convidados opcionais (RF-R20 não implementado por decisão de 2026-11-27, em [decisao_reuniao_sem_convidados.md](../../../../../../documentos/entrega5_AF/decisao_reuniao_sem_convidados.md)) | integrante da comissão | 400 |
 | Editar / remarcar | não `ENCERRADA` (proposta, ver BR-RE-05) | criador, Administrador da comissão, ADMIN | 409 |
 | Excluir | qualquer | criador, Administrador da comissão, ADMIN | — |
 | Entrada (check-in) | `CHECKIN_ABERTO` ou `EM_ANDAMENTO` | participante | 409 fora da janela (RF-R09) |

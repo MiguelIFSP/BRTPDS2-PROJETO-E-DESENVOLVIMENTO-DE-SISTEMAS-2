@@ -53,7 +53,7 @@ A situação das unidades U1 a U8 vem dos resumos de código delas, sem reconfer
 | RF-R17 | U7 | O | Feito (conforme o resumo da unidade; não reconferido item a item pela U9) | Resumo da U7 |
 | RF-R18 | U7 | O | Feito (conforme o resumo da unidade; não reconferido item a item pela U9) | Resumo da U7 |
 | RF-R19 | U7 | S3 | Cortado (se der tempo; não executado, salvo registro no resumo da unidade) | Resumo da U7 |
-| RF-R20 | U7 | S4 | Cortado (se der tempo; não executado, salvo registro no resumo da unidade) | Resumo da U7 |
+| RF-R20 | U7 | S4 | Não implementar (decisão de requisito de 2026-11-27: reunião sem convidados mantida de propósito) | [decisao_reuniao_sem_convidados.md](../../../../../documentos/entrega5_AF/decisao_reuniao_sem_convidados.md) |
 | RF-R21 | U1 | O | Feito (conforme o resumo da unidade; não reconferido item a item pela U9) | Resumo da U1 |
 | RF-R22 | U9 | OC | Feito (exceção resolvida: portões abertos) | Passo 7 |
 | RF-R23 | U7 | O* | Feito (conforme o resumo da unidade; não reconferido item a item pela U9) | Resumo da U7 |

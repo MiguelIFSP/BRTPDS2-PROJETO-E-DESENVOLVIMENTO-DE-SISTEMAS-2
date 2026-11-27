@@ -62,3 +62,24 @@ Diagnóstico e requisitos em inception/requirements/presenca-ata-final/ já revi
 ## Situação final
 
 Implementação concluída conforme solicitação direta posterior do usuário. Diagnóstico, alterações, migração local, testes e limites da validação registrados em inception/requirements/presenca-ata-final/diagnostico.md, seção 7. Os dados anteriores desta nota descrevem a análise inicial. Não há aprovação de planejamento pendente. Aplicação da migration no banco do ambiente de uso e validação física de biometria/Face ID permanecem como passos de disponibilização.
+
+---
+
+# Unidade paralela — documentacao-reuniao-sem-convidados
+
+> Seção acrescentada por outra sessão, em paralelo às unidades acima. Não reescreva nem remova; cada sessão atualiza só a própria seção.
+
+- Start Date: 2026-11-27T10:43:02Z.
+- Current Stage: CONSTRUCTION — Code Generation (documentação) concluída; aguardando revisão e assinatura do responsável.
+- Request: registrar na documentação que a reunião sem convidados é proposital, conforme levantamento com a comunidade, usando Google Meet, Microsoft Teams e Fellow como exemplo, e citando o uso da reunião como lembrete de médio a longo prazo. Texto completo no audit.md.
+- Profundidade: mínima, sem código. Documento oficial: ../../../documentos/entrega5_AF/decisao_reuniao_sem_convidados.md (DOC-25). Mesmos Project Standards e extensões desligadas da primeira seção.
+- Branch: feature/refatoracao-ultima-entrega; commit no início 66f28e8.
+
+## Stage Progress
+
+- [x] Workspace Detection: brownfield; unidade paralela de documentação.
+- [x] Reverse Engineering: pulada; leitura direta de reuniaoSchema.ts (API e app), reuniaoService.ts, reuniaoRoutes.ts e da tela Nova reunião.
+- [x] Requirements Analysis e Workflow Planning: pulados; pedido direto, com escopo definido pela pessoa (só Code Generation e Build and Test).
+- [x] Code Generation: documento oficial criado; RF-R20 e F34 apontados para a decisão em requirements.md, analise-retornos-professor.md, business-rules.md, business-logic-model.md e relatorio-final.md.
+- [x] Build and Test: links relativos conferidos; checklist da seção 16 do guia aplicado ao documento.
+- [ ] Revisão e assinatura do responsável; preencher o registro do levantamento com a comunidade ([A CONFIRMAR] no documento).

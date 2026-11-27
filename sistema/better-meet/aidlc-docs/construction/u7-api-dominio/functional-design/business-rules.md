@@ -25,7 +25,7 @@ Convenções: regras `BR-<área>-nn`. Corte: **OBR** (obrigatório) ou **SDT** (
 | ID | Regra | Status / mensagem | RF-R | Corte |
 |---|---|---|---|---|
 | BR-RE-01 | Criar exige membro da comissão e organização `ACEITA` (mantido) | 403 "Você não é membro desta comissão."; 409 "A organização da comissão ainda não foi aprovada." | — | OBR |
-| BR-RE-02 | Ao criar, ao menos um convidado além do criador, todos membros da comissão, sem repetir e sem o criador | 400 "Convide ao menos um membro da comissão para a reunião." | R20 | SDT |
+| BR-RE-02 | Ao criar, os convidados são opcionais (lista vazia aceita, por decisão de 2026-11-27 em [decisao_reuniao_sem_convidados.md](../../../../../../documentos/entrega5_AF/decisao_reuniao_sem_convidados.md)); os informados são membros da comissão, sem repetir e sem o criador | 400 "O criador não precisa receber convite."; a exigência de ao menos um convidado não foi implementada | R20 | SDT (não implementar) |
 | BR-RE-03 | Criador e convidados vêm da equipe atual da comissão (vínculo atual, EX-18) | 400 "Todos os convidados precisam participar da comissão." | — | OBR |
 | BR-RE-04 | Quem edita, exclui ou convida: criador, Administrador atual da comissão e ADMIN da plataforma. Com autoria nula, só os dois últimos (proposta; ponto a decidir 2) | 403 "Você não pode editar esta reunião." | R08 | OBR |
 | BR-RE-05 | Reunião encerrada pelo horário não pode ser editada (excluir continua permitido) | 409 "Esta reunião já terminou e não pode mais ser alterada." | R09 | SDT |

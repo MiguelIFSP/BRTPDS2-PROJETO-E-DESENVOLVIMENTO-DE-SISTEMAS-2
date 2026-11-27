@@ -1037,3 +1037,20 @@ No momento, não vamos fazer código ou documentação, apenas ajustar esses arq
 ## Execução direta das correções — 26/11/2026
 
 O usuário instruiu dispensar planos e corrigir o código, reiterando depois “pode continuar”. Foram implementados presença com horário/PIN/autenticação local, registro manual auditável e correções de atualização/finalização da ata. A validação técnica e a situação da migration estão no diagnóstico, seção 7. Sem novos checkpoints de aprovação, commit ou publicação.
+
+## Unidade documentacao-reuniao-sem-convidados — Pedido
+**Timestamp**: 2026-11-27T10:43:02Z
+**User Input**: "Ajuste a documentação para informar que esse ponto da reunião é proposital conforme levantamento com a comunidade, usando esses apps como exemplo, informando que alguns usuários usam a reunião como uma forma de lembrete de médio a longo prazo, por exemplo. Use os arquivos de padrão de documentação da raiz do repositório como base e guia para suas alterações."
+**AI Response**: Pedido anterior da mesma conversa: verificar se Fellow, Teams e Meet também permitem reunião sem convidados ("A lista convidados pode ficar vazia, tanto no app quanto na API. Só o endpoint de convidar depois da criação exige pelo menos 1."). Resposta com pesquisa na documentação pública dos três (sim, os três permitem).
+**Status**: Recebido; fluxo curto, sem código.
+**Context**: retorno F34 do professor e RF-R20 da refatoração (cortado).
+
+---
+
+## Unidade documentacao-reuniao-sem-convidados — Code Generation e Build and Test
+**Timestamp**: 2026-11-27T10:43:02Z
+**AI Response**: Criado documentos/entrega5_AF/decisao_reuniao_sem_convidados.md (cabeçalho DOC-12, evidência no código com arquivo e linha, comparação com origem e data conforme DOC-32, pendências e histórico). RF-R20 e F34 passaram a apontar para a decisão em inception/requirements/refatoracao-ultima-entrega/requirements.md, inception/requirements/revisao-padroes-entrega-final/analise-retornos-professor.md, construction/u7-api-dominio/functional-design/business-rules.md e business-logic-model.md e construction/refatoracao-ultima-entrega/relatorio-final.md. Links relativos conferidos. Lacunas registradas no documento: registro do levantamento com a comunidade, teste automatizado de POST /reunioes com lista vazia, capturas dos concorrentes e API do Fellow.
+**AI Prompt**: revisão e assinatura do responsável. Aguardando resposta.
+**Context**: unidade de documentação; nenhum arquivo de outra unidade foi alterado.
+
+---
