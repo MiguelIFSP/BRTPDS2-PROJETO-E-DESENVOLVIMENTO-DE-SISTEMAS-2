@@ -1054,3 +1054,8 @@ O usuário instruiu dispensar planos e corrigir o código, reiterando depois “
 **Context**: unidade de documentação; nenhum arquivo de outra unidade foi alterado.
 
 ---
+
+## 2026-11-27 — documentacao-informacoes-sistema-expo58
+
+- Pedido: "Execute os ajustes necessários usando o AI-DLC no fluxo curto", com base nos padrões da raiz e nos ajustes do Cauê na Wiki; atualizar também documentos/; limite de 10 minutos.
+- Execução: fluxo curto. Wiki publicada em f3b7597 antes do PR previsto em DOC-08, por pedido direto. Sem commit no repositório do código. Nenhum servidor, build ou teste executado.

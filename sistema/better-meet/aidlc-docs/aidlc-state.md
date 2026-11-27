@@ -83,3 +83,22 @@ Implementação concluída conforme solicitação direta posterior do usuário. 
 - [x] Code Generation: documento oficial criado; RF-R20 e F34 apontados para a decisão em requirements.md, analise-retornos-professor.md, business-rules.md, business-logic-model.md e relatorio-final.md.
 - [x] Build and Test: links relativos conferidos; checklist da seção 16 do guia aplicado ao documento.
 - [ ] Revisão e assinatura do responsável; preencher o registro do levantamento com a comunidade ([A CONFIRMAR] no documento).
+
+---
+
+# Unidade paralela — documentacao-informacoes-sistema-expo58
+
+> Seção acrescentada em 2026-11-27. Não reescreve as unidades anteriores.
+
+- Request: ajustar na Wiki e em documentos/ as pendências "(revisar)" e "(unificar)" (informações do sistema e Expo 58), no fluxo curto do AI-DLC, seguindo os guias e o padrão de páginas do Cauê.
+- Fluxo curto: Workspace Detection, Code Generation (documentação) e Build and Test. Demais etapas dispensadas. O pedido direto foi tratado como aprovação do plano; não houve aprovação separada por etapa.
+- Branch: final-miguel; commit lido 185575e. Wiki: 39c517d para f3b7597.
+
+## Stage Progress
+
+- [x] Workspace Detection.
+- [x] Code Generation: documentos/entrega5_AF/informacoes_do_sistema.md e requisitos_nao_funcionais_expo_58.md; três .puml e aviso em entrega2_Di1; 37 páginas da Wiki.
+- [x] Build and Test: links e cercas de código das 37 páginas conferidos por script antes da publicação.
+- [ ] Gerar os SVGs (download do PlantUML bloqueado pelo modo automático): Não executado.
+- [ ] Conferir a renderização na Wiki e revisar/assinar: pendente.
+- [ ] Testes e expo-doctor: Não executado.

@@ -1,5 +1,7 @@
 # Requisitos e Casos de Uso — Entrega Di1
 
+> **Informações do sistema (status, relatórios, reinicialização, setup e reset):** as seções deste documento sobre esses assuntos registram a versão da entrega Di1 e estão desatualizadas (por exemplo, citam JWT). A especificação vigente é [informacoes_do_sistema.md](../entrega5_AF/informacoes_do_sistema.md), com RF38 a RF43 e RF63 a RF68. Os arquivos `.puml` das três figuras já usam a numeração nova (UC54 a UC65); os SVGs ainda mostram a versão antiga até serem gerados de novo.
+
 > Este arquivo é organizado por requisito. Cada seção `##` abaixo corresponde a um requisito do Incremento 1 e é de responsabilidade do membro da equipe que o levantou. Ao adicionar seu requisito, siga o mesmo formato: diagrama de casos de uso, descrição de cada caso de uso, diagrama de sequência e requisitos não funcionais.
 
 ---

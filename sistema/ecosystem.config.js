@@ -15,9 +15,10 @@ module.exports = {
       name: 'api',
       cwd: './api',
       script: 'src/server.ts',
-      // --watch recarrega a API quando um arquivo importado muda. Sem isso o
-      // PM2 continua servindo o código antigo e rota nova responde 404.
-      node_args: '--experimental-strip-types --watch',
+      // Depois de mudar o código, rode "pm2 restart api": sem isso a API continua
+      // com o código antigo e rota nova responde 404. Não use "node --watch" aqui,
+      // porque no Windows ele abre uma janela de terminal.
+      node_args: '--experimental-strip-types',
       env,
     },
     {
