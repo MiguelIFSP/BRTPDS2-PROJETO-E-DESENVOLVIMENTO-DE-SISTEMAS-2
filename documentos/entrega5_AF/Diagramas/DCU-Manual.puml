@@ -1,0 +1,15 @@
+@startuml DCU-Manual
+!include ../../estilo-diagramas.iuml
+title Diagrama de casos de uso — Acessar o manual
+left to right direction
+
+actor "Administrador" as Adm
+actor "Usuário comum" as Usu
+
+rectangle "Better Meet (aplicativo)" {
+  usecase "UC29 - Acessar o manual" as UC29
+}
+
+Adm -- UC29
+Usu -- UC29
+@enduml

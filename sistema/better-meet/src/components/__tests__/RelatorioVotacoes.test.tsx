@@ -14,7 +14,9 @@ jest.mock('@/services/votacaoService', () => ({
   votacaoService: { relatorio: jest.fn() },
 }));
 
-const relatorio = votacaoService.relatorio as unknown as jest.Mock;
+const relatorio = votacaoService.relatorio as unknown as jest.Mock<
+  () => Promise<unknown>
+>;
 
 const votacao = (
   parcial: Record<string, unknown> & { id: number; titulo: string },

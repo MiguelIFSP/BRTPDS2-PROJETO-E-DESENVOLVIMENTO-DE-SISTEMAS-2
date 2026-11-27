@@ -601,6 +601,7 @@ export default function ReuniaoDetalheScreen() {
           <ListaPresencaButton
             reuniaoId={reuniao.id}
             papelNaComissao={papelNaComissao}
+            criadoPorUserId={reuniao.criadoPorUserId}
           />
           <ReuniaoCheckIn
             key={`${token}:${reuniao.id}:${reuniao.meuRegistro?.entradaAt ?? ''}:${reuniao.meuRegistro?.saidaAt ?? ''}`}

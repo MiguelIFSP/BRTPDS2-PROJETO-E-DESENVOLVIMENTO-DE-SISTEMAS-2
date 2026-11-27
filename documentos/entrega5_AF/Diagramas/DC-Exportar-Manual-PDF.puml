@@ -1,0 +1,66 @@
+@startuml DC-Exportar-Manual-PDF
+!include ../../estilo-diagramas.iuml
+title Diagrama de classes (recorte) — Exportar manual em PDF
+
+package "app" {
+  class ManualScreen <<screen>> {
+    +ManualScreen(): JSX.Element
+    -handleExportPdf(): Promise<void>
+  }
+  class useFeedback <<hook>> {
+    +feedback: Feedback [0..1]
+    +setFeedback(feedback: Feedback | null): void
+  }
+  class manualPdf <<utility>> {
+    +exportManualPdf(): Promise<void>
+  }
+  class manualPdfHtml <<utility>> {
+    +buildManualPdfHtml(chapters: readonly ManualChapter[], images: ManualPdfImages): string
+  }
+}
+
+package "bibliotecas" {
+  class Asset <<library>> {
+    +uri: string
+    +localUri: string [0..1]
+    +fromModule(assetModule: number): Asset
+    +downloadAsync(): Promise<Asset>
+  }
+  class HTMLImageElement <<library>> {
+    +decode(): Promise<void>
+  }
+  class Sharing <<library>> {
+    +isAvailableAsync(): Promise<boolean>
+    +shareAsync(url: string, options: SharingOptions): Promise<void>
+  }
+  class Print <<library>> {
+    +printToFileAsync(options: FilePrintOptions): Promise<FilePrintResult>
+  }
+  class File <<library>> {
+    +uri: string
+    +base64(): Promise<string>
+    +write(content: string, options: FileWriteOptions): void
+  }
+  class Window <<library>> {
+    +document: Document
+    +open(url: string, target: string): Window
+    +print(): void
+    +close(): void
+  }
+}
+
+ManualScreen ..> useFeedback
+ManualScreen ..> manualPdf
+manualPdf ..> manualPdfHtml
+manualPdf ..> Asset
+manualPdf ..> HTMLImageElement : web
+manualPdf ..> Sharing : Android e iOS
+manualPdf ..> Print : Android e iOS
+manualPdf ..> File : Android e iOS
+manualPdf ..> Window : web
+
+legend right
+  Módulos sem instância aparecem como classes, com o estereótipo e as operações exportadas.
+  O módulo manualPdf tem uma variante para Android e iOS e outra para a web.
+end legend
+@enduml

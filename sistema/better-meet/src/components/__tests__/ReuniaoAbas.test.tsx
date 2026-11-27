@@ -61,7 +61,9 @@ jest.mock('@/components/ReuniaoCheckIn', () => () => null);
 jest.mock('@/components/presenca/ListaPresencaButton', () => () => null);
 jest.mock('@/components/PresencaManualActions', () => () => null);
 
-const getById = reuniaoService.getById as unknown as jest.Mock;
+const getById = reuniaoService.getById as unknown as jest.Mock<
+  () => Promise<unknown>
+>;
 
 const reuniao = {
   id: 7,

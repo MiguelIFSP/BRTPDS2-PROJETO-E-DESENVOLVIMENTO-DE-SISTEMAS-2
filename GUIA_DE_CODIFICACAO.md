@@ -1,3 +1,4 @@
+
 # Guia de Codificação — Better Meet
 
 Este guia define o padrão de código de todos os subsistemas em `sistema/`:

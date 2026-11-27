@@ -1,4 +1,3 @@
-import { useEffect, useState } from 'react';
 import {
   Ionicons,
   type IoniconsIconName,
@@ -32,8 +31,6 @@ import {
 } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
 import { useThemePreference } from '@/hooks/useThemePreference';
-import { getErrorMessage } from '@/utils/apiClient';
-import { downloadManualUsuario } from '@/utils/downloadManualUsuario';
 import { useAuthStore } from '@/store/authStore';
 import type { Tema } from '@/store/themeStore';
 
@@ -83,65 +80,9 @@ function MenuRow({ icon, label, description, href }: MenuRowProps) {
 // Aba "Mais": conta do usuário, segurança, status do sistema, relatórios e tema.
 export default function MaisScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ highlightManual?: string }>();
   const { colors } = useTheme();
   const user = useAuthStore((state) => state.user);
   const { theme, changeTheme, feedback } = useThemePreference();
-  const [manualFeedback, setManualFeedback] = useState<{
-    type: 'success' | 'error';
-    message: string;
-  } | null>(null);
-  const [isDownloadingManual, setIsDownloadingManual] = useState(false);
-  const [pulse] = useState(() => new Animated.Value(0));
-  const shouldHighlightManual = params.highlightManual === '1';
-
-  useEffect(() => {
-    if (!shouldHighlightManual) return;
-
-    const animation = Animated.loop(
-      Animated.sequence([
-        Animated.timing(pulse, {
-          toValue: 1,
-          duration: 550,
-          useNativeDriver: true,
-        }),
-        Animated.timing(pulse, {
-          toValue: 0.15,
-          duration: 550,
-          useNativeDriver: true,
-        }),
-      ]),
-      { iterations: 4 },
-    );
-    animation.start(({ finished }) => {
-      if (finished) pulse.setValue(0);
-    });
-
-    return () => animation.stop();
-  }, [pulse, shouldHighlightManual]);
-
-  const handleDownloadManual = async () => {
-    setIsDownloadingManual(true);
-    setManualFeedback(null);
-    try {
-      const result = await downloadManualUsuario();
-      setManualFeedback({
-        type: 'success',
-        message:
-          result === 'downloaded'
-            ? 'Manual em PDF baixado.'
-            : 'Manual em PDF salvo na pasta escolhida.',
-      });
-    } catch (error) {
-      setManualFeedback({
-        type: 'error',
-        message: getErrorMessage(error, 'Não foi possível baixar o manual.'),
-      });
-    } finally {
-      setIsDownloadingManual(false);
-    }
-  };
-
   return (
     <Screen>
       <Text
@@ -157,38 +98,15 @@ export default function MaisScreen() {
           <Text
             style={[styles.manualDescription, { color: colors.textSecondary }]}
           >
-            Baixe o manual do usuário do Better Meet em PDF.
+            Consulte as orientações de uso sem sair do aplicativo.
           </Text>
           <View style={styles.manualButtonWrap}>
             <Button
-              label="Baixar manual do usuário (PDF)"
-              icon="download-outline"
-              isLoading={isDownloadingManual}
-              loadingLabel="Preparando manual..."
-              onPress={() => void handleDownloadManual()}
+              label="Abrir manual do usuário"
+              icon="book-outline"
+              onPress={() => router.push('/mais/manual')}
             />
-            {shouldHighlightManual ? (
-              <Animated.View
-                pointerEvents="none"
-                style={[
-                  styles.manualPulse,
-                  {
-                    borderColor: colors.primary,
-                    opacity: pulse,
-                    transform: [
-                      {
-                        scale: pulse.interpolate({
-                          inputRange: [0, 1],
-                          outputRange: [1, 1.035],
-                        }),
-                      },
-                    ],
-                  },
-                ]}
-              />
-            ) : null}
           </View>
-          <FeedbackBanner feedback={manualFeedback} />
         </Card>
       </View>
 
@@ -305,15 +223,6 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: Spacing.sm },
   manualDescription: { ...Typography.body },
   manualButtonWrap: { position: 'relative' },
-  manualPulse: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    bottom: -4,
-    left: -4,
-    borderWidth: 2,
-    borderRadius: Radius.md + 4,
-  },
   slogan: {
     ...Typography.bodySmall,
     textAlign: 'center',

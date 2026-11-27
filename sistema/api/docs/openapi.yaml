@@ -2770,6 +2770,127 @@ paths:
                   pattern: ^[0-9]{6}$
                   description: Código informado pelo administrador da comissão.
 
+  /reunioes/{id}/lista-presenca:
+    get:
+      tags: [Reuniões]
+      summary: Consultar a lista real de presença
+      description: Disponível ao administrador da plataforma, criador da reunião ou administrador atual da comissão.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: integer, minimum: 1 },
+          }
+      responses:
+        '200':
+          description: >-
+            Participantes, horários de entrada e saída persistidos, observações e
+            eventos por reunião. Inclui estado calculado pelo horário e podeExportar;
+            esta última propriedade só é verdadeira após o encerramento.
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+    parameters:
+      - {
+          name: id,
+          in: path,
+          required: true,
+          schema: { type: integer, minimum: 1 },
+        }
+
+  /reunioes/{id}/lista-presenca/{userId}:
+    patch:
+      tags: [Reuniões]
+      summary: Atualizar marcação e/ou observações de um participante
+      description: >-
+        Disponível ao administrador da plataforma, criador da reunião ou
+        administrador atual da comissão. Só é permitido a partir do horário de
+        início da reunião, no fuso TZ_REUNIOES.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: integer, minimum: 1 },
+          }
+        - {
+            name: userId,
+            in: path,
+            required: true,
+            schema: { type: integer, minimum: 1 },
+          }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                status:
+                  { type: string, enum: [PRESENTE, AUSENTE, SEM_MARCACAO] }
+                observacao:
+                  {
+                    type: string,
+                    maxLength: 2000,
+                    description: Observação persistida por participante e reunião.,
+                  }
+      responses:
+        '200': { description: Lista atualizada com a marcação persistida. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409': { description: A reunião ainda não começou. }
+
+  /reunioes/{id}/lista-presenca/{userId}/eventos:
+    post:
+      tags: [Reuniões]
+      summary: Registrar saída ou retorno de um participante
+      description: Só é permitido a partir do horário de início da reunião. O horário HH:mm é interpretado na data e no fuso TZ_REUNIOES da reunião. Saídas exigem presença marcada ou entrada registrada; eventos precisam alternar saída e retorno.
+      security: [{ bearerAuth: [] }]
+      parameters:
+        - {
+            name: id,
+            in: path,
+            required: true,
+            schema: { type: integer, minimum: 1 },
+          }
+        - {
+            name: userId,
+            in: path,
+            required: true,
+            schema: { type: integer, minimum: 1 },
+          }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tipo, hora]
+              properties:
+                tipo: { type: string, enum: [SAIDA, RETORNO] }
+                hora: { type: string, pattern: '^([01]\\d|2[0-3]):[0-5]\\d$' }
+                motivo:
+                  {
+                    type: string,
+                    maxLength: 500,
+                    description: Opcional e usado apenas em uma saída.,
+                  }
+      responses:
+        '201': { description: Evento registrado no histórico da lista. }
+        '400': { $ref: '#/components/responses/BadRequest' }
+        '401': { $ref: '#/components/responses/Unauthorized' }
+        '403': { $ref: '#/components/responses/Forbidden' }
+        '404': { $ref: '#/components/responses/NotFound' }
+        '409':
+          {
+            description: "A reunião ainda não começou ou está cancelada, ou o horário ou a sequência de eventos não é válida.",
+          }
+
   /reunioes/{id}/ata:
     parameters:
       - name: id

@@ -56,6 +56,16 @@ enum StatusConviteReuniao {
   RECUSADO
 }
 
+enum StatusMarcacaoPresenca {
+  PRESENTE
+  AUSENTE
+}
+
+enum TipoEventoPresenca {
+  SAIDA
+  RETORNO
+}
+
 enum StatusAtaVoto {
   APROVADO // participante concorda com o conteúdo salvo
   REPROVADO // participante solicita revisão do conteúdo salvo
@@ -127,8 +137,12 @@ model User {
   saidasManuais    ReuniaoRegistro[] @relation("SaidaManualAutor")
   notificacoes     Notificacao[]
   lembretes        LembreteEnviado[]
-  pedidosAcesso    PedidoAcessoOrganizacao[]
-  arquivosEnviados ArquivoReuniao[]
+  presencasManuais            ReuniaoPresenca[]       @relation("PresencaMarcadaPor")
+  eventosPresencaRegistrados ReuniaoEventoPresenca[] @relation("PresencaEventoRegistradaPor")
+  presencasReuniao            ReuniaoPresenca[]
+  eventosPresenca             ReuniaoEventoPresenca[]
+  pedidosAcesso               PedidoAcessoOrganizacao[]
+  arquivosEnviados            ArquivoReuniao[]
 }
 
 model Organizacao {
@@ -292,7 +306,9 @@ model Reuniao {
   lembretes LembreteEnviado[]
   votacoes  Votacao[]
   votosAta  AtaVoto[]
-  arquivos  ArquivoReuniao[]
+  presencasManuais ReuniaoPresenca[]
+  eventosPresenca  ReuniaoEventoPresenca[]
+  arquivos         ArquivoReuniao[]
 
   @@index([comissaoId])
   @@index([criadoPorUserId])
@@ -371,6 +387,44 @@ model ReuniaoRegistro {
 
   @@unique([reuniaoId, userId])
   @@index([userId])
+}
+
+// Marcações feitas pela pessoa administradora são complementares aos registros
+// automáticos do participante e podem ser removidas sem alterar esses registros.
+model ReuniaoPresenca {
+  reuniaoId       Int
+  userId          Int
+  status          StatusMarcacaoPresenca?
+  observacao      String?          @db.VarChar(2000)
+  marcadoPorId    Int
+  updatedAt       DateTime @updatedAt
+
+  reuniao    Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  user       User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marcadoPor User    @relation("PresencaMarcadaPor", fields: [marcadoPorId], references: [id], onDelete: Cascade)
+
+  @@id([reuniaoId, userId])
+  @@index([marcadoPorId])
+}
+
+// Histórico auditável de saídas e retornos, com o horário informado e quem
+// registrou a ocorrência. O motivo é opcional e só se aplica à saída.
+model ReuniaoEventoPresenca {
+  id             Int              @id @default(autoincrement())
+  reuniaoId      Int
+  userId         Int
+  tipo           TipoEventoPresenca
+  ocorridoAt     DateTime
+  motivo         String?          @db.VarChar(500)
+  registradoPorId Int
+  createdAt      DateTime         @default(now())
+
+  reuniao      Reuniao @relation(fields: [reuniaoId], references: [id], onDelete: Cascade)
+  user         User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  registradoPor User   @relation("PresencaEventoRegistradaPor", fields: [registradoPorId], references: [id], onDelete: Cascade)
+
+  @@index([reuniaoId, userId, ocorridoAt])
+  @@index([registradoPorId])
 }
 
 // Aviso exibido no sino do app. Sem relação com Reuniao de propósito: o aviso

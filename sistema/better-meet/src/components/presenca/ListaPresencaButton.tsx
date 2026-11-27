@@ -7,29 +7,30 @@ import { useAuthStore } from '@/store/authStore';
 type ListaPresencaButtonProps = {
   reuniaoId: number;
   papelNaComissao?: PapelComissao;
+  criadoPorUserId?: number | null;
 };
 
-/**
- * Ponto de integração para a futura tela de reunião. O papel controla apenas
- * a visibilidade; a autorização real caberá à API. Por ora abre a prévia.
- */
 export default function ListaPresencaButton({
   reuniaoId,
   papelNaComissao,
+  criadoPorUserId,
 }: ListaPresencaButtonProps) {
   const router = useRouter();
   const role = useAuthStore((state) => state.user?.role);
+  const userId = useAuthStore((state) => state.user?.id);
   const hasHydrated = useAuthStore((state) => state.hasHydrated);
   if (
     !hasHydrated ||
-    (role !== 'ADMIN' && papelNaComissao !== 'ADMINISTRADOR')
+    (role !== 'ADMIN' &&
+      papelNaComissao !== 'ADMINISTRADOR' &&
+      userId !== criadoPorUserId)
   ) {
     return null;
   }
 
   return (
     <Button
-      label="Gerar lista de presença"
+      label="Ver lista de presença"
       icon="document-text-outline"
       variant="secondary"
       onPress={() =>

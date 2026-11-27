@@ -56,7 +56,7 @@ export default function PrimeiroAcessoDialog() {
 
   const openManual = async () => {
     await close();
-    router.navigate({ pathname: '/mais', params: { highlightManual: '1' } });
+    router.push('/mais/manual');
   };
 
   return (

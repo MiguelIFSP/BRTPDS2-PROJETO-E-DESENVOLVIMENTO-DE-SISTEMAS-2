@@ -1,0 +1,40 @@
+@startuml DS-Exportar-Manual-PDF-Web
+!include ../../estilo-diagramas.iuml
+title Diagrama de sequência — Exportar manual em PDF na web
+
+actor "Usuário comum" as Ator
+participant ":ManualScreen" as Tela
+participant ":useFeedback" as Aviso
+participant ":manualPdf" as Pdf
+participant ":manualPdfHtml" as Html
+participant ":Window" as Janela
+participant ":Asset" as Asset
+participant ":HTMLImageElement" as Imagem
+
+Ator -> Tela : toca em "Exportar manual em PDF"
+Tela -> Aviso : setFeedback(null)
+Tela -> Pdf : exportManualPdf()
+loop cada captura de tela do manual
+  Pdf -> Asset : fromModule(source)
+  Asset --> Pdf : {uri}
+end
+Pdf -> Html : buildManualPdfHtml(MANUAL_USUARIO, images)
+Html --> Pdf : html
+Pdf -> Janela : open('', '_blank')
+alt janela aberta
+  Pdf -> Janela : document.write(html)
+  Pdf -> Imagem : decode()
+  alt imagens carregadas
+    Pdf -> Janela : print()
+    Janela --> Ator : janela de impressão com a opção de salvar em PDF
+    Pdf --> Tela : promessa concluída
+  else imagem não carregada
+    Pdf -> Janela : close()
+    Pdf --> Tela : lança Error("Não foi possível carregar as imagens do manual.")
+    Tela -> Aviso : setFeedback({type: 'error', message})
+  end
+else janela bloqueada
+  Pdf --> Tela : lança Error("Permita pop-ups para exportar o manual.")
+  Tela -> Aviso : setFeedback({type: 'error', message})
+end
+@enduml

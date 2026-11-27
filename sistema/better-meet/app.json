@@ -41,7 +41,8 @@
         {
           "faceIDPermission": "Permita que o Better Meet use o Face ID para desbloquear o app e confirmar sua entrada e saída das reuniões."
         }
-      ]
+      ],
+      "expo-asset"
     ],
     "experiments": {
       "typedRoutes": true,

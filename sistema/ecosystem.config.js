@@ -15,7 +15,9 @@ module.exports = {
       name: 'api',
       cwd: './api',
       script: 'src/server.ts',
-      node_args: '--experimental-strip-types',
+      // --watch recarrega a API quando um arquivo importado muda. Sem isso o
+      // PM2 continua servindo o código antigo e rota nova responde 404.
+      node_args: '--experimental-strip-types --watch',
       env,
     },
     {

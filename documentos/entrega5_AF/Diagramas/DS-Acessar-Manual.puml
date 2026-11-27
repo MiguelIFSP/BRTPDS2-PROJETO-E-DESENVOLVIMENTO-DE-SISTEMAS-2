@@ -1,0 +1,60 @@
+@startuml DS-Acessar-Manual
+!include ../../estilo-diagramas.iuml
+title Diagrama de sequência — Acessar o manual
+
+actor "Usuário comum\nou Administrador" as Ator
+participant ":LoginScreen" as Login
+participant ":firstAccessWelcome" as Welcome
+participant ":AsyncStorage" as Storage
+participant ":useAuthStore" as Auth
+participant ":PrimeiroAcessoDialog" as Dialogo
+participant ":MaisScreen" as Mais
+participant ":Router" as Router
+participant ":ManualScreen" as Manual
+
+alt acesso pelo primeiro login da conta neste aparelho
+  Login -> Login : finishLogin()
+  Login -> Welcome : markFirstAccessWelcomeOnFirstLogin(session.user.id)
+  Welcome -> Storage : getItem(keyFor(userId))
+  Storage --> Welcome : current
+  opt current === null
+    Welcome -> Welcome : markFirstAccessWelcomePending(userId)
+    Welcome -> Storage : setItem(keyFor(userId), 'pending')
+  end
+  Welcome --> Login : promessa concluída
+  Login -> Auth : login(session.user, session.token)
+  Auth --> Dialogo : isAuthenticated, user.id
+  Login -> Router : replace('/')
+
+  Dialogo -> Welcome : isFirstAccessWelcomePending(userId)
+  Welcome -> Storage : getItem(keyFor(userId))
+  Storage --> Welcome : valor gravado
+  Welcome --> Dialogo : pending
+  Dialogo -> Dialogo : setWelcomeUserId(pending ? userId : null)
+
+  opt pending === true
+    alt aceitar a apresentação
+      Ator -> Dialogo : openManual()
+      Dialogo -> Dialogo : close()
+      Dialogo -> Dialogo : setWelcomeUserId(null)
+      Dialogo -> Welcome : clearFirstAccessWelcomePending(userId)
+      Welcome -> Storage : setItem(keyFor(userId), 'done')
+      Dialogo -> Router : push('/manual')
+      Router -> Manual : ManualScreen()
+    else recusar a apresentação
+      Ator -> Dialogo : close()
+      Dialogo -> Dialogo : setWelcomeUserId(null)
+      Dialogo -> Welcome : clearFirstAccessWelcomePending(userId)
+      Welcome -> Storage : setItem(keyFor(userId), 'done')
+    end
+  end
+else acesso pela aba Mais
+  Ator -> Mais : onPress()
+  Mais -> Router : push('/manual')
+  Router -> Manual : ManualScreen()
+end
+
+opt ManualScreen aberta
+  Manual --> Ator : MANUAL_USUARIO[page]
+end
+@enduml
