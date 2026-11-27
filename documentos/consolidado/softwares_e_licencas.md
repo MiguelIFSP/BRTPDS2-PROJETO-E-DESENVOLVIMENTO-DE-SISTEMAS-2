@@ -87,6 +87,7 @@ Quem incluir, remover ou trocar a versão de uma dependência atualiza este arqu
 | `@tiptap/starter-kit` | 3.33.0 | MIT | produção | Editor de texto rico da ata (Tiptap, versão web) | Sim | existente |
 | `dompurify` | 3.4.17 | (MPL-2.0 OR Apache-2.0) | produção | Limpeza de HTML no cliente | Sim | existente |
 | `expo` | 58.0.25 | MIT | produção | SDK do Expo 58 | Sim | existente |
+| `expo-asset` | 58.0.21 | MIT | produção | Carregamento das imagens do manual exportado em PDF | Sim | nova |
 | `expo-clipboard` | 58.0.4 | MIT | produção | Cópia do código de presença | Sim | nova |
 | `expo-local-authentication` | 58.0.3 | MIT | produção | Confirmação de presença com biometria ou senha nativa | Sim | nova |
 | `expo-constants` | 58.0.16 | MIT | produção | Constantes do app (Expo) | Sim | existente |

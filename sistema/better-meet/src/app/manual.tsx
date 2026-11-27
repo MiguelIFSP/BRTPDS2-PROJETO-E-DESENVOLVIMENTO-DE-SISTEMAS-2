@@ -1,35 +1,48 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
-import {
-  Image,
-  StyleSheet,
-  Text,
-  View,
-  useWindowDimensions,
-} from 'react-native';
+import { Image, StyleSheet, Text, View } from 'react-native';
 
 import ManualPagination from '@/components/manual/ManualPagination';
 import BackButton from '@/components/ui/BackButton';
+import Button from '@/components/ui/Button';
 import Card from '@/components/ui/Card';
+import FeedbackBanner from '@/components/ui/FeedbackBanner';
 import PageIntro from '@/components/ui/PageIntro';
 import Screen from '@/components/ui/Screen';
-import {
-  FontFamily,
-  MaxContentWidth,
-  Radius,
-  Spacing,
-  Typography,
-} from '@/constants/theme';
+import { FontFamily, Radius, Spacing, Typography } from '@/constants/theme';
 import { MANUAL_USUARIO } from '@/content/manual/manualUsuario';
+import { useFeedback } from '@/hooks/useFeedback';
 import { useTheme } from '@/hooks/useTheme';
+import { exportManualPdf } from '@/utils/manualPdf';
 
 export default function ManualScreen() {
   const router = useRouter();
   const { colors } = useTheme();
-  const { width: screenWidth } = useWindowDimensions();
   const [page, setPage] = useState(0);
   const chapter = MANUAL_USUARIO[page] ?? MANUAL_USUARIO[0]!;
   const totalPages = MANUAL_USUARIO.length;
+  const [isExporting, setIsExporting] = useState(false);
+  const [feedback, setFeedback] = useFeedback();
+
+  // Sem mensagem de sucesso: a gaveta de compartilhamento e a janela de impressão
+  // não informam se o arquivo foi salvo ou se a pessoa cancelou.
+  const handleExportPdf = async () => {
+    setFeedback(null);
+    setIsExporting(true);
+    try {
+      await exportManualPdf();
+    } catch (error) {
+      setFeedback({
+        type: 'error',
+        message:
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível exportar o manual.',
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
 
   return (
     <Screen key={chapter.id}>
@@ -38,6 +51,15 @@ export default function ManualScreen() {
       <Text style={[styles.subtitle, { color: colors.textSecondary }]}>
         Guia prático para o perfil de usuário comum.
       </Text>
+      <Button
+        label="Exportar manual em PDF"
+        loadingLabel="Preparando PDF..."
+        icon="download-outline"
+        variant="secondary"
+        isLoading={isExporting}
+        onPress={() => void handleExportPdf()}
+      />
+      <FeedbackBanner feedback={feedback} />
 
       <View style={styles.progress}>
         <Text
@@ -84,17 +106,6 @@ export default function ManualScreen() {
         const key = `${chapter.id}-${index}`;
 
         if (block.kind === 'image') {
-          const imageWidth = Math.max(
-            0,
-            Math.min(
-              screenWidth - Spacing.lg * 4,
-              MaxContentWidth - Spacing.lg * 4,
-              260,
-              380 * block.aspectRatio,
-            ),
-          );
-          const imageHeight = imageWidth / block.aspectRatio;
-
           return (
             <Card key={key} style={styles.figure}>
               <Image
@@ -104,7 +115,7 @@ export default function ManualScreen() {
                 resizeMode="contain"
                 style={[
                   styles.illustration,
-                  { width: imageWidth, height: imageHeight },
+                  { aspectRatio: block.aspectRatio },
                 ]}
               />
               <Text style={[styles.caption, { color: colors.textSecondary }]}>
@@ -184,6 +195,7 @@ const styles = StyleSheet.create({
   stepNumber: { ...Typography.body, fontFamily: FontFamily.bold },
   stepText: { flex: 1 },
   figure: { width: '100%', alignItems: 'center' },
-  illustration: { borderRadius: Radius.md },
+  // height 'auto' anula a altura intrínseca do arquivo, para valer o aspectRatio.
+  illustration: { width: '100%', height: 'auto', borderRadius: Radius.md },
   caption: { ...Typography.bodySmall, lineHeight: 20, textAlign: 'center' },
 });

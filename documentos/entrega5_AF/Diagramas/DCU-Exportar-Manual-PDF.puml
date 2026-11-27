@@ -1,0 +1,15 @@
+@startuml DCU-Exportar-Manual-PDF
+!include ../../estilo-diagramas.iuml
+title Diagrama de casos de uso — Exportar manual em PDF
+left to right direction
+
+actor "Administrador" as Adm
+actor "Usuário comum" as Usu
+
+rectangle "Better Meet (aplicativo)" {
+  usecase "UC53 - Exportar manual em PDF" as UC53
+}
+
+Adm -- UC53
+Usu -- UC53
+@enduml

@@ -1,5 +1,3 @@
-import type { ImageSourcePropType } from 'react-native';
-
 export type ManualSectionBlock = {
   kind: 'section';
   title: string;
@@ -15,7 +13,8 @@ export type ManualNoteBlock = {
 
 export type ManualImageBlock = {
   kind: 'image';
-  source: ImageSourcePropType;
+  // Identificador que o require de um arquivo estático devolve.
+  source: number;
   alt: string;
   caption: string;
   aspectRatio: number;
@@ -47,6 +46,7 @@ const MANUAL_CAPITULOS = [
           'No primeiro login, o aplicativo pergunta se você quer aprender a usar o Better Meet. Toque em “Sim, quero aprender” para abrir este manual.',
           'Para voltar a este guia depois, abra Mais, procure a seção Ajuda e toque em “Abrir manual do usuário”.',
           'Use “Anterior” e “Próximo” no fim de cada página. O indicador mostra em qual capítulo você está.',
+          'Para guardar uma cópia, toque em “Exportar manual em PDF” no alto da tela. No celular, escolha onde salvar ou compartilhar o arquivo; no navegador, escolha “Salvar como PDF” na janela de impressão.',
         ],
       },
       {
@@ -116,7 +116,7 @@ const MANUAL_CAPITULOS = [
         alt: 'Aviso de e-mail não confirmado, com opções para reenviar o link ou voltar ao login.',
         caption:
           'Se o login detectar um e-mail ainda não confirmado, o aplicativo mostra este aviso e reenvia o link.',
-        aspectRatio: 0.488,
+        aspectRatio: 0.497,
       },
       {
         kind: 'section',

@@ -1,0 +1,52 @@
+@startuml DS-Exportar-Manual-PDF-Movel
+!include ../../estilo-diagramas.iuml
+title Diagrama de sequência — Exportar manual em PDF no Android e no iOS
+
+actor "Usuário comum" as Ator
+participant ":ManualScreen" as Tela
+participant ":useFeedback" as Aviso
+participant ":manualPdf" as Pdf
+participant ":Sharing" as Share
+participant ":manualPdfHtml" as Html
+participant ":Print" as Print
+participant ":File" as File
+participant ":Asset" as Asset
+
+Ator -> Tela : toca em "Exportar manual em PDF"
+Tela -> Aviso : setFeedback(null)
+Tela -> Pdf : exportManualPdf()
+Pdf -> Share : isAvailableAsync()
+Share --> Pdf : disponivel
+alt compartilhamento disponível
+  loop cada captura de tela do manual
+    Pdf -> Asset : fromModule(source)
+    Asset --> Pdf : asset
+    Pdf -> Asset : downloadAsync()
+    Asset --> Pdf : {localUri}
+    alt localUri preenchido
+      Pdf -> File : base64()
+      File --> Pdf : imagem em base64
+    else localUri ausente
+      Pdf --> Tela : lança Error("Não foi possível carregar as imagens do manual.")
+      Tela -> Aviso : setFeedback({type: 'error', message})
+    end
+  end
+  Pdf -> Html : buildManualPdfHtml(MANUAL_USUARIO, images)
+  Html --> Pdf : html
+  Pdf -> Print : printToFileAsync({html, width, height, margins, base64})
+  Print --> Pdf : {base64}
+  alt base64 preenchido
+    Pdf -> File : write(base64, {encoding: 'base64'})
+    File --> Pdf : arquivo gravado no cache
+    Pdf -> Share : shareAsync(file.uri, {mimeType, UTI, dialogTitle})
+    Share --> Pdf : gaveta de compartilhamento encerrada
+    Pdf --> Tela : promessa concluída
+  else base64 ausente
+    Pdf --> Tela : lança Error("Não foi possível preparar o PDF.")
+    Tela -> Aviso : setFeedback({type: 'error', message})
+  end
+else compartilhamento indisponível
+  Pdf --> Tela : lança Error("O compartilhamento não está disponível neste dispositivo.")
+  Tela -> Aviso : setFeedback({type: 'error', message})
+end
+@enduml
