@@ -4,6 +4,7 @@ import type { ComponentType, ReactNode } from 'react';
 
 import AppGate from '@/components/AppGate';
 import { useAuthStore } from '@/store/authStore';
+import { useDesbloqueioStore } from '@/store/desbloqueioStore';
 
 // Stack simulado: Protected só renderiza os filhos com o guard verdadeiro e
 // Screen mostra o nome da rota.
@@ -24,6 +25,13 @@ jest.mock('expo-router/stack', () => {
   Stack.Protected = Protected;
   return { Stack };
 });
+// a tela de bloqueio real abriria o prompt nativo; aqui basta saber se aparece.
+jest.mock('@/components/DesbloqueioApp', () => {
+  const { Text } = jest.requireActual('react-native') as {
+    Text: ComponentType<{ children?: ReactNode }>;
+  };
+  return { __esModule: true, default: () => <Text>bloqueado</Text> };
+});
 jest.mock('@/lib/sessionStorage', () => ({
   readSession: jest.fn(),
   writeSession: jest.fn(),
@@ -39,6 +47,10 @@ const user = {
 };
 
 beforeEach(() => {
+  useDesbloqueioStore.setState({
+    preferencias: { '1': { isEnabled: true, tempoMinutos: 5 } },
+    isLocked: false,
+  });
   useAuthStore.getState().logout();
   useAuthStore.setState({ hasHydrated: true, sessionExpired: false });
 });
@@ -75,5 +87,23 @@ describe('AppGate', () => {
     expect(screen.queryByText('(tabs)')).toBeNull();
     expect(screen.getByText('login')).toBeOnTheScreen();
     expect(useAuthStore.getState().sessionExpired).toBe(true);
+  });
+
+  it('bloqueado mostra o desbloqueio sobre as abas, sem desmontá-las', async () => {
+    useAuthStore.getState().login(user, 'tok');
+    useDesbloqueioStore.getState().lock(1);
+    await render(<AppGate />);
+    expect(screen.getByText('bloqueado')).toBeOnTheScreen();
+    // escondidas dos leitores de tela, mas montadas (a navegação se mantém).
+    expect(
+      screen.getByText('(tabs)', { includeHiddenElements: true }),
+    ).toBeTruthy();
+    expect(screen.queryByText('(tabs)')).toBeNull();
+  });
+
+  it('sem bloqueio não mostra o desbloqueio', async () => {
+    useAuthStore.getState().login(user, 'tok');
+    await render(<AppGate />);
+    expect(screen.queryByText('bloqueado')).toBeNull();
   });
 });

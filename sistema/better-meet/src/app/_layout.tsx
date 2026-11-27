@@ -12,6 +12,7 @@ import { StyleSheet } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 import AppGate from '@/components/AppGate';
+import OfertaDesbloqueioDialog from '@/components/OfertaDesbloqueioDialog';
 import PrimeiroAcessoDialog from '@/components/PrimeiroAcessoDialog';
 import { Colors, type ColorScheme } from '@/constants/theme';
 import { useTheme } from '@/hooks/useTheme';
@@ -58,6 +59,7 @@ export default function RootLayout() {
       <ThemeProvider value={navigationThemes[colorScheme]}>
         <AppGate />
         <PrimeiroAcessoDialog />
+        <OfertaDesbloqueioDialog />
       </ThemeProvider>
     </GestureHandlerRootView>
   );

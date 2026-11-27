@@ -23,6 +23,7 @@ import {
 } from '@/services/authService';
 import { monitoringService } from '@/services/monitoringService';
 import { useAuthStore } from '@/store/authStore';
+import { useDesbloqueioStore } from '@/store/desbloqueioStore';
 import { useThemeStore } from '@/store/themeStore';
 import { getErrorMessage } from '@/utils/apiClient';
 import {
@@ -47,6 +48,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { colors } = useTheme();
   const login = useAuthStore((state) => state.login);
+  const markDesbloqueioOffer = useDesbloqueioStore((state) => state.markOffer);
   const consumeSessionExpired = useAuthStore(
     (state) => state.consumeSessionExpired,
   );
@@ -81,6 +83,8 @@ export default function LoginScreen() {
     // antes do login: o diálogo de boas-vindas lê a marca assim que a sessão abre.
     await markFirstAccessWelcomeOnFirstLogin(session.user.id).catch(() => {});
     login(session.user, session.token);
+    // oferta do desbloqueio pelo aparelho, só para quem nunca a recebeu (RF-05).
+    markDesbloqueioOffer(session.user.id);
     applyUserPreference(session.themePreference);
     router.replace('/');
   };

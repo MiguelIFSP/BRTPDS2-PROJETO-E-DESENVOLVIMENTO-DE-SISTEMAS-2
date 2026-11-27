@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { getSessionToken } from '@/lib/authClient';
 import * as sessionStorage from '@/lib/sessionStorage';
 import { useAuthStore, type AuthUser } from '@/store/authStore';
+import { useDesbloqueioStore } from '@/store/desbloqueioStore';
 
 jest.mock('@/lib/sessionStorage', () => ({
   readSession: jest.fn(),
@@ -128,6 +129,47 @@ describe('authStore.restoreSession', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true);
     expect(useAuthStore.getState().user?.id).toBe(12);
     expect(useAuthStore.getState().hasHydrated).toBe(true);
+  });
+
+  it('com o desbloqueio ligado, bloqueia antes de marcar hidratado (RF-06)', async () => {
+    guardar();
+    useDesbloqueioStore.setState({
+      preferencias: { '12': { isEnabled: true, tempoMinutos: 5 } },
+      isLocked: false,
+    });
+    mockFetch.mockRejectedValueOnce(new TypeError('rede'));
+    let wasLockedWhenHydrated = false;
+    const unsubscribe = useAuthStore.subscribe((state) => {
+      if (state.hasHydrated) {
+        wasLockedWhenHydrated = useDesbloqueioStore.getState().isLocked;
+      }
+    });
+
+    await useAuthStore.getState().restoreSession();
+    unsubscribe();
+
+    expect(wasLockedWhenHydrated).toBe(true);
+    expect(useDesbloqueioStore.getState().isLocked).toBe(true);
+  });
+
+  it('com o desbloqueio desligado, abre sem bloqueio', async () => {
+    guardar();
+    useDesbloqueioStore.setState({ preferencias: {}, isLocked: false });
+    mockFetch.mockRejectedValueOnce(new TypeError('rede'));
+    await useAuthStore.getState().restoreSession();
+    expect(useDesbloqueioStore.getState().isLocked).toBe(false);
+  });
+
+  it('401 na restauração tira o bloqueio junto com a sessão (RF-09)', async () => {
+    guardar();
+    useDesbloqueioStore.setState({
+      preferencias: { '12': { isEnabled: true, tempoMinutos: 5 } },
+      isLocked: false,
+    });
+    mockFetch.mockResolvedValueOnce(jsonResponse(401, { error: 'Sessão.' }));
+    await useAuthStore.getState().restoreSession();
+    expect(useAuthStore.getState().isAuthenticated).toBe(false);
+    expect(useDesbloqueioStore.getState().isLocked).toBe(false);
   });
 
   it('sem token guardado fica deslogado', async () => {

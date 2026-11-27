@@ -25,6 +25,8 @@ type ConfirmDialogProps = {
   onConfirm: () => void;
   // sem onCancel o diálogo vira aviso de um botão (ex.: conta excluída).
   onCancel?: () => void;
+  // texto do botão de cancelar (padrão "Cancelar"), ex.: "Agora não".
+  cancelLabel?: string;
   variant?: ConfirmVariant;
   confirmLabel?: string;
   // troca o ícone padrão da variante (ex.: check no aviso de conta excluída).
@@ -61,6 +63,7 @@ export default function ConfirmDialog({
   message,
   onConfirm,
   onCancel,
+  cancelLabel = 'Cancelar',
   variant = 'danger',
   confirmLabel,
   icon,
@@ -114,7 +117,11 @@ export default function ConfirmDialog({
           </ScrollView>
           <View style={styles.actions}>
             {onCancel ? (
-              <Button label="Cancelar" variant="secondary" onPress={onCancel} />
+              <Button
+                label={cancelLabel}
+                variant="secondary"
+                onPress={onCancel}
+              />
             ) : null}
             <Button
               label={confirmLabel ?? defaultLabel}

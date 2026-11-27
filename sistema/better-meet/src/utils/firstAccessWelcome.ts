@@ -22,6 +22,20 @@ export async function isFirstAccessWelcomePending(userId: number) {
   return (await AsyncStorage.getItem(keyFor(userId))) === 'pending';
 }
 
-export function clearFirstAccessWelcomePending(userId: number) {
-  return AsyncStorage.setItem(keyFor(userId), 'done');
+// A oferta de desbloqueio espera a apresentação fechar para não abrir dois
+// diálogos de uma vez (OfertaDesbloqueioDialog).
+const clearedListeners = new Set<(userId: number) => void>();
+
+export function onFirstAccessWelcomeCleared(
+  listener: (userId: number) => void,
+) {
+  clearedListeners.add(listener);
+  return () => {
+    clearedListeners.delete(listener);
+  };
+}
+
+export async function clearFirstAccessWelcomePending(userId: number) {
+  await AsyncStorage.setItem(keyFor(userId), 'done');
+  clearedListeners.forEach((listener) => listener(userId));
 }

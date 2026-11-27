@@ -4,7 +4,14 @@ import {
   type IoniconsIconName,
 } from '@react-native-vector-icons/ionicons';
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import {
+  Animated,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
@@ -73,7 +80,7 @@ function MenuRow({ icon, label, description, href }: MenuRowProps) {
   );
 }
 
-// Aba "Mais": conta do usuário, status do sistema, relatórios e tema.
+// Aba "Mais": conta do usuário, segurança, status do sistema, relatórios e tema.
 export default function MaisScreen() {
   const router = useRouter();
   const params = useLocalSearchParams<{ highlightManual?: string }>();
@@ -213,6 +220,21 @@ export default function MaisScreen() {
           <Ionicons name="chevron-forward" size={20} color={colors.primary} />
         </Card>
       </Pressable>
+
+      {/* na web não há autenticação do aparelho (RF-01). */}
+      {Platform.OS !== 'web' ? (
+        <View style={styles.section}>
+          <SectionLabel label="Segurança" />
+          <Card>
+            <MenuRow
+              icon="finger-print-outline"
+              label="Desbloqueio do app"
+              description="PIN ou biometria do aparelho ao abrir o app"
+              href="/mais/desbloqueio"
+            />
+          </Card>
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <SectionLabel label="Sistema" />

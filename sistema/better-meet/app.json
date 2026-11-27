@@ -39,7 +39,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Permita que o Better Meet use o Face ID para confirmar sua entrada e saída das reuniões."
+          "faceIDPermission": "Permita que o Better Meet use o Face ID para desbloquear o app e confirmar sua entrada e saída das reuniões."
         }
       ]
     ],

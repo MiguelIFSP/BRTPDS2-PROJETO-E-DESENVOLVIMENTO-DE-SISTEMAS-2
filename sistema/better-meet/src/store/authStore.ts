@@ -4,6 +4,7 @@ import { createJSONStorage, persist } from 'zustand/middleware';
 
 import { restoreSessionToken, setSessionToken } from '@/lib/authClient';
 import { usuarioService } from '@/services/usuarioService';
+import { useDesbloqueioStore } from '@/store/desbloqueioStore';
 
 export type Role = 'USER' | 'ADMIN';
 
@@ -51,6 +52,8 @@ export const useAuthStore = create<AuthState>()(
       },
       logout: () => {
         void setSessionToken(null);
+        // sem sessão guardada não há o que desbloquear (RF-09).
+        useDesbloqueioStore.getState().unlock();
         set({ user: null, token: null, isAuthenticated: false });
       },
       expireSession: () => {
@@ -80,12 +83,18 @@ export const useAuthStore = create<AuthState>()(
           if (!useAuthStore.persist.hasHydrated()) {
             await useAuthStore.persist.rehydrate();
           }
+          if (!useDesbloqueioStore.persist.hasHydrated()) {
+            await useDesbloqueioStore.persist.rehydrate();
+          }
           const token = await restoreSessionToken();
           const savedUser = get().user;
           if (!token || !savedUser) {
             if (token || savedUser) get().logout();
             return;
           }
+          // Bloqueia antes do markHydrated: o AppGate nunca mostra as abas
+          // sem o desbloqueio de quem o ligou (RF-06).
+          useDesbloqueioStore.getState().lock(savedUser.id);
           set({ token, isAuthenticated: true });
           try {
             const me = await usuarioService.getMe(token);
