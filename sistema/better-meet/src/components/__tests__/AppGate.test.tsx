@@ -55,7 +55,8 @@ describe('AppGate', () => {
     await render(<AppGate />);
     expect(screen.getByText('login')).toBeOnTheScreen();
     expect(screen.getByText('redefinir-senha')).toBeOnTheScreen();
-    expect(screen.getByText('email-confirmado')).toBeOnTheScreen();
+    expect(screen.getByText('recuperar-senha')).toBeOnTheScreen();
+    expect(screen.queryByText('email-confirmado')).toBeNull();
     expect(screen.queryByText('(tabs)')).toBeNull();
   });
 

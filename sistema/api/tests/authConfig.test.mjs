@@ -13,12 +13,17 @@ const env = {
 };
 jest.unstable_mockModule('../src/config/database.ts', () => ({ default: {} }));
 jest.unstable_mockModule('../src/config/env.ts', () => ({ env }));
+const enviarVerificacaoEmail = jest.fn();
 jest.unstable_mockModule('../src/services/emailService.ts', () => ({
-  emailService: { runInBackground: jest.fn() },
+  emailService: {
+    runInBackground: (envio) => envio(),
+    enviarVerificacaoEmail,
+  },
 }));
 
 const { auth } = await import('../src/lib/auth.ts');
-const { ERROS_AUTH } = await import('../src/lib/authErros.ts');
+const { ERROS_AUTH, traduzirErroAuth } =
+  await import('../src/lib/authErros.ts');
 
 describe('instância do Better Auth', () => {
   test('carrega com expo() e bearer() juntos', () => {
@@ -31,12 +36,58 @@ describe('instância do Better Auth', () => {
     expect(auth.options.advanced.database.generateId).toBe('serial');
   });
 
-  test('token de redefinição vale 30 minutos e revoga as outras sessões', () => {
-    expect(auth.options.emailAndPassword.resetPasswordTokenExpiresIn).toBe(
-      1800,
-    );
+  test('redefinição só por código de 6 dígitos, 15 minutos, com hash e 3 tentativas', () => {
+    const plugin = auth.options.plugins.find(({ id }) => id === 'email-otp');
+
+    expect(plugin.options).toMatchObject({
+      otpLength: 6,
+      expiresIn: 900,
+      storeOTP: 'hashed',
+      allowedAttempts: 3,
+      disableSignUp: true,
+    });
+    expect(auth.options.emailAndPassword.sendResetPassword).toBeUndefined();
     expect(auth.options.emailAndPassword.revokeSessionsOnPasswordReset).toBe(
       true,
+    );
+  });
+
+  test('rotas de link de senha e do plugin que o app não usa ficam desligadas', () => {
+    expect(auth.options.disabledPaths).toEqual(
+      expect.arrayContaining([
+        '/request-password-reset',
+        '/reset-password',
+        '/forget-password/email-otp',
+        '/sign-in/email-otp',
+        '/email-otp/send-verification-otp',
+        '/email-otp/check-verification-otp',
+        '/email-otp/verify-email',
+        '/email-otp/request-email-change',
+        '/email-otp/change-email',
+      ]),
+    );
+    expect(auth.options.disabledPaths).not.toContain(
+      '/email-otp/request-password-reset',
+    );
+    expect(auth.options.disabledPaths).not.toContain(
+      '/email-otp/reset-password',
+    );
+  });
+
+  test('o link de confirmação troca o callbackURL pela página da API', async () => {
+    await auth.options.emailVerification.sendVerificationEmail({
+      user: { name: 'Ana', email: 'ana@exemplo.test' },
+      url: 'http://localhost:3333/api/auth/verify-email?token=abc&callbackURL=bettermeet%3A%2F%2Femail-confirmado',
+      token: 'abc',
+    });
+
+    const [destinatario, url] = enviarVerificacaoEmail.mock.calls[0];
+    const link = new URL(url);
+    expect(destinatario).toEqual({ nome: 'Ana', email: 'ana@exemplo.test' });
+    expect(link.pathname).toBe('/api/auth/verify-email');
+    expect(link.searchParams.get('token')).toBe('abc');
+    expect(link.searchParams.get('callbackURL')).toBe(
+      'http://localhost:3333/api/conta/email-confirmado',
     );
   });
 
@@ -71,14 +122,42 @@ describe('instância do Better Auth', () => {
       max: 5,
     });
     expect(
-      auth.options.rateLimit.customRules['/request-password-reset'],
+      auth.options.rateLimit.customRules['/email-otp/request-password-reset'],
     ).toEqual({ window: 900, max: 3 });
+    expect(
+      auth.options.rateLimit.customRules['/email-otp/reset-password'],
+    ).toEqual({ window: 900, max: 5 });
   });
 
   test('cada código mapeado em pt-BR ainda existe na versão instalada', () => {
     for (const codigo of Object.keys(ERROS_AUTH)) {
       expect(auth.$ERROR_CODES).toHaveProperty(codigo);
     }
+  });
+});
+
+describe('tradução dos erros do código de senha', () => {
+  test.each([
+    ['INVALID_OTP', 400, 'Código inválido ou expirado.'],
+    ['OTP_EXPIRED', 400, 'Código inválido ou expirado.'],
+    [
+      'TOO_MANY_ATTEMPTS',
+      403,
+      'Muitas tentativas com este código. Peça um novo código.',
+    ],
+  ])('%s vira mensagem em pt-BR', (codigo, status, mensagem) => {
+    expect(traduzirErroAuth(400, { code: codigo, message: 'x' })).toEqual({
+      status,
+      error: mensagem,
+      code: codigo,
+    });
+  });
+
+  test('rota desligada (404 sem código) responde como rota inexistente', () => {
+    expect(traduzirErroAuth(404, null)).toEqual({
+      status: 404,
+      error: 'Rota não encontrada.',
+    });
   });
 });
 

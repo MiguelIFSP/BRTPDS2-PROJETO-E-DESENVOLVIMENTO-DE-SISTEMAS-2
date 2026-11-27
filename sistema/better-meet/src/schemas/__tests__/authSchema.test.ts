@@ -54,19 +54,39 @@ describe('redefinirSenhaSchema', () => {
   it('recusa senhas diferentes e código vazio', async () => {
     expect(
       await errorsOf(redefinirSenhaSchema, {
-        token: ' ',
+        otp: ' ',
         newPassword: 'Senha123',
         confirmPassword: 'Outra123',
       }),
     ).toEqual({
-      token: 'Informe o código do e-mail.',
+      otp: 'Informe o código de 6 dígitos.',
       confirmPassword: 'As senhas não coincidem.',
     });
   });
 
+  it.each(['12345', '1234567', '12a456'])(
+    'recusa o código %s, que não tem 6 dígitos',
+    async (otp) => {
+      const errors = await errorsOf(redefinirSenhaSchema, {
+        otp,
+        newPassword: 'Senha123',
+        confirmPassword: 'Senha123',
+      });
+      expect(errors).toEqual({ otp: 'O código tem 6 dígitos.' });
+    },
+  );
+
+  it('aceita o código com espaços em volta', async () => {
+    const values = await redefinirSenhaSchema.validate(
+      { otp: ' 482915 ', newPassword: 'Senha123', confirmPassword: 'Senha123' },
+      { stripUnknown: true },
+    );
+    expect(values.otp).toBe('482915');
+  });
+
   it('exige senha forte', async () => {
     const errors = await errorsOf(redefinirSenhaSchema, {
-      token: 'abc',
+      otp: '482915',
       newPassword: 'fraca',
       confirmPassword: 'fraca',
     });

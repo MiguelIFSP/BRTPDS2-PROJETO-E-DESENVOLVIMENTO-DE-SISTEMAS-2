@@ -17,13 +17,11 @@ const consoleWarn = jest.spyOn(console, 'warn');
 const consoleLog = jest.spyOn(console, 'log');
 
 const ana = { nome: 'Ana', email: 'ana@exemplo.test' };
-const URL_LINK =
-  'http://localhost:3333/api/auth/reset-password/abc?callbackURL=x';
-const TOKEN = 'tokenDeUsoUnico123';
+const CODIGO = '482915';
 
 const mensagemEnviada = () => sendMail.mock.calls[0][0];
 
-// Nada do que vai para o log pode conter o token nem a senha de app.
+// Nada do que vai para o log pode conter o código nem a senha de app.
 const expectSemDadosSensiveis = (valores) => {
   const registros = [
     ...consoleError.mock.calls,
@@ -49,27 +47,29 @@ beforeEach(() => {
 });
 
 describe('emailService.enviarRedefinicaoSenha', () => {
-  test('traz o botão e o token escritos, pela conta do Gmail configurada', async () => {
+  test('traz o código em destaque, sem botão nem link, pela conta do Gmail configurada', async () => {
     await expect(
-      emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN),
+      emailService.enviarRedefinicaoSenha(ana, CODIGO),
     ).resolves.toBe(true);
 
     expect(sendMail).toHaveBeenCalledTimes(1);
     expect(mensagemEnviada()).toMatchObject({
       from: { name: 'Better Meet', address: 'bettermeet@example.test' },
       to: { name: 'Ana', address: 'ana@exemplo.test' },
-      html: expect.stringContaining(`href="${URL_LINK}"`),
-      text: expect.stringContaining(TOKEN),
+      text: expect.stringContaining(CODIGO),
     });
-    expect(mensagemEnviada().html).toContain(TOKEN);
-    expect(mensagemEnviada().text).toContain('30 minutos');
+    expect(mensagemEnviada().html).toContain(`>${CODIGO}<`);
+    expect(mensagemEnviada().html).not.toContain('href=');
+    expect(mensagemEnviada().text).not.toMatch(/https?:\/\//);
+    expect(mensagemEnviada().text).toContain('15 minutos');
+    expect(mensagemEnviada().text).toMatch(/app/);
   });
 
   test('não traz senha nenhuma e não grava dados sensíveis no log', async () => {
-    await emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN);
+    await emailService.enviarRedefinicaoSenha(ana, CODIGO);
 
     expect(mensagemEnviada().text).not.toMatch(/senha (é|nova):/i);
-    expectSemDadosSensiveis([env.GMAIL_APP_PASSWORD, TOKEN]);
+    expectSemDadosSensiveis([env.GMAIL_APP_PASSWORD, CODIGO]);
   });
 
   test('falha do envio não lança e não expõe o erro do provedor', async () => {
@@ -79,7 +79,7 @@ describe('emailService.enviarRedefinicaoSenha', () => {
     );
 
     await expect(
-      emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN),
+      emailService.enviarRedefinicaoSenha(ana, CODIGO),
     ).resolves.toBe(false);
   });
 
@@ -90,7 +90,7 @@ describe('emailService.enviarRedefinicaoSenha', () => {
 
     expect(() => emailService.runInBackground(envio)).not.toThrow();
     await expect(
-      emailService.enviarRedefinicaoSenha(ana, URL_LINK, TOKEN),
+      emailService.enviarRedefinicaoSenha(ana, CODIGO),
     ).resolves.toBe(false);
     expect(envio).not.toHaveBeenCalled();
     expect(sendMail).not.toHaveBeenCalled();

@@ -72,6 +72,8 @@ export const betterAuthMiddleware = async (
     resposta.headers.get('x-retry-after'),
   );
   response.removeHeader('content-length');
+  // rota desligada responde em texto puro; sem isto o JSON sairia como text/plain.
+  response.removeHeader('content-type');
   response.status(traduzido.status).json({
     error: traduzido.error,
     message: traduzido.error,

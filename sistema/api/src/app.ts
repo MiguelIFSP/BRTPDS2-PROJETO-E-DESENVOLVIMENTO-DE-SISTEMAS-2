@@ -14,6 +14,7 @@ import {
 } from './middlewares/rateLimitMiddleware.ts';
 import ataRoutes from './routes/ataRoutes.ts';
 import comissaoRoutes from './routes/comissaoRoutes.ts';
+import contaRoutes from './routes/contaRoutes.ts';
 import conviteRespostaRoutes from './routes/conviteRespostaRoutes.ts';
 import notificacaoRoutes from './routes/notificacaoRoutes.ts';
 import organizacaoRoutes from './routes/organizacaoRoutes.ts';
@@ -82,6 +83,7 @@ export const criarApp = () => {
   apiRouter.use(ataRoutes);
   apiRouter.use(notificacaoRoutes);
   apiRouter.use(conviteRespostaRoutes);
+  apiRouter.use(contaRoutes);
   app.use('/api', apiRouter);
 
   // Fora do /api de propósito: usado pela monitoring e pelo start-all.ps1.

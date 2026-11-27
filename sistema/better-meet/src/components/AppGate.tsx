@@ -8,7 +8,6 @@ export const PUBLIC_ROUTES = [
   'usuario',
   'recuperar-senha',
   'redefinir-senha',
-  'email-confirmado',
 ] as const;
 
 // Única checagem de login do app (RN-16). Rotas protegidas nem são montadas

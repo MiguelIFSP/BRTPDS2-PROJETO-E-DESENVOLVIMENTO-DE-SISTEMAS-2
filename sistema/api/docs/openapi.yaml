@@ -435,7 +435,8 @@ components:
             id: { type: integer }
             titulo: { type: string }
             comissao: { type: string }
-            data: { type: string, description: Data AAAA-MM-DD no fuso da reunião. }
+            data:
+              { type: string, description: Data AAAA-MM-DD no fuso da reunião. }
             horaInicio: { type: string }
             horaFim: { type: string }
         votacoes:
@@ -707,8 +708,9 @@ paths:
                 callbackURL:
                   type: string
                   description: |
-                    Para onde o link de confirmação redireciona (por exemplo
-                    `bettermeet://`); precisa ser uma origem confiável.
+                    Ignorado no link do e-mail: a API sempre o troca pela página
+                    `GET /conta/email-confirmado`. Se enviado, precisa ser uma
+                    origem confiável.
       responses:
         '200':
           description: Conta criada (ou resposta idêntica, se o e-mail já existia).
@@ -813,10 +815,13 @@ paths:
       tags: [Autenticação]
       summary: Confirma o e-mail pelo link recebido
       description: |
-        Pública; é o link do e-mail. Com `callbackURL`, redireciona (302) para
-        ele e, se o token for inválido ou vencido, acrescenta `?error=invalid_token`.
-        Sem `callbackURL`, responde 200 ou 400. Vale também para a confirmação
-        de troca de e-mail (`PATCH /usuarios/{id}`). Limite: 20 por minuto por IP.
+        Pública; é o link do e-mail. A API sempre monta o link com
+        `callbackURL` apontando para `GET /conta/email-confirmado`, qualquer que
+        seja o enviado pelo cliente. Confirmado, redireciona (302) para essa
+        página; com token inválido ou vencido, para a mesma página com
+        `?error=INVALID_TOKEN` ou `?error=TOKEN_EXPIRED`. Vale também para a
+        confirmação de troca de e-mail (`PATCH /usuarios/{id}`). Limite: 20 por
+        minuto por IP.
       parameters:
         - { name: token, in: query, required: true, schema: { type: string } }
         - {
@@ -826,27 +831,52 @@ paths:
             schema: { type: string },
           }
       responses:
-        '200':
-          description: E-mail confirmado.
         '302':
-          description: Redireciona para o `callbackURL`.
-        '400':
-          description: Link inválido ou vencido.
-          content:
-            application/json:
-              schema: { $ref: '#/components/schemas/ErroAuth' }
+          description: Redireciona para a página de resultado (`/api/conta/email-confirmado`).
         '429': { $ref: '#/components/responses/TooManyRequests' }
 
-  /auth/request-password-reset:
+  /conta/email-confirmado:
+    get:
+      tags: [Autenticação]
+      summary: Página de resultado da confirmação de e-mail
+      description: |
+        Pública; aberta no navegador ao fim do link de confirmação. Responde
+        **HTML** em pt-BR (exceção ao formato JSON), sem script, sem cache e
+        sem indexação. Não grava nada: só mostra o resultado e pede para a
+        pessoa voltar ao app e entrar. O valor de `error` nunca é escrito na
+        página.
+      parameters:
+        - name: error
+          in: query
+          required: false
+          description: Código do Better Auth quando o link não valeu.
+          schema: { type: string, example: TOKEN_EXPIRED }
+      responses:
+        '200':
+          description: '"E-mail confirmado".'
+          content:
+            text/html:
+              schema: { type: string }
+        '400':
+          description: '"Link expirado" (`TOKEN_EXPIRED`) ou "Link inválido" (qualquer outro código).'
+          content:
+            text/html:
+              schema: { type: string }
+        '429': { $ref: '#/components/responses/TooManyRequests' }
+
+  /auth/email-otp/request-password-reset:
     post:
       tags: [Autenticação]
-      summary: Pede o e-mail de redefinição de senha (UC02)
+      summary: Pede o código de redefinição de senha (UC02)
       description: |
         Pública. Responde sempre o mesmo corpo e status, exista a conta ou não,
-        e o e-mail sai fora do caminho da resposta. O e-mail traz o botão e o
-        **token em texto** (vale 30 minutos, uso único) para colar no app. Conta
-        que só entra com o Google recebe um aviso, sem token. Limite: 3 por 15
-        minutos por IP.
+        e o e-mail sai fora do caminho da resposta. O e-mail traz só um
+        **código aleatório de 6 dígitos**, sem link nem botão: vale 15 minutos,
+        é de uso único, fica guardado com hash e um novo pedido substitui o
+        anterior. Conta que só entra com o Google recebe um aviso, sem código.
+        Limite: 3 por 15 minutos por IP. O fluxo antigo por link
+        (`/auth/request-password-reset`, `/auth/reset-password` e
+        `/auth/reset-password/{token}`) responde 404.
       requestBody:
         required: true
         content:
@@ -856,9 +886,6 @@ paths:
               required: [email]
               properties:
                 email: { type: string, format: email }
-                redirectTo:
-                  type: string
-                  description: Para onde o link do e-mail redireciona com `?token=`.
       responses:
         '200':
           description: Pedido recebido.
@@ -867,34 +894,41 @@ paths:
               schema:
                 type: object
                 properties:
-                  status: { type: boolean, example: true }
-                  message: { type: string }
+                  success: { type: boolean, example: true }
+        '400':
+          description: E-mail inválido.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/InternalError' }
 
-  /auth/reset-password:
+  /auth/email-otp/reset-password:
     post:
       tags: [Autenticação]
-      summary: Redefine a senha com o token do e-mail
+      summary: Redefine a senha com o código do e-mail
       description: |
-        Pública. Exige o token enviado ao e-mail cadastrado; sem token (ou com
-        token vencido ou já usado) responde 400. Ao concluir, encerra todas as
-        sessões e envia o aviso "sua senha foi alterada". Limite: 5 por 15
-        minutos por IP.
+        Pública. Exige o código de 6 dígitos enviado ao e-mail informado. Código
+        errado responde 400 `INVALID_OTP`; vencido, 400 `OTP_EXPIRED`; depois de
+        3 tentativas erradas o código deixa de valer (403 `TOO_MANY_ATTEMPTS`) e
+        é preciso pedir outro. Senha fraca responde 400 sem gastar o código. Ao
+        concluir, encerra todas as sessões e envia o aviso "sua senha foi
+        alterada". Limite: 5 por 15 minutos por IP.
       requestBody:
         required: true
         content:
           application/json:
             schema:
               type: object
-              required: [token, newPassword]
+              required: [email, otp, password]
               properties:
-                token: { type: string }
-                newPassword:
+                email: { type: string, format: email }
+                otp: { type: string, pattern: '^\d{6}$', example: '482915' }
+                password:
                   type: string
                   minLength: 8
                   maxLength: 72
-                  description: Precisa de maiúscula, minúscula e número.
+                  description: Nova senha; precisa de maiúscula, minúscula e número.
       responses:
         '200':
           description: Senha redefinida.
@@ -903,35 +937,19 @@ paths:
               schema:
                 type: object
                 properties:
-                  status: { type: boolean, example: true }
+                  success: { type: boolean, example: true }
         '400':
-          description: Token inválido, vencido ou já usado, ou senha fraca.
+          description: Código ausente, inválido ou vencido, ou senha fraca.
+          content:
+            application/json:
+              schema: { $ref: '#/components/schemas/ErroAuth' }
+        '403':
+          description: Muitas tentativas com este código (`TOO_MANY_ATTEMPTS`).
           content:
             application/json:
               schema: { $ref: '#/components/schemas/ErroAuth' }
         '429': { $ref: '#/components/responses/TooManyRequests' }
         '500': { $ref: '#/components/responses/InternalError' }
-
-  /auth/reset-password/{token}:
-    get:
-      tags: [Autenticação]
-      summary: Link do e-mail de redefinição
-      description: |
-        Pública. Valida o token e redireciona (302) para `callbackURL` com
-        `?token=` ou, se inválido, com `?error=INVALID_TOKEN`. Limite: 20 por
-        minuto por IP.
-      parameters:
-        - { name: token, in: path, required: true, schema: { type: string } }
-        - {
-            name: callbackURL,
-            in: query,
-            required: true,
-            schema: { type: string },
-          }
-      responses:
-        '302':
-          description: Redireciona para o `callbackURL`.
-        '429': { $ref: '#/components/responses/TooManyRequests' }
 
   /auth/sign-in/social:
     post:

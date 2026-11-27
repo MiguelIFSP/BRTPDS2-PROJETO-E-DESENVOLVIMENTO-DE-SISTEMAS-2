@@ -20,14 +20,14 @@ type ConteudoConta = {
   assunto: string;
   paragrafos: string[];
   botao?: { rotulo: string; url: string };
-  // token em texto, para colar no app quando o botão não abre o app.
+  // código de uso único que a pessoa digita no app; vai sem link nem botão.
   codigo?: string;
 };
 
 const RODAPE_CONTA =
   'Se você não fez esta solicitação, ignore este e-mail. Ele é automático.';
 
-// E-mails de conta nunca levam senha, só o link ou o token de uso único.
+// E-mails de conta nunca levam senha, só o link ou o código de uso único.
 const montarEmailConta = ({
   assunto,
   paragrafos,
@@ -46,7 +46,7 @@ const montarEmailConta = ({
 <h1 style="margin:0 0 16px;font-size:20px">${escapeHtml(assunto)}</h1>
 ${paragrafos.map((paragrafo) => `<p style="margin:0 0 12px;font-size:15px">${escapeHtml(paragrafo)}</p>`).join('\n')}
 ${botao ? `<p style="margin:16px 0"><a href="${escapeHtml(botao.url)}" style="display:inline-block;padding:12px 24px;border-radius:8px;background:#00796b;color:#ffffff;font-weight:bold;font-size:15px;text-decoration:none">${escapeHtml(botao.rotulo)}</a></p>` : ''}
-${codigo ? `<p style="margin:0 0 12px;font-size:13px;color:#5b6566">Se o botão não abrir o app, copie este código: <strong style="font-family:monospace;word-break:break-all">${escapeHtml(codigo)}</strong></p>` : ''}
+${codigo ? `<p style="margin:16px 0;text-align:center"><span style="display:inline-block;padding:12px 24px;border-radius:8px;background:#e0f2f1;color:#00796b;font-family:monospace;font-size:32px;font-weight:bold;letter-spacing:8px">${escapeHtml(codigo)}</span></p>` : ''}
 <p style="margin:24px 0 0;font-size:12px;color:#5b6566">${escapeHtml(RODAPE_CONTA)}</p>
 </div></body></html>`;
   return { assunto, texto, html };
@@ -172,25 +172,22 @@ export const emailService = {
         assunto: 'Confirme seu e-mail — Better Meet',
         paragrafos: [
           `Olá, ${destinatario.nome}. Confirme que este e-mail é seu para entrar no Better Meet. O link vale por 1 hora.`,
+          'Depois de confirmar, volte ao app e entre com seu e-mail e senha.',
         ],
         botao: { rotulo: 'Confirmar e-mail', url },
       }),
     ),
 
-  enviarRedefinicaoSenha: (
-    destinatario: Destinatario,
-    url: string,
-    token: string,
-  ) =>
+  enviarRedefinicaoSenha: (destinatario: Destinatario, codigo: string) =>
     send(
       destinatario,
       montarEmailConta({
-        assunto: 'Redefinição de senha — Better Meet',
+        assunto: 'Código para redefinir sua senha — Better Meet',
         paragrafos: [
-          `Olá, ${destinatario.nome}. Recebemos um pedido para redefinir sua senha. O link e o código valem por 30 minutos e só podem ser usados uma vez.`,
+          `Olá, ${destinatario.nome}. Recebemos um pedido para redefinir sua senha. Digite este código na tela "Nova senha" do app Better Meet.`,
+          'O código vale por 15 minutos e só pode ser usado uma vez. Não compartilhe com ninguém.',
         ],
-        botao: { rotulo: 'Redefinir senha', url },
-        codigo: token,
+        codigo,
       }),
     ),
 

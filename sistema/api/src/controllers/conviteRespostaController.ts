@@ -9,6 +9,7 @@ import {
   paginaResposta,
   type RespostaDoLink,
 } from '../utils/paginaResposta.ts';
+import { sendPage } from '../utils/paginaHtml.ts';
 
 // EXCEÇÃO ao EX-04 e ao EX-05: estas rotas são abertas no navegador pelos
 // botões do e-mail, então respondem HTML, inclusive nos erros. Por isso o
@@ -24,22 +25,6 @@ const STATUS_DA_RESPOSTA = {
 // mostra as duas opções, sem erro.
 const isResposta = (valor: unknown): valor is RespostaDoLink =>
   RESPOSTAS_DO_LINK.some((resposta) => resposta === valor);
-
-// O token na URL é a credencial: a página não pode ficar em cache, ser
-// indexada nem vazar o endereço para outro site pelo Referer.
-const sendPage = (response: Response, status: number, html: string) => {
-  response
-    .status(status)
-    .set({
-      'Cache-Control': 'no-store',
-      'Referrer-Policy': 'no-referrer',
-      'X-Robots-Tag': 'noindex',
-      'Content-Security-Policy':
-        "default-src 'none'; style-src 'unsafe-inline'; form-action 'self'",
-    })
-    .type('html')
-    .send(html);
-};
 
 const getToken = (request: Request) => String(request.params.token);
 

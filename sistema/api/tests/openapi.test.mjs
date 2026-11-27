@@ -38,15 +38,21 @@ describe('docs/openapi.yaml', () => {
     ['post', '/auth/sign-in/email'],
     ['post', '/auth/send-verification-email'],
     ['get', '/auth/verify-email'],
-    ['post', '/auth/request-password-reset'],
-    ['post', '/auth/reset-password'],
-    ['get', '/auth/reset-password/{token}'],
+    ['post', '/auth/email-otp/request-password-reset'],
+    ['post', '/auth/email-otp/reset-password'],
+    ['get', '/conta/email-confirmado'],
     ['post', '/auth/sign-in/social'],
     ['post', '/auth/sign-out'],
     ['get', '/auth/get-session'],
     ['get', '/usuarios/me'],
   ])('documenta %s %s', (metodo, rota) => {
     expect(documento.paths[rota]?.[metodo]).toBeDefined();
+  });
+
+  test('a recuperação de senha por link não aparece mais', () => {
+    expect(documento.paths['/auth/request-password-reset']).toBeUndefined();
+    expect(documento.paths['/auth/reset-password']).toBeUndefined();
+    expect(documento.paths['/auth/reset-password/{token}']).toBeUndefined();
   });
 
   test('a ponte POST /login não aparece mais', () => {

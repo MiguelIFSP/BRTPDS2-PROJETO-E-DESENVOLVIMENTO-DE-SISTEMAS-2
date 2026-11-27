@@ -7,11 +7,9 @@ import { NETWORK_ERROR_MESSAGE } from '@/utils/apiClient';
 
 export const MENSAGEM_SESSAO_EXPIRADA = 'Sua sessão expirou. Entre novamente.';
 
-export const MENSAGEM_RECUPERACAO_ENVIADA =
-  'Se este e-mail estiver cadastrado, enviamos um link para redefinir a senha. Ele vale por 30 minutos.';
-
-export const MENSAGEM_LINK_VENCIDO =
-  'Este link venceu ou já foi usado. Peça um novo.';
+// Não confirma se a conta existe (RF-R27): a mensagem é a mesma nos dois casos.
+export const textoCodigoEnviado = (email: string) =>
+  `Se ${email} estiver cadastrado, enviamos para ele um código de 6 dígitos. O código vale por 15 minutos.`;
 
 export const MENSAGEM_SENHA_REDEFINIDA =
   'Senha redefinida. Entre com a nova senha.';

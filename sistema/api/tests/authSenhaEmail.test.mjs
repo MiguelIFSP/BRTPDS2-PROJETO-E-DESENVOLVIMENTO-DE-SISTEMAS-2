@@ -196,11 +196,17 @@ describeBanco(
         ).toBe(0);
 
         const link = new URL(ambiente.enviados[0].extras[0]);
+        expect(link.searchParams.get('callbackURL')).toBe(
+          'http://localhost:3333/api/conta/email-confirmado',
+        );
         const confirmacao = await ambiente.api(
           'get',
           link.pathname + link.search,
         );
-        expect(confirmacao.status).toBeLessThan(400);
+        expect(confirmacao.status).toBe(302);
+        expect(confirmacao.headers.location).toBe(
+          'http://localhost:3333/api/conta/email-confirmado',
+        );
         expect(
           (await ambiente.prisma.user.findUnique({ where: { id: user.id } }))
             .email,

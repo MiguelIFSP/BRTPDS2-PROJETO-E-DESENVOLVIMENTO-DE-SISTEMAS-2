@@ -77,11 +77,11 @@ describeBanco(
       expect((await reenviar()).status).toBe(429);
     });
 
-    test('o 4º request-password-reset em 15 minutos responde 429', async () => {
+    test('o 4º pedido de código de senha em 15 minutos responde 429', async () => {
       const ip = ambiente.novoIp();
       const email = novoEmail('recuperacao');
       const pedir = () =>
-        ambiente.api('post', '/api/auth/request-password-reset', {
+        ambiente.api('post', '/api/auth/email-otp/request-password-reset', {
           ip,
           corpo: { email },
         });

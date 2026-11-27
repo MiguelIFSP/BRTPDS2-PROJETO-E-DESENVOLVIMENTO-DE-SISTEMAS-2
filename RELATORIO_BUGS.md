@@ -24,6 +24,7 @@ Revisão do app mobile (`sistema/better-meet`), da API de dados (`sistema/api`) 
 | 10 | Baixa | API | Administrador padrão é promovido de novo a cada inicialização | Corrigido (U1) |
 | 11 | Baixa | Gestão (web) | Sem a monitoring, o painel não mostra os subsistemas | Corrigido (U4) |
 | 12 | Alta | App | Login no Android e no iOS recusado com 403 `MISSING_OR_NULL_ORIGIN` | Corrigido (correcao-origem-better-auth) |
+| 13 | Média | API e app | Links de confirmação de e-mail e de troca de senha abrem uma aba em branco | Corrigido (email-conta-codigo-senha) |
 
 ---
 
@@ -173,6 +174,25 @@ O check-in antecipado do item 5 também precisa de ajuste no app.
 **Causa:** o `fetch` do React Native guarda o cookie `better-auth.session_token` do login e o reenvia, mas não envia `Origin`. O Better Auth 1.7.27 recusa todo POST com cookie e sem origem. O plugin `expo()` da API troca a origem ausente pelo cabeçalho `expo-origin`, que o cliente Expo do Better Auth envia; o app usa o `apiRequest` no lugar desse cliente e não enviava o cabeçalho.
 
 **Correção:** enviar `expo-origin: bettermeet://` (já está no `trustedOrigins`) nas chamadas do app ao Better Auth. A proteção de origem e CSRF da API continua ligada, e a API não mudou.
+
+---
+
+### 13. Links de confirmação de e-mail e de troca de senha abrem uma aba em branco (média)
+
+> **Situação: corrigido em 2026-11-26** (unidade AI-DLC `email-conta-codigo-senha`). A confirmação de e-mail termina numa página da API; a troca de senha passou a usar um código de 6 dígitos digitado no app. Testes: `api/tests/paginaConta.test.mjs`, `recuperacaoSenha.test.mjs`, `authConfig.test.mjs`, `authFluxos.test.mjs`, `emailRecuperacao.test.mjs`, e no app `RecuperarSenhaScreen.test.tsx`, `RedefinirSenhaScreen.test.tsx` e `authService.test.ts`. (commit: a registrar.)
+
+**Onde:** `sistema/better-meet/src/services/authService.ts` (`callbackURL` e `redirectTo` com `bettermeet://`) e `sistema/api/src/lib/auth.ts` (envio dos links).
+
+**O que acontece:** ao tocar no botão do e-mail, o navegador abre uma aba vazia, sem dizer se o e-mail foi confirmado e sem abrir o app. Na troca de senha, o link também não chega ao app.
+
+**Causa:** o Better Auth 1.7.27 conclui a ação e responde 302 para o `callbackURL` (`bettermeet://email-confirmado` ou `bettermeet://redefinir-senha`). Navegadores e leitores de e-mail não seguem redirecionamento para o esquema do app (e no Expo Go ele nem existe). A confirmação era gravada, mas a pessoa não via nada.
+
+**Correção:**
+- Todo link de confirmação de e-mail aponta, pela API, para `GET /api/conta/email-confirmado`, uma página HTML que mostra "E-mail confirmado", "Link expirado" ou "Link inválido" e pede para voltar ao app e entrar. A tela `email-confirmado` do app foi removida.
+- A recuperação de senha usa o plugin `emailOTP` do Better Auth: código aleatório de 6 dígitos, 15 minutos, uso único, guardado com hash e invalidado após 3 tentativas erradas. O e-mail não tem botão nem link. O fluxo antigo por link e as rotas do plugin que o app não usa respondem 404.
+- Telas "Recuperar conta" (só e-mail → "Enviar código") e "Nova senha" (código, nova senha, reenviar e trocar e-mail); saiu "Tenho um código".
+
+**Regra 31 do `AGENTS.md`:** ela cita `emailAndPassword.sendResetPassword`. O envio agora é o `sendVerificationOTP` do plugin `emailOTP`, também do Better Auth. As propriedades exigidas continuam valendo e testadas (código só no e-mail cadastrado, uso único, validade curta, mesma resposta para conta existente ou não, limite de tentativas). Atualizar o texto da regra no guia e no `AGENTS.md`, se o grupo concordar.
 
 ---
 

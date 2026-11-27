@@ -43,6 +43,12 @@ export const ERROS_AUTH = {
   SESSION_EXPIRED: { status: 401, error: 'Sessão inválida. Entre novamente.' },
   FIELD_NOT_ALLOWED: { status: 400, error: 'Campo não permitido.' },
   PROVIDER_NOT_FOUND: { status: 404, error: 'Rota não encontrada.' },
+  INVALID_OTP: { status: 400, error: 'Código inválido ou expirado.' },
+  OTP_EXPIRED: { status: 400, error: 'Código inválido ou expirado.' },
+  TOO_MANY_ATTEMPTS: {
+    status: 403,
+    error: 'Muitas tentativas com este código. Peça um novo código.',
+  },
 } as const satisfies Record<string, { status: number; error: string }>;
 
 const isCodigoMapeado = (codigo: string): codigo is keyof typeof ERROS_AUTH =>
@@ -71,6 +77,11 @@ export const traduzirErroAuth = (
   }
   if (codigo === CODIGO_DADOS_INVALIDOS) {
     return { status, error: mensagem, code: codigo };
+  }
+  // Rota inexistente ou desligada (disabledPaths em auth.ts): o Better Auth
+  // responde 404 em texto puro, sem código.
+  if (status === 404 && !codigo) {
+    return { status, error: 'Rota não encontrada.' };
   }
   if (codigo && isCodigoMapeado(codigo)) {
     const mapeado = ERROS_AUTH[codigo];

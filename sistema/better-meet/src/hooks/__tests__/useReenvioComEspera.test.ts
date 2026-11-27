@@ -36,4 +36,12 @@ describe('useReenvioComEspera', () => {
     expect(result.current.secondsLeft).toBe(0);
     expect(result.current.canResend).toBe(true);
   });
+
+  it('com startNow já abre em espera', async () => {
+    const { result } = await renderHook(() =>
+      useReenvioComEspera(60, { startNow: true }),
+    );
+    expect(result.current.secondsLeft).toBe(60);
+    expect(result.current.canResend).toBe(false);
+  });
 });

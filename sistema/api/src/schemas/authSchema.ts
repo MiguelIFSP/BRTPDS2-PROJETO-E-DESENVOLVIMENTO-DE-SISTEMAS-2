@@ -12,4 +12,14 @@ export const redefinicaoSenhaSchema = yup.object({
   newPassword: senhaForteRule('A nova senha'),
 });
 
+// Troca de senha com o código de 6 dígitos que vai por e-mail (plugin emailOTP).
+export const redefinicaoSenhaCodigoSchema = yup.object({
+  otp: yup
+    .string()
+    .trim()
+    .required('Informe o código de 6 dígitos.')
+    .matches(/^\d{6}$/, 'O código tem 6 dígitos.'),
+  password: senhaForteRule('A nova senha'),
+});
+
 export const nomeAuthSchema = yup.object({ name: nomeRule() });

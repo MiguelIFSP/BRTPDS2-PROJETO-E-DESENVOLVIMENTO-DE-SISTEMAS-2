@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 import { getSessionToken, setSessionToken } from '@/lib/authClient';
-import { authService, getAuthErrorKind } from '@/services/authService';
+import {
+  authService,
+  getAuthErrorKind,
+  getCodeErrorKind,
+} from '@/services/authService';
 import type { ApiError } from '@/utils/apiClient';
 
 jest.mock('@/lib/sessionStorage', () => ({
@@ -115,7 +119,7 @@ describe('authService.signIn', () => {
 });
 
 describe('authService.signUp', () => {
-  it('cadastro 200 não cria sessão e envia o callbackURL do app', async () => {
+  it('cadastro 200 não cria sessão e não manda callbackURL (a API define a página)', async () => {
     mockFetch.mockResolvedValueOnce(
       jsonResponse(200, { token: null, user: {} }),
     );
@@ -127,8 +131,10 @@ describe('authService.signUp', () => {
     });
 
     expect(sentUrl(0)).toBe('http://api.teste/api/auth/sign-up/email');
-    expect(sentBody(0)).toMatchObject({
-      callbackURL: 'bettermeet://email-confirmado',
+    expect(sentBody(0)).toEqual({
+      name: 'Ana',
+      email: 'ana@exemplo.com',
+      password: 'Senha123',
     });
     expect(getSessionToken()).toBeNull();
   });
@@ -147,14 +153,13 @@ describe('authService.requestPasswordReset', () => {
     ).resolves.toBeUndefined();
   });
 
-  it('envia só o e-mail e o redirectTo, sem nova senha', async () => {
-    mockFetch.mockResolvedValueOnce(jsonResponse(200, { status: true }));
+  it('pede o código de 6 dígitos só com o e-mail', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(200, { success: true }));
     await authService.requestPasswordReset('ana@exemplo.com');
-    expect(sentUrl(0)).toBe('http://api.teste/api/auth/request-password-reset');
-    expect(sentBody(0)).toEqual({
-      email: 'ana@exemplo.com',
-      redirectTo: 'bettermeet://redefinir-senha',
-    });
+    expect(sentUrl(0)).toBe(
+      'http://api.teste/api/auth/email-otp/request-password-reset',
+    );
+    expect(sentBody(0)).toEqual({ email: 'ana@exemplo.com' });
   });
 
   it('429 e rede continuam sendo erro', async () => {
@@ -169,30 +174,64 @@ describe('authService.requestPasswordReset', () => {
   });
 });
 
-describe('authService.resetPassword e resendVerification', () => {
-  it('INVALID_TOKEN vira a mensagem de link inválido', async () => {
-    mockFetch.mockResolvedValueOnce(
-      jsonResponse(400, { code: 'INVALID_TOKEN' }),
+describe('authService.resetPassword', () => {
+  it('troca a senha com e-mail, código e nova senha', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(200, { success: true }));
+    await authService.resetPassword('ana@exemplo.com', '482915', 'Senha123');
+    expect(sentUrl(0)).toBe(
+      'http://api.teste/api/auth/email-otp/reset-password',
     );
-    await expect(
-      authService.resetPassword('velho', 'Senha123'),
-    ).rejects.toMatchObject({
-      message: 'Link ou código inválido ou expirado.',
-      status: 400,
+    expect(sentBody(0)).toEqual({
+      email: 'ana@exemplo.com',
+      otp: '482915',
+      password: 'Senha123',
     });
-    expect(sentBody(0)).toEqual({ token: 'velho', newPassword: 'Senha123' });
   });
 
-  it('reenvio manda o e-mail e o callbackURL', async () => {
+  it.each(['INVALID_OTP', 'OTP_EXPIRED'])(
+    '%s vira "invalidCode" com a mensagem do código',
+    async (code) => {
+      mockFetch.mockResolvedValueOnce(jsonResponse(400, { code }));
+      const erro = await authService
+        .resetPassword('ana@exemplo.com', '000000', 'Senha123')
+        .catch((caught: unknown) => caught);
+      expect(getCodeErrorKind(erro)).toBe('invalidCode');
+      expect((erro as ApiError).message).toBe(
+        'Código inválido ou expirado. Confira o e-mail ou peça um novo código.',
+      );
+    },
+  );
+
+  it('TOO_MANY_ATTEMPTS pede um novo código', async () => {
+    mockFetch.mockResolvedValueOnce(
+      jsonResponse(403, { code: 'TOO_MANY_ATTEMPTS' }),
+    );
+    const erro = await authService
+      .resetPassword('ana@exemplo.com', '000000', 'Senha123')
+      .catch((caught: unknown) => caught);
+    expect(getCodeErrorKind(erro)).toBe('tooManyAttempts');
+    expect((erro as ApiError).message).toBe(
+      'Muitas tentativas com este código. Peça um novo código.',
+    );
+  });
+
+  it('outros erros não são erro de código', async () => {
+    mockFetch.mockResolvedValueOnce(jsonResponse(500, {}));
+    const erro = await authService
+      .resetPassword('ana@exemplo.com', '000000', 'Senha123')
+      .catch((caught: unknown) => caught);
+    expect(getCodeErrorKind(erro)).toBeNull();
+  });
+});
+
+describe('authService.resendVerification', () => {
+  it('reenvio manda só o e-mail', async () => {
     mockFetch.mockResolvedValueOnce(jsonResponse(200, { status: true }));
     await authService.resendVerification('ana@exemplo.com');
     expect(sentUrl(0)).toBe(
       'http://api.teste/api/auth/send-verification-email',
     );
-    expect(sentBody(0)).toEqual({
-      email: 'ana@exemplo.com',
-      callbackURL: 'bettermeet://email-confirmado',
-    });
+    expect(sentBody(0)).toEqual({ email: 'ana@exemplo.com' });
   });
 });
 
@@ -229,7 +268,10 @@ describe('authService e o cabeçalho expo-origin', () => {
       'requestPasswordReset',
       () => authService.requestPasswordReset('ana@exemplo.com'),
     ],
-    ['resetPassword', () => authService.resetPassword('tok', 'Senha123')],
+    [
+      'resetPassword',
+      () => authService.resetPassword('ana@exemplo.com', '482915', 'Senha123'),
+    ],
     [
       'resendVerification',
       () => authService.resendVerification('ana@exemplo.com'),

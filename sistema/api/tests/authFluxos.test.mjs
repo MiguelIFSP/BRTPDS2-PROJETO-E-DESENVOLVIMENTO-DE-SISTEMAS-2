@@ -3,6 +3,8 @@ import { bancoDisponivel, prepararAmbiente } from './ambienteIntegracao.mjs';
 
 const describeBanco = bancoDisponivel() ? describe : describe.skip;
 
+const PAGINA_CONFIRMACAO = 'http://localhost:3333/api/conta/email-confirmado';
+
 describeBanco(
   'cadastro, e-mail confirmado, login e logout (Better Auth real)',
   () => {
@@ -24,6 +26,29 @@ describeBanco(
     const urlDaVerificacao = () =>
       ambiente.enviados.find((e) => e.tipo === 'verificacao').extras[0];
     const caminhoDe = (url) => new URL(url).pathname + new URL(url).search;
+
+    test('o link do e-mail volta para a página da API, mesmo com callbackURL do cliente', async () => {
+      const email = ambiente.emailDe('callback');
+      await cadastrar(email, { callbackURL: 'bettermeet://email-confirmado' });
+      await ambiente.aguardarEmails();
+
+      const link = new URL(urlDaVerificacao());
+
+      expect(link.origin).toBe('http://localhost:3333');
+      expect(link.pathname).toBe('/api/auth/verify-email');
+      expect(link.searchParams.get('callbackURL')).toBe(PAGINA_CONFIRMACAO);
+    });
+
+    test('a página de confirmação abre no navegador com o resultado', async () => {
+      const resposta = await ambiente.api(
+        'get',
+        new URL(PAGINA_CONFIRMACAO).pathname,
+      );
+
+      expect(resposta.status).toBe(200);
+      expect(resposta.headers['content-type']).toMatch(/text\/html/);
+      expect(resposta.text).toContain('E-mail confirmado');
+    });
 
     test('cadastro cria User USER sem e-mail confirmado, credencial em scrypt e nenhuma sessão', async () => {
       const email = ambiente.emailDe('novo');
@@ -130,7 +155,9 @@ describeBanco(
       const caminho = caminhoDe(urlDaVerificacao());
 
       const primeiro = await ambiente.api('get', caminho);
-      expect(primeiro.status).toBeLessThan(400);
+      // o navegador vai para a página da própria API, nunca para bettermeet://.
+      expect(primeiro.status).toBe(302);
+      expect(primeiro.headers.location).toBe(PAGINA_CONFIRMACAO);
       expect(
         (await ambiente.prisma.user.findUnique({ where: { email } }))
           .emailVerified,
@@ -158,7 +185,9 @@ describeBanco(
       const resposta = await ambiente.api('get', caminho);
 
       expect(resposta.status).toBe(302);
-      expect(resposta.headers.location).toMatch(/error=invalid_token/i);
+      expect(resposta.headers.location).toBe(
+        `${PAGINA_CONFIRMACAO}?error=INVALID_TOKEN`,
+      );
       expect(
         (await ambiente.prisma.user.findUnique({ where: { email } }))
           .emailVerified,

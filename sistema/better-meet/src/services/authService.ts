@@ -8,10 +8,6 @@ import { ApiError, apiRequest } from '@/utils/apiClient';
 // 401 daqui (login errado) seja tratado como sessão vencida.
 const AUTH_URL = `${API_URL}/auth`;
 
-// Links dos e-mails que abrem o app pelo esquema bettermeet://.
-const CALLBACK_EMAIL_CONFIRMADO = 'bettermeet://email-confirmado';
-const REDIRECT_REDEFINIR_SENHA = 'bettermeet://redefinir-senha';
-
 // No Android e no iOS, o fetch reenvia o cookie de sessão do Better Auth sem
 // Origin, e a API recusa com 403 MISSING_OR_NULL_ORIGIN. O plugin expo() da API
 // usa este cabeçalho como origem (bettermeet:// está no trustedOrigins), como faz
@@ -44,6 +40,26 @@ export const MENSAGEM_MUITAS_TENTATIVAS =
 export const MENSAGEM_EMAIL_NAO_CONFIRMADO =
   'Seu e-mail ainda não foi confirmado. Confira sua caixa de entrada.';
 export const MENSAGEM_LINK_INVALIDO = 'Link ou código inválido ou expirado.';
+export const MENSAGEM_CODIGO_INVALIDO =
+  'Código inválido ou expirado. Confira o e-mail ou peça um novo código.';
+export const MENSAGEM_CODIGO_TENTATIVAS =
+  'Muitas tentativas com este código. Peça um novo código.';
+
+export type CodeErrorKind = 'invalidCode' | 'tooManyAttempts';
+
+/** Erro do código de 6 dígitos da troca de senha, que a tela mostra no campo. */
+export const getCodeErrorKind = (error: unknown): CodeErrorKind | null => {
+  if (!(error instanceof ApiError)) return null;
+  switch (readCode(error)) {
+    case 'INVALID_OTP':
+    case 'OTP_EXPIRED':
+      return 'invalidCode';
+    case 'TOO_MANY_ATTEMPTS':
+      return 'tooManyAttempts';
+    default:
+      return null;
+  }
+};
 
 /** Classifica o erro de uma chamada de autenticação para a tela decidir o aviso. */
 export const getAuthErrorKind = (error: unknown): AuthErrorKind => {
@@ -74,6 +90,14 @@ const translate = (error: unknown): unknown => {
       );
     case 'rateLimited':
       return new ApiError(MENSAGEM_MUITAS_TENTATIVAS, error.status, error.body);
+    default:
+      break;
+  }
+  switch (getCodeErrorKind(error)) {
+    case 'invalidCode':
+      return new ApiError(MENSAGEM_CODIGO_INVALIDO, error.status, error.body);
+    case 'tooManyAttempts':
+      return new ApiError(MENSAGEM_CODIGO_TENTATIVAS, error.status, error.body);
     default:
       return readCode(error) === 'INVALID_TOKEN'
         ? new ApiError(MENSAGEM_LINK_INVALIDO, error.status, error.body)
@@ -119,24 +143,28 @@ export const authService = {
 
   /**
    * A API responde 200 igual para e-mail novo e repetido: o app nunca diz
-   * "e-mail já cadastrado", só pede para confirmar o e-mail.
+   * "e-mail já cadastrado", só pede para confirmar o e-mail. O link do e-mail
+   * abre uma página da API no navegador, não o app.
    */
   async signUp({ name, email, password }: CadastroData) {
     await authCall(
       '/sign-up/email',
-      { name, email, password, callbackURL: CALLBACK_EMAIL_CONFIRMADO },
+      { name, email, password },
       'Não foi possível criar a conta.',
       '',
     );
   },
 
-  /** Mensagem única: só rede e limite de tentativas aparecem como erro. */
+  /**
+   * Pede o código de 6 dígitos da troca de senha. Mensagem única: só rede e
+   * limite de tentativas aparecem como erro, para não denunciar se a conta existe.
+   */
   async requestPasswordReset(email: string) {
     try {
       await authCall(
-        '/request-password-reset',
-        { email, redirectTo: REDIRECT_REDEFINIR_SENHA },
-        'Não foi possível pedir o link.',
+        '/email-otp/request-password-reset',
+        { email },
+        'Não foi possível enviar o código.',
         '',
       );
     } catch (error) {
@@ -145,10 +173,10 @@ export const authService = {
     }
   },
 
-  async resetPassword(token: string, newPassword: string) {
+  async resetPassword(email: string, otp: string, newPassword: string) {
     await authCall(
-      '/reset-password',
-      { token, newPassword },
+      '/email-otp/reset-password',
+      { email, otp, password: newPassword },
       'Não foi possível redefinir a senha.',
       '',
     );
@@ -157,7 +185,7 @@ export const authService = {
   async resendVerification(email: string) {
     await authCall(
       '/send-verification-email',
-      { email, callbackURL: CALLBACK_EMAIL_CONFIRMADO },
+      { email },
       'Não foi possível reenviar o e-mail.',
       '',
     );

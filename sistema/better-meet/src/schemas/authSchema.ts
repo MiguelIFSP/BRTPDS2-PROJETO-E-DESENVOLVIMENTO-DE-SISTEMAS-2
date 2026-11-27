@@ -11,9 +11,13 @@ export const recuperacaoSenhaSchema = yup.object({
   email: emailRule(),
 });
 
-// Sem o link, a pessoa digita o código que veio no e-mail (o token em texto).
+// O código de 6 dígitos vem no e-mail; a pessoa digita no app.
 export const redefinirSenhaSchema = yup.object({
-  token: yup.string().trim().required('Informe o código do e-mail.'),
+  otp: yup
+    .string()
+    .trim()
+    .required('Informe o código de 6 dígitos.')
+    .matches(/^\d{6}$/, 'O código tem 6 dígitos.'),
   newPassword: senhaForteRule('A nova senha'),
   confirmPassword: yup
     .string()

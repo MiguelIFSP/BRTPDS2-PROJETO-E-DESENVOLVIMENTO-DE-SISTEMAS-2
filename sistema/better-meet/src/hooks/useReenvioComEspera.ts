@@ -4,10 +4,14 @@ export const ESPERA_REENVIO_SEGUNDOS = 60;
 
 /**
  * Contagem para o botão "Reenviar": `start()` bloqueia o reenvio por
- * `seconds` segundos; `canResend` volta a ser verdadeiro em 0.
+ * `seconds` segundos; `canResend` volta a ser verdadeiro em 0. Com
+ * `startNow`, a tela já abre em espera (o envio acabou de acontecer).
  */
-export function useReenvioComEspera(seconds = ESPERA_REENVIO_SEGUNDOS) {
-  const [secondsLeft, setSecondsLeft] = useState(0);
+export function useReenvioComEspera(
+  seconds = ESPERA_REENVIO_SEGUNDOS,
+  { startNow = false }: { startNow?: boolean } = {},
+) {
+  const [secondsLeft, setSecondsLeft] = useState(startNow ? seconds : 0);
 
   useEffect(() => {
     if (secondsLeft <= 0) return;
