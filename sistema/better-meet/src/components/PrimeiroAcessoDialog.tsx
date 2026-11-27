@@ -56,7 +56,7 @@ export default function PrimeiroAcessoDialog() {
 
   const openManual = async () => {
     await close();
-    router.push('/manual');
+    router.push('/mais/manual');
   };
 
   return (

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals';
 import { fireEvent, render, screen } from '@testing-library/react-native';
 
-import ManualScreen from '@/app/manual';
+import ManualScreen from '@/app/(tabs)/mais/manual';
 import { exportManualPdf } from '@/utils/manualPdf';
 
 jest.mock('expo-router', () => ({

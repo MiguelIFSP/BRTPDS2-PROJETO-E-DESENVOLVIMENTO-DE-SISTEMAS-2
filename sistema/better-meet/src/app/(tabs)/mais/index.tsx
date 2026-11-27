@@ -2,8 +2,8 @@ import {
   Ionicons,
   type IoniconsIconName,
 } from '@react-native-vector-icons/ionicons';
-import { useRouter, type Href } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useLocalSearchParams, useRouter, type Href } from 'expo-router';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import Avatar from '@/components/ui/Avatar';
 import Button from '@/components/ui/Button';
@@ -97,7 +97,7 @@ export default function MaisScreen() {
             <Button
               label="Abrir manual do usuário"
               icon="book-outline"
-              onPress={() => router.push('/manual')}
+              onPress={() => router.push('/mais/manual')}
             />
           </View>
         </Card>

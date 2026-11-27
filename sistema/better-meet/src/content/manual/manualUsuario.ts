@@ -63,8 +63,8 @@ const MANUAL_CAPITULOS = [
         steps: [
           'Reuniões mostra compromissos próximos, histórico e convites recebidos.',
           'Organizações mostra as organizações de que você participa e as solicitações que criou.',
-          'Comissões lista as comissões ligadas às organizações às quais você tem acesso.',
-          'Mais reúne Ajuda, sua conta, status dos serviços, relatórios e preferência de tema. O sino no cabeçalho abre convites e avisos.',
+          'Comissões mostra, em cada uma das suas organizações, somente as comissões de cuja equipe você faz parte.',
+          'Mais reúne Ajuda, sua conta, Segurança (no celular), status dos serviços, relatórios e preferência de tema. O sino no cabeçalho abre convites e avisos.',
         ],
       },
     ],
@@ -105,7 +105,8 @@ const MANUAL_CAPITULOS = [
         kind: 'section',
         title: 'Confirmar o e-mail',
         steps: [
-          'Abra a mensagem enviada pelo Better Meet e toque no link de confirmação. Depois volte ao aplicativo.',
+          'Abra a mensagem enviada pelo Better Meet e toque no link de confirmação. O navegador abre uma página com o resultado, como “E-mail confirmado”. Depois volte ao aplicativo e entre com seu e-mail e senha.',
+          'Se a página mostrar “Link expirado” ou “Link inválido” e o e-mail ainda não estiver confirmado, tente entrar no aplicativo para receber um novo link.',
           'Se a mensagem não chegar, confira a pasta de spam. Na tela de confirmação, use “Reenviar e-mail” quando o contador liberar o botão.',
           'Toque em “Já confirmei, entrar” para voltar ao login e acessar a conta.',
         ],
@@ -122,14 +123,16 @@ const MANUAL_CAPITULOS = [
         kind: 'section',
         title: 'Recuperar a senha',
         steps: [
-          'Para redefinir a senha, toque em “Esqueceu a senha?”, informe o e-mail e abra a mensagem recebida. O link vale por 30 minutos.',
-          'No formulário Nova senha, siga o link ou informe o código da mensagem, defina e confirme a nova senha e toque em “Redefinir senha”. Ao terminar, entre usando a nova senha.',
+          'Toque em “Esqueceu a senha?”. Na tela “Recuperar conta”, informe o e-mail e toque em “Enviar código”.',
+          'Abra a mensagem recebida. Ela traz um código de 6 dígitos, que vale por 15 minutos e só pode ser usado uma vez.',
+          'Na tela “Nova senha”, digite o código, defina e confirme a nova senha e toque em “Redefinir senha”. Ao terminar, entre usando a nova senha.',
+          'Se precisar, use “Reenviar código” quando o contador liberar o botão, ou “Trocar e-mail” para voltar ao passo anterior. Um código novo substitui o anterior.',
         ],
       },
       {
         kind: 'note',
         title: 'Mensagem de recuperação',
-        text: 'Por segurança, o aplicativo mostra a mesma confirmação mesmo que o e-mail não esteja cadastrado. Se o link vencer ou já tiver sido usado, solicite outro pela tela “Esqueceu a senha?”.',
+        text: 'Por segurança, o aplicativo mostra a mesma confirmação mesmo que o e-mail não esteja cadastrado. Se o código vencer ou depois de 3 tentativas erradas, peça outro. Contas que entram somente com o Google recebem um aviso, sem código.',
       },
     ],
   },
@@ -169,6 +172,7 @@ const MANUAL_CAPITULOS = [
         title: 'Consultar e criar comissões',
         steps: [
           'Depois que a organização for aprovada, abra Comissões e selecione a organização desejada.',
+          'A lista mostra somente as comissões de cuja equipe você faz parte. Se não houver nenhuma, aparece a mensagem “Você ainda não participa de nenhuma comissão nesta organização.”.',
           'Toque em uma comissão para consultar sua descrição, equipe e papel de cada integrante.',
           'Se o botão “Criar comissão” estiver disponível para seu papel, informe o nome, adicione uma descrição se quiser e envie o formulário.',
           'Se aparecer a mensagem de que você ainda não participa de uma organização aprovada, aguarde a aprovação ou peça acesso à organização correta.',
@@ -200,7 +204,7 @@ const MANUAL_CAPITULOS = [
         title: 'Etapa 1 — Título e comissão',
         steps: [
           'Toque no botão + e informe o título da reunião.',
-          'Selecione uma comissão à qual você tem acesso.',
+          'Selecione uma comissão de cuja equipe você faz parte. Se você não participar de nenhuma, não é possível criar reuniões: peça a quem administra uma comissão para incluir você na equipe.',
           'Convidar participantes é opcional. Se quiser convidar alguém, selecione membros da comissão; cada pessoa só passa a participar depois que aceita o convite.',
         ],
       },
@@ -285,7 +289,7 @@ const MANUAL_CAPITULOS = [
         steps: [
           'Toque no sino e localize o convite em “Convites pendentes”. Confira título, data, horário, comissão e local.',
           'Toque em “Aceitar” para participar ou “Recusar” para não participar.',
-          'A tela permite responder enquanto o convite está pendente. Depois da resposta, ele deixa essa lista e os botões de resposta não ficam mais disponíveis nesse cartão.',
+          'Depois da resposta, o convite sai da lista de pendentes, e a reunião continua na aba Reuniões. Se você recusou, o cartão dela mostra a marca “Recusado”.',
         ],
       },
       {
@@ -294,6 +298,24 @@ const MANUAL_CAPITULOS = [
         alt: 'Convite pendente de reunião com informações e botões Aceitar e Recusar.',
         caption: 'Confira os dados antes de aceitar ou recusar o convite.',
         aspectRatio: 1.026,
+      },
+      {
+        kind: 'section',
+        title: 'Mudar a resposta',
+        steps: [
+          'Abra a reunião. No cartão “Seu convite”, use “Recusar convite” ou “Aceitar convite”. A resposta pode mudar até o término da reunião, exceto se ela for cancelada.',
+          'Não é possível recusar depois de registrar presença ou votar na reunião, nem depois de ter presença, saída ou retorno anotados na lista de presença.',
+          'Quem recusa continua vendo os dados da reunião, mas precisa aceitar o convite para acessar arquivos, votações e ata.',
+        ],
+      },
+      {
+        kind: 'section',
+        title: 'Reenviar um convite, quando permitido',
+        steps: [
+          'Quem administra a reunião pode usar “Reenviar” em “Convites sem aceite” ou, para quem já aceitou, na lista de participantes. A pessoa convidada recebe de novo o e-mail, e o convite volta aos pendentes.',
+          'Ao reenviar para quem já aceitou, o aplicativo pede confirmação, e a pessoa sai dos participantes até responder de novo.',
+          'O reenvio não vale para reunião cancelada, realizada ou encerrada, para quem saiu da comissão, nem para quem aceitou e já registrou presença ou votou.',
+        ],
       },
       {
         kind: 'section',
@@ -331,7 +353,7 @@ const MANUAL_CAPITULOS = [
       {
         kind: 'note',
         title: 'O que o registro confirma',
-        text: 'O registro grava a ação feita pela sua conta. O aplicativo não usa biometria nem verifica sua localização física para comprovar que você está no local da reunião.',
+        text: 'No celular, antes de registrar a entrada ou a saída, o aplicativo pede a biometria ou o PIN, padrão ou senha de tela do aparelho; na web, pede uma confirmação na tela. Se o aparelho não tiver esse bloqueio, configure-o ou peça o registro a quem administra a comissão. O aplicativo não verifica sua localização física.',
       },
       {
         kind: 'section',
@@ -339,6 +361,7 @@ const MANUAL_CAPITULOS = [
         steps: [
           'Em uma conta comum, “Ver lista de presença” aparece para quem criou a reunião ou tem o papel Administrador naquela comissão.',
           'Na lista, consulte o estado Presente, Ausente ou Sem marcação e os horários de entrada e saída registrados para cada pessoa.',
+          'Quem recusou o convite só aparece se tiver registro, marcação, observação, saída ou retorno na reunião.',
           'A lista pode ser consultada a qualquer momento, mas só pode ser alterada a partir do horário de início da reunião.',
           'Uma pessoa autorizada pode ajustar a marcação manual, registrar uma saída no meio da reunião e o horário de retorno. O motivo da saída é opcional; Observações pode guardar informações adicionais.',
           'A exportação em PDF só fica disponível depois que a reunião for encerrada. Reuniões canceladas não podem ser exportadas.',
@@ -451,6 +474,16 @@ const MANUAL_CAPITULOS = [
         caption:
           'A alteração de senha exige a senha atual e a confirmação do novo valor.',
         aspectRatio: 0.503,
+      },
+      {
+        kind: 'section',
+        title: 'Segurança: desbloqueio do app',
+        steps: [
+          'No aplicativo para Android ou iPhone, depois do primeiro login com e-mail e senha, pode aparecer a pergunta “Abrir o app com PIN ou biometria?”. Toque em “Usar PIN ou biometria” ou em “Agora não”.',
+          'Para ligar ou desligar depois, abra Mais, procure a seção Segurança e toque em “Desbloqueio do app”. O aparelho precisa ter biometria, PIN, padrão ou senha de tela cadastrados.',
+          'Com o recurso ligado, escolha quanto tempo o app pode ficar em segundo plano antes de pedir o desbloqueio de novo: Imediatamente, 1, 5 ou 15 minutos.',
+          'Na tela de bloqueio, use “Tentar de novo” ou “Entrar com e-mail e senha”. A segunda opção encerra a sessão e volta ao login.',
+        ],
       },
       {
         kind: 'section',

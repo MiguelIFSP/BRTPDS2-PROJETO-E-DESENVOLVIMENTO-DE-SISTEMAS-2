@@ -61,7 +61,8 @@ const formatarData = (data: string) => {
 const rotuloConvite = (status: ParticipanteListaPresenca['convite']) => {
   if (status === 'ACEITO') return 'Convite aceito';
   if (status === 'PENDENTE') return 'Convite pendente';
-  return status === null ? 'Participante da reunião' : 'Registro existente';
+  if (status === 'RECUSADO') return 'Convite recusado';
+  return 'Participante da reunião';
 };
 
 export default function ListaPresencaScreen() {

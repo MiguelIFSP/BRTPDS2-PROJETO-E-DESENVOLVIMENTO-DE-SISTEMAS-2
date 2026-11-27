@@ -57,6 +57,7 @@ const reuniaoSelect = {
       status: true,
       observacao: true,
       updatedAt: true,
+      user: { select: { name: true, email: true } },
       marcadoPor: { select: { name: true } },
     },
   },
@@ -70,6 +71,7 @@ const reuniaoSelect = {
       motivo: true,
       createdAt: true,
       registradoPor: { select: { name: true } },
+      user: { select: { name: true, email: true } },
     },
   },
 } satisfies Prisma.ReuniaoSelect;
@@ -116,6 +118,13 @@ const exigirReuniaoIniciada = (
   }
 };
 
+// Marcação, observação ou evento mantêm a pessoa na lista, qualquer que seja o
+// convite: o que já foi anotado não pode sumir da consulta nem do PDF.
+const anotacoesDaReuniao = (reuniao: ReuniaoLista) => [
+  ...reuniao.presencasManuais,
+  ...reuniao.eventosPresenca,
+];
+
 const participantesDaReuniao = (reuniao: ReuniaoLista) => {
   const porId = new Map<
     number,
@@ -128,8 +137,16 @@ const participantesDaReuniao = (reuniao: ReuniaoLista) => {
     }
   >();
 
+  const anotacoes = anotacoesDaReuniao(reuniao);
+  const anotados = new Set(anotacoes.map((anotacao) => anotacao.userId));
+
   for (const convite of reuniao.convites) {
-    if (convite.status === StatusConviteReuniao.RECUSADO) continue;
+    if (
+      convite.status === StatusConviteReuniao.RECUSADO &&
+      !anotados.has(convite.userId)
+    ) {
+      continue;
+    }
     const vinculo = reuniao.comissao.equipe.find(
       (membro) => membro.userId === convite.userId,
     );
@@ -170,6 +187,21 @@ const participantesDaReuniao = (reuniao: ReuniaoLista) => {
         convite: null,
       });
     }
+  }
+
+  // Sem convite (ex.: removido ao sair da organização).
+  for (const anotacao of anotacoes) {
+    if (porId.has(anotacao.userId)) continue;
+    const vinculo = reuniao.comissao.equipe.find(
+      (membro) => membro.userId === anotacao.userId,
+    );
+    porId.set(anotacao.userId, {
+      userId: anotacao.userId,
+      nome: anotacao.user.name,
+      email: anotacao.user.email,
+      papel: vinculo?.papel ?? null,
+      convite: null,
+    });
   }
 
   return [...porId.values()].sort((left, right) =>
@@ -258,9 +290,13 @@ const exigirParticipante = (reuniao: ReuniaoLista, userId: number) => {
     (registro) => registro.userId === userId,
   );
   const isCreator = reuniao.criadoPorUserId === userId;
+  const temAnotacao = anotacoesDaReuniao(reuniao).some(
+    (anotacao) => anotacao.userId === userId,
+  );
   if (
     !isCreator &&
     !temRegistro &&
+    !temAnotacao &&
     (!convite || convite.status === StatusConviteReuniao.RECUSADO)
   ) {
     throw new AppError(404, 'Participante não encontrado nesta reunião.');
@@ -348,6 +384,14 @@ export const listaPresencaService = {
             where: { userId: participanteId },
             select: { entradaAt: true },
           },
+          presencasManuais: {
+            where: { userId: participanteId },
+            select: { userId: true },
+          },
+          eventosPresenca: {
+            where: { userId: participanteId },
+            select: { userId: true },
+          },
         },
       });
       if (!reuniao) throw new AppError(404, 'Reunião não encontrada.');
@@ -358,6 +402,8 @@ export const listaPresencaService = {
       if (
         reuniao.criadoPorUserId !== participanteId &&
         !reuniao.registros[0] &&
+        !reuniao.presencasManuais.length &&
+        !reuniao.eventosPresenca.length &&
         (!convite || convite.status === StatusConviteReuniao.RECUSADO)
       ) {
         throw new AppError(404, 'Participante não encontrado nesta reunião.');

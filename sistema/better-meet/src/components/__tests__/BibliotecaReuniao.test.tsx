@@ -18,7 +18,9 @@ jest.mock('@/services/arquivoReuniaoService', () => ({
   },
 }));
 
-const list = arquivoReuniaoService.list as unknown as jest.Mock;
+const list = arquivoReuniaoService.list as unknown as jest.Mock<
+  () => Promise<unknown>
+>;
 
 const arquivo = {
   id: 3,

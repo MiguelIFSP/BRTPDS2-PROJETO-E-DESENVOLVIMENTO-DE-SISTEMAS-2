@@ -6,6 +6,7 @@ import {
 } from '@prisma/client';
 import prisma from '../config/database.ts';
 import { presencaService } from './presencaService.ts';
+import { assertRecusaSemPresenca } from './recusaConviteService.ts';
 import { env } from '../config/env.ts';
 import { AppError } from '../errors/AppError.ts';
 import { emailService, type Destinatario } from './emailService.ts';
@@ -675,6 +676,8 @@ export const reuniaoService = {
     inviteId: number,
     status: StatusConviteReuniao,
   ) {
+    await assertRecusaSemPresenca(userId, inviteId, status);
+
     const convite = await prisma.conviteReuniao.findUnique({
       where: { id: inviteId },
       select: {
