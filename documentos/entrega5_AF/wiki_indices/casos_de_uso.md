@@ -100,6 +100,26 @@ Para mais detalhes, consulte o [detalhamento deste caso de uso](https://github.c
 
 # Diagramas de sequência - entrega final
 
-- [DS ‐ Ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata)
-- [DS ‐ Comissões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Comiss%C3%B5es)
-- [DS ‐ Presença](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Presen%C3%A7a)
+Este índice reúne os diagramas de sequência publicados pelos integrantes da equipe, incluindo os módulos da entrega final e os documentos dos demais módulos. Cada link mantém o conteúdo e a autoria da página de destino.
+
+- [DS - Ata](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Ata)
+- [DS - Cadastro de usuário](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Cadastro-de-usu%C3%A1rio)
+- [DS - Comissões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Comiss%C3%B5es)
+- [DS - Configurações do usuário](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Configura%C3%A7%C3%B5es-do-usu%C3%A1rio)
+- [DS - Histórico de reuniões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Hist%C3%B3rico-de-reuni%C3%B5es)
+- [DS - Lista de presença](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Lista-de-presen%C3%A7a)
+- [DS - Manual do usuário](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Manual-do-usu%C3%A1rio)
+- [DS - Organizações](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Organiza%C3%A7%C3%B5es)
+- [DS - Presença](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Presen%C3%A7a)
+- [DS - Reuniões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Reuni%C3%B5es)
+- [DS - Votações](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/DS-%E2%80%90-Vota%C3%A7%C3%B5es)
+
+## Sequências de monitoramento e gestão
+
+Os diagramas abaixo estão publicados dentro das páginas de requisitos. Os links direcionam para a seção de sequência de cada documento; a indicação de revisão existente nessas páginas permanece preservada.
+
+- [Status do sistema e dos subsistemas](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-RF35#diagrama-de-sequência)
+- [Relatórios de usuários, organizações e comissões](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-RF36#diagrama-de-sequência)
+- [Reinicialização de subsistemas](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-RF37#diagrama-de-sequência)
+- [Setup inicial e inicialização do sistema](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-RF38#diagrama-de-sequência)
+- [Reset do sistema](https://github.com/MiguelIFSP/BRTPDS2-PROJETO-E-DESENVOLVIMENTO-DE-SISTEMAS-2/wiki/%28revisar%29-RF39#diagrama-de-sequência)
