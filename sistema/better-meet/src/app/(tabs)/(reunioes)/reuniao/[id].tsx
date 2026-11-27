@@ -518,25 +518,27 @@ export default function ReuniaoDetalheScreen() {
                         : colors.textSecondary
                     }
                   />
-                  <Text
-                    style={[styles.participantName, { color: colors.text }]}
-                  >
-                    {participante.nome}
-                  </Text>
-                  <Text
-                    style={[
-                      styles.participantStatus,
-                      { color: colors.textSecondary },
-                    ]}
-                  >
-                    {presence}
-                    {participante.registro?.origemEntrada === 'MANUAL'
-                      ? ' · Entrada manual'
-                      : ''}
-                    {participante.registro?.origemSaida === 'MANUAL'
-                      ? ' · Saída manual'
-                      : ''}
-                  </Text>
+                  <View style={styles.participantInfo}>
+                    <Text
+                      style={[styles.participantName, { color: colors.text }]}
+                    >
+                      {participante.nome}
+                    </Text>
+                    <Text
+                      style={[
+                        styles.participantStatus,
+                        { color: colors.textSecondary },
+                      ]}
+                    >
+                      {presence}
+                      {participante.registro?.origemEntrada === 'MANUAL'
+                        ? ' · Entrada manual'
+                        : ''}
+                      {participante.registro?.origemSaida === 'MANUAL'
+                        ? ' · Saída manual'
+                        : ''}
+                    </Text>
+                  </View>
                   {token &&
                   reuniao.podeGerirPresenca &&
                   participante.userId !== user?.id ? (
@@ -750,11 +752,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
   },
-  participantName: {
-    ...Typography.body,
-    fontFamily: FontFamily.medium,
-    flex: 1,
-  },
+  // Nome e status em coluna própria: soltos na linha com flexWrap, o status
+  // longo após a marcação manual espremia o nome até uma letra por linha.
+  participantInfo: { flex: 1, minWidth: 0, gap: Spacing.xs },
+  participantName: { ...Typography.body, fontFamily: FontFamily.medium },
   participantStatus: { ...Typography.bodySmall },
   conviteStatus: { ...Typography.body, fontFamily: FontFamily.medium },
   deleteButton: { alignSelf: 'flex-start' },
